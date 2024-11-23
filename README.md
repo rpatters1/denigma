@@ -1,6 +1,6 @@
 # musx2mnx command line utility
 
-This convert as  extracts the Enigma XML from a Finale `.musx` file. It has no external dependencies.
+This utility as extracts and converts Enigma XML from a Finale `.musx` file. It has no external dependencies.
 
 ## Setup Instructions
 

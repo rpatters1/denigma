@@ -21,8 +21,8 @@ set(BUILD_SHARED_LIBS OFF)
 
 # Define output directory for executables
 set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/build")
-set(MINIZ_DIR "miniz")
-set(EZGZ_DIR "ezgz")
+set(MINIZ_DIR "submodules/miniz")
+set(EZGZ_DIR "submodules/ezgz")
 
 # Set output directory for compiled executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})

@@ -1,0 +1,6 @@
+[submodule "submodules/EzGz"]
+	path = submodules/EzGz
+	url = git@github.com:Dugy/EzGz.git
+[submodule "submodules/miniz"]
+	path = submodules/miniz
+	url = git@github.com:tfussell/miniz-cpp.git
