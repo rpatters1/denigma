@@ -28,6 +28,8 @@
 
 #include "zip_file.hpp"		// miniz submodule (for zip)
 #include "ezgz.hpp"			// ezgz submodule (for gzip)
+#include "nlohmann/json.hpp"
+#include "nlohmann/json-schema.hpp"
 
 #include "scorefilecrypter.h"
 

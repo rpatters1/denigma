@@ -30,12 +30,16 @@ set(BUILD_SHARED_LIBS OFF)
 set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/build")
 set(MINIZ_DIR "submodules/miniz")
 set(EZGZ_DIR "submodules/ezgz")
+set(NLOHMANN_JSON_DIR "submodules/nlohmann_json")
+set(JSON_SCHEMA_VALIDATOR_DIR "submodules/json_schema_validator")
 
 # Set output directory for compiled executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 
 # Include directories for your source files
 include_directories(src)
+add_subdirectory(${NLOHMANN_JSON_DIR})
+add_subdirectory(${JSON_SCHEMA_VALIDATOR_DIR})
 
 # Add executable target
 add_executable(musx2mnx src/main.cpp)
@@ -43,3 +47,5 @@ add_executable(musx2mnx src/main.cpp)
 # Ensure the include directories ar added
 target_include_directories(musx2mnx PRIVATE ${EZGZ_DIR})
 target_include_directories(musx2mnx PRIVATE ${MINIZ_DIR})
+target_link_libraries(musx2mnx PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(musx2mnx PRIVATE nlohmann_json_schema_validator)
