@@ -87,7 +87,7 @@ static bool processMusxFile(const std::filesystem::path& musxFilePath)
         std::filesystem::path retval = musxFilePath;
         return retval.replace_extension(ENIGMAXML_EXTENSION);
     }();
-    const std::vector<char> xmlBuffer = extractEnigmaXml(musxFilePath);
+    const std::vector<char> xmlBuffer = extractEnigmaXml(musxFilePath.string());
     if (xmlBuffer.size() <= 0) {
         std::cerr << "Failed to extract enigmaxml " << musxFilePath << std::endl;
         return false;
@@ -166,7 +166,7 @@ int main(int argc, char* argv[]) {
     }
 
     const std::filesystem::path inputFilePath = argv[1];
-    if (!std::filesystem::is_regular_file(inputFilePath) || ! isValidExtension(inputFilePath.extension())) {
+    if (!std::filesystem::is_regular_file(inputFilePath) || ! isValidExtension(inputFilePath.extension().string())) {
         return showHelp(programName);
     }
 
