@@ -18,14 +18,15 @@ brew install cmake
 
 ### Windows-Specific
 
-You must install cmake. The easiest way is with a package manager such as Choclatey (`choco`).
+You must install cmake and xxd. The easiest way is with a package manager such as Choclatey (`choco`).
 
 [Choclatey install instructions](https://chocolatey.org/install)
 
-Install the latest cmake
+Install the latest cmake and xxd
 
 ```bat
 choco install cmake
+choco install xxd
 ```
 ---
 
