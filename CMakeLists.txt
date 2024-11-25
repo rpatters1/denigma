@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Project name and version
-project(musx2mnx VERSION 1.0)
+project(musx2mnx VERSION 0.1)
 
 # Specify C++ standard and minimum macOS version
 set(CMAKE_CXX_STANDARD 17)

@@ -1,3 +1,25 @@
+/*
+ * Copyright (C) 2024, Robert Patterson
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -7,39 +29,23 @@
 #include "zip_file.hpp"		// miniz submodule (for zip)
 #include "ezgz.hpp"			// ezgz submodule (for gzip)
 
+#include "scorefilecrypter.h"
+
 constexpr char MUSX_EXTENSION[]		    = ".musx";
 constexpr char ENIGMAXML_EXTENSION[]    = ".enigmaxml";
 constexpr char SCORE_DAT_NAME[] 		= "score.dat";
 
-// Shout out to Deguerre https://github.com/Deguerre
-struct ScoreFileCrypter
-{
-    constexpr static uint32_t INITIAL_STATE = 0x28006D45;
-
-    static void cryptBuffer(std::string& buffer)
-    {
-        uint32_t state = INITIAL_STATE;
-        int i = 0;
-        for (size_t i = 0; i < buffer.size(); i++) {
-            if (i % 0x20000 == 0) {
-                state = INITIAL_STATE;
-            }
-            state = state * 0x41c64e6d + 0x3039; // BSD rand()!
-            uint16_t upper = state >> 16;
-            uint8_t c = upper + upper / 255;
-            buffer[i] ^= c;
-        }
-    }
-};
-
 static std::vector<char> extractEnigmaXml(const std::string& zipFile)
 {
-    try {
+    try
+    {
         miniz_cpp::zip_file zip(zipFile.c_str());
         std::string buffer = zip.read(SCORE_DAT_NAME);
         ScoreFileCrypter::cryptBuffer(buffer);
         return EzGz::IGzFile<>({reinterpret_cast<uint8_t *>(buffer.data()), buffer.size()}).readAll();
-    } catch (const std::exception &ex) {
+    }
+    catch (const std::exception &ex)
+    {
         std::cout << "Error: unable to extract enigmaxml from file " << zipFile << " (exception: " << ex.what() << ")" << std::endl;
     }
     return {};
