@@ -4,3 +4,9 @@
 [submodule "submodules/miniz"]
 	path = submodules/miniz
 	url = git@github.com:tfussell/miniz-cpp.git
+[submodule "submodules/nlohmann_json"]
+	path = submodules/nlohmann_json
+	url = git@github.com:nlohmann/json.git
+[submodule "submodules/json_schema_validator"]
+	path = submodules/json_schema_validator
+	url = git@github.com:pboettch/json-schema-validator.git
