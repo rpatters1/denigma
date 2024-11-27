@@ -1,4 +1,4 @@
-# musx2mnx command line utility
+# musxconvert command line utility
 
 This utility as extracts and converts Enigma XML from a Finale `.musx` file. It has no external dependencies.
 
@@ -94,7 +94,7 @@ or (for Linux or macOS)
             "name": "C++ Debug (codeLLDB)",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/build/musx2mnx",
+            "program": "${workspaceFolder}/build/build/musxconvert",
             "args": [], // specify command line arguments here for testing
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,

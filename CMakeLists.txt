@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Project name and version
-project(musx2mnx VERSION 0.1)
+project(musxconvert VERSION 0.1)
 
 # Specify C++ standard and minimum macOS version
 set(CMAKE_CXX_STANDARD 17)
@@ -18,10 +18,10 @@ if(MSVC)
 endif()
 
 add_compile_definitions(
-    MUSX2MNX_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
-    MUSX2MNX_VERSION_MINOR=${PROJECT_VERSION_MINOR}
-    MUSX2MNX_VERSION_PATCH=${PROJECT_VERSION_PATCH}
-    MUSX2MNX_VERSION="${PROJECT_VERSION}"
+    MUSXCONVERT_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+    MUSXCONVERT_VERSION_MINOR=${PROJECT_VERSION_MINOR}
+    MUSXCONVERT_VERSION_PATCH=${PROJECT_VERSION_PATCH}
+    MUSXCONVERT_VERSION="${PROJECT_VERSION}"
 )
 
 set(BUILD_SHARED_LIBS OFF)
@@ -47,12 +47,12 @@ add_subdirectory(${JSON_SCHEMA_VALIDATOR_DIR})
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 
 # Add executable target
-add_executable(musx2mnx src/main.cpp)
+add_executable(musxconvert src/main.cpp)
 
 # Ensure the include directories ar added
-add_dependencies(musx2mnx GenerateMnxSchemaXxd)
-target_include_directories(musx2mnx PRIVATE ${GENERATED_DIR})
-target_include_directories(musx2mnx PRIVATE ${EZGZ_DIR})
-target_include_directories(musx2mnx PRIVATE ${MINIZ_DIR})
-target_link_libraries(musx2mnx PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(musx2mnx PRIVATE nlohmann_json_schema_validator)
+add_dependencies(musxconvert GenerateMnxSchemaXxd)
+target_include_directories(musxconvert PRIVATE ${GENERATED_DIR})
+target_include_directories(musxconvert PRIVATE ${EZGZ_DIR})
+target_include_directories(musxconvert PRIVATE ${MINIZ_DIR})
+target_link_libraries(musxconvert PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(musxconvert PRIVATE nlohmann_json_schema_validator)
