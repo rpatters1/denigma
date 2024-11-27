@@ -10,3 +10,6 @@
 [submodule "submodules/json_schema_validator"]
 	path = submodules/json_schema_validator
 	url = git@github.com:pboettch/json-schema-validator.git
+[submodule "submodules/musx_object_model"]
+	path = submodules/musx_object_model
+	url = git@github.com:rpatters1/musx-object-model.git

@@ -32,7 +32,7 @@
 #include "nlohmann/json-schema.hpp"
 #include "mnx_schema.xxd"
 
-#include "score_file_encoder.h"
+#include "musx/musx.h"
 
 constexpr char MUSX_EXTENSION[]		    = ".musx";
 constexpr char JSON_EXTENSION[]		    = ".json";
