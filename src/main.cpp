@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::string programName = std::filesystem::path(argv[0]).stem().string();
-    std::cout << programName << " " << MUSX2MNX_VERSION << std::endl;
+    std::cout << programName << " " << MUSXCONVERT_VERSION << std::endl;
 
     if (argc < 2) {
         return showHelp(programName);
