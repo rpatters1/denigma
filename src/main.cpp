@@ -45,7 +45,7 @@ static std::vector<char> extractEnigmaXml(const std::string& zipFile)
     {
         miniz_cpp::zip_file zip(zipFile.c_str());
         std::string buffer = zip.read(SCORE_DAT_NAME);
-        musx::ScoreFileEncoder::cryptBuffer(buffer);
+        musx::ScoreFileEncoder::recodeBuffer(buffer);
         return EzGz::IGzFile<>({reinterpret_cast<uint8_t *>(buffer.data()), buffer.size()}).readAll();
     }
     catch (const std::exception &ex)
