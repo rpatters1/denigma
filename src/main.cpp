@@ -37,10 +37,77 @@
 #define MUSX_USE_TINYXML2
 #include "musx/xml/TinyXmlImpl.h"
 
-constexpr char MUSX_EXTENSION[]		    = ".musx";
-constexpr char JSON_EXTENSION[]		    = ".json";
-constexpr char ENIGMAXML_EXTENSION[]    = ".enigmaxml";
+constexpr char MUSX_EXTENSION[]		    = "musx";
+constexpr char ENIGMAXML_EXTENSION[]    = "enigmaxml";
+constexpr char MNX_EXTENSION[]		    = "mnx";
+constexpr char MSS_EXTENSION[]		    = "mss";
+
 constexpr char SCORE_DAT_NAME[] 		= "score.dat";
+
+// Define the processor type
+using FormatProcessor = bool(*)(const std::string&);
+
+// Input format processors
+constexpr auto inputProcessors = []() {
+    struct InputProcessor {
+        const char* extension;
+        FormatProcessor processor;
+    };
+
+    return std::array<InputProcessor, 2>{{
+        {   MUSX_EXTENSION,
+            [](const std::string &file) -> bool {
+                std::cout << "Parsing .musx file: " << file << "\n";
+                return true;
+            }
+        },
+        {
+            ENIGMAXML_EXTENSION,
+            [](const std::string &file) -> bool {
+                std::cout << "Parsing .enigmaxml file: " << file << "\n";
+                return true;\
+            }
+        },
+    }};
+}();
+
+// Output format processors
+constexpr auto outputProcessors = []() {
+    struct OutputProcessor {
+        const char* extension;
+        FormatProcessor processor;
+    };
+
+    return std::array<OutputProcessor, 3>{{
+        {MSS_EXTENSION, [](const std::string& file) -> bool {
+                std::cout << "Serializing to .mss file: " << file << "\n";
+                return true;
+            }
+        },
+        {ENIGMAXML_EXTENSION, [](const std::string& file) -> bool {
+                std::cout << "Serializing to .enigmaxml file: " << file << "\n";
+                return true;
+            }
+        },
+        {MNX_EXTENSION, [](const std::string& file) -> bool {
+                std::cout << "Serializing to .mnx file: " << file << "\n";
+                return true;
+            }
+        },
+    }};
+}();
+
+// Function to find the appropriate processor
+template <typename Processors>
+FormatProcessor findProcessor(const Processors& processors, const std::string& key) {
+    for (const auto& p : processors) {
+        if (key == p.extension) {
+            return p.processor;
+        }
+    }
+    throw std::invalid_argument("Unsupported format: " + key);
+}
+
 
 static std::vector<char> extractEnigmaXml(const std::string& zipFile)
 {
@@ -148,19 +215,39 @@ static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath)
     return false;
 }
 
-static bool isValidExtension(const std::string& extension)
-{
-    if (extension == MUSX_EXTENSION) {
-        return true;
-    } else if (extension == JSON_EXTENSION) {
-        return true;
-    }
-    return false;
-}
-
 static int showHelp(const std::string& programName)
 {
-    std::cerr << "Usage: " << programName << " <musx|json file>" << std::endl;
+    // Print usage
+    std::cerr << "Usage: " << programName << " <input file> [--output options]" << std::endl;
+    std::cerr << std::endl;
+
+    // General options
+    std::cerr << "General options:" << std::endl;
+    std::cerr << "  --help                 Show this help message and exit" << std::endl;
+    std::cerr << "  --version              Show program version and exit" << std::endl;
+    std::cerr << std::endl;
+
+    // Supported input formats
+    std::cerr << "Supported input formats:" << std::endl;
+    for (const auto& input : inputProcessors) {
+        std::cerr << "  *." << input.extension << std::endl;
+    }
+    std::cerr << std::endl;
+
+    // Supported output formats
+    std::cerr << "Supported output options:" << std::endl;
+    for (const auto& output : outputProcessors) {
+        std::cerr << "  --" << output.extension << " [optional filepath]" << std::endl;
+    }
+    std::cerr << std::endl;
+
+    // Example usage
+    std::cerr << "Examples:" << std::endl;
+    std::cerr << "  " << programName << " input.musx --mss output.mss" << std::endl;
+    std::cerr << "  " << programName << " input.musx --enigmaxml output.enigmaxml" << std::endl;
+    std::cerr << "  " << programName << " input.enigmaxml --mnx --mss" << std::endl;
+    std::cerr << "  " << programName << " input.musx --enigmaxml" << std::endl;
+
     return 1;
 }
 
@@ -171,27 +258,52 @@ int main(int argc, char* argv[]) {
     }
 
     std::string programName = std::filesystem::path(argv[0]).stem().string();
-    std::cout << programName << " " << MUSXCONVERT_VERSION << std::endl;
 
     if (argc < 2) {
         return showHelp(programName);
     }
+    std::string firstArg = argv[1];
+    if (firstArg == "--version") {
+        std::cout << programName << " " << MUSXCONVERT_VERSION << std::endl;
+        return 0;
+    }
+    if (firstArg == "--help") {
+        showHelp(programName);
+        return 0;
+    }
 
-    const std::filesystem::path inputFilePath = argv[1];
-    if (!std::filesystem::is_regular_file(inputFilePath) || ! isValidExtension(inputFilePath.extension().string())) {
+    const std::filesystem::path inputFilePath = firstArg;
+    const std::string inputExtension = inputFilePath.extension().string().substr(1);
+    if (!std::filesystem::is_regular_file(inputFilePath))
+    {
         return showHelp(programName);
     }
 
-    const bool success = [inputFilePath]() -> bool
-    {
-        if (inputFilePath.extension() == MUSX_EXTENSION) {
-            return processMusxFile(inputFilePath);
-        } else if (inputFilePath.extension() == JSON_EXTENSION) {
-            return validateJsonAgainstSchema(inputFilePath);
+    try {
+        // Find and call the input processor
+        auto inputProcessor = findProcessor(inputProcessors, inputExtension);
+        if (!inputProcessor(inputFilePath.string())) {
+            std::cout << "Unsupported input file extension: " << inputFilePath.extension() << std::endl;
+            return showHelp(programName);
         }
-        std::cout << "Unsupported file extension: " << inputFilePath.extension() << std::endl;
-        return false;
-    }();
 
-    return !success;
+        // Process output options
+        for (int i = 2; i < argc; ++i) {
+            std::string option = argv[i];
+            if (option.rfind("--", 0) == 0) {  // Options start with "--"
+                std::string outputFormat = option.substr(2);
+                std::string outputFilePath = (i + 1 < argc && argv[i + 1][0] != '-') ? argv[++i] : "stdout";
+
+                auto outputProcessor = findProcessor(outputProcessors, outputFormat);
+                if (!outputProcessor(outputFilePath)) {
+                    std::cerr << "Unable to convert to . " << outputFormat << "format" << std::endl;
+                }
+            }
+        }
+    } catch (const std::invalid_argument& e) {
+        std::cerr << "Error processing input file: " << e.what() << std::endl;
+        return showHelp(programName);
+    }
+
+    return 0;
 }
