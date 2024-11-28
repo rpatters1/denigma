@@ -34,6 +34,9 @@
 
 #include "musx/musx.h"
 
+#define MUSX_USE_TINYXML2
+#include "musx/xml/TinyXmlImpl.h"
+
 constexpr char MUSX_EXTENSION[]		    = ".musx";
 constexpr char JSON_EXTENSION[]		    = ".json";
 constexpr char ENIGMAXML_EXTENSION[]    = ".enigmaxml";
@@ -45,7 +48,7 @@ static std::vector<char> extractEnigmaXml(const std::string& zipFile)
     {
         miniz_cpp::zip_file zip(zipFile.c_str());
         std::string buffer = zip.read(SCORE_DAT_NAME);
-        musx::ScoreFileEncoder::recodeBuffer(buffer);
+        musx::util::ScoreFileEncoder::recodeBuffer(buffer);
         return EzGz::IGzFile<>({reinterpret_cast<uint8_t *>(buffer.data()), buffer.size()}).readAll();
     }
     catch (const std::exception &ex)
@@ -91,6 +94,15 @@ static bool processMusxFile(const std::filesystem::path& musxFilePath)
     if (xmlBuffer.size() <= 0) {
         std::cerr << "Failed to extract enigmaxml " << musxFilePath << std::endl;
         return false;
+    }
+
+    try {
+        musx::xml::tinyxml2::Document enigmaXml;
+        enigmaXml.loadFromString(xmlBuffer);
+    } catch (const musx::xml::load_error& ex) {
+        std::cerr << "Load XML failed: " << ex.what() << std::endl;
+    } catch (const std::exception& ex) {
+        std::cerr << "Unknown error: " << ex.what() << std::endl;
     }
 
     if (!writeEnigmaXml(enigmaXmlPath.string(), xmlBuffer)) {
