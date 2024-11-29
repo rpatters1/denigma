@@ -30,7 +30,7 @@
 namespace musxconvert {
 namespace mss {
 
-void convert(const std::filesystem::path& file, const enigmaxml::Buffer&);
+void convert(const std::filesystem::path& file, const enigmaxml::Buffer& xmlBuffer);
 
 } // namespace mss
 } // namespace musxconvert

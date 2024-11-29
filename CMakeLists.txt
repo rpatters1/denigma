@@ -37,12 +37,14 @@ set(NLOHMANN_JSON_DIR "${CMAKE_SOURCE_DIR}/submodules/nlohmann_json")
 set(JSON_SCHEMA_VALIDATOR_DIR "${CMAKE_SOURCE_DIR}/submodules/json_schema_validator")
 set(MUSX_OBJECT_MODEL_DIR "${CMAKE_SOURCE_DIR}/submodules/musx_object_model/src")
 set(TINYXML2_DIR "${CMAKE_SOURCE_DIR}/submodules/tinyxml2")
+set(RAPIDXML_DIR "${CMAKE_SOURCE_DIR}/third_party/rapidxml")
 
 # Set output directory for compiled executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 
 # Include directories for your source files
 include_directories(src)
+include_directories(third_party/rapidxml)
 add_subdirectory(${NLOHMANN_JSON_DIR})
 add_subdirectory(${JSON_SCHEMA_VALIDATOR_DIR})
 add_subdirectory(${TINYXML2_DIR})
@@ -59,6 +61,7 @@ add_executable(musxconvert
 
 # Compile definitions
 target_compile_definitions(musxconvert PRIVATE MUSX_USE_TINYXML2)
+target_compile_definitions(musxconvert PRIVATE MUSX_USE_RAPIDXML)
 
 # Ensure the include directories are added
 add_dependencies(musxconvert GenerateMnxSchemaXxd)
