@@ -22,41 +22,39 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
-#include <chrono> // temp
 
 #include "mss.h"
 #include "musx/musx.h"
 #include "tinyxml2.h"
 
+constexpr static char MSS_VERSION[] = "4.50";
+
 namespace musxconvert {
 namespace mss {
 
-// placeholder
-void convert(const std::filesystem::path& file, const enigmaxml::Buffer& xmlBuffer)
+void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
-    std::cout << "converting to " << file.string() << std::endl;
-
-    // temp:
+    // ToDo: lots
     try {
-        auto start = std::chrono::high_resolution_clock::now();
-        musx::xml::tinyxml2::Document enigmaXml;
-        enigmaXml.loadFromString(xmlBuffer);
-        auto end = std::chrono::high_resolution_clock::now();
-        std::cout << "tinyxml2 load time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " microseconds" << std::endl;
+        // construct source instance and release input memory
+        musx::dom::Document enigmaDocument = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
 
-        start = std::chrono::high_resolution_clock::now();
-        musx::xml::rapidxml::Document enigmaXmlRapid;
-        enigmaXmlRapid.loadFromString(xmlBuffer);
-        end = std::chrono::high_resolution_clock::now();
-        std::cout << "rapidxml load time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " microseconds" << std::endl;
-        tinyxml2::XMLDocument mssDoc;
-    }
-    catch (const musx::xml::load_error& ex) {
+        // extract document to mss
+        tinyxml2::XMLDocument mssDoc; // output
+        mssDoc.InsertEndChild(mssDoc.NewDeclaration());
+        auto museScoreElement = mssDoc.NewElement("museScore");
+        museScoreElement->SetAttribute("version", MSS_VERSION);
+        mssDoc.InsertEndChild(museScoreElement);
+        auto styleElement = museScoreElement->InsertNewChildElement("Style");
+        if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
+            throw std::runtime_error(mssDoc.ErrorStr());
+        }
+        std::cout << "converted to " << outputPath.string() << std::endl;
+    } catch (const musx::xml::load_error& ex) {
         std::cerr << "Load XML failed: " << ex.what() << std::endl;
         throw;
-    }
-    catch (const std::exception& ex) {
-        std::cerr << "Unknown error: " << ex.what() << std::endl;
+    } catch (const std::exception& ex) {
+        std::cerr << "Error: " << ex.what() << std::endl;
         throw;
     }
 }

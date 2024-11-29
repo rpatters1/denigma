@@ -66,7 +66,7 @@ Buffer extract(const std::filesystem::path& inputPath)
 
 void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer)
 {
-    std::cout << "extracting to " << outputPath << std::endl;
+    std::cout << "extracting to " << outputPath.string() << std::endl;
 
     try	{
         std::ifstream inFile;
