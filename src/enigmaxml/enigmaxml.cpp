@@ -20,47 +20,51 @@
  * THE SOFTWARE.
  */
 #include <string>
+#include <filesystem>
 #include <vector>
 #include <iostream>
 
+#include "enigmaxml.h"
 #include "zip_file.hpp"		// miniz submodule (for zip)
 #include "ezgz.hpp"			// ezgz submodule (for gzip)
 #include "musx/musx.h"
 
 constexpr char SCORE_DAT_NAME[] = "score.dat";
 
-std::vector<char> readEnigmaXml(const std::string& inputPath)
+namespace musxconvert {
+namespace enigmaxml {
+
+Buffer read(const std::filesystem::path& inputPath)
 {
     try {
         std::ifstream xmlFile;
         xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
         xmlFile.open(inputPath, std::ios::binary);
-        return std::vector<char>((std::istreambuf_iterator<char>(xmlFile)), std::istreambuf_iterator<char>());
+        return Buffer((std::istreambuf_iterator<char>(xmlFile)), std::istreambuf_iterator<char>());
     } catch (const std::ios_base::failure& ex) {
-        std::cout << "unable to read " << inputPath << std::endl
+        std::cout << "unable to read " << inputPath.string() << std::endl
                   << "message: " << ex.what() << std::endl
                   << "details: " << std::strerror(ex.code().value()) << std::endl;
         throw;
     };
 }
 
-std::vector<char> extractEnigmaXml(const std::string& inputPath)
+Buffer extract(const std::filesystem::path& inputPath)
 {
     try
     {
-        miniz_cpp::zip_file zip(inputPath.c_str());
+        miniz_cpp::zip_file zip(inputPath.string());
         std::string buffer = zip.read(SCORE_DAT_NAME);
         musx::util::ScoreFileEncoder::recodeBuffer(buffer);
-        return EzGz::IGzFile<>({reinterpret_cast<uint8_t *>(buffer.data()), buffer.size()}).readAll();
-    }
-    catch (const std::exception &ex)
-    {
-        std::cout << "Error: unable to extract enigmaxml from file " << inputPath << " (exception: " << ex.what() << ")" << std::endl;
+        return EzGz::IGzFile<>({ reinterpret_cast<uint8_t*>(buffer.data()), buffer.size() }).readAll();
+    } catch (const std::exception &ex) {
+        std::cout << "Error: unable to extract enigmaxml from file " << inputPath.string() << std::endl
+                  << " (exception: " << ex.what() << ")" << std::endl;
         throw;
     }
 }
 
-void writeEnigmaXml(const std::string& outputPath, const std::vector<char>& xmlBuffer)
+void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer)
 {
     std::cout << "extracting to " << outputPath << std::endl;
 
@@ -84,3 +88,6 @@ void writeEnigmaXml(const std::string& outputPath, const std::vector<char>& xmlB
         throw;
     }
 }
+
+} // namespace enigmaxml
+} // namespace musxconvert

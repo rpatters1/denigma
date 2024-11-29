@@ -52,8 +52,13 @@ include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 # Add executable target
 add_executable(musxconvert
     src/main.cpp
-    src/enigmaxml.cpp
+    src/enigmaxml/enigmaxml.cpp
+    src/mnx/mnx.cpp
+    src/mss/mss.cpp
 )
+
+# Compile definitions
+target_compile_definitions(musxconvert PRIVATE MUSX_USE_TINYXML2)
 
 # Ensure the include directories are added
 add_dependencies(musxconvert GenerateMnxSchemaXxd)

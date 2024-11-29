@@ -21,9 +21,16 @@
  */
 #pragma once
 
-#include <string>
-#include <vector>
+#include <filesystem>
 
-std::vector<char> extractEnigmaXml(const std::string& zipFile);
-std::vector<char> readEnigmaXml(const std::string& zipFile);
-void writeEnigmaXml(const std::string& outputPath, const std::vector<char>& xmlBuffer);
+#include "enigmaxml/enigmaxml.h"
+
+ //placeholder function
+
+namespace musxconvert {
+namespace mnx {
+
+void convert(const std::filesystem::path& file, const enigmaxml::Buffer&);
+
+} // namespace mnx
+} // namespace musxconvert

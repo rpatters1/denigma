@@ -19,24 +19,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <cstdint>
 #include <filesystem>
 #include <iostream>
-#include <fstream>
 #include <string>
-#include <sys/stat.h>
-#include <errno.h>
+#include <array>
+#include <unordered_map>
 
-#include "enigmaxml.h"
+#include "enigmaxml/enigmaxml.h"
+#include "mss/mss.h"
+#include "mnx/mnx.h"
 
-#include "nlohmann/json.hpp"
-#include "nlohmann/json-schema.hpp"
-#include "mnx_schema.xxd"
-
-#include "musx/musx.h"
-
-#define MUSX_USE_TINYXML2
-#include "musx/xml/TinyXmlImpl.h"
+using namespace musxconvert;
 
 constexpr char MUSX_EXTENSION[]		    = "musx";
 constexpr char ENIGMAXML_EXTENSION[]    = "enigmaxml";
@@ -45,34 +38,30 @@ constexpr char MSS_EXTENSION[]		    = "mss";
 
 // Input format processors
 constexpr auto inputProcessors = []() {
-    struct InputProcessor {
+    struct InputProcessor
+    {
         const char* extension;
-        std::vector<char>(*processor)(const std::string&);
+        enigmaxml::Buffer(*processor)(const std::filesystem::path&);
     };
 
     return std::array<InputProcessor, 2>{{
-        { MUSX_EXTENSION, extractEnigmaXml },
-        { ENIGMAXML_EXTENSION, readEnigmaXml },
+        { MUSX_EXTENSION, enigmaxml::extract },
+        { ENIGMAXML_EXTENSION, enigmaxml::read },
     }};
 }();
 
 // Output format processors
 constexpr auto outputProcessors = []() {
-    struct OutputProcessor {
+    struct OutputProcessor
+    {
         const char* extension;
-        void(*processor)(const std::string&, const std::vector<char>&);
+        void(*processor)(const std::filesystem::path&, const enigmaxml::Buffer&);
     };
 
     return std::array<OutputProcessor, 3>{{
-        {MSS_EXTENSION, [](const std::string& file, const std::vector<char>&) -> void {
-                std::cout << "converting to " << file << "\n";
-            }
-        },
-        { ENIGMAXML_EXTENSION, writeEnigmaXml },
-        {MNX_EXTENSION, [](const std::string& file, const std::vector<char>&) -> void {
-                std::cout << "converting to " << file << "\n";
-            }
-        },
+        { ENIGMAXML_EXTENSION, enigmaxml::write },
+        { MSS_EXTENSION, mss::convert },
+        { MNX_EXTENSION, mnx::convert },
     }};
 }();
 
@@ -88,69 +77,7 @@ decltype(Processors::value_type::processor) findProcessor(const Processors& proc
     throw std::invalid_argument("Unsupported format: " + key);
 }
 
-static bool processMusxFile(const std::filesystem::path& musxFilePath)
-{
-    const std::filesystem::path enigmaXmlPath = [musxFilePath]() -> std::filesystem::path
-    {
-        std::filesystem::path retval = musxFilePath;
-        return retval.replace_extension(ENIGMAXML_EXTENSION);
-    }();
-    const std::vector<char> xmlBuffer = extractEnigmaXml(musxFilePath.string());
-    if (xmlBuffer.size() <= 0) {
-        std::cerr << "Failed to extract enigmaxml " << musxFilePath << std::endl;
-        return false;
-    }
-
-    try {
-        musx::xml::tinyxml2::Document enigmaXml;
-        enigmaXml.loadFromString(xmlBuffer);
-    } catch (const musx::xml::load_error& ex) {
-        std::cerr << "Load XML failed: " << ex.what() << std::endl;
-    } catch (const std::exception& ex) {
-        std::cerr << "Unknown error: " << ex.what() << std::endl;
-    }
-
-    writeEnigmaXml(enigmaXmlPath.string(), xmlBuffer);
-
-    std::cout << "Extraction complete!" << std::endl;
-    return true; 
-}
-
-static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath)
-{
-    static const std::string_view kMnxSchema(reinterpret_cast<const char *>(mnx_schema_json), mnx_schema_json_len);
-
-    std::cout << "validate JSON " << jsonFilePath << std::endl;
-    try {
-        // Load JSON schema
-        nlohmann::json schemaJson = nlohmann::json::parse(kMnxSchema);
-        nlohmann::json_schema::json_validator validator;
-        validator.set_root_schema(schemaJson);
-
-        // Load JSON file
-        std::ifstream jsonFile(jsonFilePath);
-        if (!jsonFile.is_open()) {
-            throw std::runtime_error("Unable to open JSON file: " + jsonFilePath.string());
-        }
-        nlohmann::json jsonData;
-        jsonFile >> jsonData;
-
-        // Validate JSON
-        validator.validate(jsonData);
-        std::cout << "JSON is valid against the MNX schema." << std::endl;
-        return true;
-    } catch (const nlohmann::json::exception& e) {
-        std::cerr << "JSON parsing error: " << e.what() << std::endl;
-    } catch (const std::invalid_argument& e) {
-        std::cerr << "Invalid argument: " << e.what() << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
-    std::cout << "JSON is not valid against the MNX schema.\n";
-    return false;
-}
-
-static int showHelp(const std::string& programName)
+static int showHelpPage(const std::string& programName)
 {
     // Print usage
     std::cerr << "Usage: " << programName << " <input file> [--output options]" << std::endl;
@@ -159,6 +86,7 @@ static int showHelp(const std::string& programName)
     // General options
     std::cerr << "General options:" << std::endl;
     std::cerr << "  --help                 Show this help message and exit" << std::endl;
+    std::cerr << "  --force                Overwrite existing file(s)" << std::endl;
     std::cerr << "  --version              Show program version and exit" << std::endl;
     std::cerr << std::endl;
 
@@ -195,19 +123,39 @@ int main(int argc, char* argv[]) {
     std::string programName = std::filesystem::path(argv[0]).stem().string();
 
     if (argc < 2) {
-        return showHelp(programName);
+        return showHelpPage(programName);
     }
-    std::string firstArg = argv[1];
-    if (firstArg == "--version") {
+
+    bool showVersion = false;
+    bool showHelp = false;
+    bool allowOverwrite = false;
+    std::vector<const char *> args;
+    for (int x = 1; x < argc; x++) {
+        const std::string_view next(argv[x]);
+        if (next == "--version") {
+            showVersion = true;
+        } else if (next == "--help") {
+            showHelp = true;
+        } else if (next == "--force") {
+            allowOverwrite = true;
+        } else {
+            args.push_back(argv[x]);
+        }
+    }
+
+    if (showVersion) {
         std::cout << programName << " " << MUSXCONVERT_VERSION << std::endl;
         return 0;
     }
-    if (firstArg == "--help") {
-        showHelp(programName);
+    if (showHelp) {
+        showHelpPage(programName);
         return 0;
     }
+    if (args.size() <= 0) {
+        return showHelpPage(programName);
+    }
 
-    const std::filesystem::path inputFilePath = firstArg;
+    const std::filesystem::path inputFilePath = args[0];
     const std::string inputExtension = inputFilePath.extension().string().substr(1);
     const std::filesystem::path defaultPath = inputFilePath.parent_path();
     if (!std::filesystem::is_regular_file(inputFilePath))
@@ -218,12 +166,11 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "Input: " << inputFilePath.string() << std::endl;
 
-    bool allowOverwrite = false;
     try
     {
         // Find and call the input processor
         auto inputProcessor = findProcessor(inputProcessors, inputExtension);
-        const auto enigmaXml = inputProcessor(inputFilePath.string());
+        const enigmaxml::Buffer enigmaXml = inputProcessor(inputFilePath.string());
 
         auto processOutput = [&inputFilePath, &inputProcessor, &enigmaXml] (
             const std::string &outputFormat,
@@ -243,10 +190,15 @@ int main(int argc, char* argv[]) {
                 return;
             }
 
-            if (std::filesystem::exists(finalOutputPath) && !allowOverwrite) {
-                std::cout << "Output: " << finalOutputPath.string() << std::endl
-                          << "File exists. Use --force to overwrite it." << std::endl;
-                return;
+            if (std::filesystem::exists(finalOutputPath)) {
+                std::cout << "Output: " << finalOutputPath.string() << std::endl;
+                if (allowOverwrite) {
+                    std::cout << "Overwriting current file." << std::endl;
+                }
+                else {
+                    std::cout << "File exists. Use --force to overwrite it." << std::endl;
+                    return;
+                }
             }
 
             auto outputProcessor = findProcessor(outputProcessors, outputFormat);
@@ -255,11 +207,11 @@ int main(int argc, char* argv[]) {
 
         // Process output options
         bool outputFormatSpecified = false;
-        for (int i = 2; i < argc; ++i) {
-            std::string option = argv[i];
+        for (size_t i = 0; i < args.size(); ++i) {
+            std::string option = args[i];
             if (option.rfind("--", 0) == 0) {  // Options start with "--"
                 std::string outputFormat = option.substr(2);
-                std::filesystem::path outputFilePath = (i + 1 < argc && argv[i + 1][0] != '-') ? argv[++i] : defaultPath;
+                std::filesystem::path outputFilePath = (i + 1 < args.size() && args[i + 1][0] != '-') ? args[++i] : defaultPath;
                 processOutput(outputFormat, outputFilePath, allowOverwrite);
                 outputFormatSpecified = true;
             }
@@ -271,7 +223,7 @@ int main(int argc, char* argv[]) {
     catch (const std::invalid_argument &e)
     {
         std::cerr << "Error: " << e.what() << std::endl;
-        return showHelp(programName);
+        return showHelpPage(programName);
     }
 
     return 0;
