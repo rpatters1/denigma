@@ -126,48 +126,51 @@ int main(int argc, char* argv[]) {
         return showHelpPage(programName);
     }
 
-    bool showVersion = false;
-    bool showHelp = false;
-    bool allowOverwrite = false;
-    std::vector<const char *> args;
-    for (int x = 1; x < argc; x++) {
-        const std::string_view next(argv[x]);
-        if (next == "--version") {
-            showVersion = true;
-        } else if (next == "--help") {
-            showHelp = true;
-        } else if (next == "--force") {
-            allowOverwrite = true;
-        } else {
-            args.push_back(argv[x]);
+    try {
+        bool showVersion = false;
+        bool showHelp = false;
+        bool allowOverwrite = false;
+        std::vector<const char *> args;
+        for (int x = 1; x < argc; x++) {
+            const std::string_view next(argv[x]);
+            if (next == "--version") {
+                showVersion = true;
+            } else if (next == "--help") {
+                showHelp = true;
+            } else if (next == "--force") {
+                allowOverwrite = true;
+            } else {
+                args.push_back(argv[x]);
+            }
         }
-    }
 
-    if (showVersion) {
-        std::cout << programName << " " << MUSXCONVERT_VERSION << std::endl;
-        return 0;
-    }
-    if (showHelp) {
-        showHelpPage(programName);
-        return 0;
-    }
-    if (args.size() <= 0) {
-        return showHelpPage(programName);
-    }
+        if (showVersion) {
+            std::cout << programName << " " << MUSXCONVERT_VERSION << std::endl;
+            return 0;
+        }
+        if (showHelp) {
+            showHelpPage(programName);
+            return 0;
+        }
+        if (args.size() <= 0) {
+            return showHelpPage(programName);
+        }
 
-    const std::filesystem::path inputFilePath = args[0];
-    const std::string inputExtension = inputFilePath.extension().string().substr(1);
-    const std::filesystem::path defaultPath = inputFilePath.parent_path();
-    if (!std::filesystem::is_regular_file(inputFilePath))
-    {
-        std::cout << inputFilePath.string() << std::endl;
-        std::cout << "Input file does not exists or is not a file." << std::endl;
-        return 1;
-    }
-    std::cout << "Input: " << inputFilePath.string() << std::endl;
+        const std::filesystem::path inputFilePath = args[0];
+        std::string inputExtension = inputFilePath.extension().string();
+        if (inputExtension.empty()) {
+            return showHelpPage(programName);
+        }
+        inputExtension = inputExtension.substr(1);
+        const std::filesystem::path defaultPath = inputFilePath.parent_path();
+        if (!std::filesystem::is_regular_file(inputFilePath))
+        {
+            std::cout << inputFilePath.string() << std::endl;
+            std::cout << "Input file does not exists or is not a file." << std::endl;
+            return 1;
+        }
+        std::cout << "Input: " << inputFilePath.string() << std::endl;
 
-    try
-    {
         // Find and call the input processor
         auto inputProcessor = findProcessor(inputProcessors, inputExtension);
         const enigmaxml::Buffer enigmaXml = inputProcessor(inputFilePath.string());
@@ -219,9 +222,7 @@ int main(int argc, char* argv[]) {
         if (!outputFormatSpecified) {
             processOutput(ENIGMAXML_EXTENSION, defaultPath, allowOverwrite);
         }
-    }
-    catch (const std::invalid_argument &e)
-    {
+    } catch (const std::exception &e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return showHelpPage(programName);
     }
