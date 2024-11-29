@@ -22,12 +22,13 @@
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <sys/stat.h>
 #include <errno.h>
 
-#include "zip_file.hpp"		// miniz submodule (for zip)
-#include "ezgz.hpp"			// ezgz submodule (for gzip)
+#include "enigmaxml.h"
+
 #include "nlohmann/json.hpp"
 #include "nlohmann/json-schema.hpp"
 #include "mnx_schema.xxd"
@@ -42,32 +43,16 @@ constexpr char ENIGMAXML_EXTENSION[]    = "enigmaxml";
 constexpr char MNX_EXTENSION[]		    = "mnx";
 constexpr char MSS_EXTENSION[]		    = "mss";
 
-constexpr char SCORE_DAT_NAME[] 		= "score.dat";
-
-// Define the processor type
-using FormatProcessor = bool(*)(const std::string&);
-
 // Input format processors
 constexpr auto inputProcessors = []() {
     struct InputProcessor {
         const char* extension;
-        FormatProcessor processor;
+        std::vector<char>(*processor)(const std::string&);
     };
 
     return std::array<InputProcessor, 2>{{
-        {   MUSX_EXTENSION,
-            [](const std::string &file) -> bool {
-                std::cout << "Parsing .musx file: " << file << "\n";
-                return true;
-            }
-        },
-        {
-            ENIGMAXML_EXTENSION,
-            [](const std::string &file) -> bool {
-                std::cout << "Parsing .enigmaxml file: " << file << "\n";
-                return true;\
-            }
-        },
+        { MUSX_EXTENSION, extractEnigmaXml },
+        { ENIGMAXML_EXTENSION, readEnigmaXml },
     }};
 }();
 
@@ -75,23 +60,17 @@ constexpr auto inputProcessors = []() {
 constexpr auto outputProcessors = []() {
     struct OutputProcessor {
         const char* extension;
-        FormatProcessor processor;
+        void(*processor)(const std::string&, const std::vector<char>&);
     };
 
     return std::array<OutputProcessor, 3>{{
-        {MSS_EXTENSION, [](const std::string& file) -> bool {
-                std::cout << "Serializing to .mss file: " << file << "\n";
-                return true;
+        {MSS_EXTENSION, [](const std::string& file, const std::vector<char>&) -> void {
+                std::cout << "converting to " << file << "\n";
             }
         },
-        {ENIGMAXML_EXTENSION, [](const std::string& file) -> bool {
-                std::cout << "Serializing to .enigmaxml file: " << file << "\n";
-                return true;
-            }
-        },
-        {MNX_EXTENSION, [](const std::string& file) -> bool {
-                std::cout << "Serializing to .mnx file: " << file << "\n";
-                return true;
+        { ENIGMAXML_EXTENSION, writeEnigmaXml },
+        {MNX_EXTENSION, [](const std::string& file, const std::vector<char>&) -> void {
+                std::cout << "converting to " << file << "\n";
             }
         },
     }};
@@ -99,55 +78,14 @@ constexpr auto outputProcessors = []() {
 
 // Function to find the appropriate processor
 template <typename Processors>
-FormatProcessor findProcessor(const Processors& processors, const std::string& key) {
+decltype(Processors::value_type::processor) findProcessor(const Processors& processors, const std::string& key)
+{
     for (const auto& p : processors) {
         if (key == p.extension) {
             return p.processor;
         }
     }
     throw std::invalid_argument("Unsupported format: " + key);
-}
-
-
-static std::vector<char> extractEnigmaXml(const std::string& zipFile)
-{
-    try
-    {
-        miniz_cpp::zip_file zip(zipFile.c_str());
-        std::string buffer = zip.read(SCORE_DAT_NAME);
-        musx::util::ScoreFileEncoder::recodeBuffer(buffer);
-        return EzGz::IGzFile<>({reinterpret_cast<uint8_t *>(buffer.data()), buffer.size()}).readAll();
-    }
-    catch (const std::exception &ex)
-    {
-        std::cout << "Error: unable to extract enigmaxml from file " << zipFile << " (exception: " << ex.what() << ")" << std::endl;
-    }
-    return {};
-}
-
-static bool writeEnigmaXml(const std::string& outputPath, const std::vector<char>& xmlBuffer)
-{
-    std::cout << "write to " << outputPath << std::endl;
-
-    try	{
-        std::ifstream inFile;
-
-        size_t uncompressedSize = xmlBuffer.size();
-        std::cout << "decompressed Size " << uncompressedSize<< std::endl;
-
-        std::ofstream xmlFile;
-        xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
-        xmlFile.open(outputPath, std::ios::binary);
-        xmlFile.write(xmlBuffer.data(), xmlBuffer.size());
-        return true;
-    } catch (const std::ios_base::failure& ex) {
-        std::cout << "unable to write " << outputPath << std::endl
-                  << "message: " << ex.what() << std::endl
-                  << "details: " << std::strerror(ex.code().value()) << std::endl;
-    } catch (const std::exception &ex) {
-        std::cout << "unable to write " << outputPath << " (exception: " << ex.what() << ")" << std::endl;
-    }
-    return false;
 }
 
 static bool processMusxFile(const std::filesystem::path& musxFilePath)
@@ -172,10 +110,7 @@ static bool processMusxFile(const std::filesystem::path& musxFilePath)
         std::cerr << "Unknown error: " << ex.what() << std::endl;
     }
 
-    if (!writeEnigmaXml(enigmaXmlPath.string(), xmlBuffer)) {
-        std::cerr << "Failed to extract zip file " << musxFilePath << " to " << enigmaXmlPath << std::endl;
-        return false;
-    }
+    writeEnigmaXml(enigmaXmlPath.string(), xmlBuffer);
 
     std::cout << "Extraction complete!" << std::endl;
     return true; 
@@ -274,34 +209,68 @@ int main(int argc, char* argv[]) {
 
     const std::filesystem::path inputFilePath = firstArg;
     const std::string inputExtension = inputFilePath.extension().string().substr(1);
+    const std::filesystem::path defaultPath = inputFilePath.parent_path();
     if (!std::filesystem::is_regular_file(inputFilePath))
     {
-        return showHelp(programName);
+        std::cout << inputFilePath.string() << std::endl;
+        std::cout << "Input file does not exists or is not a file." << std::endl;
+        return 1;
     }
+    std::cout << "Input: " << inputFilePath.string() << std::endl;
 
-    try {
+    bool allowOverwrite = false;
+    try
+    {
         // Find and call the input processor
         auto inputProcessor = findProcessor(inputProcessors, inputExtension);
-        if (!inputProcessor(inputFilePath.string())) {
-            std::cout << "Unsupported input file extension: " << inputFilePath.extension() << std::endl;
-            return showHelp(programName);
-        }
+        const auto enigmaXml = inputProcessor(inputFilePath.string());
+
+        auto processOutput = [&inputFilePath, &inputProcessor, &enigmaXml] (
+            const std::string &outputFormat,
+            const std::filesystem::path &outputPath,
+            const bool allowOverwrite = false) -> void
+        {
+            std::filesystem::path finalOutputPath = outputPath;
+
+            if (std::filesystem::is_directory(finalOutputPath)) {
+                std::filesystem::path outputFileName = inputFilePath.filename();
+                outputFileName.replace_extension(outputFormat);
+                finalOutputPath.append(outputFileName.string());
+            }
+
+            if (inputFilePath == finalOutputPath) {
+                std::cout << "Input and output are the same. No action taken." << std::endl;
+                return;
+            }
+
+            if (std::filesystem::exists(finalOutputPath) && !allowOverwrite) {
+                std::cout << "Output: " << finalOutputPath.string() << std::endl
+                          << "File exists. Use --force to overwrite it." << std::endl;
+                return;
+            }
+
+            auto outputProcessor = findProcessor(outputProcessors, outputFormat);
+            outputProcessor(finalOutputPath, enigmaXml);
+        };
 
         // Process output options
+        bool outputFormatSpecified = false;
         for (int i = 2; i < argc; ++i) {
             std::string option = argv[i];
             if (option.rfind("--", 0) == 0) {  // Options start with "--"
                 std::string outputFormat = option.substr(2);
-                std::string outputFilePath = (i + 1 < argc && argv[i + 1][0] != '-') ? argv[++i] : "stdout";
-
-                auto outputProcessor = findProcessor(outputProcessors, outputFormat);
-                if (!outputProcessor(outputFilePath)) {
-                    std::cerr << "Unable to convert to . " << outputFormat << "format" << std::endl;
-                }
+                std::filesystem::path outputFilePath = (i + 1 < argc && argv[i + 1][0] != '-') ? argv[++i] : defaultPath;
+                processOutput(outputFormat, outputFilePath, allowOverwrite);
+                outputFormatSpecified = true;
             }
         }
-    } catch (const std::invalid_argument& e) {
-        std::cerr << "Error processing input file: " << e.what() << std::endl;
+        if (!outputFormatSpecified) {
+            processOutput(ENIGMAXML_EXTENSION, defaultPath, allowOverwrite);
+        }
+    }
+    catch (const std::invalid_argument &e)
+    {
+        std::cerr << "Error: " << e.what() << std::endl;
         return showHelp(programName);
     }
 

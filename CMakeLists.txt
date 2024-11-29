@@ -50,7 +50,10 @@ add_subdirectory(${TINYXML2_DIR})
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 
 # Add executable target
-add_executable(musxconvert src/main.cpp)
+add_executable(musxconvert
+    src/main.cpp
+    src/enigmaxml.cpp
+)
 
 # Ensure the include directories are added
 add_dependencies(musxconvert GenerateMnxSchemaXxd)
