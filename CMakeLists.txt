@@ -36,6 +36,7 @@ set(EZGZ_DIR "${CMAKE_SOURCE_DIR}/submodules/ezgz")
 set(NLOHMANN_JSON_DIR "${CMAKE_SOURCE_DIR}/submodules/nlohmann_json")
 set(JSON_SCHEMA_VALIDATOR_DIR "${CMAKE_SOURCE_DIR}/submodules/json_schema_validator")
 set(MUSX_OBJECT_MODEL_DIR "${CMAKE_SOURCE_DIR}/submodules/musx_object_model/src")
+set(TINYXML2_DIR "${CMAKE_SOURCE_DIR}/submodules/tinyxml2")
 
 # Set output directory for compiled executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
@@ -44,17 +45,29 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 include_directories(src)
 add_subdirectory(${NLOHMANN_JSON_DIR})
 add_subdirectory(${JSON_SCHEMA_VALIDATOR_DIR})
+add_subdirectory(${TINYXML2_DIR})
 
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 
 # Add executable target
-add_executable(musxconvert src/main.cpp)
+add_executable(musxconvert
+    src/main.cpp
+    src/enigmaxml/enigmaxml.cpp
+    src/mnx/mnx.cpp
+    src/mss/mss.cpp
+)
 
-# Ensure the include directories ar added
+# Compile definitions
+target_compile_definitions(musxconvert PRIVATE MUSX_USE_TINYXML2)
+
+# Ensure the include directories are added
 add_dependencies(musxconvert GenerateMnxSchemaXxd)
 target_include_directories(musxconvert PRIVATE ${GENERATED_DIR})
 target_include_directories(musxconvert PRIVATE ${EZGZ_DIR})
 target_include_directories(musxconvert PRIVATE ${MINIZ_DIR})
 target_include_directories(musxconvert PRIVATE ${MUSX_OBJECT_MODEL_DIR})
+
+# Ensure the libraries are added
+target_link_libraries(musxconvert PRIVATE tinyxml2)
 target_link_libraries(musxconvert PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(musxconvert PRIVATE nlohmann_json_schema_validator)

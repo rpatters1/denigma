@@ -13,3 +13,6 @@
 [submodule "submodules/musx_object_model"]
 	path = submodules/musx_object_model
 	url = git@github.com:rpatters1/musx-object-model.git
+[submodule "submodules/tinyxml2"]
+	path = submodules/tinyxml2
+	url = git@github.com:leethomason/tinyxml2.git
