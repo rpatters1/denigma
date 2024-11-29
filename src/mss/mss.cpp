@@ -22,33 +22,43 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <chrono> // temp
 
 #include "mss.h"
-
 #include "musx/musx.h"
+#include "tinyxml2.h"
 
 namespace musxconvert {
 namespace mss {
 
 // placeholder
-void convert(const std::filesystem::path& file, const enigmaxml::Buffer&)
+void convert(const std::filesystem::path& file, const enigmaxml::Buffer& xmlBuffer)
 {
     std::cout << "converting to " << file.string() << std::endl;
-}
 
-// temp func
-static bool processEnigmaXml(const enigmaxml::Buffer& xmlBuffer)
-{
+    // temp:
     try {
+        auto start = std::chrono::high_resolution_clock::now();
         musx::xml::tinyxml2::Document enigmaXml;
         enigmaXml.loadFromString(xmlBuffer);
-        return true;
-    } catch (const musx::xml::load_error& ex) {
-        std::cerr << "Load XML failed: " << ex.what() << std::endl;
-    } catch (const std::exception& ex) {
-        std::cerr << "Unknown error: " << ex.what() << std::endl;
+        auto end = std::chrono::high_resolution_clock::now();
+        std::cout << "tinyxml2 load time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " microseconds" << std::endl;
+
+        start = std::chrono::high_resolution_clock::now();
+        musx::xml::rapidxml::Document enigmaXmlRapid;
+        enigmaXmlRapid.loadFromString(xmlBuffer);
+        end = std::chrono::high_resolution_clock::now();
+        std::cout << "rapidxml load time: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " microseconds" << std::endl;
+        tinyxml2::XMLDocument mssDoc;
     }
-    return false; 
+    catch (const musx::xml::load_error& ex) {
+        std::cerr << "Load XML failed: " << ex.what() << std::endl;
+        throw;
+    }
+    catch (const std::exception& ex) {
+        std::cerr << "Unknown error: " << ex.what() << std::endl;
+        throw;
+    }
 }
 
 } // namespace mss
