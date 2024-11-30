@@ -38,6 +38,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
     try {
         // construct source instance and release input memory
         musx::dom::Document enigmaDocument = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
+        //musx::dom::Document enigmaDocument = musx::factory::DocumentFactory::create<musx::xml::tinyxml2::Document>(xmlBuffer);
 
         // extract document to mss
         tinyxml2::XMLDocument mssDoc; // output
