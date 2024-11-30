@@ -27,10 +27,10 @@
 #include "musx/musx.h"
 #include "tinyxml2.h"
 
-constexpr static char MSS_VERSION[] = "4.50";
-
 namespace musxconvert {
 namespace mss {
+
+constexpr static char MSS_VERSION[] = "4.50";
 
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
