@@ -38,8 +38,8 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
     try {
         // construct source instance and release input memory
         auto enigmaDocument = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
-        auto defFonts = enigmaDocument->getOptions()->get<musx::dom::options::DefaultFonts>();
-        std::string endingName = defFonts[0]->defaultFonts[musx::dom::options::DefaultFonts::FontType::Tuplet]->getFontName();
+        auto fontInfo = musx::dom::options::DefaultFonts::getFontInfo(enigmaDocument, musx::dom::options::DefaultFonts::FontType::Tuplet);
+        std::string endingName = fontInfo->getFontName();
 
         // extract document to mss
         tinyxml2::XMLDocument mssDoc; // output
