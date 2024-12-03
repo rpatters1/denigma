@@ -105,8 +105,8 @@ static uint16_t museFontEfx(const FontInfoPtr& fontInfo)
 
     if (fontInfo->bold) { retval |= 0x01; }
     if (fontInfo->italic) { retval |= 0x02; }
-    if (fontInfo->underline) { retval |= 0x03; }
-    if (fontInfo->strikeout) { retval |= 0x04; }
+    if (fontInfo->underline) { retval |= 0x04; }
+    if (fontInfo->strikeout) { retval |= 0x08; }
 
     return retval;
 }
@@ -135,7 +135,7 @@ static void writeDefaultFontPref(XmlElement* styleElement, const DocumentPtr& do
     writeFontPref(styleElement, namePrefix, fontPrefs);
 }
 
-void writeLinePrefs(tinyxml2::XMLElement* styleElement,
+void writeLinePrefs(XmlElement* styleElement,
                     const std::string& namePrefix, 
                     double widthEfix, 
                     double dashLength, 
