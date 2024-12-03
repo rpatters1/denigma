@@ -30,7 +30,126 @@
 namespace musxconvert {
 namespace mss {
 
+using namespace ::musx::dom;
+
+using XmlDocument = ::tinyxml2::XMLDocument;
+using XmlElement = ::tinyxml2::XMLElement;
+using XmlAttribute = ::tinyxml2::XMLAttribute;
+
+using FontInfoPtr = std::shared_ptr<FontInfo>;
+
 constexpr static char MSS_VERSION[] = "4.50";
+
+constexpr static double EVPU_PER_INCH = 288.0;
+constexpr static double EVPU_PER_MM = 288.0 / 25.4;
+constexpr static double EVPU_PER_SPACE = 24.0;
+constexpr static double EFIX_PER_EVPU = 64.0;
+constexpr static double EFIX_PER_SPACE = EVPU_PER_SPACE * EFIX_PER_EVPU;
+constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
+
+// Finale preferences:
+struct FinalePrefences
+{
+    std::shared_ptr<FontInfo> defaultMusicFont;
+};
+using FinalePrefencesPtr = std::shared_ptr<FinalePrefences>;
+
+static FinalePrefencesPtr getCurrentPrefs(const DocumentPtr& document)
+{
+    auto retval = std::make_shared<FinalePrefences>();
+
+    auto options = document->getOptions();
+    if (!options) {
+        throw std::invalid_argument("Finale document must contain <options>");
+    }
+    auto others = document->getOthers();
+    if (!others) {
+        throw std::invalid_argument("Finale document must contain <others>");
+    }
+    auto defaultFonts = options->get<options::DefaultFonts>();
+    retval->defaultMusicFont = defaultFonts->getFontInfo(options::DefaultFonts::FontType::Music);
+
+    return retval;
+}
+
+template<typename T>
+static XmlElement* setElementValue(XmlElement* styleElement, const std::string& nodeName, const T& value)
+{
+    if (!styleElement) {
+        throw std::invalid_argument("styleElement cannot be null");
+    }
+
+    XmlElement* element = styleElement->FirstChildElement(nodeName.c_str());
+    if (!element) {
+        element = styleElement->InsertNewChildElement(nodeName.c_str());
+    }
+
+    if constexpr (std::is_same_v<T, std::nullptr_t>) {
+        static_assert(std::is_same_v<T, std::nullptr_t>, "Incorrect property.");
+    } else if constexpr (std::is_floating_point_v<T>) {
+        char buffer[512];
+        snprintf(buffer, sizeof(buffer), "%.5g", value);
+        element->SetText(buffer);
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        element->SetText(value.c_str());
+    } else {
+        element->SetText(value);
+    }
+
+    return element;
+}
+
+static uint16_t museFontEfx(const FontInfoPtr& fontInfo)
+{
+    uint16_t retval = 0;
+
+    if (fontInfo->bold) { retval |= 0x01; }
+    if (fontInfo->italic) { retval |= 0x02; }
+    if (fontInfo->underline) { retval |= 0x03; }
+    if (fontInfo->strikeout) { retval |= 0x04; }
+
+    return retval;
+}
+
+static double museMagVal(const DocumentPtr& document, const FinalePrefencesPtr& prefs, const options::DefaultFonts::FontType type)
+{
+    auto fontPrefs = options::DefaultFonts::getFontInfo(document, type);
+    if (fontPrefs->getFontName() == prefs->defaultMusicFont->getFontName()) {
+        return double(fontPrefs->fontSize) / double(prefs->defaultMusicFont->fontSize);
+    }
+    return 1.0;
+}
+
+static void writeFontPref(XmlElement* styleElement, const std::string& namePrefix, const FontInfoPtr& fontInfo)
+{
+    setElementValue(styleElement, namePrefix + "FontFace", fontInfo->getFontName());
+    setElementValue(styleElement, namePrefix + "FontSize", 
+                    double(fontInfo->fontSize) * (double(fontInfo->absolute) ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL));
+    setElementValue(styleElement, namePrefix + "FontSpatiumDependent", !fontInfo->absolute);
+    setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
+}
+
+static void writeDefaultFontPref(XmlElement* styleElement, const DocumentPtr& document, const std::string& namePrefix, options::DefaultFonts::FontType type)
+{
+    auto fontPrefs = options::DefaultFonts::getFontInfo(document, type);
+    writeFontPref(styleElement, namePrefix, fontPrefs);
+}
+
+void writeLinePrefs(tinyxml2::XMLElement* styleElement,
+                    const std::string& namePrefix, 
+                    double widthEfix, 
+                    double dashLength, 
+                    double dashGap, 
+                    const std::string& styleString = {})
+{
+    const double lineWidthEvpu = widthEfix / EFIX_PER_EVPU;
+    setElementValue(styleElement, namePrefix + "LineWidth", widthEfix / EFIX_PER_SPACE);
+    if (!styleString.empty()) {
+        setElementValue(styleElement, namePrefix + "LineStyle", styleString);
+    }
+    setElementValue(styleElement, namePrefix + "DashLineLen", dashLength / lineWidthEvpu);
+    setElementValue(styleElement, namePrefix + "DashGapLen", dashGap / lineWidthEvpu);
+}
 
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
@@ -38,11 +157,9 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
     try {
         // construct source instance and release input memory
         auto enigmaDocument = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
-        auto fontInfo = musx::dom::options::DefaultFonts::getFontInfo(enigmaDocument, musx::dom::options::DefaultFonts::FontType::Tuplet);
-        std::string endingName = fontInfo->getFontName();
 
         // extract document to mss
-        tinyxml2::XMLDocument mssDoc; // output
+        XmlDocument mssDoc; // output
         mssDoc.InsertEndChild(mssDoc.NewDeclaration());
         auto museScoreElement = mssDoc.NewElement("museScore");
         museScoreElement->SetAttribute("version", MSS_VERSION);
