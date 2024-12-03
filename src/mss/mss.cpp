@@ -55,15 +55,16 @@ struct FinalePrefences
 };
 using FinalePrefencesPtr = std::shared_ptr<FinalePrefences>;
 
-static FinalePrefencesPtr getCurrentPrefs(const DocumentPtr& document)
+static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer)
 {
     auto retval = std::make_shared<FinalePrefences>();
+    retval->document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
 
-    auto options = document->getOptions();
+    auto options = retval->document->getOptions();
     if (!options) {
         throw std::invalid_argument("Finale document must contain <options>");
     }
-    auto others = document->getOthers();
+    auto others = retval->document->getOthers();
     if (!others) {
         throw std::invalid_argument("Finale document must contain <others>");
     }
@@ -104,10 +105,10 @@ static uint16_t museFontEfx(const FontInfoPtr& fontInfo)
 {
     uint16_t retval = 0;
 
-    if (fontInfo->bold) { retval |= 0x01; }
-    if (fontInfo->italic) { retval |= 0x02; }
-    if (fontInfo->underline) { retval |= 0x04; }
-    if (fontInfo->strikeout) { retval |= 0x08; }
+    if (fontInfo->bold()) { retval |= 0x01; }
+    if (fontInfo->italic()) { retval |= 0x02; }
+    if (fontInfo->underline()) { retval |= 0x04; }
+    if (fontInfo->strikeout()) { retval |= 0x08; }
 
     return retval;
 }
@@ -125,8 +126,8 @@ static void writeFontPref(XmlElement* styleElement, const std::string& namePrefi
 {
     setElementValue(styleElement, namePrefix + "FontFace", fontInfo->getFontName());
     setElementValue(styleElement, namePrefix + "FontSize", 
-                    double(fontInfo->fontSize) * (double(fontInfo->absolute) ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL));
-    setElementValue(styleElement, namePrefix + "FontSpatiumDependent", !fontInfo->absolute);
+                    double(fontInfo->fontSize) * (fontInfo->absolute() ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL));
+    setElementValue(styleElement, namePrefix + "FontSpatiumDependent", !fontInfo->absolute());
     setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
 }
 
@@ -157,7 +158,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
     // ToDo: lots
     try {
         // construct source instance and release input memory
-        auto enigmaDocument = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
+        auto prefs = getCurrentPrefs(xmlBuffer);
 
         // extract document to mss
         XmlDocument mssDoc; // output
