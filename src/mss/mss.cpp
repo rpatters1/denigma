@@ -50,6 +50,7 @@ constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 // Finale preferences:
 struct FinalePrefences
 {
+    DocumentPtr document;
     std::shared_ptr<FontInfo> defaultMusicFont;
 };
 using FinalePrefencesPtr = std::shared_ptr<FinalePrefences>;
@@ -111,9 +112,9 @@ static uint16_t museFontEfx(const FontInfoPtr& fontInfo)
     return retval;
 }
 
-static double museMagVal(const DocumentPtr& document, const FinalePrefencesPtr& prefs, const options::DefaultFonts::FontType type)
+static double museMagVal(const FinalePrefencesPtr& prefs, const options::DefaultFonts::FontType type)
 {
-    auto fontPrefs = options::DefaultFonts::getFontInfo(document, type);
+    auto fontPrefs = options::DefaultFonts::getFontInfo(prefs->document, type);
     if (fontPrefs->getFontName() == prefs->defaultMusicFont->getFontName()) {
         return double(fontPrefs->fontSize) / double(prefs->defaultMusicFont->fontSize);
     }
@@ -129,9 +130,9 @@ static void writeFontPref(XmlElement* styleElement, const std::string& namePrefi
     setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
 }
 
-static void writeDefaultFontPref(XmlElement* styleElement, const DocumentPtr& document, const std::string& namePrefix, options::DefaultFonts::FontType type)
+static void writeDefaultFontPref(XmlElement* styleElement, const FinalePrefencesPtr& prefs, const std::string& namePrefix, options::DefaultFonts::FontType type)
 {
-    auto fontPrefs = options::DefaultFonts::getFontInfo(document, type);
+    auto fontPrefs = options::DefaultFonts::getFontInfo(prefs->document, type);
     writeFontPref(styleElement, namePrefix, fontPrefs);
 }
 
