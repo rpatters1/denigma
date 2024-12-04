@@ -49,6 +49,8 @@ constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 struct FinalePrefences
 {
     DocumentPtr document;
+    OptionsPoolPtr options;
+    OthersPoolPtr others;
     std::shared_ptr<FontInfo> defaultMusicFont;
 };
 using FinalePrefencesPtr = std::shared_ptr<FinalePrefences>;
@@ -58,15 +60,15 @@ static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer)
     auto retval = std::make_shared<FinalePrefences>();
     retval->document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
 
-    auto options = retval->document->getOptions();
-    if (!options) {
+    retval->options = retval->document->getOptions();
+    if (!retval->options) {
         throw std::invalid_argument("Finale document must contain <options>");
     }
-    auto others = retval->document->getOthers();
-    if (!others) {
+    retval->others = retval->document->getOthers();
+    if (!retval->others) {
         throw std::invalid_argument("Finale document must contain <others>");
     }
-    auto defaultFonts = options->get<options::DefaultFonts>();
+    auto defaultFonts = retval->options->get<options::DefaultFonts>();
     retval->defaultMusicFont = defaultFonts->getFontInfo(options::DefaultFonts::FontType::Music);
 
     return retval;
@@ -166,6 +168,28 @@ static void writeFramePrefs(XmlElement* styleElement, const std::string& namePre
     setElementValue(styleElement, namePrefix + "FrameWidth", enclosure->lineWidth / EFIX_PER_SPACE);
     setElementValue(styleElement, namePrefix + "FrameRound", 
                     enclosure->roundCorners ? enclosure->cornerRadius / EFIX_PER_EVPU : 0.0);
+}
+
+static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePrefencesPtr& prefs, const std::string& namePrefix, Cmper categoryId)
+{
+    auto cat = prefs->others->get<others::MarkingCategory>(categoryId);
+    if (!cat) {
+        std::cout << "unable to load category def for " << namePrefix << std::endl;
+        return;
+    }
+    if (!cat->textFont) {
+        std::cout << "marking category " << cat->getName() << " has no text font." << std::endl;
+        return;
+    }
+    writeFontPref(styleElement, namePrefix, cat->textFont.get());
+    for (auto expId : cat->textExpression) {
+        auto exp = prefs->others->get<others::TextExpressionDef>(expId);
+        if (!exp) {
+            std::cout << "marking category " << cat->getName() << " has invalid text expression." << std::endl;
+        } else {
+            writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
+        }
+    }
 }
 
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
