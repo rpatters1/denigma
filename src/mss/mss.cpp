@@ -157,13 +157,11 @@ static void writeFramePrefs(XmlElement* styleElement, const std::string& namePre
         setElementValue(styleElement, namePrefix + "FrameType", 0);
         return; // Do not override any other defaults if no enclosure shape
     } 
-    
     if (enclosure->shape == others::Enclosure::Shape::Ellipse) {
         setElementValue(styleElement, namePrefix + "FrameType", 2);
     } else {
         setElementValue(styleElement, namePrefix + "FrameType", 1);
     }
-
     setElementValue(styleElement, namePrefix + "FramePadding", enclosure->xMargin / EVPU_PER_SPACE);
     setElementValue(styleElement, namePrefix + "FrameWidth", enclosure->lineWidth / EFIX_PER_SPACE);
     setElementValue(styleElement, namePrefix + "FrameRound", 
