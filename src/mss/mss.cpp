@@ -36,8 +36,6 @@ using XmlDocument = ::tinyxml2::XMLDocument;
 using XmlElement = ::tinyxml2::XMLElement;
 using XmlAttribute = ::tinyxml2::XMLAttribute;
 
-using FontInfoPtr = std::shared_ptr<FontInfo>;
-
 constexpr static char MSS_VERSION[] = "4.50";
 
 constexpr static double EVPU_PER_INCH = 288.0;
@@ -101,7 +99,7 @@ static XmlElement* setElementValue(XmlElement* styleElement, const std::string& 
     return element;
 }
 
-static uint16_t museFontEfx(const FontInfoPtr& fontInfo)
+static uint16_t museFontEfx(const FontInfo* fontInfo)
 {
     uint16_t retval = 0;
 
@@ -122,7 +120,7 @@ static double museMagVal(const FinalePrefencesPtr& prefs, const options::Default
     return 1.0;
 }
 
-static void writeFontPref(XmlElement* styleElement, const std::string& namePrefix, const FontInfoPtr& fontInfo)
+static void writeFontPref(XmlElement* styleElement, const std::string& namePrefix, const FontInfo* fontInfo)
 {
     setElementValue(styleElement, namePrefix + "FontFace", fontInfo->getFontName());
     setElementValue(styleElement, namePrefix + "FontSize", 
@@ -134,7 +132,7 @@ static void writeFontPref(XmlElement* styleElement, const std::string& namePrefi
 static void writeDefaultFontPref(XmlElement* styleElement, const FinalePrefencesPtr& prefs, const std::string& namePrefix, options::DefaultFonts::FontType type)
 {
     auto fontPrefs = options::DefaultFonts::getFontInfo(prefs->document, type);
-    writeFontPref(styleElement, namePrefix, fontPrefs);
+    writeFontPref(styleElement, namePrefix, fontPrefs.get());
 }
 
 void writeLinePrefs(XmlElement* styleElement,
@@ -151,6 +149,25 @@ void writeLinePrefs(XmlElement* styleElement,
     }
     setElementValue(styleElement, namePrefix + "DashLineLen", dashLength / lineWidthEvpu);
     setElementValue(styleElement, namePrefix + "DashGapLen", dashGap / lineWidthEvpu);
+}
+
+static void writeFramePrefs(XmlElement* styleElement, const std::string& namePrefix, const others::Enclosure* enclosure = nullptr)
+{
+    if (!enclosure || enclosure->shape == others::Enclosure::Shape::NoEnclosure || enclosure->lineWidth == 0) {
+        setElementValue(styleElement, namePrefix + "FrameType", 0);
+        return; // Do not override any other defaults if no enclosure shape
+    } 
+    
+    if (enclosure->shape == others::Enclosure::Shape::Ellipse) {
+        setElementValue(styleElement, namePrefix + "FrameType", 2);
+    } else {
+        setElementValue(styleElement, namePrefix + "FrameType", 1);
+    }
+
+    setElementValue(styleElement, namePrefix + "FramePadding", enclosure->xMargin / EVPU_PER_SPACE);
+    setElementValue(styleElement, namePrefix + "FrameWidth", enclosure->lineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, namePrefix + "FrameRound", 
+                    enclosure->roundCorners ? enclosure->cornerRadius / EFIX_PER_EVPU : 0.0);
 }
 
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
