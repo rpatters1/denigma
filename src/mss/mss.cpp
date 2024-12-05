@@ -49,8 +49,6 @@ constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 struct FinalePrefences
 {
     DocumentPtr document;
-    OptionsPoolPtr options;
-    OthersPoolPtr others;
     std::shared_ptr<FontInfo> defaultMusicFont;
 };
 using FinalePrefencesPtr = std::shared_ptr<FinalePrefences>;
@@ -60,15 +58,7 @@ static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer)
     auto retval = std::make_shared<FinalePrefences>();
     retval->document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
 
-    retval->options = retval->document->getOptions();
-    if (!retval->options) {
-        throw std::invalid_argument("Finale document must contain <options>");
-    }
-    retval->others = retval->document->getOthers();
-    if (!retval->others) {
-        throw std::invalid_argument("Finale document must contain <others>");
-    }
-    auto defaultFonts = retval->options->get<options::DefaultFonts>();
+    auto defaultFonts = retval->document->getOptions()->get<options::DefaultFonts>();
     retval->defaultMusicFont = defaultFonts->getFontInfo(options::DefaultFonts::FontType::Music);
 
     return retval;
@@ -105,10 +95,10 @@ static uint16_t museFontEfx(const FontInfo* fontInfo)
 {
     uint16_t retval = 0;
 
-    if (fontInfo->bold()) { retval |= 0x01; }
-    if (fontInfo->italic()) { retval |= 0x02; }
-    if (fontInfo->underline()) { retval |= 0x04; }
-    if (fontInfo->strikeout()) { retval |= 0x08; }
+    if (fontInfo->bold) { retval |= 0x01; }
+    if (fontInfo->italic) { retval |= 0x02; }
+    if (fontInfo->underline) { retval |= 0x04; }
+    if (fontInfo->strikeout) { retval |= 0x08; }
 
     return retval;
 }
@@ -126,8 +116,8 @@ static void writeFontPref(XmlElement* styleElement, const std::string& namePrefi
 {
     setElementValue(styleElement, namePrefix + "FontFace", fontInfo->getFontName());
     setElementValue(styleElement, namePrefix + "FontSize", 
-                    double(fontInfo->fontSize) * (fontInfo->absolute() ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL));
-    setElementValue(styleElement, namePrefix + "FontSpatiumDependent", !fontInfo->absolute());
+                    double(fontInfo->fontSize) * (fontInfo->absolute ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL));
+    setElementValue(styleElement, namePrefix + "FontSpatiumDependent", !fontInfo->absolute);
     setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
 }
 
@@ -172,7 +162,7 @@ static void writeFramePrefs(XmlElement* styleElement, const std::string& namePre
 
 static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePrefencesPtr& prefs, const std::string& namePrefix, Cmper categoryId)
 {
-    auto cat = prefs->others->get<others::MarkingCategory>(categoryId);
+    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(categoryId);
     if (!cat) {
         std::cout << "unable to load category def for " << namePrefix << std::endl;
         return;
@@ -182,12 +172,12 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
         return;
     }
     writeFontPref(styleElement, namePrefix, cat->textFont.get());
-    for (auto expId : cat->textExpressions) {
-        auto exp = prefs->others->get<others::TextExpressionDef>(expId);
-        if (!exp) {
-            std::cout << "marking category " << cat->getName() << " has invalid text expression." << std::endl;
-        } else {
+    for (auto& it : cat->textExpressions) {
+        if (auto exp = it.second.lock()) {
             writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
+            break;
+        } else {
+            std::cout << "marking category " << cat->getName() << " has invalid text expression." << std::endl;
         }
     }
 }
