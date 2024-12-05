@@ -182,7 +182,7 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
         return;
     }
     writeFontPref(styleElement, namePrefix, cat->textFont.get());
-    for (auto expId : cat->textExpression) {
+    for (auto expId : cat->textExpressions) {
         auto exp = prefs->others->get<others::TextExpressionDef>(expId);
         if (!exp) {
             std::cout << "marking category " << cat->getName() << " has invalid text expression." << std::endl;
