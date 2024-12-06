@@ -106,6 +106,8 @@ static XmlElement* setElementValue(XmlElement* styleElement, const std::string& 
         element->SetText(buffer);
     } else if constexpr (std::is_same_v<T, std::string>) {
         element->SetText(value.c_str());
+    } else if constexpr (std::is_same_v<T, bool>) {
+        element->SetText(int(value));
     } else {
         element->SetText(value);
     }
@@ -212,14 +214,14 @@ static void writePagePrefs(XmlElement* styleElement, const FinalePrefencesPtr& p
     setElementValue(styleElement, "pageWidth", double(pagePrefs->pageWidth) / EVPU_PER_INCH);
     setElementValue(styleElement, "pageHeight", double(pagePrefs->pageHeight) / EVPU_PER_INCH);
     setElementValue(styleElement, "pagePrintableWidth",
-                    double(pagePrefs->pageWidth - pagePrefs->leftPageMarginRight - pagePrefs->leftPageMarginRight) / EVPU_PER_INCH);
+                    double(pagePrefs->pageWidth + pagePrefs->leftPageMarginRight + pagePrefs->leftPageMarginRight) / EVPU_PER_INCH);
     setElementValue(styleElement, "pageEvenLeftMargin", pagePrefs->leftPageMarginLeft / EVPU_PER_INCH);
     setElementValue(styleElement, "pageOddLeftMargin",
                     double(pagePrefs->facingPages ? pagePrefs->rightPageMarginLeft : pagePrefs->leftPageMarginLeft) / EVPU_PER_INCH);
-    setElementValue(styleElement, "pageEvenTopMargin", double(pagePrefs->leftPageMarginTop) / EVPU_PER_INCH);
+    setElementValue(styleElement, "pageEvenTopMargin", double(-pagePrefs->leftPageMarginTop) / EVPU_PER_INCH);
     setElementValue(styleElement, "pageEvenBottomMargin", double(pagePrefs->leftPageMarginBottom) / EVPU_PER_INCH);
     setElementValue(styleElement, "pageOddTopMargin",
-                    double(pagePrefs->facingPages ? pagePrefs->rightPageMarginTop : pagePrefs->leftPageMarginTop) / EVPU_PER_INCH);
+                    double(pagePrefs->facingPages ? -pagePrefs->rightPageMarginTop : -pagePrefs->leftPageMarginTop) / EVPU_PER_INCH);
     setElementValue(styleElement, "pageOddBottomMargin",
                     double(pagePrefs->facingPages ? pagePrefs->rightPageMarginBottom : pagePrefs->leftPageMarginBottom) / EVPU_PER_INCH);
     setElementValue(styleElement, "pageTwosided", pagePrefs->facingPages);
@@ -240,6 +242,24 @@ static void writePagePrefs(XmlElement* styleElement, const FinalePrefencesPtr& p
     }
 }
 
+static void writeLyricsPrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs)
+{
+    auto fontInfo = options::DefaultFonts::getFontInfo(prefs->document, options::DefaultFonts::FontType::LyricVerse);
+    for (auto [verseNumber, evenOdd] : {
+            std::make_pair(1, "Odd"),
+            std::make_pair(2, "Even")
+        }) {
+        auto verseText = prefs->document->getTexts()->get<texts::LyricsVerse>(verseNumber);
+        if (verseText && !verseText->text.empty()) {
+            auto font = verseText->parseFirstFontInfo();
+            if (font) {
+                fontInfo = font;
+            }
+        }
+        writeFontPref(styleElement, "lyrics" + std::string(evenOdd), fontInfo.get());
+    }
+}
+
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
     // ToDo: lots
@@ -255,6 +275,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
         mssDoc.InsertEndChild(museScoreElement);
         auto styleElement = museScoreElement->InsertNewChildElement("Style");
         writePagePrefs(styleElement, prefs);
+        writeLyricsPrefs(styleElement, prefs);
         if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
             throw std::runtime_error(mssDoc.ErrorStr());
         }
