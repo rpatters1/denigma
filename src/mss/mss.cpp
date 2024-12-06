@@ -22,6 +22,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <set>
 
 #include "mss.h"
 #include "musx/musx.h"
@@ -45,10 +46,22 @@ constexpr static double EFIX_PER_EVPU = 64.0;
 constexpr static double EFIX_PER_SPACE = EVPU_PER_SPACE * EFIX_PER_EVPU;
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 
+static const std::set<std::string_view> museScoreSMuFlFonts{
+    "Bravura",
+    "Leland",
+    "Emmentaler",
+    "Gonville",
+    "MuseJazz",
+    "Petaluma",
+    "Finale Maestro",
+    "Finale Broadway"
+};
+
 // Finale preferences:
 struct FinalePrefences
 {
     DocumentPtr document;
+    std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
     std::shared_ptr<FontInfo> defaultMusicFont;
 };
 using FinalePrefencesPtr = std::shared_ptr<FinalePrefences>;
@@ -58,7 +71,16 @@ static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer)
     auto retval = std::make_shared<FinalePrefences>();
     retval->document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
 
+    auto pageFormatOptions = retval->document->getOptions()->get<options::PageFormatOptions>();
+    if (!pageFormatOptions) {
+        throw std::invalid_argument("document contains no page format options");
+    }
+    retval->pageFormat = pageFormatOptions->pageFormatScore; // ToDo: check for score or part
+
     auto defaultFonts = retval->document->getOptions()->get<options::DefaultFonts>();
+    if (!defaultFonts) {
+        throw std::invalid_argument("document contains no default font options");
+    }
     retval->defaultMusicFont = defaultFonts->getFontInfo(options::DefaultFonts::FontType::Music);
 
     return retval;
@@ -182,6 +204,42 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
     }
 }
 
+static void writePagePrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs)
+{
+    auto pagePrefs = prefs->pageFormat;
+
+    // Set XML element values
+    setElementValue(styleElement, "pageWidth", double(pagePrefs->pageWidth) / EVPU_PER_INCH);
+    setElementValue(styleElement, "pageHeight", double(pagePrefs->pageHeight) / EVPU_PER_INCH);
+    setElementValue(styleElement, "pagePrintableWidth",
+                    double(pagePrefs->pageWidth - pagePrefs->leftPageMarginRight - pagePrefs->leftPageMarginRight) / EVPU_PER_INCH);
+    setElementValue(styleElement, "pageEvenLeftMargin", pagePrefs->leftPageMarginLeft / EVPU_PER_INCH);
+    setElementValue(styleElement, "pageOddLeftMargin",
+                    double(pagePrefs->facingPages ? pagePrefs->rightPageMarginLeft : pagePrefs->leftPageMarginLeft) / EVPU_PER_INCH);
+    setElementValue(styleElement, "pageEvenTopMargin", double(pagePrefs->leftPageMarginTop) / EVPU_PER_INCH);
+    setElementValue(styleElement, "pageEvenBottomMargin", double(pagePrefs->leftPageMarginBottom) / EVPU_PER_INCH);
+    setElementValue(styleElement, "pageOddTopMargin",
+                    double(pagePrefs->facingPages ? pagePrefs->rightPageMarginTop : pagePrefs->leftPageMarginTop) / EVPU_PER_INCH);
+    setElementValue(styleElement, "pageOddBottomMargin",
+                    double(pagePrefs->facingPages ? pagePrefs->rightPageMarginBottom : pagePrefs->leftPageMarginBottom) / EVPU_PER_INCH);
+    setElementValue(styleElement, "pageTwosided", pagePrefs->facingPages);
+    setElementValue(styleElement, "enableIndentationOnFirstSystem", pagePrefs->differentFirstSysMargin);
+    setElementValue(styleElement, "firstSystemIndentationValue", double(pagePrefs->firstSysMarginLeft) / EVPU_PER_SPACE);
+
+    // Calculate Spatium
+    auto pagePercent = double(pagePrefs->pagePercent) / 100.0;
+    auto staffPercent = (double(pagePrefs->rawStaffHeight) / (EVPU_PER_SPACE * 4 * 16)) * (double(pagePrefs->sysPercent) / 100.0);
+    setElementValue(styleElement, "spatium", (EVPU_PER_SPACE * staffPercent * pagePercent) / EVPU_PER_MM);
+
+    // Default music font
+    auto defaultMusicFont = prefs->defaultMusicFont;
+    auto it = museScoreSMuFlFonts.find(defaultMusicFont->getFontName());
+    if (it != museScoreSMuFlFonts.end()) {
+        setElementValue(styleElement, "musicalSymbolFont", defaultMusicFont->getFontName());
+        setElementValue(styleElement, "musicalTextFont", defaultMusicFont->getFontName() + " Text");
+    }
+}
+
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
     // ToDo: lots
@@ -196,6 +254,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
         museScoreElement->SetAttribute("version", MSS_VERSION);
         mssDoc.InsertEndChild(museScoreElement);
         auto styleElement = museScoreElement->InsertNewChildElement("Style");
+        writePagePrefs(styleElement, prefs);
         if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
             throw std::runtime_error(mssDoc.ErrorStr());
         }
