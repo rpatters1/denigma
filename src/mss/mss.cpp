@@ -28,7 +28,7 @@
 #include "musx/musx.h"
 #include "tinyxml2.h"
 
-namespace musxconvert {
+namespace denigma {
 namespace mss {
 
 using namespace ::musx::dom;
@@ -290,4 +290,4 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
 }
 
 } // namespace mss
-} // namespace musxconvert
+} // namespace denigma

@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Project name and version
-project(musxconvert VERSION 0.1)
+project(denigma VERSION 0.1)
 
 # Specify C++ standard and minimum macOS version
 set(CMAKE_CXX_STANDARD 17)
@@ -52,7 +52,7 @@ add_subdirectory(${TINYXML2_DIR})
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 
 # Add executable target
-add_executable(musxconvert
+add_executable(denigma
     src/main.cpp
     src/enigmaxml/enigmaxml.cpp
     src/mnx/mnx.cpp
@@ -60,17 +60,17 @@ add_executable(musxconvert
 )
 
 # Compile definitions
-target_compile_definitions(musxconvert PRIVATE MUSX_USE_TINYXML2)
-target_compile_definitions(musxconvert PRIVATE MUSX_USE_RAPIDXML)
+target_compile_definitions(denigma PRIVATE MUSX_USE_TINYXML2)
+target_compile_definitions(denigma PRIVATE MUSX_USE_RAPIDXML)
 
 # Ensure the include directories are added
-add_dependencies(musxconvert GenerateMnxSchemaXxd)
-target_include_directories(musxconvert PRIVATE ${GENERATED_DIR})
-target_include_directories(musxconvert PRIVATE ${EZGZ_DIR})
-target_include_directories(musxconvert PRIVATE ${MINIZ_DIR})
-target_include_directories(musxconvert PRIVATE ${MUSX_OBJECT_MODEL_DIR})
+add_dependencies(denigma GenerateMnxSchemaXxd)
+target_include_directories(denigma PRIVATE ${GENERATED_DIR})
+target_include_directories(denigma PRIVATE ${EZGZ_DIR})
+target_include_directories(denigma PRIVATE ${MINIZ_DIR})
+target_include_directories(denigma PRIVATE ${MUSX_OBJECT_MODEL_DIR})
 
 # Ensure the libraries are added
-target_link_libraries(musxconvert PRIVATE tinyxml2)
-target_link_libraries(musxconvert PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(musxconvert PRIVATE nlohmann_json_schema_validator)
+target_link_libraries(denigma PRIVATE tinyxml2)
+target_link_libraries(denigma PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(denigma PRIVATE nlohmann_json_schema_validator)

@@ -29,7 +29,7 @@
 #include "mss/mss.h"
 #include "mnx/mnx.h"
 
-using namespace musxconvert;
+using namespace denigma;
 
 constexpr char MUSX_EXTENSION[]		    = "musx";
 constexpr char ENIGMAXML_EXTENSION[]    = "enigmaxml";
