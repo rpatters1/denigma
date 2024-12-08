@@ -36,6 +36,17 @@ constexpr char ENIGMAXML_EXTENSION[]    = "enigmaxml";
 constexpr char MNX_EXTENSION[]		    = "mnx";
 constexpr char MSS_EXTENSION[]		    = "mss";
 
+// This function exists as std::to_array in C++20
+template <typename T, std::size_t N>
+constexpr std::array<T, N> to_array(const T(&arr)[N])
+{
+    std::array<T, N> result{};
+    for (std::size_t i = 0; i < N; ++i) {
+        result[i] = arr[i];
+    }
+    return result;
+}
+
 // Input format processors
 constexpr auto inputProcessors = []() {
     struct InputProcessor
@@ -44,10 +55,10 @@ constexpr auto inputProcessors = []() {
         enigmaxml::Buffer(*processor)(const std::filesystem::path&);
     };
 
-    return std::array<InputProcessor, 2>{{
+    return to_array<InputProcessor>({
         { MUSX_EXTENSION, enigmaxml::extract },
         { ENIGMAXML_EXTENSION, enigmaxml::read },
-    }};
+    });
 }();
 
 // Output format processors
@@ -58,11 +69,11 @@ constexpr auto outputProcessors = []() {
         void(*processor)(const std::filesystem::path&, const enigmaxml::Buffer&);
     };
 
-    return std::array<OutputProcessor, 3>{{
+    return to_array<OutputProcessor>({
         { ENIGMAXML_EXTENSION, enigmaxml::write },
         { MSS_EXTENSION, mss::convert },
-        { MNX_EXTENSION, mnx::convert },
-    }};
+        //{ MNX_EXTENSION, mnx::convert },
+    });
 }();
 
 // Function to find the appropriate processor
@@ -108,8 +119,8 @@ static int showHelpPage(const std::string& programName)
     std::cerr << "Examples:" << std::endl;
     std::cerr << "  " << programName << " input.musx --mss output.mss" << std::endl;
     std::cerr << "  " << programName << " input.musx --enigmaxml output.enigmaxml" << std::endl;
-    std::cerr << "  " << programName << " input.enigmaxml --mnx --mss" << std::endl;
-    std::cerr << "  " << programName << " input.musx --enigmaxml" << std::endl;
+    //std::cerr << "  " << programName << " input.enigmaxml --mnx --mss" << std::endl;
+    std::cerr << "  " << programName << " input.musx --mss --enigmaxml" << std::endl;
 
     return 1;
 }
@@ -145,7 +156,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (showVersion) {
-            std::cout << programName << " " << MUSXCONVERT_VERSION << std::endl;
+            std::cout << programName << " " << DENIGMA_VERSION << std::endl;
             return 0;
         }
         if (showHelp) {
