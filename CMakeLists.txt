@@ -33,8 +33,6 @@ set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/build")
 
 #define other directories
 set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
-#set(NLOHMANN_JSON_DIR "${CMAKE_SOURCE_DIR}/submodules/nlohmann_json")
-set(JSON_SCHEMA_VALIDATOR_DIR "${CMAKE_SOURCE_DIR}/submodules/json_schema_validator")
 set(MUSX_OBJECT_MODEL_DIR "${CMAKE_SOURCE_DIR}/submodules/musx_object_model/src")
 set(RAPIDXML_DIR "${CMAKE_SOURCE_DIR}/third_party/rapidxml")
 
@@ -72,7 +70,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(miniz-cpp)
 
 # Define the version of nlohmann_json to use
-set(NLOHMANN_JSON_VERSION v3.11.2)
+set(NLOHMANN_JSON_VERSION v3.11.3)
 
 # Fetch nlohmann_json
 FetchContent_Declare(
