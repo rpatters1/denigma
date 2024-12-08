@@ -30,6 +30,7 @@ endif()
 add_custom_command(
     OUTPUT "${CMAKE_BINARY_DIR}/generated/mnx_schema.xxd"
     COMMAND ${CMAKE_COMMAND} -E echo "Generating mnx_schema.xxd..."
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${GENERATED_DIR}"
     COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_BINARY_DIR}/third_party"
             xxd -i "mnx-schema.json" > "${GENERATED_MNX_XXD}"
     DEPENDS "${MNX_SCHEMA_JSON}"

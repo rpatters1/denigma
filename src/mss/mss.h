@@ -27,10 +27,10 @@
 
  //placeholder function
 
-namespace musxconvert {
+namespace denigma {
 namespace mss {
 
 void convert(const std::filesystem::path& file, const enigmaxml::Buffer& xmlBuffer);
 
 } // namespace mss
-} // namespace musxconvert
+} // namespace denigma

@@ -31,7 +31,7 @@
 
 #include "musx/musx.h"
 
-namespace musxconvert {
+namespace denigma {
 namespace mnx {
 
 // placeholder
@@ -76,4 +76,4 @@ static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath)
 }
 
 } // namespace mnx
-} // namespace musxconvert
+} // namespace denigma

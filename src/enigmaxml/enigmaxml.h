@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-namespace musxconvert {
+namespace denigma {
 namespace enigmaxml {
 
 using Buffer = std::vector<char>;
@@ -34,4 +34,4 @@ Buffer read(const std::filesystem::path& inputFile);
 void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer);
 
 } // namespace enigmaxml
-} // namespace musxconvert
+} // namespace denigma

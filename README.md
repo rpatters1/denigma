@@ -1,6 +1,12 @@
-# musxconvert command line utility
+# denigma command line utility
 
-This utility as extracts and converts Enigma XML from a Finale `.musx` file. It has no external dependencies.
+This utility as extracts and converts Enigma XML from a Finale `.musx` file. It is a successor the original denigma project by [Chris Roode](https://github.com/chrisroode).
+
+Use the `--help` option to get a full list of commands:
+
+```
+denigma --help
+```
 
 ## Setup Instructions
 
@@ -35,7 +41,7 @@ choco install xxd
 
 ```bash
 cmake -P build.cmake
-```musx2xml
+```
 
 or (for Linux or macOS)
 
@@ -94,7 +100,7 @@ or (for Linux or macOS)
             "name": "C++ Debug (codeLLDB)",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/build/musxconvert",
+            "program": "${workspaceFolder}/build/build/denigma",
             "args": [], // specify command line arguments here for testing
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
