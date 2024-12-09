@@ -46,7 +46,7 @@ constexpr static double EFIX_PER_EVPU = 64.0;
 constexpr static double EFIX_PER_SPACE = EVPU_PER_SPACE * EFIX_PER_EVPU;
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 
-static const std::set<std::string_view> museScoreSMuFlFonts{
+static const std::set<std::string_view> museScoreSMuFLFonts{
     "Bravura",
     "Leland",
     "Emmentaler",
@@ -235,8 +235,14 @@ static void writePagePrefs(XmlElement* styleElement, const FinalePrefencesPtr& p
 
     // Default music font
     auto defaultMusicFont = prefs->defaultMusicFont;
-    auto it = museScoreSMuFlFonts.find(defaultMusicFont->getFontName());
-    if (it != museScoreSMuFlFonts.end()) {
+    bool isSMuFL = [defaultMusicFont]() -> bool {
+        if (defaultMusicFont->calcIsSMuFL()) {
+            return true;
+        }
+        auto it = museScoreSMuFLFonts.find(defaultMusicFont->getFontName());
+        return it != museScoreSMuFLFonts.end();
+    }();
+    if (isSMuFL) {
         setElementValue(styleElement, "musicalSymbolFont", defaultMusicFont->getFontName());
         setElementValue(styleElement, "musicalTextFont", defaultMusicFont->getFontName() + " Text");
     }
