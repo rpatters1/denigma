@@ -61,27 +61,38 @@ static const std::set<std::string_view> museScoreSMuFLFonts{
 struct FinalePrefences
 {
     DocumentPtr document;
-    std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
     std::shared_ptr<FontInfo> defaultMusicFont;
+    std::shared_ptr<options::BarlineOptions> barlineOptions;
+    std::shared_ptr<options::ClefOptions> clefOptions;
+    std::shared_ptr<options::LineCurveOptions> lineCurveOptions;
+    std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
+    std::shared_ptr<options::RepeatOptions> repeatOptions;
 };
 using FinalePrefencesPtr = std::shared_ptr<FinalePrefences>;
+
+template <typename T>
+static std::shared_ptr<T> getDocOptions(const std::shared_ptr<FinalePrefences>& prefs, const std::string& prefsName)
+{
+    auto retval = prefs->document->getOptions()->get<T>();
+    if (!retval) {
+        throw std::invalid_argument("document contains no default " + prefsName + " options");
+    }
+    return retval;
+}
 
 static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer)
 {
     auto retval = std::make_shared<FinalePrefences>();
     retval->document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
 
-    auto pageFormatOptions = retval->document->getOptions()->get<options::PageFormatOptions>();
-    if (!pageFormatOptions) {
-        throw std::invalid_argument("document contains no page format options");
-    }
-    retval->pageFormat = pageFormatOptions->pageFormatScore; // ToDo: check for score or part
-
-    auto defaultFonts = retval->document->getOptions()->get<options::DefaultFonts>();
-    if (!defaultFonts) {
-        throw std::invalid_argument("document contains no default font options");
-    }
+    auto defaultFonts = getDocOptions<options::DefaultFonts>(retval, "font");
     retval->defaultMusicFont = defaultFonts->getFontInfo(options::DefaultFonts::FontType::Music);
+    retval->barlineOptions = getDocOptions<options::BarlineOptions>(retval, "barline");
+    retval->clefOptions = getDocOptions<options::ClefOptions>(retval, "clef");
+    retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
+    auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
+    retval->pageFormat = pageFormatOptions->pageFormatScore; // ToDo: check for score or part
+    retval->repeatOptions = getDocOptions<options::RepeatOptions>(retval, "repeat");
 
     return retval;
 }
@@ -265,6 +276,79 @@ static void writeLyricsPrefs(XmlElement* styleElement, const FinalePrefencesPtr&
         writeFontPref(styleElement, "lyrics" + std::string(evenOdd), fontInfo.get());
     }
 }
+
+#if 0
+void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePrefencesPtr& prefs, bool currentIsPart)
+{
+    using RepeatWingStyle = options::RepeatOptions::WingStyle;
+
+    setElementText(styleElement, "barWidth", prefs->barlineOptions->barlineWidth / EFIX_PER_SPACE);
+    setElementText(styleElement, "doubleBarWidth", prefs->barlineOptions->barlineWidth / EFIX_PER_SPACE);
+    setElementText(styleElement, "endBarWidth", prefs->barlineOptions->thickBarlineWidth / EFIX_PER_SPACE);
+
+    // Finale's double bar distance is measured from the beginning of the thin line
+    setElementText(styleElement, "doubleBarDistance", 
+        (prefs->barlineOptions->doubleBarlineSpace - prefs->barlineOptions->barlineWidth) / EFIX_PER_SPACE);
+
+    // Finale's final bar distance is the separation amount
+    setElementText(styleElement, "endBarDistance", prefs->barlineOptions->finalBarlineSpace / EFIX_PER_SPACE);
+    setElementText(styleElement, "repeatBarlineDotSeparation", prefs->repeatOptions->forwardDotHPos / EVPU_PER_SPACE);
+    setElementText(styleElement, "repeatBarTips", prefs->repeatOptions->wingStyle != RepeatWingStyle::None);
+
+    setElementText(styleElement, "startBarlineSingle", prefs->barlineOptions->drawLeftBarlineSingleStaff);
+    setElementText(styleElement, "startBarlineMultiple", prefs->barlineOptions->drawLeftBarlineMultipleStaves);
+
+    setElementText(styleElement, "bracketWidth", 0.5); // Hard-coded in Finale
+    setElementText(styleElement, "bracketDistance", 
+        -prefs->clefOptions->groupBracketDefaultDistance / EVPU_PER_SPACE);
+    setElementText(styleElement, "akkoladeBarDistance", 
+        -prefs->clefOptions->groupBracketDefaultDistance / EVPU_PER_SPACE);
+
+    setElementText(styleElement, "clefLeftMargin", prefs->clefOptions->clefFrontSepar / EVPU_PER_SPACE);
+    setElementText(styleElement, "keysigLeftMargin", prefs->clefOptions->keySpaceBefore / EVPU_PER_SPACE);
+
+    double timeSigSpaceBefore = currentIsPart ? 
+        prefs->clefOptions->timeSigPartsSpaceBefore : prefs->clefOptions->timeSigSpaceBefore;
+    setElementText(styleElement, "timesigLeftMargin", timeSigSpaceBefore / EVPU_PER_SPACE);
+
+    setElementText(styleElement, "clefKeyDistance", 
+        (prefs->clefOptions->clefBackSepar + prefs->clefOptions->clefKeySepar + prefs->clefOptions->keySpaceBefore) / EVPU_PER_SPACE);
+    setElementText(styleElement, "clefTimesigDistance", 
+        (prefs->clefOptions->clefBackSepar + prefs->clefOptions->clefTimeSepar + timeSigSpaceBefore) / EVPU_PER_SPACE);
+    setElementText(styleElement, "keyTimesigDistance", 
+        (prefs->clefOptions->keySpaceAfter + prefs->clefOptions->keyTimeExtraSpace + timeSigSpaceBefore) / EVPU_PER_SPACE);
+    setElementText(styleElement, "keyBarlineDistance", prefs->repeatOptions->afterKeySpace / EVPU_PER_SPACE);
+
+    // Differences in how MuseScore and Finale interpret these settings mean the following are better left alone
+    // setElementText(styleElement, "systemHeaderDistance", prefs->clefOptions->keySpaceAfter / EVPU_PER_SPACE);
+    // setElementText(styleElement, "systemHeaderTimeSigDistance", prefs->clefOptions->timeSigSpaceAfter / EVPU_PER_SPACE);
+
+    setElementText(styleElement, "clefBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
+    setElementText(styleElement, "timesigBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
+
+    setElementText(styleElement, "measureRepeatNumberPos", 
+        -(prefs->repeatOptions->bracketTextVPos + 0.5) / EVPU_PER_SPACE);
+    setElementText(styleElement, "staffLineWidth", prefs->lineCurveOptions->staffLineWidth / EFIX_PER_SPACE);
+    setElementText(styleElement, "ledgerLineWidth", prefs->lineCurveOptions->legerLineWidth / EFIX_PER_SPACE);
+    setElementText(styleElement, "ledgerLineLength", 
+        (prefs->lineCurveOptions->legerFrontLength + prefs->lineCurveOptions->legerBackLength) / (2 * EVPU_PER_SPACE));
+    setElementText(styleElement, "keysigAccidentalDistance", 
+        (prefs->clefOptions->keySpaceBetweenAccidentals + 4) / EVPU_PER_SPACE); // Observed fudge factor
+    setElementText(styleElement, "keysigNaturalDistance", 
+        (prefs->clefOptions->keySpaceBetweenAccidentals + 6) / EVPU_PER_SPACE); // Observed fudge factor
+
+    setElementText(styleElement, "smallClefMag", prefs->clefOptions->clefChangePercent / 100);
+    setElementText(styleElement, "genClef", !prefs->clefOptions->showClefFirstSystemOnly);
+    setElementText(styleElement, "genKeysig", !prefs->clefOptions->keySigOnlyFirstSystem);
+    setElementText(styleElement, "genCourtesyTimesig", prefs->clefOptions->courtesyTimeSigAtSystemEnd);
+    setElementText(styleElement, "genCourtesyKeysig", prefs->clefOptions->courtesyKeySigAtSystemEnd);
+    setElementText(styleElement, "genCourtesyClef", prefs->clefOptions->cautionaryClefChanges);
+
+    setElementText(styleElement, "keySigCourtesyBarlineMode", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
+    setElementText(styleElement, "timeSigCourtesyBarlineMode", 0); // Hard-coded as 0 in Lua
+    setElementText(styleElement, "hideEmptyStaves", !currentIsPart);
+}
+#endif
 
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
