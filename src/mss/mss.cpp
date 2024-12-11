@@ -85,8 +85,8 @@ static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer)
     auto retval = std::make_shared<FinalePrefences>();
     retval->document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
 
-    auto defaultFonts = getDocOptions<options::DefaultFonts>(retval, "font");
-    retval->defaultMusicFont = defaultFonts->getFontInfo(options::DefaultFonts::FontType::Music);
+    auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
+    retval->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
     retval->barlineOptions = getDocOptions<options::BarlineOptions>(retval, "barline");
     retval->clefOptions = getDocOptions<options::ClefOptions>(retval, "clef");
     retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
@@ -138,9 +138,9 @@ static uint16_t museFontEfx(const FontInfo* fontInfo)
     return retval;
 }
 
-static double museMagVal(const FinalePrefencesPtr& prefs, const options::DefaultFonts::FontType type)
+static double museMagVal(const FinalePrefencesPtr& prefs, const options::FontOptions::FontType type)
 {
-    auto fontPrefs = options::DefaultFonts::getFontInfo(prefs->document, type);
+    auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
     if (fontPrefs->getFontName() == prefs->defaultMusicFont->getFontName()) {
         return double(fontPrefs->fontSize) / double(prefs->defaultMusicFont->fontSize);
     }
@@ -156,9 +156,9 @@ static void writeFontPref(XmlElement* styleElement, const std::string& namePrefi
     setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
 }
 
-static void writeDefaultFontPref(XmlElement* styleElement, const FinalePrefencesPtr& prefs, const std::string& namePrefix, options::DefaultFonts::FontType type)
+static void writeDefaultFontPref(XmlElement* styleElement, const FinalePrefencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
 {
-    auto fontPrefs = options::DefaultFonts::getFontInfo(prefs->document, type);
+    auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
     writeFontPref(styleElement, namePrefix, fontPrefs.get());
 }
 
@@ -261,7 +261,7 @@ static void writePagePrefs(XmlElement* styleElement, const FinalePrefencesPtr& p
 
 static void writeLyricsPrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs)
 {
-    auto fontInfo = options::DefaultFonts::getFontInfo(prefs->document, options::DefaultFonts::FontType::LyricVerse);
+    auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::LyricVerse);
     for (auto [verseNumber, evenOdd] : {
             std::make_pair(1, "Odd"),
             std::make_pair(2, "Even")
