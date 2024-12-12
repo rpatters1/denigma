@@ -64,6 +64,8 @@ struct FinalePrefences
 {
     DocumentPtr document;
     std::shared_ptr<FontInfo> defaultMusicFont;
+    //
+    std::shared_ptr<options::AlternateNotationOptions> alternateNotationOptions;
     std::shared_ptr<options::BarlineOptions> barlineOptions;
     std::shared_ptr<options::ClefOptions> clefOptions;
     std::shared_ptr<options::KeySignatureOptions> keyOptions;
@@ -92,6 +94,8 @@ static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, bo
 
     auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
     retval->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
+    //
+    retval->alternateNotationOptions = getDocOptions<options::AlternateNotationOptions>(retval, "alternate notation");
     retval->barlineOptions = getDocOptions<options::BarlineOptions>(retval, "barline");
     retval->clefOptions = getDocOptions<options::ClefOptions>(retval, "clef");
     retval->keyOptions = getDocOptions<options::KeySignatureOptions>(retval, "key signature");
@@ -332,7 +336,7 @@ void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePrefencesPtr& p
     setElementValue(styleElement, "clefBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
     setElementValue(styleElement, "timesigBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
 
-    setElementValue(styleElement, "measureRepeatNumberPos", -(double(prefs->repeatOptions->bracketTextVPos) + 0.5) / EVPU_PER_SPACE);
+    setElementValue(styleElement, "measureRepeatNumberPos", -(prefs->alternateNotationOptions->twoMeasNumLift + 0.5) / EVPU_PER_SPACE);
     setElementValue(styleElement, "staffLineWidth", prefs->lineCurveOptions->staffLineWidth / EFIX_PER_SPACE);
     setElementValue(styleElement, "ledgerLineWidth", prefs->lineCurveOptions->legerLineWidth / EFIX_PER_SPACE);
     setElementValue(styleElement, "ledgerLineLength", 
@@ -340,7 +344,7 @@ void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePrefencesPtr& p
     setElementValue(styleElement, "keysigAccidentalDistance", (prefs->keyOptions->acciAdd + 4) / EVPU_PER_SPACE); // Observed fudge factor
     setElementValue(styleElement, "keysigNaturalDistance", (prefs->keyOptions->acciAdd + 6) / EVPU_PER_SPACE); // Observed fudge factor
 
-    setElementValue(styleElement, "smallClefMag", double(prefs->clefOptions->clefChangePercent) / 100.0);
+    setElementValue(styleElement, "smallClefMag", prefs->clefOptions->clefChangePercent / 100.0);
     setElementValue(styleElement, "genClef", !prefs->clefOptions->showClefFirstSystemOnly);
     setElementValue(styleElement, "genKeysig", !prefs->keyOptions->showKeyFirstSystemOnly);
     setElementValue(styleElement, "genCourtesyTimesig", prefs->timeOptions->cautionaryTimeChanges);
