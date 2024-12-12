@@ -60,7 +60,7 @@ static const std::set<std::string_view> museScoreSMuFLFonts{
 };
 
 // Finale preferences:
-struct FinalePrefences
+struct FinalePreferences
 {
     DocumentPtr document;
     std::shared_ptr<FontInfo> defaultMusicFont;
@@ -72,16 +72,17 @@ struct FinalePrefences
     std::shared_ptr<options::GraceNoteOptions> graceOptions;
     std::shared_ptr<options::KeySignatureOptions> keyOptions;
     std::shared_ptr<options::LineCurveOptions> lineCurveOptions;
+    std::shared_ptr<options::MusicSpacingOptions> musicSpacing;
     std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
     std::shared_ptr<options::PianoBraceBracketOptions> braceOptions;
     std::shared_ptr<options::RepeatOptions> repeatOptions;
     std::shared_ptr<options::StemOptions> stemOptions;
     std::shared_ptr<options::TimeSignatureOptions> timeOptions;
 };
-using FinalePrefencesPtr = std::shared_ptr<FinalePrefences>;
+using FinalePreferencesPtr = std::shared_ptr<FinalePreferences>;
 
 template <typename T>
-static std::shared_ptr<T> getDocOptions(const std::shared_ptr<FinalePrefences>& prefs, const std::string& prefsName)
+static std::shared_ptr<T> getDocOptions(const FinalePreferencesPtr& prefs, const std::string& prefsName)
 {
     auto retval = prefs->document->getOptions()->get<T>();
     if (!retval) {
@@ -90,9 +91,9 @@ static std::shared_ptr<T> getDocOptions(const std::shared_ptr<FinalePrefences>& 
     return retval;
 }
 
-static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, bool currentIsPart)
+static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, bool currentIsPart)
 {
-    auto retval = std::make_shared<FinalePrefences>();
+    auto retval = std::make_shared<FinalePreferences>();
     retval->document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
 
     auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
@@ -105,6 +106,7 @@ static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, bo
     retval->graceOptions = getDocOptions<options::GraceNoteOptions>(retval, "grace note");
     retval->keyOptions = getDocOptions<options::KeySignatureOptions>(retval, "key signature");
     retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
+    retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(retval, "music spacing");
     auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
     retval->pageFormat = currentIsPart ? pageFormatOptions->pageFormatParts : pageFormatOptions->pageFormatScore;
     retval->braceOptions = getDocOptions<options::PianoBraceBracketOptions>(retval, "piano braces & brackets");
@@ -156,7 +158,7 @@ static uint16_t museFontEfx(const FontInfo* fontInfo)
     return retval;
 }
 
-static double museMagVal(const FinalePrefencesPtr& prefs, const options::FontOptions::FontType type)
+static double museMagVal(const FinalePreferencesPtr& prefs, const options::FontOptions::FontType type)
 {
     auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
     if (fontPrefs->getFontName() == prefs->defaultMusicFont->getFontName()) {
@@ -174,7 +176,7 @@ static void writeFontPref(XmlElement* styleElement, const std::string& namePrefi
     setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
 }
 
-static void writeDefaultFontPref(XmlElement* styleElement, const FinalePrefencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
+static void writeDefaultFontPref(XmlElement* styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
 {
     auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
     writeFontPref(styleElement, namePrefix, fontPrefs.get());
@@ -213,7 +215,7 @@ static void writeFramePrefs(XmlElement* styleElement, const std::string& namePre
                     enclosure->roundCorners ? enclosure->cornerRadius / EFIX_PER_EVPU : 0.0);
 }
 
-static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePrefencesPtr& prefs, const std::string& namePrefix, Cmper categoryId)
+static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, Cmper categoryId)
 {
     auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(categoryId);
     if (!cat) {
@@ -235,7 +237,7 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
     }
 }
 
-static void writePagePrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs)
+static void writePagePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
 {
     auto pagePrefs = prefs->pageFormat;
 
@@ -277,7 +279,7 @@ static void writePagePrefs(XmlElement* styleElement, const FinalePrefencesPtr& p
     }
 }
 
-static void writeLyricsPrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs)
+static void writeLyricsPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
 {
     auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::LyricVerse);
     for (auto [verseNumber, evenOdd] : {
@@ -295,7 +297,7 @@ static void writeLyricsPrefs(XmlElement* styleElement, const FinalePrefencesPtr&
     }
 }
 
-void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs, bool currentIsPart)
+void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs, bool currentIsPart)
 {
     using RepeatWingStyle = options::RepeatOptions::WingStyle;
 
@@ -362,7 +364,7 @@ void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePrefencesPtr& p
     setElementValue(styleElement, "hideEmptyStaves", !currentIsPart);
 }
 
-void writeStemPrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs)
+void writeStemPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
 {
     setElementValue(styleElement, "useStraightNoteFlags", prefs->flagOptions->straightFlags);
     setElementValue(styleElement, "stemWidth", prefs->stemOptions->stemWidth / EFIX_PER_SPACE);
@@ -370,6 +372,14 @@ void writeStemPrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs)
     setElementValue(styleElement, "stemLength", prefs->stemOptions->stemLength / EVPU_PER_SPACE);
     setElementValue(styleElement, "shortestStem", prefs->stemOptions->shortStemLength / EVPU_PER_SPACE);
     setElementValue(styleElement, "stemSlashThickness", prefs->graceOptions->graceSlashWidth / EFIX_PER_SPACE);
+}
+
+void writeMusicSpacingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    setElementValue(styleElement, "minMeasureWidth", prefs->musicSpacing->minWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "minNoteDistance", prefs->musicSpacing->minDistance / EVPU_PER_SPACE);
+    setElementValue(styleElement, "measureSpacing", prefs->musicSpacing->scalingFactor);
+    setElementValue(styleElement, "minTieLength", prefs->musicSpacing->minDistTiedNotes / EVPU_PER_SPACE);
 }
 
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
@@ -391,6 +401,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
         writeLyricsPrefs(styleElement, prefs);
         writeLineMeasurePrefs(styleElement, prefs, forPartOption);
         writeStemPrefs(styleElement, prefs);
+        writeMusicSpacingPrefs(styleElement, prefs);
         //
         if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
             throw std::runtime_error(mssDoc.ErrorStr());
