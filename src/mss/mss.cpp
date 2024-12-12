@@ -68,11 +68,14 @@ struct FinalePrefences
     std::shared_ptr<options::AlternateNotationOptions> alternateNotationOptions;
     std::shared_ptr<options::BarlineOptions> barlineOptions;
     std::shared_ptr<options::ClefOptions> clefOptions;
+    std::shared_ptr<options::FlagOptions> flagOptions;
+    std::shared_ptr<options::GraceNoteOptions> graceOptions;
     std::shared_ptr<options::KeySignatureOptions> keyOptions;
     std::shared_ptr<options::LineCurveOptions> lineCurveOptions;
     std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
     std::shared_ptr<options::PianoBraceBracketOptions> braceOptions;
     std::shared_ptr<options::RepeatOptions> repeatOptions;
+    std::shared_ptr<options::StemOptions> stemOptions;
     std::shared_ptr<options::TimeSignatureOptions> timeOptions;
 };
 using FinalePrefencesPtr = std::shared_ptr<FinalePrefences>;
@@ -98,12 +101,15 @@ static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, bo
     retval->alternateNotationOptions = getDocOptions<options::AlternateNotationOptions>(retval, "alternate notation");
     retval->barlineOptions = getDocOptions<options::BarlineOptions>(retval, "barline");
     retval->clefOptions = getDocOptions<options::ClefOptions>(retval, "clef");
+    retval->flagOptions = getDocOptions<options::FlagOptions>(retval, "flag");
+    retval->graceOptions = getDocOptions<options::GraceNoteOptions>(retval, "grace note");
     retval->keyOptions = getDocOptions<options::KeySignatureOptions>(retval, "key signature");
     retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
     auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
     retval->pageFormat = currentIsPart ? pageFormatOptions->pageFormatParts : pageFormatOptions->pageFormatScore;
     retval->braceOptions = getDocOptions<options::PianoBraceBracketOptions>(retval, "piano braces & brackets");
     retval->repeatOptions = getDocOptions<options::RepeatOptions>(retval, "repeat");
+    retval->stemOptions = getDocOptions<options::StemOptions>(retval, "stem");
     retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(retval, "time signature");
 
     return retval;
@@ -356,6 +362,16 @@ void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePrefencesPtr& p
     setElementValue(styleElement, "hideEmptyStaves", !currentIsPart);
 }
 
+void writeStemPrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs)
+{
+    setElementValue(styleElement, "useStraightNoteFlags", prefs->flagOptions->straightFlags);
+    setElementValue(styleElement, "stemWidth", prefs->stemOptions->stemWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "shortenStem", true);
+    setElementValue(styleElement, "stemLength", prefs->stemOptions->stemLength / EVPU_PER_SPACE);
+    setElementValue(styleElement, "shortestStem", prefs->stemOptions->shortStemLength / EVPU_PER_SPACE);
+    setElementValue(styleElement, "stemSlashThickness", prefs->graceOptions->graceSlashWidth / EFIX_PER_SPACE);
+}
+
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
     // ToDo: lots
@@ -374,6 +390,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
         writePagePrefs(styleElement, prefs);
         writeLyricsPrefs(styleElement, prefs);
         writeLineMeasurePrefs(styleElement, prefs, forPartOption);
+        writeStemPrefs(styleElement, prefs);
         //
         if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
             throw std::runtime_error(mssDoc.ErrorStr());
