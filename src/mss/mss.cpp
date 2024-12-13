@@ -65,8 +65,11 @@ struct FinalePreferences
     DocumentPtr document;
     std::shared_ptr<FontInfo> defaultMusicFont;
     //
+    std::shared_ptr<options::AccidentalOptions> accidentalOptions;
     std::shared_ptr<options::AlternateNotationOptions> alternateNotationOptions;
+    std::shared_ptr<options::AugmentationDotOptions> augDotOptions;
     std::shared_ptr<options::BarlineOptions> barlineOptions;
+    std::shared_ptr<options::BeamOptions> beamOptions;
     std::shared_ptr<options::ClefOptions> clefOptions;
     std::shared_ptr<options::FlagOptions> flagOptions;
     std::shared_ptr<options::GraceNoteOptions> graceOptions;
@@ -99,8 +102,11 @@ static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, 
     auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
     retval->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
     //
+    retval->accidentalOptions = getDocOptions<options::AccidentalOptions>(retval, "accidental");
     retval->alternateNotationOptions = getDocOptions<options::AlternateNotationOptions>(retval, "alternate notation");
+    retval->augDotOptions = getDocOptions<options::AugmentationDotOptions>(retval, "augmentation dot");
     retval->barlineOptions = getDocOptions<options::BarlineOptions>(retval, "barline");
+    retval->beamOptions = getDocOptions<options::BeamOptions>(retval, "beam");
     retval->clefOptions = getDocOptions<options::ClefOptions>(retval, "clef");
     retval->flagOptions = getDocOptions<options::FlagOptions>(retval, "flag");
     retval->graceOptions = getDocOptions<options::GraceNoteOptions>(retval, "grace note");
@@ -382,6 +388,31 @@ void writeMusicSpacingPrefs(XmlElement* styleElement, const FinalePreferencesPtr
     setElementValue(styleElement, "minTieLength", prefs->musicSpacing->minDistTiedNotes / EVPU_PER_SPACE);
 }
 
+void writeNoteRelatedPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    setElementValue(styleElement, "accidentalDistance", prefs->accidentalOptions->acciAcciSpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "accidentalNoteDistance", prefs->accidentalOptions->acciNoteSpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "beamWidth", prefs->beamOptions->beamWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "useWideBeams", prefs->beamOptions->beamSepar > (0.75 * EVPU_PER_SPACE));
+    // Finale randomly adds twice the stem width to the length of a beam stub. (Observed behavior)
+    setElementValue(styleElement, "beamMinLen", (prefs->beamOptions->beamStubLength + (2.0 * prefs->stemOptions->stemWidth / EFIX_PER_EVPU)) / EVPU_PER_SPACE);
+    setElementValue(styleElement, "beamNoSlope", prefs->beamOptions->beamingStyle == options::BeamOptions::FlattenStyle::AlwaysFlat);
+    setElementValue(styleElement, "dotMag", museMagVal(prefs, options::FontOptions::FontType::AugDots));
+    setElementValue(styleElement, "dotNoteDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE);
+    setElementValue(styleElement, "dotRestDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE); // Same value as dotNoteDistance
+    setElementValue(styleElement, "dotDotDistance", prefs->augDotOptions->dotOffset / EVPU_PER_SPACE);
+    setElementValue(styleElement, "articulationMag", museMagVal(prefs, options::FontOptions::FontType::Articulation));
+    setElementValue(styleElement, "graceNoteMag", prefs->graceOptions->gracePerc / 100.0);
+#if 0
+    setElementValue(styleElement, "concertPitch", prefs->partScopeOptions->displayInConcertPitch);
+
+    // `math.abs(layer_one_prefs.RestOffset) >= 4` equivalent could not be fully resolved
+    setElementValue(styleElement, "multiVoiceRestTwoSpaceOffset", false); // Could not resolve exact behavior of `layer_one_prefs.RestOffset`
+
+    setElementValue(styleElement, "mergeMatchingRests", prefs->miscOptions->consolidateRestsAcrossLayers);
+#endif
+}
+
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
     // ToDo: lots
@@ -402,6 +433,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
         writeLineMeasurePrefs(styleElement, prefs, forPartOption);
         writeStemPrefs(styleElement, prefs);
         writeMusicSpacingPrefs(styleElement, prefs);
+        writeNoteRelatedPrefs(styleElement, prefs);
         //
         if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
             throw std::runtime_error(mssDoc.ErrorStr());
