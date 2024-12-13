@@ -74,7 +74,9 @@ struct FinalePreferences
     std::shared_ptr<options::FlagOptions> flagOptions;
     std::shared_ptr<options::GraceNoteOptions> graceOptions;
     std::shared_ptr<options::KeySignatureOptions> keyOptions;
+    std::shared_ptr<others::LayerAttributes> layerOneAttributes;
     std::shared_ptr<options::LineCurveOptions> lineCurveOptions;
+    std::shared_ptr<options::MiscOptions> miscOptions;
     std::shared_ptr<options::MusicSpacingOptions> musicSpacing;
     std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
     std::shared_ptr<options::PianoBraceBracketOptions> braceOptions;
@@ -112,6 +114,7 @@ static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, 
     retval->graceOptions = getDocOptions<options::GraceNoteOptions>(retval, "grace note");
     retval->keyOptions = getDocOptions<options::KeySignatureOptions>(retval, "key signature");
     retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
+    retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "miscellaneous");
     retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(retval, "music spacing");
     auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
     retval->pageFormat = currentIsPart ? pageFormatOptions->pageFormatParts : pageFormatOptions->pageFormatScore;
@@ -119,6 +122,11 @@ static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, 
     retval->repeatOptions = getDocOptions<options::RepeatOptions>(retval, "repeat");
     retval->stemOptions = getDocOptions<options::StemOptions>(retval, "stem");
     retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(retval, "time signature");
+    //
+    retval->layerOneAttributes = retval->document->getOthers()->get<others::LayerAttributes>(0);
+    if (!retval->layerOneAttributes) {
+        throw std::invalid_argument("document contains no options for Layer 1");
+    }
 
     return retval;
 }
@@ -405,12 +413,12 @@ void writeNoteRelatedPrefs(XmlElement* styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "graceNoteMag", prefs->graceOptions->gracePerc / 100.0);
 #if 0
     setElementValue(styleElement, "concertPitch", prefs->partScopeOptions->displayInConcertPitch);
+#endif
 
     // `math.abs(layer_one_prefs.RestOffset) >= 4` equivalent could not be fully resolved
-    setElementValue(styleElement, "multiVoiceRestTwoSpaceOffset", false); // Could not resolve exact behavior of `layer_one_prefs.RestOffset`
+    setElementValue(styleElement, "multiVoiceRestTwoSpaceOffset", std::labs(prefs->layerOneAttributes->restOffset) >= 4);
 
     setElementValue(styleElement, "mergeMatchingRests", prefs->miscOptions->consolidateRestsAcrossLayers);
-#endif
 }
 
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
