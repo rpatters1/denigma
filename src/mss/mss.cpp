@@ -414,10 +414,7 @@ void writeNoteRelatedPrefs(XmlElement* styleElement, const FinalePreferencesPtr&
 #if 0
     setElementValue(styleElement, "concertPitch", prefs->partScopeOptions->displayInConcertPitch);
 #endif
-
-    // `math.abs(layer_one_prefs.RestOffset) >= 4` equivalent could not be fully resolved
     setElementValue(styleElement, "multiVoiceRestTwoSpaceOffset", std::labs(prefs->layerOneAttributes->restOffset) >= 4);
-
     setElementValue(styleElement, "mergeMatchingRests", prefs->miscOptions->consolidateRestsAcrossLayers);
 }
 
