@@ -37,7 +37,7 @@ using XmlDocument = ::tinyxml2::XMLDocument;
 using XmlElement = ::tinyxml2::XMLElement;
 using XmlAttribute = ::tinyxml2::XMLAttribute;
 
-constexpr bool forPartOption = false; // ToDo: eventually this will be a program option
+constexpr Cmper forPartId = false; // ToDo: eventually this will be a program option
 
 constexpr static char MSS_VERSION[] = "4.50";
 
@@ -74,7 +74,6 @@ struct FinalePreferences
     std::shared_ptr<options::FlagOptions> flagOptions;
     std::shared_ptr<options::GraceNoteOptions> graceOptions;
     std::shared_ptr<options::KeySignatureOptions> keyOptions;
-    std::shared_ptr<others::LayerAttributes> layerOneAttributes;
     std::shared_ptr<options::LineCurveOptions> lineCurveOptions;
     std::shared_ptr<options::MiscOptions> miscOptions;
     std::shared_ptr<options::MusicSpacingOptions> musicSpacing;
@@ -83,6 +82,9 @@ struct FinalePreferences
     std::shared_ptr<options::RepeatOptions> repeatOptions;
     std::shared_ptr<options::StemOptions> stemOptions;
     std::shared_ptr<options::TimeSignatureOptions> timeOptions;
+    //
+    std::shared_ptr<others::LayerAttributes> layerOneAttributes;
+    std::shared_ptr<others::PartGlobals> partGlobals;
 };
 using FinalePreferencesPtr = std::shared_ptr<FinalePreferences>;
 
@@ -96,7 +98,7 @@ static std::shared_ptr<T> getDocOptions(const FinalePreferencesPtr& prefs, const
     return retval;
 }
 
-static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, bool currentIsPart)
+static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, Cmper forPartId)
 {
     auto retval = std::make_shared<FinalePreferences>();
     retval->document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
@@ -117,13 +119,17 @@ static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, 
     retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "miscellaneous");
     retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(retval, "music spacing");
     auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
-    retval->pageFormat = currentIsPart ? pageFormatOptions->pageFormatParts : pageFormatOptions->pageFormatScore;
+    retval->pageFormat = forPartId ? pageFormatOptions->pageFormatParts : pageFormatOptions->pageFormatScore;
     retval->braceOptions = getDocOptions<options::PianoBraceBracketOptions>(retval, "piano braces & brackets");
     retval->repeatOptions = getDocOptions<options::RepeatOptions>(retval, "repeat");
     retval->stemOptions = getDocOptions<options::StemOptions>(retval, "stem");
     retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(retval, "time signature");
     //
     retval->layerOneAttributes = retval->document->getOthers()->get<others::LayerAttributes>(0);
+    if (!retval->layerOneAttributes) {
+        throw std::invalid_argument("document contains no options for Layer 1");
+    }
+    retval->partGlobals = retval->document->getOthers()->getEffectiveForPart<others::PartGlobals>(forPartId, MUSX_GLOBALS_CMPER);
     if (!retval->layerOneAttributes) {
         throw std::invalid_argument("document contains no options for Layer 1");
     }
@@ -311,7 +317,7 @@ static void writeLyricsPrefs(XmlElement* styleElement, const FinalePreferencesPt
     }
 }
 
-void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs, bool currentIsPart)
+void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
 {
     using RepeatWingStyle = options::RepeatOptions::WingStyle;
 
@@ -338,7 +344,7 @@ void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "clefLeftMargin", prefs->clefOptions->clefFrontSepar / EVPU_PER_SPACE);
     setElementValue(styleElement, "keysigLeftMargin", prefs->keyOptions->keyFront / EVPU_PER_SPACE);
 
-    const double timeSigSpaceBefore = currentIsPart
+    const double timeSigSpaceBefore = forPartId
                                       ? prefs->timeOptions->timeFrontParts
                                       : prefs->timeOptions->timeFront;
     setElementValue(styleElement, "timesigLeftMargin", timeSigSpaceBefore / EVPU_PER_SPACE);
@@ -375,7 +381,7 @@ void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePreferencesPtr&
 
     setElementValue(styleElement, "keySigCourtesyBarlineMode", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
     setElementValue(styleElement, "timeSigCourtesyBarlineMode", 0); // Hard-coded as 0 in Lua
-    setElementValue(styleElement, "hideEmptyStaves", !currentIsPart);
+    setElementValue(styleElement, "hideEmptyStaves", !forPartId);
 }
 
 void writeStemPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
@@ -411,9 +417,7 @@ void writeNoteRelatedPrefs(XmlElement* styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "dotDotDistance", prefs->augDotOptions->dotOffset / EVPU_PER_SPACE);
     setElementValue(styleElement, "articulationMag", museMagVal(prefs, options::FontOptions::FontType::Articulation));
     setElementValue(styleElement, "graceNoteMag", prefs->graceOptions->gracePerc / 100.0);
-#if 0
-    setElementValue(styleElement, "concertPitch", prefs->partScopeOptions->displayInConcertPitch);
-#endif
+    setElementValue(styleElement, "concertPitch", !prefs->partGlobals->showTransposed);
     setElementValue(styleElement, "multiVoiceRestTwoSpaceOffset", std::labs(prefs->layerOneAttributes->restOffset) >= 4);
     setElementValue(styleElement, "mergeMatchingRests", prefs->miscOptions->consolidateRestsAcrossLayers);
 }
@@ -423,7 +427,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
     // ToDo: lots
     try {
         // construct source instance and release input memory
-        auto prefs = getCurrentPrefs(xmlBuffer, forPartOption);
+        auto prefs = getCurrentPrefs(xmlBuffer, forPartId);
 
         // extract document to mss
         XmlDocument mssDoc; // output
@@ -435,7 +439,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
         //
         writePagePrefs(styleElement, prefs);
         writeLyricsPrefs(styleElement, prefs);
-        writeLineMeasurePrefs(styleElement, prefs, forPartOption);
+        writeLineMeasurePrefs(styleElement, prefs, forPartId);
         writeStemPrefs(styleElement, prefs);
         writeMusicSpacingPrefs(styleElement, prefs);
         writeNoteRelatedPrefs(styleElement, prefs);
