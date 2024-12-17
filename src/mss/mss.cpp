@@ -80,6 +80,7 @@ struct FinalePreferences
     std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
     std::shared_ptr<options::PianoBraceBracketOptions> braceOptions;
     std::shared_ptr<options::RepeatOptions> repeatOptions;
+    std::shared_ptr<options::SmartShapeOptions> smartShapeOptions;
     std::shared_ptr<options::StemOptions> stemOptions;
     std::shared_ptr<options::TimeSignatureOptions> timeOptions;
     //
@@ -122,6 +123,7 @@ static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, 
     retval->pageFormat = forPartId ? pageFormatOptions->pageFormatParts : pageFormatOptions->pageFormatScore;
     retval->braceOptions = getDocOptions<options::PianoBraceBracketOptions>(retval, "piano braces & brackets");
     retval->repeatOptions = getDocOptions<options::RepeatOptions>(retval, "repeat");
+    retval->smartShapeOptions = getDocOptions<options::SmartShapeOptions>(retval, "smart shape");
     retval->stemOptions = getDocOptions<options::StemOptions>(retval, "stem");
     retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(retval, "time signature");
     //
@@ -235,9 +237,9 @@ static void writeFramePrefs(XmlElement* styleElement, const std::string& namePre
                     enclosure->roundCorners ? enclosure->cornerRadius / EFIX_PER_EVPU : 0.0);
 }
 
-static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, Cmper categoryId)
+static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, others::MarkingCategory::CategoryType categoryType)
 {
-    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(categoryId);
+    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(categoryType));
     if (!cat) {
         std::cout << "unable to load category def for " << namePrefix << std::endl;
         return;
@@ -422,6 +424,31 @@ void writeNoteRelatedPrefs(XmlElement* styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "mergeMatchingRests", prefs->miscOptions->consolidateRestsAcrossLayers);
 }
 
+void writeSmartShapePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    // Hairpin-related settings
+    setElementValue(styleElement, "hairpinHeight", prefs->smartShapeOptions->shortHairpinOpeningWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "hairpinContHeight", 0.5); // Hardcoded to a half space
+    writeCategoryTextFontPref(styleElement, prefs, "hairpin", others::MarkingCategory::CategoryType::Dynamics);
+    writeLinePrefs(styleElement, "hairpin", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff);
+
+    // Slur-related settings
+    setElementValue(styleElement, "slurEndWidth", prefs->smartShapeOptions->smartSlurTipWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "slurDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
+
+    // Tie-related settings
+//    setElementValue(styleElement, "tieEndWidth", prefs->tieOptions->tipWidth / EVPU_PER_SPACE);
+//    setElementValue(styleElement, "tieDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
+//    setElementValue(styleElement, "tiePlacementSingleNote", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
+//    setElementValue(styleElement, "tiePlacementChord", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
+
+    // Ottava settings
+    setElementValue(styleElement, "ottavaHookAbove", prefs->smartShapeOptions->hookLength / EVPU_PER_SPACE);
+    setElementValue(styleElement, "ottavaHookBelow", -prefs->smartShapeOptions->hookLength / EVPU_PER_SPACE);
+    writeLinePrefs(styleElement, "ottava", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
+    setElementValue(styleElement, "ottavaNumbersOnly", prefs->smartShapeOptions->showOctavaAsText);
+}
+
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
     // ToDo: lots
@@ -443,6 +470,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
         writeStemPrefs(styleElement, prefs);
         writeMusicSpacingPrefs(styleElement, prefs);
         writeNoteRelatedPrefs(styleElement, prefs);
+        writeSmartShapePrefs(styleElement, prefs);
         //
         if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
             throw std::runtime_error(mssDoc.ErrorStr());
