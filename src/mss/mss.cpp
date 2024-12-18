@@ -87,6 +87,7 @@ struct FinalePreferences
     std::shared_ptr<options::TimeSignatureOptions> timeOptions;
     //
     std::shared_ptr<others::LayerAttributes> layerOneAttributes;
+    std::shared_ptr<others::MeasureNumberRegion::ScorePartData> measNumScorePart;
     std::shared_ptr<others::PartGlobals> partGlobals;
 };
 using FinalePreferencesPtr = std::shared_ptr<FinalePreferences>;
@@ -134,6 +135,15 @@ static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, 
     retval->layerOneAttributes = retval->document->getOthers()->get<others::LayerAttributes>(0);
     if (!retval->layerOneAttributes) {
         throw std::invalid_argument("document contains no options for Layer 1");
+    }
+    auto measNumRegions = retval->document->getOthers()->getArray<others::MeasureNumberRegion>();
+    if (measNumRegions.size() > 0) {
+        retval->measNumScorePart = (forPartId && measNumRegions[0]->useScoreInfoForPart && measNumRegions[0]->partData)
+                                 ? measNumRegions[0]->partData
+                                 : measNumRegions[0]->scoreData;
+        if (!retval->measNumScorePart) {
+            throw std::invalid_argument("document contains no ScorePartData for measure number region " + std::to_string(measNumRegions[0]->getCmper()));
+        }
     }
     retval->partGlobals = retval->document->getOthers()->getEffectiveForPart<others::PartGlobals>(forPartId, MUSX_GLOBALS_CMPER);
     if (!retval->layerOneAttributes) {
@@ -455,6 +465,77 @@ void writeSmartShapePrefs(XmlElement* styleElement, const FinalePreferencesPtr& 
 
 void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
 {
+    using MeasureNumberRegion = others::MeasureNumberRegion;
+    setElementValue(styleElement, "showMeasureNumber", prefs->measNumScorePart != nullptr);
+    if (prefs->measNumScorePart) {
+        const auto& scorePart = prefs->measNumScorePart;
+        setElementValue(styleElement, "showMeasureNumberOne", !scorePart->hideFirstMeasure);
+        setElementValue(styleElement, "measureNumberInterval", scorePart->incidence);
+        setElementValue(styleElement, "measureNumberSystem", scorePart->showOnStart && !scorePart->showOnEvery);
+
+        // Helper lambdas for processing justification and alignment
+        auto justificationString = [](MeasureNumberRegion::AlignJustify justi) -> std::string {
+            switch (justi) {
+                case MeasureNumberRegion::AlignJustify::Left: return "left,baseline";
+                case MeasureNumberRegion::AlignJustify::Center: return "center,baseline";
+                case MeasureNumberRegion::AlignJustify::Right: return "right,baseline";
+            }
+        };
+
+        auto horizontalAlignment = [](MeasureNumberRegion::AlignJustify align) -> int {
+            switch (align) {
+                case MeasureNumberRegion::AlignJustify::Left: return 0;
+                case MeasureNumberRegion::AlignJustify::Center: return 1;
+                case MeasureNumberRegion::AlignJustify::Right: return 2;
+            }
+        };
+
+        auto verticalAlignment = [](Evpu vertical) -> int {
+            return (vertical >= 0) ? 0 : 1;
+        };
+
+        // Helper function to process segments
+        auto processSegment = [&](const std::shared_ptr<FontInfo>& fontInfo,
+                                  const std::shared_ptr<others::Enclosure>& enclosure,
+                                  bool useEnclosure,
+                                  MeasureNumberRegion::AlignJustify justification,
+                                  MeasureNumberRegion::AlignJustify alignment,
+                                  Evpu vertical,
+                                  const std::string& prefix) {
+            writeFontPref(styleElement, prefix, fontInfo.get());
+            setElementValue(styleElement, prefix + "VPlacement", verticalAlignment(vertical));
+            setElementValue(styleElement, prefix + "HPlacement", horizontalAlignment(alignment));
+            setElementValue(styleElement, prefix + "Align", justificationString(justification));
+            writeFramePrefs(styleElement, prefix, useEnclosure ? enclosure.get() : nullptr);
+        };
+
+        // Determine the source for primary measure number segment
+        auto fontInfo = scorePart->showOnStart ? scorePart->startFont : scorePart->multipleFont;
+        auto enclosure = scorePart->showOnStart ? scorePart->startEnclosure : scorePart->multipleEnclosure;
+        auto useEnclosure = scorePart->showOnStart ? scorePart->useStartEncl : scorePart->useMultipleEncl;
+        auto justification = scorePart->showOnEvery ? scorePart->multipleJustify : scorePart->startJustify;
+        auto alignment = scorePart->showOnEvery ? scorePart->multipleAlign : scorePart->startAlign;
+        auto vertical = scorePart->showOnStart ? scorePart->startYdisp : scorePart->multipleYdisp;
+
+        // Process primary measure number segment
+        setElementValue(styleElement, "measureNumberOffsetType", 1); // Hardcoded offset type
+        processSegment(fontInfo, enclosure, useEnclosure, justification, alignment, vertical, "measureNumber");
+
+        // Process multi-measure rest settings
+        setElementValue(styleElement, "mmRestShowMeasureNumberRange", scorePart->showMmRange);
+
+        if (scorePart->leftMmBracketChar == 0) {
+            setElementValue(styleElement, "mmRestRangeBracketType", 2); // None
+        } else if (scorePart->leftMmBracketChar == '(') {
+            setElementValue(styleElement, "mmRestRangeBracketType", 1); // Parenthesis
+        } else {
+            setElementValue(styleElement, "mmRestRangeBracketType", 0); // Default
+        }
+
+        // Process multi-measure rest segment
+        processSegment(scorePart->mmRestFont, scorePart->multipleEnclosure, scorePart->useMultipleEncl,
+                       scorePart->mmRestJustify, scorePart->mmRestAlign, scorePart->mmRestYdisp, "mmRestRange");
+    }
     setElementValue(styleElement, "createMultiMeasureRests", forPartId != 0); // Equivalent to Lua's `current_is_part`
     setElementValue(styleElement, "minEmptyMeasures", prefs->mmRestOptions->numStart);
     setElementValue(styleElement, "minMMRestWidth", prefs->mmRestOptions->measWidth / EVPU_PER_SPACE);
