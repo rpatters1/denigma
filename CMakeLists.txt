@@ -108,8 +108,10 @@ add_executable(denigma
 # Compile definitions
 target_compile_definitions(denigma PRIVATE MUSX_USE_TINYXML2)
 target_compile_definitions(denigma PRIVATE MUSX_USE_RAPIDXML)
- # temporary for reference
+
+# temporary for reference and debugging
 target_compile_definitions(denigma PRIVATE MUSX_DISPLAY_NODE_NAMES)
+target_compile_definitions(denigma PRIVATE MUSX_THROW_ON_UNKNOWN_XML)
 
 # Ensure the include directories are added
 add_dependencies(denigma GenerateMnxSchemaXxd)

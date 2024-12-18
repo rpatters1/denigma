@@ -76,12 +76,14 @@ struct FinalePreferences
     std::shared_ptr<options::KeySignatureOptions> keyOptions;
     std::shared_ptr<options::LineCurveOptions> lineCurveOptions;
     std::shared_ptr<options::MiscOptions> miscOptions;
+    std::shared_ptr<options::MultimeasureRestOptions> mmRestOptions;
     std::shared_ptr<options::MusicSpacingOptions> musicSpacing;
     std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
     std::shared_ptr<options::PianoBraceBracketOptions> braceOptions;
     std::shared_ptr<options::RepeatOptions> repeatOptions;
     std::shared_ptr<options::SmartShapeOptions> smartShapeOptions;
     std::shared_ptr<options::StemOptions> stemOptions;
+    std::shared_ptr<options::TieOptions> tieOptions;
     std::shared_ptr<options::TimeSignatureOptions> timeOptions;
     //
     std::shared_ptr<others::LayerAttributes> layerOneAttributes;
@@ -117,7 +119,8 @@ static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, 
     retval->graceOptions = getDocOptions<options::GraceNoteOptions>(retval, "grace note");
     retval->keyOptions = getDocOptions<options::KeySignatureOptions>(retval, "key signature");
     retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
-    retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "miscellaneous");
+    retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "multimeasure rest");
+    retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(retval, "miscellaneous");
     retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(retval, "music spacing");
     auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
     retval->pageFormat = forPartId ? pageFormatOptions->pageFormatParts : pageFormatOptions->pageFormatScore;
@@ -125,6 +128,7 @@ static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, 
     retval->repeatOptions = getDocOptions<options::RepeatOptions>(retval, "repeat");
     retval->smartShapeOptions = getDocOptions<options::SmartShapeOptions>(retval, "smart shape");
     retval->stemOptions = getDocOptions<options::StemOptions>(retval, "stem");
+    retval->tieOptions = getDocOptions<options::TieOptions>(retval, "tie");
     retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(retval, "time signature");
     //
     retval->layerOneAttributes = retval->document->getOthers()->get<others::LayerAttributes>(0);
@@ -437,16 +441,28 @@ void writeSmartShapePrefs(XmlElement* styleElement, const FinalePreferencesPtr& 
     setElementValue(styleElement, "slurDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
 
     // Tie-related settings
-//    setElementValue(styleElement, "tieEndWidth", prefs->tieOptions->tipWidth / EVPU_PER_SPACE);
-//    setElementValue(styleElement, "tieDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
-//    setElementValue(styleElement, "tiePlacementSingleNote", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
-//    setElementValue(styleElement, "tiePlacementChord", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
+    setElementValue(styleElement, "tieEndWidth", prefs->tieOptions->tieTipWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tieDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "tiePlacementSingleNote", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
+    setElementValue(styleElement, "tiePlacementChord", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
 
     // Ottava settings
     setElementValue(styleElement, "ottavaHookAbove", prefs->smartShapeOptions->hookLength / EVPU_PER_SPACE);
     setElementValue(styleElement, "ottavaHookBelow", -prefs->smartShapeOptions->hookLength / EVPU_PER_SPACE);
     writeLinePrefs(styleElement, "ottava", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
     setElementValue(styleElement, "ottavaNumbersOnly", prefs->smartShapeOptions->showOctavaAsText);
+}
+
+void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
+{
+    setElementValue(styleElement, "createMultiMeasureRests", forPartId != 0); // Equivalent to Lua's `current_is_part`
+    setElementValue(styleElement, "minEmptyMeasures", prefs->mmRestOptions->numStart);
+    setElementValue(styleElement, "minMMRestWidth", prefs->mmRestOptions->measWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "mmRestNumberPos", (prefs->mmRestOptions->numAdjY / EVPU_PER_SPACE) + 1);
+    // setElementValue(styleElement, "multiMeasureRestMargin", prefs->mmRestOptions->startAdjust / EVPU_PER_SPACE); // Uncomment if margin is required
+    setElementValue(styleElement, "oldStyleMultiMeasureRests", prefs->mmRestOptions->useSymbols && prefs->mmRestOptions->useSymsThreshold > 1);
+    setElementValue(styleElement, "mmRestOldStyleMaxMeasures", std::max(prefs->mmRestOptions->useSymsThreshold - 1, 0));
+    setElementValue(styleElement, "mmRestOldStyleSpacing", prefs->mmRestOptions->symSpacing / EVPU_PER_SPACE);
 }
 
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
@@ -471,6 +487,7 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
         writeMusicSpacingPrefs(styleElement, prefs);
         writeNoteRelatedPrefs(styleElement, prefs);
         writeSmartShapePrefs(styleElement, prefs);
+        writeMeasureNumberPrefs(styleElement, prefs, forPartId);
         //
         if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
             throw std::runtime_error(mssDoc.ErrorStr());
