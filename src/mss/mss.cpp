@@ -82,6 +82,7 @@ struct FinalePreferences
     std::shared_ptr<options::PianoBraceBracketOptions> braceOptions;
     std::shared_ptr<options::RepeatOptions> repeatOptions;
     std::shared_ptr<options::SmartShapeOptions> smartShapeOptions;
+    std::shared_ptr<options::StaffOptions> staffOptions;
     std::shared_ptr<options::StemOptions> stemOptions;
     std::shared_ptr<options::TieOptions> tieOptions;
     std::shared_ptr<options::TimeSignatureOptions> timeOptions;
@@ -129,6 +130,7 @@ static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, 
     retval->braceOptions = getDocOptions<options::PianoBraceBracketOptions>(retval, "piano braces & brackets");
     retval->repeatOptions = getDocOptions<options::RepeatOptions>(retval, "repeat");
     retval->smartShapeOptions = getDocOptions<options::SmartShapeOptions>(retval, "smart shape");
+    retval->staffOptions = getDocOptions<options::StaffOptions>(retval, "staff");
     retval->stemOptions = getDocOptions<options::StemOptions>(retval, "stem");
     retval->tieOptions = getDocOptions<options::TieOptions>(retval, "tie");
     retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(retval, "time signature");
@@ -176,7 +178,7 @@ static XmlElement* setElementValue(XmlElement* styleElement, const std::string& 
     } else if constexpr (std::is_same_v<T, std::string>) {
         element->SetText(value.c_str());
     } else if constexpr (std::is_same_v<T, bool>) {
-        element->SetText(int(value));
+        element->SetText(int(value)); // MuseScore .mss files use 0 and 1 for booleans
     } else {
         element->SetText(value);
     }
@@ -636,20 +638,84 @@ void writeTupletPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pref
 
 void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
 {
-    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(others::MarkingCategory::CategoryType::Dynamics));
+    using FontType = options::FontOptions::FontType;
+    using CategoryType = others::MarkingCategory::CategoryType;
+
+    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(CategoryType::Dynamics));
     if (!cat) {
-        throw std::invalid_argument("unable to load MarkingCategory for dynamics");
+        throw std::invalid_argument("unable to find MarkingCategory for dynamics");
     }
     auto catFontInfo = cat->musicFont;
     bool override = catFontInfo && catFontInfo->calcIsSMuFL() && catFontInfo->fontId != 0;
     setElementValue(styleElement, "dynamicsOverrideFont", override);
     if (override) {
-        // replace this comment by filling in the rest from the Lua
+        setElementValue(styleElement, "dynamicsFont", catFontInfo->getFontName());
+        setElementValue(styleElement, "dynamicsSize", catFontInfo->fontSize / prefs->defaultMusicFont->fontSize);
     } else {
-        // replace this comment by filling in the rest from the Lua
+        setElementValue(styleElement, "dynamicsFont", prefs->defaultMusicFont->getFontName());
+        setElementValue(styleElement, "dynamicsSize",
+                        catFontInfo->calcIsSMuFL() ? (catFontInfo->fontSize / prefs->defaultMusicFont->fontSize) : 1.0);
     }
-    auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::TextBlock);
-
+    // Load font preferences for Text Blocks
+    auto textBlockFont = options::FontOptions::getFontInfo(prefs->document, FontType::TextBlock);
+    if (!textBlockFont) {
+        throw std::invalid_argument("unable to find font prefs for Text Blocks");
+    }
+    writeFontPref(styleElement, "default", textBlockFont.get());
+    // since the following depend on Page Titles, just update the font face with the TEXTBLOCK font name
+    setElementValue(styleElement, "titleFontFace", textBlockFont->getFontName());
+    setElementValue(styleElement, "subTitleFontFace", textBlockFont->getFontName());
+    setElementValue(styleElement, "composerFontFace", textBlockFont->getFontName());
+    setElementValue(styleElement, "lyricistFontFace", textBlockFont->getFontName());
+    writeDefaultFontPref(styleElement, prefs, "longInstrument", FontType::StaffNames);
+    const auto fullPosition = prefs->staffOptions->namePos;
+    if (!fullPosition) {
+        throw std::invalid_argument("unable to find default full name positioning for staves");
+    }
+    auto justifyToAlignment = [](const std::shared_ptr<others::NamePositioning>& position) {
+        switch (position->justify) {
+            case others::NamePositioning::AlignJustify::Left:
+                return std::string("left,center");
+            case others::NamePositioning::AlignJustify::Right:
+                return std::string("right,center");
+            default:
+                return std::string("center,center");
+        }
+    };
+    setElementValue(styleElement, "longInstrumentAlign", justifyToAlignment(fullPosition));
+    writeDefaultFontPref(styleElement, prefs, "shortInstrument", FontType::AbbrvStaffNames);
+    const auto abbreviatedPosition = prefs->staffOptions->namePosAbbrv;
+    if (!abbreviatedPosition) {
+        throw std::invalid_argument("unable to find default abbreviated name positioning for staves");
+    }
+    setElementValue(styleElement, "shortInstrumentAlign", justifyToAlignment(abbreviatedPosition));
+    writeDefaultFontPref(styleElement, prefs, "partInstrument", FontType::StaffNames);
+    writeCategoryTextFontPref(styleElement, prefs, "dynamics", CategoryType::Dynamics);
+    writeCategoryTextFontPref(styleElement, prefs, "expression", CategoryType::ExpressiveText);
+    writeCategoryTextFontPref(styleElement, prefs, "tempo", CategoryType::TempoMarks);
+    writeCategoryTextFontPref(styleElement, prefs, "tempoChange", CategoryType::ExpressiveText);
+    writeLinePrefs(styleElement, "tempoChange", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
+    writeCategoryTextFontPref(styleElement, prefs, "metronome", CategoryType::TempoMarks);
+    setElementValue(styleElement, "translatorFontFace", textBlockFont->getFontName());
+    writeCategoryTextFontPref(styleElement, prefs, "systemText", CategoryType::ExpressiveText);
+    writeCategoryTextFontPref(styleElement, prefs, "staffText", CategoryType::ExpressiveText);
+    writeCategoryTextFontPref(styleElement, prefs, "rehearsalMark", CategoryType::RehearsalMarks);
+    writeDefaultFontPref(styleElement, prefs, "repeatLeft", FontType::Repeat);
+    writeDefaultFontPref(styleElement, prefs, "repeatRight", FontType::Repeat);
+    writeFontPref(styleElement, "frame", textBlockFont.get());
+    writeCategoryTextFontPref(styleElement, prefs, "textLine", CategoryType::TechniqueText);
+    writeCategoryTextFontPref(styleElement, prefs, "systemTextLine", CategoryType::ExpressiveText);
+    writeCategoryTextFontPref(styleElement, prefs, "glissando", CategoryType::TechniqueText);
+    writeCategoryTextFontPref(styleElement, prefs, "bend", CategoryType::TechniqueText);
+    writeFontPref(styleElement, "header", textBlockFont.get());
+    writeFontPref(styleElement, "footer", textBlockFont.get());
+    writeFontPref(styleElement, "copyright", textBlockFont.get());
+    writeFontPref(styleElement, "pageNumber", textBlockFont.get());
+    writeFontPref(styleElement, "instrumentChange", textBlockFont.get());
+    writeFontPref(styleElement, "sticking", textBlockFont.get());
+    for (int i = 1; i <= 12; ++i) {
+        writeFontPref(styleElement, "user" + std::to_string(i), textBlockFont.get());
+    }
 }
 
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
