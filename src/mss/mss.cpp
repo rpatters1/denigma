@@ -37,6 +37,8 @@ using XmlDocument = ::tinyxml2::XMLDocument;
 using XmlElement = ::tinyxml2::XMLElement;
 using XmlAttribute = ::tinyxml2::XMLAttribute;
 
+constexpr Cmper forPartId = false; // ToDo: eventually this will be a program option
+
 constexpr static char MSS_VERSION[] = "4.50";
 
 constexpr static double EVPU_PER_INCH = 288.0;
@@ -46,7 +48,7 @@ constexpr static double EFIX_PER_EVPU = 64.0;
 constexpr static double EFIX_PER_SPACE = EVPU_PER_SPACE * EFIX_PER_EVPU;
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 
-static const std::set<std::string_view> museScoreSMuFlFonts{
+static const std::set<std::string_view> museScoreSMuFLFonts{
     "Bravura",
     "Leland",
     "Emmentaler",
@@ -58,30 +60,99 @@ static const std::set<std::string_view> museScoreSMuFlFonts{
 };
 
 // Finale preferences:
-struct FinalePrefences
+struct FinalePreferences
 {
     DocumentPtr document;
-    std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
     std::shared_ptr<FontInfo> defaultMusicFont;
+    //
+    std::shared_ptr<options::AccidentalOptions> accidentalOptions;
+    std::shared_ptr<options::AlternateNotationOptions> alternateNotationOptions;
+    std::shared_ptr<options::AugmentationDotOptions> augDotOptions;
+    std::shared_ptr<options::BarlineOptions> barlineOptions;
+    std::shared_ptr<options::BeamOptions> beamOptions;
+    std::shared_ptr<options::ClefOptions> clefOptions;
+    std::shared_ptr<options::FlagOptions> flagOptions;
+    std::shared_ptr<options::GraceNoteOptions> graceOptions;
+    std::shared_ptr<options::KeySignatureOptions> keyOptions;
+    std::shared_ptr<options::LineCurveOptions> lineCurveOptions;
+    std::shared_ptr<options::MiscOptions> miscOptions;
+    std::shared_ptr<options::MultimeasureRestOptions> mmRestOptions;
+    std::shared_ptr<options::MusicSpacingOptions> musicSpacing;
+    std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
+    std::shared_ptr<options::PianoBraceBracketOptions> braceOptions;
+    std::shared_ptr<options::RepeatOptions> repeatOptions;
+    std::shared_ptr<options::SmartShapeOptions> smartShapeOptions;
+    std::shared_ptr<options::StaffOptions> staffOptions;
+    std::shared_ptr<options::StemOptions> stemOptions;
+    std::shared_ptr<options::TieOptions> tieOptions;
+    std::shared_ptr<options::TimeSignatureOptions> timeOptions;
+    std::shared_ptr<options::TupletOptions> tupletOptions;
+    //
+    std::shared_ptr<others::LayerAttributes> layerOneAttributes;
+    std::shared_ptr<others::MeasureNumberRegion::ScorePartData> measNumScorePart;
+    std::shared_ptr<others::PartGlobals> partGlobals;
 };
-using FinalePrefencesPtr = std::shared_ptr<FinalePrefences>;
+using FinalePreferencesPtr = std::shared_ptr<FinalePreferences>;
 
-static FinalePrefencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer)
+template <typename T>
+static std::shared_ptr<T> getDocOptions(const FinalePreferencesPtr& prefs, const std::string& prefsName)
 {
-    auto retval = std::make_shared<FinalePrefences>();
+    auto retval = prefs->document->getOptions()->get<T>();
+    if (!retval) {
+        throw std::invalid_argument("document contains no default " + prefsName + " options");
+    }
+    return retval;
+}
+
+static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, Cmper forPartId)
+{
+    auto retval = std::make_shared<FinalePreferences>();
     retval->document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
 
-    auto pageFormatOptions = retval->document->getOptions()->get<options::PageFormatOptions>();
-    if (!pageFormatOptions) {
-        throw std::invalid_argument("document contains no page format options");
+    auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
+    retval->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
+    //
+    retval->accidentalOptions = getDocOptions<options::AccidentalOptions>(retval, "accidental");
+    retval->alternateNotationOptions = getDocOptions<options::AlternateNotationOptions>(retval, "alternate notation");
+    retval->augDotOptions = getDocOptions<options::AugmentationDotOptions>(retval, "augmentation dot");
+    retval->barlineOptions = getDocOptions<options::BarlineOptions>(retval, "barline");
+    retval->beamOptions = getDocOptions<options::BeamOptions>(retval, "beam");
+    retval->clefOptions = getDocOptions<options::ClefOptions>(retval, "clef");
+    retval->flagOptions = getDocOptions<options::FlagOptions>(retval, "flag");
+    retval->graceOptions = getDocOptions<options::GraceNoteOptions>(retval, "grace note");
+    retval->keyOptions = getDocOptions<options::KeySignatureOptions>(retval, "key signature");
+    retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
+    retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "multimeasure rest");
+    retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(retval, "miscellaneous");
+    retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(retval, "music spacing");
+    auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
+    retval->pageFormat = forPartId ? pageFormatOptions->pageFormatParts : pageFormatOptions->pageFormatScore;
+    retval->braceOptions = getDocOptions<options::PianoBraceBracketOptions>(retval, "piano braces & brackets");
+    retval->repeatOptions = getDocOptions<options::RepeatOptions>(retval, "repeat");
+    retval->smartShapeOptions = getDocOptions<options::SmartShapeOptions>(retval, "smart shape");
+    retval->staffOptions = getDocOptions<options::StaffOptions>(retval, "staff");
+    retval->stemOptions = getDocOptions<options::StemOptions>(retval, "stem");
+    retval->tieOptions = getDocOptions<options::TieOptions>(retval, "tie");
+    retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(retval, "time signature");
+    retval->tupletOptions = getDocOptions<options::TupletOptions>(retval, "tuplet");
+    //
+    retval->layerOneAttributes = retval->document->getOthers()->get<others::LayerAttributes>(0);
+    if (!retval->layerOneAttributes) {
+        throw std::invalid_argument("document contains no options for Layer 1");
     }
-    retval->pageFormat = pageFormatOptions->pageFormatScore; // ToDo: check for score or part
-
-    auto defaultFonts = retval->document->getOptions()->get<options::DefaultFonts>();
-    if (!defaultFonts) {
-        throw std::invalid_argument("document contains no default font options");
+    auto measNumRegions = retval->document->getOthers()->getArray<others::MeasureNumberRegion>();
+    if (measNumRegions.size() > 0) {
+        retval->measNumScorePart = (forPartId && measNumRegions[0]->useScoreInfoForPart && measNumRegions[0]->partData)
+                                 ? measNumRegions[0]->partData
+                                 : measNumRegions[0]->scoreData;
+        if (!retval->measNumScorePart) {
+            throw std::invalid_argument("document contains no ScorePartData for measure number region " + std::to_string(measNumRegions[0]->getCmper()));
+        }
     }
-    retval->defaultMusicFont = defaultFonts->getFontInfo(options::DefaultFonts::FontType::Music);
+    retval->partGlobals = retval->document->getOthers()->getEffectiveForPart<others::PartGlobals>(forPartId, MUSX_GLOBALS_CMPER);
+    if (!retval->layerOneAttributes) {
+        throw std::invalid_argument("document contains no options for Layer 1");
+    }
 
     return retval;
 }
@@ -107,7 +178,7 @@ static XmlElement* setElementValue(XmlElement* styleElement, const std::string& 
     } else if constexpr (std::is_same_v<T, std::string>) {
         element->SetText(value.c_str());
     } else if constexpr (std::is_same_v<T, bool>) {
-        element->SetText(int(value));
+        element->SetText(int(value)); // MuseScore .mss files use 0 and 1 for booleans
     } else {
         element->SetText(value);
     }
@@ -127,9 +198,9 @@ static uint16_t museFontEfx(const FontInfo* fontInfo)
     return retval;
 }
 
-static double museMagVal(const FinalePrefencesPtr& prefs, const options::DefaultFonts::FontType type)
+static double museMagVal(const FinalePreferencesPtr& prefs, const options::FontOptions::FontType type)
 {
-    auto fontPrefs = options::DefaultFonts::getFontInfo(prefs->document, type);
+    auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
     if (fontPrefs->getFontName() == prefs->defaultMusicFont->getFontName()) {
         return double(fontPrefs->fontSize) / double(prefs->defaultMusicFont->fontSize);
     }
@@ -145,9 +216,9 @@ static void writeFontPref(XmlElement* styleElement, const std::string& namePrefi
     setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
 }
 
-static void writeDefaultFontPref(XmlElement* styleElement, const FinalePrefencesPtr& prefs, const std::string& namePrefix, options::DefaultFonts::FontType type)
+static void writeDefaultFontPref(XmlElement* styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
 {
-    auto fontPrefs = options::DefaultFonts::getFontInfo(prefs->document, type);
+    auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
     writeFontPref(styleElement, namePrefix, fontPrefs.get());
 }
 
@@ -184,9 +255,9 @@ static void writeFramePrefs(XmlElement* styleElement, const std::string& namePre
                     enclosure->roundCorners ? enclosure->cornerRadius / EFIX_PER_EVPU : 0.0);
 }
 
-static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePrefencesPtr& prefs, const std::string& namePrefix, Cmper categoryId)
+static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, others::MarkingCategory::CategoryType categoryType)
 {
-    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(categoryId);
+    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(categoryType));
     if (!cat) {
         std::cout << "unable to load category def for " << namePrefix << std::endl;
         return;
@@ -206,7 +277,7 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
     }
 }
 
-static void writePagePrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs)
+static void writePagePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
 {
     auto pagePrefs = prefs->pageFormat;
 
@@ -235,16 +306,22 @@ static void writePagePrefs(XmlElement* styleElement, const FinalePrefencesPtr& p
 
     // Default music font
     auto defaultMusicFont = prefs->defaultMusicFont;
-    auto it = museScoreSMuFlFonts.find(defaultMusicFont->getFontName());
-    if (it != museScoreSMuFlFonts.end()) {
+    bool isSMuFL = [defaultMusicFont]() -> bool {
+        if (defaultMusicFont->calcIsSMuFL()) {
+            return true;
+        }
+        auto it = museScoreSMuFLFonts.find(defaultMusicFont->getFontName());
+        return it != museScoreSMuFLFonts.end();
+    }();
+    if (isSMuFL) {
         setElementValue(styleElement, "musicalSymbolFont", defaultMusicFont->getFontName());
         setElementValue(styleElement, "musicalTextFont", defaultMusicFont->getFontName() + " Text");
     }
 }
 
-static void writeLyricsPrefs(XmlElement* styleElement, const FinalePrefencesPtr& prefs)
+static void writeLyricsPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
 {
-    auto fontInfo = options::DefaultFonts::getFontInfo(prefs->document, options::DefaultFonts::FontType::LyricVerse);
+    auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::LyricVerse);
     for (auto [verseNumber, evenOdd] : {
             std::make_pair(1, "Odd"),
             std::make_pair(2, "Even")
@@ -260,12 +337,393 @@ static void writeLyricsPrefs(XmlElement* styleElement, const FinalePrefencesPtr&
     }
 }
 
+void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
+{
+    using RepeatWingStyle = options::RepeatOptions::WingStyle;
+
+    setElementValue(styleElement, "barWidth", prefs->barlineOptions->barlineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "doubleBarWidth", prefs->barlineOptions->barlineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "endBarWidth", prefs->barlineOptions->thickBarlineWidth / EFIX_PER_SPACE);
+
+    // Finale's double bar distance is measured from the beginning of the thin line
+    setElementValue(styleElement, "doubleBarDistance", 
+        (prefs->barlineOptions->doubleBarlineSpace - prefs->barlineOptions->barlineWidth) / EFIX_PER_SPACE);
+
+    // Finale's final bar distance is the separation amount
+    setElementValue(styleElement, "endBarDistance", prefs->barlineOptions->finalBarlineSpace / EFIX_PER_SPACE);
+    setElementValue(styleElement, "repeatBarlineDotSeparation", prefs->repeatOptions->forwardDotHPos / EVPU_PER_SPACE);
+    setElementValue(styleElement, "repeatBarTips", prefs->repeatOptions->wingStyle != RepeatWingStyle::None);
+
+    setElementValue(styleElement, "startBarlineSingle", prefs->barlineOptions->drawLeftBarlineSingleStaff);
+    setElementValue(styleElement, "startBarlineMultiple", prefs->barlineOptions->drawLeftBarlineMultipleStaves);
+
+    setElementValue(styleElement, "bracketWidth", 0.5); // Hard-coded in Finale
+    setElementValue(styleElement, "bracketDistance", -prefs->braceOptions->defBracketPos / EVPU_PER_SPACE);
+    setElementValue(styleElement, "akkoladeBarDistance", -prefs->braceOptions->defBracketPos / EVPU_PER_SPACE);
+
+    setElementValue(styleElement, "clefLeftMargin", prefs->clefOptions->clefFrontSepar / EVPU_PER_SPACE);
+    setElementValue(styleElement, "keysigLeftMargin", prefs->keyOptions->keyFront / EVPU_PER_SPACE);
+
+    const double timeSigSpaceBefore = forPartId
+                                      ? prefs->timeOptions->timeFrontParts
+                                      : prefs->timeOptions->timeFront;
+    setElementValue(styleElement, "timesigLeftMargin", timeSigSpaceBefore / EVPU_PER_SPACE);
+
+    setElementValue(styleElement, "clefKeyDistance", 
+        (prefs->clefOptions->clefBackSepar + prefs->clefOptions->clefKeySepar + prefs->keyOptions->keyFront) / EVPU_PER_SPACE);
+    setElementValue(styleElement, "clefTimesigDistance", 
+        (prefs->clefOptions->clefBackSepar + prefs->clefOptions->clefTimeSepar + timeSigSpaceBefore) / EVPU_PER_SPACE);
+    setElementValue(styleElement, "keyTimesigDistance", 
+        (prefs->keyOptions->keyBack + prefs->keyOptions->keyTimeSepar + timeSigSpaceBefore) / EVPU_PER_SPACE);
+    setElementValue(styleElement, "keyBarlineDistance", prefs->repeatOptions->afterKeySpace / EVPU_PER_SPACE);
+
+    // Differences in how MuseScore and Finale interpret these settings mean the following are better left alone
+    // setElementValue(styleElement, "systemHeaderDistance", prefs->keyOptions->keyBack / EVPU_PER_SPACE);
+    // setElementValue(styleElement, "systemHeaderTimeSigDistance", prefs->timeOptions->timeBack / EVPU_PER_SPACE);
+
+    setElementValue(styleElement, "clefBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "timesigBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
+
+    setElementValue(styleElement, "measureRepeatNumberPos", -(prefs->alternateNotationOptions->twoMeasNumLift + 0.5) / EVPU_PER_SPACE);
+    setElementValue(styleElement, "staffLineWidth", prefs->lineCurveOptions->staffLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "ledgerLineWidth", prefs->lineCurveOptions->legerLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "ledgerLineLength", 
+        (prefs->lineCurveOptions->legerFrontLength + prefs->lineCurveOptions->legerBackLength) / (2 * EVPU_PER_SPACE));
+    setElementValue(styleElement, "keysigAccidentalDistance", (prefs->keyOptions->acciAdd + 4) / EVPU_PER_SPACE); // Observed fudge factor
+    setElementValue(styleElement, "keysigNaturalDistance", (prefs->keyOptions->acciAdd + 6) / EVPU_PER_SPACE); // Observed fudge factor
+
+    setElementValue(styleElement, "smallClefMag", prefs->clefOptions->clefChangePercent / 100.0);
+    setElementValue(styleElement, "genClef", !prefs->clefOptions->showClefFirstSystemOnly);
+    setElementValue(styleElement, "genKeysig", !prefs->keyOptions->showKeyFirstSystemOnly);
+    setElementValue(styleElement, "genCourtesyTimesig", prefs->timeOptions->cautionaryTimeChanges);
+    setElementValue(styleElement, "genCourtesyKeysig", prefs->keyOptions->cautionaryKeyChanges);
+    setElementValue(styleElement, "genCourtesyClef", prefs->clefOptions->cautionaryClefChanges);
+
+    setElementValue(styleElement, "keySigCourtesyBarlineMode", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
+    setElementValue(styleElement, "timeSigCourtesyBarlineMode", 0); // Hard-coded as 0 in Lua
+    setElementValue(styleElement, "hideEmptyStaves", !forPartId);
+}
+
+void writeStemPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    setElementValue(styleElement, "useStraightNoteFlags", prefs->flagOptions->straightFlags);
+    setElementValue(styleElement, "stemWidth", prefs->stemOptions->stemWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "shortenStem", true);
+    setElementValue(styleElement, "stemLength", prefs->stemOptions->stemLength / EVPU_PER_SPACE);
+    setElementValue(styleElement, "shortestStem", prefs->stemOptions->shortStemLength / EVPU_PER_SPACE);
+    setElementValue(styleElement, "stemSlashThickness", prefs->graceOptions->graceSlashWidth / EFIX_PER_SPACE);
+}
+
+void writeMusicSpacingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    setElementValue(styleElement, "minMeasureWidth", prefs->musicSpacing->minWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "minNoteDistance", prefs->musicSpacing->minDistance / EVPU_PER_SPACE);
+    setElementValue(styleElement, "measureSpacing", prefs->musicSpacing->scalingFactor);
+    setElementValue(styleElement, "minTieLength", prefs->musicSpacing->minDistTiedNotes / EVPU_PER_SPACE);
+}
+
+void writeNoteRelatedPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    setElementValue(styleElement, "accidentalDistance", prefs->accidentalOptions->acciAcciSpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "accidentalNoteDistance", prefs->accidentalOptions->acciNoteSpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "beamWidth", prefs->beamOptions->beamWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "useWideBeams", prefs->beamOptions->beamSepar > (0.75 * EVPU_PER_SPACE));
+    // Finale randomly adds twice the stem width to the length of a beam stub. (Observed behavior)
+    setElementValue(styleElement, "beamMinLen", (prefs->beamOptions->beamStubLength + (2.0 * prefs->stemOptions->stemWidth / EFIX_PER_EVPU)) / EVPU_PER_SPACE);
+    setElementValue(styleElement, "beamNoSlope", prefs->beamOptions->beamingStyle == options::BeamOptions::FlattenStyle::AlwaysFlat);
+    setElementValue(styleElement, "dotMag", museMagVal(prefs, options::FontOptions::FontType::AugDots));
+    setElementValue(styleElement, "dotNoteDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE);
+    setElementValue(styleElement, "dotRestDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE); // Same value as dotNoteDistance
+    setElementValue(styleElement, "dotDotDistance", prefs->augDotOptions->dotOffset / EVPU_PER_SPACE);
+    setElementValue(styleElement, "articulationMag", museMagVal(prefs, options::FontOptions::FontType::Articulation));
+    setElementValue(styleElement, "graceNoteMag", prefs->graceOptions->gracePerc / 100.0);
+    setElementValue(styleElement, "concertPitch", !prefs->partGlobals->showTransposed);
+    setElementValue(styleElement, "multiVoiceRestTwoSpaceOffset", std::labs(prefs->layerOneAttributes->restOffset) >= 4);
+    setElementValue(styleElement, "mergeMatchingRests", prefs->miscOptions->consolidateRestsAcrossLayers);
+}
+
+void writeSmartShapePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    // Hairpin-related settings
+    setElementValue(styleElement, "hairpinHeight", prefs->smartShapeOptions->shortHairpinOpeningWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "hairpinContHeight", 0.5); // Hardcoded to a half space
+    writeCategoryTextFontPref(styleElement, prefs, "hairpin", others::MarkingCategory::CategoryType::Dynamics);
+    writeLinePrefs(styleElement, "hairpin", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff);
+
+    // Slur-related settings
+    setElementValue(styleElement, "slurEndWidth", prefs->smartShapeOptions->smartSlurTipWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "slurDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
+
+    // Tie-related settings
+    setElementValue(styleElement, "tieEndWidth", prefs->tieOptions->tieTipWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tieDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "tiePlacementSingleNote", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
+    setElementValue(styleElement, "tiePlacementChord", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
+
+    // Ottava settings
+    setElementValue(styleElement, "ottavaHookAbove", prefs->smartShapeOptions->hookLength / EVPU_PER_SPACE);
+    setElementValue(styleElement, "ottavaHookBelow", -prefs->smartShapeOptions->hookLength / EVPU_PER_SPACE);
+    writeLinePrefs(styleElement, "ottava", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
+    setElementValue(styleElement, "ottavaNumbersOnly", prefs->smartShapeOptions->showOctavaAsText);
+}
+
+void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
+{
+    using MeasureNumberRegion = others::MeasureNumberRegion;
+    setElementValue(styleElement, "showMeasureNumber", prefs->measNumScorePart != nullptr);
+    if (prefs->measNumScorePart) {
+        const auto& scorePart = prefs->measNumScorePart;
+        setElementValue(styleElement, "showMeasureNumberOne", !scorePart->hideFirstMeasure);
+        setElementValue(styleElement, "measureNumberInterval", scorePart->incidence);
+        setElementValue(styleElement, "measureNumberSystem", scorePart->showOnStart && !scorePart->showOnEvery);
+
+        // Helper lambdas for processing justification and alignment
+        auto justificationString = [](MeasureNumberRegion::AlignJustify justi) -> std::string {
+            switch (justi) {
+                case MeasureNumberRegion::AlignJustify::Left: return "left,baseline";
+                case MeasureNumberRegion::AlignJustify::Center: return "center,baseline";
+                case MeasureNumberRegion::AlignJustify::Right: return "right,baseline";
+            }
+        };
+
+        auto horizontalAlignment = [](MeasureNumberRegion::AlignJustify align) -> int {
+            switch (align) {
+                case MeasureNumberRegion::AlignJustify::Left: return 0;
+                case MeasureNumberRegion::AlignJustify::Center: return 1;
+                case MeasureNumberRegion::AlignJustify::Right: return 2;
+            }
+        };
+
+        auto verticalAlignment = [](Evpu vertical) -> int {
+            return (vertical >= 0) ? 0 : 1;
+        };
+
+        // Helper function to process segments
+        auto processSegment = [&](const std::shared_ptr<FontInfo>& fontInfo,
+                                  const std::shared_ptr<others::Enclosure>& enclosure,
+                                  bool useEnclosure,
+                                  MeasureNumberRegion::AlignJustify justification,
+                                  MeasureNumberRegion::AlignJustify alignment,
+                                  Evpu vertical,
+                                  const std::string& prefix) {
+            writeFontPref(styleElement, prefix, fontInfo.get());
+            setElementValue(styleElement, prefix + "VPlacement", verticalAlignment(vertical));
+            setElementValue(styleElement, prefix + "HPlacement", horizontalAlignment(alignment));
+            setElementValue(styleElement, prefix + "Align", justificationString(justification));
+            writeFramePrefs(styleElement, prefix, useEnclosure ? enclosure.get() : nullptr);
+        };
+
+        // Determine the source for primary measure number segment
+        auto fontInfo = scorePart->showOnStart ? scorePart->startFont : scorePart->multipleFont;
+        auto enclosure = scorePart->showOnStart ? scorePart->startEnclosure : scorePart->multipleEnclosure;
+        auto useEnclosure = scorePart->showOnStart ? scorePart->useStartEncl : scorePart->useMultipleEncl;
+        auto justification = scorePart->showOnEvery ? scorePart->multipleJustify : scorePart->startJustify;
+        auto alignment = scorePart->showOnEvery ? scorePart->multipleAlign : scorePart->startAlign;
+        auto vertical = scorePart->showOnStart ? scorePart->startYdisp : scorePart->multipleYdisp;
+
+        // Process primary measure number segment
+        setElementValue(styleElement, "measureNumberOffsetType", 1); // Hardcoded offset type
+        processSegment(fontInfo, enclosure, useEnclosure, justification, alignment, vertical, "measureNumber");
+
+        // Process multi-measure rest settings
+        setElementValue(styleElement, "mmRestShowMeasureNumberRange", scorePart->showMmRange);
+
+        if (scorePart->leftMmBracketChar == 0) {
+            setElementValue(styleElement, "mmRestRangeBracketType", 2); // None
+        } else if (scorePart->leftMmBracketChar == '(') {
+            setElementValue(styleElement, "mmRestRangeBracketType", 1); // Parenthesis
+        } else {
+            setElementValue(styleElement, "mmRestRangeBracketType", 0); // Default
+        }
+
+        // Process multi-measure rest segment
+        processSegment(scorePart->mmRestFont, scorePart->multipleEnclosure, scorePart->useMultipleEncl,
+                       scorePart->mmRestJustify, scorePart->mmRestAlign, scorePart->mmRestYdisp, "mmRestRange");
+    }
+    setElementValue(styleElement, "createMultiMeasureRests", forPartId != 0); // Equivalent to Lua's `current_is_part`
+    setElementValue(styleElement, "minEmptyMeasures", prefs->mmRestOptions->numStart);
+    setElementValue(styleElement, "minMMRestWidth", prefs->mmRestOptions->measWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "mmRestNumberPos", (prefs->mmRestOptions->numAdjY / EVPU_PER_SPACE) + 1);
+    // setElementValue(styleElement, "multiMeasureRestMargin", prefs->mmRestOptions->startAdjust / EVPU_PER_SPACE); // Uncomment if margin is required
+    setElementValue(styleElement, "oldStyleMultiMeasureRests", prefs->mmRestOptions->useSymbols && prefs->mmRestOptions->useSymsThreshold > 1);
+    setElementValue(styleElement, "mmRestOldStyleMaxMeasures", std::max(prefs->mmRestOptions->useSymsThreshold - 1, 0));
+    setElementValue(styleElement, "mmRestOldStyleSpacing", prefs->mmRestOptions->symSpacing / EVPU_PER_SPACE);
+}
+
+void writeRepeatEndingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    const auto& repeatOptions = prefs->repeatOptions;
+    setElementValue(styleElement, "voltaLineWidth", repeatOptions->bracketLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "voltaLineStyle", "solid");
+    writeDefaultFontPref(styleElement, prefs, "volta", options::FontOptions::FontType::Ending);
+    setElementValue(styleElement, "voltaAlign", "left,baseline");
+
+    // Optionally include bracket height and hook lengths if uncommented
+    // XmlElement* element = setElementText(styleElement, "voltaPosAbove", "");
+    // element->setDoubleAttribute("x", 0);
+    // element->setDoubleAttribute("y", repeatOptions->bracketHeight / EVPU_PER_SPACE);
+
+    // setElementValue(styleElement, "voltaHook", repeatOptions->bracketHookLen / EVPU_PER_SPACE);
+
+    // Optionally include text offsets
+    // element = setElementText(styleElement, "voltaOffset", "");
+    // element->setDoubleAttribute("x", repeatOptions->bracketTextHPos / EVPU_PER_SPACE);
+    // element->setDoubleAttribute("y", repeatOptions->bracketTextVPos / EVPU_PER_SPACE);
+}
+
+void writeTupletPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    using TupletOptions = options::TupletOptions;
+    const auto& tupletOptions = prefs->tupletOptions;
+
+    setElementValue(styleElement, "tupletOutOfStaff", tupletOptions->avoidStaff);
+    setElementValue(styleElement, "tupletStemLeftDistance", tupletOptions->leftHookExt / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tupletStemRightDistance", tupletOptions->rightHookExt / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tupletNoteLeftDistance", tupletOptions->leftHookExt / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tupletNoteRightDistance", tupletOptions->rightHookExt / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tupletBracketWidth", tupletOptions->tupLineWidth / EFIX_PER_SPACE);
+
+    switch (tupletOptions->posStyle) {
+        case TupletOptions::PositioningStyle::Above:
+            setElementValue(styleElement, "tupletDirection", 1);
+            break;
+        case TupletOptions::PositioningStyle::Below:
+            setElementValue(styleElement, "tupletDirection", 2);
+            break;
+        default:
+            setElementValue(styleElement, "tupletDirection", 0);
+            break;
+    }
+
+    switch (tupletOptions->numStyle) {
+        case TupletOptions::NumberStyle::Nothing:
+            setElementValue(styleElement, "tupletNumberType", 2);
+            break;
+        case TupletOptions::NumberStyle::Number:
+            setElementValue(styleElement, "tupletNumberType", 0);
+            break;
+        default:
+            setElementValue(styleElement, "tupletNumberType", 1);
+            break;
+    }
+
+    if (tupletOptions->brackStyle == TupletOptions::BracketStyle::Nothing) {
+        setElementValue(styleElement, "tupletBracketType", 2);
+    } else if (tupletOptions->autoBracketStyle == TupletOptions::AutoBracketStyle::Always) {
+        setElementValue(styleElement, "tupletBracketType", 1);        
+    } else {
+        setElementValue(styleElement, "tupletBracketType", 0);        
+    }
+
+    const auto& fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::Tuplet);
+    if (!fontInfo) {
+        throw std::invalid_argument("Unable to load font pref for tuplets");
+    }
+
+    if (fontInfo->calcIsSMuFL()) {
+        setElementValue(styleElement, "tupletMusicalSymbolsScale", museMagVal(prefs, options::FontOptions::FontType::Tuplet));
+        setElementValue(styleElement, "tupletUseSymbols", true);
+    } else {
+        writeFontPref(styleElement, "tuplet", fontInfo.get());
+        setElementValue(styleElement, "tupletMusicalSymbolsScale", 1.0);
+        setElementValue(styleElement, "tupletUseSymbols", false);
+    }
+
+    setElementValue(
+        styleElement,
+        "tupletBracketHookHeight",
+        std::max(-tupletOptions->leftHookLen, -tupletOptions->rightHookLen) / EVPU_PER_SPACE
+    );
+}
+
+void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    using FontType = options::FontOptions::FontType;
+    using CategoryType = others::MarkingCategory::CategoryType;
+
+    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(CategoryType::Dynamics));
+    if (!cat) {
+        throw std::invalid_argument("unable to find MarkingCategory for dynamics");
+    }
+    auto catFontInfo = cat->musicFont;
+    bool override = catFontInfo && catFontInfo->calcIsSMuFL() && catFontInfo->fontId != 0;
+    setElementValue(styleElement, "dynamicsOverrideFont", override);
+    if (override) {
+        setElementValue(styleElement, "dynamicsFont", catFontInfo->getFontName());
+        setElementValue(styleElement, "dynamicsSize", catFontInfo->fontSize / prefs->defaultMusicFont->fontSize);
+    } else {
+        setElementValue(styleElement, "dynamicsFont", prefs->defaultMusicFont->getFontName());
+        setElementValue(styleElement, "dynamicsSize",
+                        catFontInfo->calcIsSMuFL() ? (catFontInfo->fontSize / prefs->defaultMusicFont->fontSize) : 1.0);
+    }
+    // Load font preferences for Text Blocks
+    auto textBlockFont = options::FontOptions::getFontInfo(prefs->document, FontType::TextBlock);
+    if (!textBlockFont) {
+        throw std::invalid_argument("unable to find font prefs for Text Blocks");
+    }
+    writeFontPref(styleElement, "default", textBlockFont.get());
+    // since the following depend on Page Titles, just update the font face with the TEXTBLOCK font name
+    setElementValue(styleElement, "titleFontFace", textBlockFont->getFontName());
+    setElementValue(styleElement, "subTitleFontFace", textBlockFont->getFontName());
+    setElementValue(styleElement, "composerFontFace", textBlockFont->getFontName());
+    setElementValue(styleElement, "lyricistFontFace", textBlockFont->getFontName());
+    writeDefaultFontPref(styleElement, prefs, "longInstrument", FontType::StaffNames);
+    const auto fullPosition = prefs->staffOptions->namePos;
+    if (!fullPosition) {
+        throw std::invalid_argument("unable to find default full name positioning for staves");
+    }
+    auto justifyToAlignment = [](const std::shared_ptr<others::NamePositioning>& position) {
+        switch (position->justify) {
+            case others::NamePositioning::AlignJustify::Left:
+                return std::string("left,center");
+            case others::NamePositioning::AlignJustify::Right:
+                return std::string("right,center");
+            default:
+                return std::string("center,center");
+        }
+    };
+    setElementValue(styleElement, "longInstrumentAlign", justifyToAlignment(fullPosition));
+    writeDefaultFontPref(styleElement, prefs, "shortInstrument", FontType::AbbrvStaffNames);
+    const auto abbreviatedPosition = prefs->staffOptions->namePosAbbrv;
+    if (!abbreviatedPosition) {
+        throw std::invalid_argument("unable to find default abbreviated name positioning for staves");
+    }
+    setElementValue(styleElement, "shortInstrumentAlign", justifyToAlignment(abbreviatedPosition));
+    writeDefaultFontPref(styleElement, prefs, "partInstrument", FontType::StaffNames);
+    writeCategoryTextFontPref(styleElement, prefs, "dynamics", CategoryType::Dynamics);
+    writeCategoryTextFontPref(styleElement, prefs, "expression", CategoryType::ExpressiveText);
+    writeCategoryTextFontPref(styleElement, prefs, "tempo", CategoryType::TempoMarks);
+    writeCategoryTextFontPref(styleElement, prefs, "tempoChange", CategoryType::ExpressiveText);
+    writeLinePrefs(styleElement, "tempoChange", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
+    writeCategoryTextFontPref(styleElement, prefs, "metronome", CategoryType::TempoMarks);
+    setElementValue(styleElement, "translatorFontFace", textBlockFont->getFontName());
+    writeCategoryTextFontPref(styleElement, prefs, "systemText", CategoryType::ExpressiveText);
+    writeCategoryTextFontPref(styleElement, prefs, "staffText", CategoryType::ExpressiveText);
+    writeCategoryTextFontPref(styleElement, prefs, "rehearsalMark", CategoryType::RehearsalMarks);
+    writeDefaultFontPref(styleElement, prefs, "repeatLeft", FontType::Repeat);
+    writeDefaultFontPref(styleElement, prefs, "repeatRight", FontType::Repeat);
+    writeFontPref(styleElement, "frame", textBlockFont.get());
+    writeCategoryTextFontPref(styleElement, prefs, "textLine", CategoryType::TechniqueText);
+    writeCategoryTextFontPref(styleElement, prefs, "systemTextLine", CategoryType::ExpressiveText);
+    writeCategoryTextFontPref(styleElement, prefs, "glissando", CategoryType::TechniqueText);
+    writeCategoryTextFontPref(styleElement, prefs, "bend", CategoryType::TechniqueText);
+    writeFontPref(styleElement, "header", textBlockFont.get());
+    writeFontPref(styleElement, "footer", textBlockFont.get());
+    writeFontPref(styleElement, "copyright", textBlockFont.get());
+    writeFontPref(styleElement, "pageNumber", textBlockFont.get());
+    writeFontPref(styleElement, "instrumentChange", textBlockFont.get());
+    writeFontPref(styleElement, "sticking", textBlockFont.get());
+    for (int i = 1; i <= 12; ++i) {
+        writeFontPref(styleElement, "user" + std::to_string(i), textBlockFont.get());
+    }
+}
+
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
     // ToDo: lots
     try {
         // construct source instance and release input memory
-        auto prefs = getCurrentPrefs(xmlBuffer);
+        auto prefs = getCurrentPrefs(xmlBuffer, forPartId);
 
         // extract document to mss
         XmlDocument mssDoc; // output
@@ -274,8 +732,19 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
         museScoreElement->SetAttribute("version", MSS_VERSION);
         mssDoc.InsertEndChild(museScoreElement);
         auto styleElement = museScoreElement->InsertNewChildElement("Style");
+        //
         writePagePrefs(styleElement, prefs);
         writeLyricsPrefs(styleElement, prefs);
+        writeLineMeasurePrefs(styleElement, prefs, forPartId);
+        writeStemPrefs(styleElement, prefs);
+        writeMusicSpacingPrefs(styleElement, prefs);
+        writeNoteRelatedPrefs(styleElement, prefs);
+        writeSmartShapePrefs(styleElement, prefs);
+        writeMeasureNumberPrefs(styleElement, prefs, forPartId);
+        writeRepeatEndingPrefs(styleElement, prefs);
+        writeTupletPrefs(styleElement, prefs);
+        writeMarkingPrefs(styleElement, prefs);
+        //
         if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
             throw std::runtime_error(mssDoc.ErrorStr());
         }

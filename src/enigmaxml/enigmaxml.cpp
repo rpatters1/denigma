@@ -24,10 +24,10 @@
 #include <vector>
 #include <iostream>
 
+#include "musx/musx.h"
 #include "enigmaxml.h"
 #include "zip_file.hpp"		// miniz submodule (for zip)
 #include "ezgz.hpp"			// ezgz submodule (for gzip)
-#include "musx/musx.h"
 
 constexpr char SCORE_DAT_NAME[] = "score.dat";
 
