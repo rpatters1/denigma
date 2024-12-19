@@ -85,6 +85,7 @@ struct FinalePreferences
     std::shared_ptr<options::StemOptions> stemOptions;
     std::shared_ptr<options::TieOptions> tieOptions;
     std::shared_ptr<options::TimeSignatureOptions> timeOptions;
+    std::shared_ptr<options::TupletOptions> tupletOptions;
     //
     std::shared_ptr<others::LayerAttributes> layerOneAttributes;
     std::shared_ptr<others::MeasureNumberRegion::ScorePartData> measNumScorePart;
@@ -131,6 +132,7 @@ static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, 
     retval->stemOptions = getDocOptions<options::StemOptions>(retval, "stem");
     retval->tieOptions = getDocOptions<options::TieOptions>(retval, "tie");
     retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(retval, "time signature");
+    retval->tupletOptions = getDocOptions<options::TupletOptions>(retval, "tuplet");
     //
     retval->layerOneAttributes = retval->document->getOthers()->get<others::LayerAttributes>(0);
     if (!retval->layerOneAttributes) {
@@ -546,6 +548,110 @@ void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPt
     setElementValue(styleElement, "mmRestOldStyleSpacing", prefs->mmRestOptions->symSpacing / EVPU_PER_SPACE);
 }
 
+void writeRepeatEndingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    const auto& repeatOptions = prefs->repeatOptions;
+    setElementValue(styleElement, "voltaLineWidth", repeatOptions->bracketLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "voltaLineStyle", "solid");
+    writeDefaultFontPref(styleElement, prefs, "volta", options::FontOptions::FontType::Ending);
+    setElementValue(styleElement, "voltaAlign", "left,baseline");
+
+    // Optionally include bracket height and hook lengths if uncommented
+    // XmlElement* element = setElementText(styleElement, "voltaPosAbove", "");
+    // element->setDoubleAttribute("x", 0);
+    // element->setDoubleAttribute("y", repeatOptions->bracketHeight / EVPU_PER_SPACE);
+
+    // setElementValue(styleElement, "voltaHook", repeatOptions->bracketHookLen / EVPU_PER_SPACE);
+
+    // Optionally include text offsets
+    // element = setElementText(styleElement, "voltaOffset", "");
+    // element->setDoubleAttribute("x", repeatOptions->bracketTextHPos / EVPU_PER_SPACE);
+    // element->setDoubleAttribute("y", repeatOptions->bracketTextVPos / EVPU_PER_SPACE);
+}
+
+void writeTupletPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    using TupletOptions = options::TupletOptions;
+    const auto& tupletOptions = prefs->tupletOptions;
+
+    setElementValue(styleElement, "tupletOutOfStaff", tupletOptions->avoidStaff);
+    setElementValue(styleElement, "tupletStemLeftDistance", tupletOptions->leftHookExt / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tupletStemRightDistance", tupletOptions->rightHookExt / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tupletNoteLeftDistance", tupletOptions->leftHookExt / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tupletNoteRightDistance", tupletOptions->rightHookExt / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tupletBracketWidth", tupletOptions->tupLineWidth / EFIX_PER_SPACE);
+
+    switch (tupletOptions->posStyle) {
+        case TupletOptions::PositioningStyle::Above:
+            setElementValue(styleElement, "tupletDirection", 1);
+            break;
+        case TupletOptions::PositioningStyle::Below:
+            setElementValue(styleElement, "tupletDirection", 2);
+            break;
+        default:
+            setElementValue(styleElement, "tupletDirection", 0);
+            break;
+    }
+
+    switch (tupletOptions->numStyle) {
+        case TupletOptions::NumberStyle::Nothing:
+            setElementValue(styleElement, "tupletNumberType", 2);
+            break;
+        case TupletOptions::NumberStyle::Number:
+            setElementValue(styleElement, "tupletNumberType", 0);
+            break;
+        default:
+            setElementValue(styleElement, "tupletNumberType", 1);
+            break;
+    }
+
+    if (tupletOptions->brackStyle == TupletOptions::BracketStyle::Nothing) {
+        setElementValue(styleElement, "tupletBracketType", 2);
+    } else if (tupletOptions->autoBracketStyle == TupletOptions::AutoBracketStyle::Always) {
+        setElementValue(styleElement, "tupletBracketType", 1);        
+    } else {
+        setElementValue(styleElement, "tupletBracketType", 0);        
+    }
+
+    const auto& fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::Tuplet);
+    if (!fontInfo) {
+        throw std::invalid_argument("Unable to load font pref for tuplets");
+    }
+
+    if (fontInfo->calcIsSMuFL()) {
+        setElementValue(styleElement, "tupletMusicalSymbolsScale", museMagVal(prefs, options::FontOptions::FontType::Tuplet));
+        setElementValue(styleElement, "tupletUseSymbols", true);
+    } else {
+        writeFontPref(styleElement, "tuplet", fontInfo.get());
+        setElementValue(styleElement, "tupletMusicalSymbolsScale", 1.0);
+        setElementValue(styleElement, "tupletUseSymbols", false);
+    }
+
+    setElementValue(
+        styleElement,
+        "tupletBracketHookHeight",
+        std::max(-tupletOptions->leftHookLen, -tupletOptions->rightHookLen) / EVPU_PER_SPACE
+    );
+}
+
+void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+{
+    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(others::MarkingCategory::CategoryType::Dynamics));
+    if (!cat) {
+        throw std::invalid_argument("unable to load MarkingCategory for dynamics");
+    }
+    auto catFontInfo = cat->musicFont;
+    bool override = catFontInfo && catFontInfo->calcIsSMuFL() && catFontInfo->fontId != 0;
+    setElementValue(styleElement, "dynamicsOverrideFont", override);
+    if (override) {
+        // replace this comment by filling in the rest from the Lua
+    } else {
+        // replace this comment by filling in the rest from the Lua
+    }
+    auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::TextBlock);
+
+}
+
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
 {
     // ToDo: lots
@@ -569,6 +675,9 @@ void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& x
         writeNoteRelatedPrefs(styleElement, prefs);
         writeSmartShapePrefs(styleElement, prefs);
         writeMeasureNumberPrefs(styleElement, prefs, forPartId);
+        writeRepeatEndingPrefs(styleElement, prefs);
+        writeTupletPrefs(styleElement, prefs);
+        writeMarkingPrefs(styleElement, prefs);
         //
         if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
             throw std::runtime_error(mssDoc.ErrorStr());
