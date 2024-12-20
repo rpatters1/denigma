@@ -33,7 +33,6 @@ set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/build")
 
 #define other directories
 set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
-set(MUSX_OBJECT_MODEL_DIR "${CMAKE_SOURCE_DIR}/submodules/musx_object_model/src")
 set(RAPIDXML_DIR "${CMAKE_SOURCE_DIR}/third_party/rapidxml")
 
 # Set output directory for compiled executable
@@ -91,10 +90,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json_schema_validator)
 
-# Include directories for your source files
-#add_subdirectory(${NLOHMANN_JSON_DIR})
-#add_subdirectory(${JSON_SCHEMA_VALIDATOR_DIR})
-
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 
 # Add executable target
@@ -106,12 +101,16 @@ add_executable(denigma
 )
 
 # Compile definitions
-target_compile_definitions(denigma PRIVATE MUSX_USE_TINYXML2)
-target_compile_definitions(denigma PRIVATE MUSX_USE_RAPIDXML)
+#set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
+set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
+
 
 # temporary for reference and debugging
-target_compile_definitions(denigma PRIVATE MUSX_DISPLAY_NODE_NAMES)
-target_compile_definitions(denigma PRIVATE MUSX_THROW_ON_UNKNOWN_XML)
+set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
+set(MUSX_THROW_ON_UNKNOWN_XML OFF CACHE BOOL "Disable throwing on unknown XML" FORCE)
+
+#Include directories for your source files
+add_subdirectory(submodules/musx_object_model)
 
 # Ensure the include directories are added
 add_dependencies(denigma GenerateMnxSchemaXxd)
@@ -126,3 +125,4 @@ target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(denigma PRIVATE tinyxml2)
 target_link_libraries(denigma PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(denigma PRIVATE nlohmann_json_schema_validator)
+target_link_libraries(denigma PRIVATE musx)
