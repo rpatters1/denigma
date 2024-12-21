@@ -718,7 +718,7 @@ void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pre
     }
 }
 
-void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
+void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore)
 {
     // ToDo: lots
     try {

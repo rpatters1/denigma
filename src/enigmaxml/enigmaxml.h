@@ -23,6 +23,7 @@
 
 #include <string>
 #include <vector>
+#include <optional>
 
 namespace denigma {
 namespace enigmaxml {
@@ -31,7 +32,7 @@ using Buffer = std::vector<char>;
 
 Buffer extract(const std::filesystem::path& inputFile);
 Buffer read(const std::filesystem::path& inputFile);
-void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer);
+void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>&, bool);
 
 } // namespace enigmaxml
 } // namespace denigma
