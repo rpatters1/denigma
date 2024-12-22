@@ -35,7 +35,7 @@ namespace denigma {
 namespace mnx {
 
 // placeholder
-void convert(const std::filesystem::path& file, const enigmaxml::Buffer&, const std::optional<std::string>&, bool)
+void convert(const std::filesystem::path& file, const Buffer&, const std::optional<std::string>&, bool)
 {
     std::cout << "converting to " << file.string() << std::endl;
 }

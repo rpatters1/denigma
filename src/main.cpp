@@ -26,34 +26,20 @@
 #include <unordered_map>
 #include <optional>
 
+#include "denigma.h"
+
 #include "enigmaxml/enigmaxml.h"
 #include "mss/mss.h"
 #include "mnx/mnx.h"
 
 using namespace denigma;
 
-constexpr char MUSX_EXTENSION[]		    = "musx";
-constexpr char ENIGMAXML_EXTENSION[]    = "enigmaxml";
-constexpr char MNX_EXTENSION[]		    = "mnx";
-constexpr char MSS_EXTENSION[]		    = "mss";
-
-// This function exists as std::to_array in C++20
-template <typename T, std::size_t N>
-constexpr std::array<T, N> to_array(const T(&arr)[N])
-{
-    std::array<T, N> result{};
-    for (std::size_t i = 0; i < N; ++i) {
-        result[i] = arr[i];
-    }
-    return result;
-}
-
 // Input format processors
 constexpr auto inputProcessors = []() {
     struct InputProcessor
     {
         const char* extension;
-        enigmaxml::Buffer(*processor)(const std::filesystem::path&);
+        Buffer(*processor)(const std::filesystem::path&);
     };
 
     return to_array<InputProcessor>({
@@ -67,7 +53,7 @@ constexpr auto outputProcessors = []() {
     struct OutputProcessor
     {
         const char* extension;
-        void(*processor)(const std::filesystem::path&, const enigmaxml::Buffer&, const std::optional<std::string>&, bool);
+        void(*processor)(const std::filesystem::path&, const Buffer&, const std::optional<std::string>&, bool);
     };
 
     return to_array<OutputProcessor>({
@@ -198,7 +184,7 @@ int main(int argc, char* argv[]) {
 
         // Find and call the input processor
         auto inputProcessor = findProcessor(inputProcessors, inputExtension);
-        const enigmaxml::Buffer enigmaXml = inputProcessor(inputFilePath.string());
+        const Buffer enigmaXml = inputProcessor(inputFilePath.string());
 
         auto processOutput = [&inputFilePath, &inputProcessor, &enigmaXml, partName, allPartsAndScore] (
             const std::string &outputFormat,

@@ -756,7 +756,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     std::cout << "exported " << qualifiedOutputPath.string() << std::endl;
 }
 
-void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore)
+void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore)
 {
     try {
         auto document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);

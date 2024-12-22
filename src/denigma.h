@@ -22,17 +22,26 @@
 #pragma once
 
 #include <string>
-#include <vector>
-#include <optional>
+#include <array>
 
-#include "denigma.h"
+inline constexpr char MUSX_EXTENSION[] = "musx";
+inline constexpr char ENIGMAXML_EXTENSION[]    = "enigmaxml";
+inline constexpr char MNX_EXTENSION[]		    = "mnx";
+inline constexpr char MSS_EXTENSION[]		    = "mss";
 
 namespace denigma {
-namespace enigmaxml {
 
-Buffer extract(const std::filesystem::path& inputFile);
-Buffer read(const std::filesystem::path& inputFile);
-void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>&, bool);
+// This function exists as std::to_array in C++20
+template <typename T, std::size_t N>
+inline constexpr std::array<T, N> to_array(const T(&arr)[N])
+{
+    std::array<T, N> result{};
+    for (std::size_t i = 0; i < N; ++i) {
+        result[i] = arr[i];
+    }
+    return result;
+}
 
-} // namespace enigmaxml
-} // namespace denigma
+using Buffer = std::vector<char>;
+
+}
