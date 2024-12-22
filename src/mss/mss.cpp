@@ -37,8 +37,6 @@ using XmlDocument = ::tinyxml2::XMLDocument;
 using XmlElement = ::tinyxml2::XMLElement;
 using XmlAttribute = ::tinyxml2::XMLAttribute;
 
-constexpr Cmper forPartId = false; // ToDo: eventually this will be a program option
-
 constexpr static char MSS_VERSION[] = "4.50";
 
 constexpr static double EVPU_PER_INCH = 288.0;
@@ -104,10 +102,10 @@ static std::shared_ptr<T> getDocOptions(const FinalePreferencesPtr& prefs, const
     return retval;
 }
 
-static FinalePreferencesPtr getCurrentPrefs(const enigmaxml::Buffer& xmlBuffer, Cmper forPartId)
+static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper forPartId)
 {
     auto retval = std::make_shared<FinalePreferences>();
-    retval->document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
+    retval->document = document;
 
     auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
     retval->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
@@ -201,7 +199,7 @@ static uint16_t museFontEfx(const FontInfo* fontInfo)
 static double museMagVal(const FinalePreferencesPtr& prefs, const options::FontOptions::FontType type)
 {
     auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
-    if (fontPrefs->getFontName() == prefs->defaultMusicFont->getFontName()) {
+    if (fontPrefs->getName() == prefs->defaultMusicFont->getName()) {
         return double(fontPrefs->fontSize) / double(prefs->defaultMusicFont->fontSize);
     }
     return 1.0;
@@ -209,7 +207,7 @@ static double museMagVal(const FinalePreferencesPtr& prefs, const options::FontO
 
 static void writeFontPref(XmlElement* styleElement, const std::string& namePrefix, const FontInfo* fontInfo)
 {
-    setElementValue(styleElement, namePrefix + "FontFace", fontInfo->getFontName());
+    setElementValue(styleElement, namePrefix + "FontFace", fontInfo->getName());
     setElementValue(styleElement, namePrefix + "FontSize", 
                     double(fontInfo->fontSize) * (fontInfo->absolute ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL));
     setElementValue(styleElement, namePrefix + "FontSpatiumDependent", !fontInfo->absolute);
@@ -310,12 +308,12 @@ static void writePagePrefs(XmlElement* styleElement, const FinalePreferencesPtr&
         if (defaultMusicFont->calcIsSMuFL()) {
             return true;
         }
-        auto it = museScoreSMuFLFonts.find(defaultMusicFont->getFontName());
+        auto it = museScoreSMuFLFonts.find(defaultMusicFont->getName());
         return it != museScoreSMuFLFonts.end();
     }();
     if (isSMuFL) {
-        setElementValue(styleElement, "musicalSymbolFont", defaultMusicFont->getFontName());
-        setElementValue(styleElement, "musicalTextFont", defaultMusicFont->getFontName() + " Text");
+        setElementValue(styleElement, "musicalSymbolFont", defaultMusicFont->getName());
+        setElementValue(styleElement, "musicalTextFont", defaultMusicFont->getName() + " Text");
     }
 }
 
@@ -649,10 +647,10 @@ void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pre
     bool override = catFontInfo && catFontInfo->calcIsSMuFL() && catFontInfo->fontId != 0;
     setElementValue(styleElement, "dynamicsOverrideFont", override);
     if (override) {
-        setElementValue(styleElement, "dynamicsFont", catFontInfo->getFontName());
+        setElementValue(styleElement, "dynamicsFont", catFontInfo->getName());
         setElementValue(styleElement, "dynamicsSize", catFontInfo->fontSize / prefs->defaultMusicFont->fontSize);
     } else {
-        setElementValue(styleElement, "dynamicsFont", prefs->defaultMusicFont->getFontName());
+        setElementValue(styleElement, "dynamicsFont", prefs->defaultMusicFont->getName());
         setElementValue(styleElement, "dynamicsSize",
                         catFontInfo->calcIsSMuFL() ? (catFontInfo->fontSize / prefs->defaultMusicFont->fontSize) : 1.0);
     }
@@ -663,10 +661,10 @@ void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pre
     }
     writeFontPref(styleElement, "default", textBlockFont.get());
     // since the following depend on Page Titles, just update the font face with the TEXTBLOCK font name
-    setElementValue(styleElement, "titleFontFace", textBlockFont->getFontName());
-    setElementValue(styleElement, "subTitleFontFace", textBlockFont->getFontName());
-    setElementValue(styleElement, "composerFontFace", textBlockFont->getFontName());
-    setElementValue(styleElement, "lyricistFontFace", textBlockFont->getFontName());
+    setElementValue(styleElement, "titleFontFace", textBlockFont->getName());
+    setElementValue(styleElement, "subTitleFontFace", textBlockFont->getName());
+    setElementValue(styleElement, "composerFontFace", textBlockFont->getName());
+    setElementValue(styleElement, "lyricistFontFace", textBlockFont->getName());
     writeDefaultFontPref(styleElement, prefs, "longInstrument", FontType::StaffNames);
     const auto fullPosition = prefs->staffOptions->namePos;
     if (!fullPosition) {
@@ -696,7 +694,7 @@ void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pre
     writeCategoryTextFontPref(styleElement, prefs, "tempoChange", CategoryType::ExpressiveText);
     writeLinePrefs(styleElement, "tempoChange", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
     writeCategoryTextFontPref(styleElement, prefs, "metronome", CategoryType::TempoMarks);
-    setElementValue(styleElement, "translatorFontFace", textBlockFont->getFontName());
+    setElementValue(styleElement, "translatorFontFace", textBlockFont->getName());
     writeCategoryTextFontPref(styleElement, prefs, "systemText", CategoryType::ExpressiveText);
     writeCategoryTextFontPref(styleElement, prefs, "staffText", CategoryType::ExpressiveText);
     writeCategoryTextFontPref(styleElement, prefs, "rehearsalMark", CategoryType::RehearsalMarks);
@@ -718,38 +716,77 @@ void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pre
     }
 }
 
-void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer)
+static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const std::shared_ptr<others::PartDefinition>& part = nullptr)
 {
-    // ToDo: lots
-    try {
-        // construct source instance and release input memory
-        auto prefs = getCurrentPrefs(xmlBuffer, forPartId);
+    Cmper forPartId = part ? part->getCmper() : 0;
+    auto prefs = getCurrentPrefs(document, forPartId);
 
-        // extract document to mss
-        XmlDocument mssDoc; // output
-        mssDoc.InsertEndChild(mssDoc.NewDeclaration());
-        auto museScoreElement = mssDoc.NewElement("museScore");
-        museScoreElement->SetAttribute("version", MSS_VERSION);
-        mssDoc.InsertEndChild(museScoreElement);
-        auto styleElement = museScoreElement->InsertNewChildElement("Style");
-        //
-        writePagePrefs(styleElement, prefs);
-        writeLyricsPrefs(styleElement, prefs);
-        writeLineMeasurePrefs(styleElement, prefs, forPartId);
-        writeStemPrefs(styleElement, prefs);
-        writeMusicSpacingPrefs(styleElement, prefs);
-        writeNoteRelatedPrefs(styleElement, prefs);
-        writeSmartShapePrefs(styleElement, prefs);
-        writeMeasureNumberPrefs(styleElement, prefs, forPartId);
-        writeRepeatEndingPrefs(styleElement, prefs);
-        writeTupletPrefs(styleElement, prefs);
-        writeMarkingPrefs(styleElement, prefs);
-        //
-        if (mssDoc.SaveFile(outputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
-            throw std::runtime_error(mssDoc.ErrorStr());
+    // extract document to mss
+    XmlDocument mssDoc; // output
+    mssDoc.InsertEndChild(mssDoc.NewDeclaration());
+    auto museScoreElement = mssDoc.NewElement("museScore");
+    museScoreElement->SetAttribute("version", MSS_VERSION);
+    mssDoc.InsertEndChild(museScoreElement);
+    auto styleElement = museScoreElement->InsertNewChildElement("Style");
+    // write prefs from document
+    writePagePrefs(styleElement, prefs);
+    writeLyricsPrefs(styleElement, prefs);
+    writeLineMeasurePrefs(styleElement, prefs, forPartId);
+    writeStemPrefs(styleElement, prefs);
+    writeMusicSpacingPrefs(styleElement, prefs);
+    writeNoteRelatedPrefs(styleElement, prefs);
+    writeSmartShapePrefs(styleElement, prefs);
+    writeMeasureNumberPrefs(styleElement, prefs, forPartId);
+    writeRepeatEndingPrefs(styleElement, prefs);
+    writeTupletPrefs(styleElement, prefs);
+    writeMarkingPrefs(styleElement, prefs);
+    // output
+    std::filesystem::path qualifiedOutputPath = outputPath;
+    if (part) {
+        auto partName = part->getName();
+        if (partName.empty()) {
+            partName = "Part" + std::to_string(part->partOrder);
         }
-        std::cout << "converted to " << outputPath.string() << std::endl;
-    } catch (const musx::xml::load_error& ex) {
+        auto currExtension = qualifiedOutputPath.extension();
+        qualifiedOutputPath.replace_extension(partName + currExtension.string());
+    }
+    if (mssDoc.SaveFile(qualifiedOutputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
+        throw std::runtime_error(mssDoc.ErrorStr());
+    }
+    std::cout << "exported " << qualifiedOutputPath.string() << std::endl;
+}
+
+void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore)
+{
+    try {
+        auto document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
+        if (allPartsAndScore || !partName.has_value()) {
+            processPart(outputPath, document); // process the score
+        }
+        bool foundPart = false;
+        if (allPartsAndScore || partName.has_value()) {
+            auto parts = document->getOthers()->getArray<others::PartDefinition>();
+            for (const auto& part : parts) {
+                if (part->getCmper()) {
+                    if (allPartsAndScore) {
+                        processPart(outputPath, document, part);
+                    } else if (partName->empty() || part->getName().rfind(partName.value(), 0) == 0) {
+                        processPart(outputPath, document, part);
+                        foundPart = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (partName.has_value() && !allPartsAndScore && !foundPart) {
+            if (partName->empty()) {
+                std::cout << "no parts were found in document" << std::endl;
+            } else {
+                std::cout << "no part name starting with \"" << partName.value() << "\" was found" << std::endl;
+            }
+        }
+    }
+    catch (const musx::xml::load_error& ex) {
         std::cerr << "Load XML failed: " << ex.what() << std::endl;
         throw;
     } catch (const std::exception& ex) {

@@ -24,6 +24,7 @@
 #include <string>
 #include <array>
 #include <unordered_map>
+#include <optional>
 
 #include "enigmaxml/enigmaxml.h"
 #include "mss/mss.h"
@@ -66,13 +67,13 @@ constexpr auto outputProcessors = []() {
     struct OutputProcessor
     {
         const char* extension;
-        void(*processor)(const std::filesystem::path&, const enigmaxml::Buffer&);
+        void(*processor)(const std::filesystem::path&, const enigmaxml::Buffer&, const std::optional<std::string>&, bool);
     };
 
     return to_array<OutputProcessor>({
         { ENIGMAXML_EXTENSION, enigmaxml::write },
         { MSS_EXTENSION, mss::convert },
-        //{ MNX_EXTENSION, mnx::convert },
+        { MNX_EXTENSION, mnx::convert },
     });
 }();
 
@@ -96,9 +97,11 @@ static int showHelpPage(const std::string& programName)
 
     // General options
     std::cerr << "General options:" << std::endl;
-    std::cerr << "  --help                 Show this help message and exit" << std::endl;
-    std::cerr << "  --force                Overwrite existing file(s)" << std::endl;
-    std::cerr << "  --version              Show program version and exit" << std::endl;
+    std::cerr << "  --help                      Show this help message and exit" << std::endl;
+    std::cerr << "  --force                     Overwrite existing file(s)" << std::endl;
+    std::cerr << "  --part [optional-part-name] Process for named part or first part if name is omitted" << std::endl;
+    std::cerr << "  --all-parts                 Process for all parts and score" << std::endl;
+    std::cerr << "  --version                   Show program version and exit" << std::endl;
     std::cerr << std::endl;
 
     // Supported input formats
@@ -141,7 +144,9 @@ int main(int argc, char* argv[]) {
         bool showVersion = false;
         bool showHelp = false;
         bool allowOverwrite = false;
-        std::vector<const char *> args;
+        bool allPartsAndScore = false;
+        std::optional<std::string> partName;
+        std::vector<const char*> args;
         for (int x = 1; x < argc; x++) {
             const std::string_view next(argv[x]);
             if (next == "--version") {
@@ -150,6 +155,15 @@ int main(int argc, char* argv[]) {
                 showHelp = true;
             } else if (next == "--force") {
                 allowOverwrite = true;
+            } else if (next == "--all-parts") {
+                allPartsAndScore = true;
+            } else if (next == "--part") {
+                partName = "";
+                std::string_view arg(argv[x + 1]);
+                if (x < (argc - 1) && arg.rfind("--", 0) != 0) {
+                    partName = arg;
+                    x++;
+                }
             } else {
                 args.push_back(argv[x]);
             }
@@ -186,7 +200,7 @@ int main(int argc, char* argv[]) {
         auto inputProcessor = findProcessor(inputProcessors, inputExtension);
         const enigmaxml::Buffer enigmaXml = inputProcessor(inputFilePath.string());
 
-        auto processOutput = [&inputFilePath, &inputProcessor, &enigmaXml] (
+        auto processOutput = [&inputFilePath, &inputProcessor, &enigmaXml, partName, allPartsAndScore] (
             const std::string &outputFormat,
             const std::filesystem::path &outputPath,
             const bool allowOverwrite = false) -> void
@@ -207,7 +221,7 @@ int main(int argc, char* argv[]) {
             if (std::filesystem::exists(finalOutputPath)) {
                 std::cout << "Output: " << finalOutputPath.string() << std::endl;
                 if (allowOverwrite) {
-                    std::cout << "Overwriting current file." << std::endl;
+                    std::cout << "Overwriting current file(s)." << std::endl;
                 }
                 else {
                     std::cout << "File exists. Use --force to overwrite it." << std::endl;
@@ -216,7 +230,7 @@ int main(int argc, char* argv[]) {
             }
 
             auto outputProcessor = findProcessor(outputProcessors, outputFormat);
-            outputProcessor(finalOutputPath, enigmaXml);
+            outputProcessor(finalOutputPath, enigmaXml, partName, allPartsAndScore);
         };
 
         // Process output options
@@ -225,7 +239,7 @@ int main(int argc, char* argv[]) {
             std::string option = args[i];
             if (option.rfind("--", 0) == 0) {  // Options start with "--"
                 std::string outputFormat = option.substr(2);
-                std::filesystem::path outputFilePath = (i + 1 < args.size() && args[i + 1][0] != '-') ? args[++i] : defaultPath;
+                std::filesystem::path outputFilePath = (i + 1 < args.size() && std::string(args[i + 1]).rfind("--", 0) != 0) ? args[++i] : defaultPath;
                 processOutput(outputFormat, outputFilePath, allowOverwrite);
                 outputFormatSpecified = true;
             }

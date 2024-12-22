@@ -22,6 +22,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 
 #include "enigmaxml/enigmaxml.h"
 
@@ -30,7 +31,7 @@
 namespace denigma {
 namespace mnx {
 
-void convert(const std::filesystem::path& file, const enigmaxml::Buffer&);
+void convert(const std::filesystem::path& file, const enigmaxml::Buffer&, const std::optional<std::string>&, bool);
 
 } // namespace mnx
 } // namespace denigma
