@@ -126,3 +126,14 @@ target_link_libraries(denigma PRIVATE tinyxml2)
 target_link_libraries(denigma PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(denigma PRIVATE nlohmann_json_schema_validator)
 target_link_libraries(denigma PRIVATE musx)
+
+# Add Precompiled Headers (PCH) for the test suite
+target_precompile_headers(denigma PUBLIC
+    <algorithm>
+    <functional>
+    <string>
+    <memory>
+    "${tinyxml2_SOURCE_DIR}/tinyxml2.h"
+    "${MUSX_ROOT_DIR}/src/musx/musx.h"
+    "${RAPIDXML_DIR}/rapidxml.hpp"
+)

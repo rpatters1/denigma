@@ -37,7 +37,7 @@ using XmlDocument = ::tinyxml2::XMLDocument;
 using XmlElement = ::tinyxml2::XMLElement;
 using XmlAttribute = ::tinyxml2::XMLAttribute;
 
-constexpr Cmper forPartId = false; // ToDo: eventually this will be a program option
+constexpr Cmper forPartId = false; ///< @todo eventually this will be a program option
 
 constexpr static char MSS_VERSION[] = "4.50";
 
@@ -720,7 +720,6 @@ void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pre
 
 void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore)
 {
-    // ToDo: lots
     try {
         // construct source instance and release input memory
         auto prefs = getCurrentPrefs(xmlBuffer, forPartId);
