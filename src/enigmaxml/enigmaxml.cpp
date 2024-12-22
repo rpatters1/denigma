@@ -51,8 +51,7 @@ Buffer read(const std::filesystem::path& inputPath)
 
 Buffer extract(const std::filesystem::path& inputPath)
 {
-    try
-    {
+    try {
         miniz_cpp::zip_file zip(inputPath.string());
         std::string buffer = zip.read(SCORE_DAT_NAME);
         musx::util::ScoreFileEncoder::recodeBuffer(buffer);

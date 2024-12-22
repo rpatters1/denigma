@@ -221,7 +221,7 @@ int main(int argc, char* argv[]) {
             if (std::filesystem::exists(finalOutputPath)) {
                 std::cout << "Output: " << finalOutputPath.string() << std::endl;
                 if (allowOverwrite) {
-                    std::cout << "Overwriting current file." << std::endl;
+                    std::cout << "Overwriting current file(s)." << std::endl;
                 }
                 else {
                     std::cout << "File exists. Use --force to overwrite it." << std::endl;
