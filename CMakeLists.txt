@@ -107,7 +107,7 @@ set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
 
 # temporary for reference and debugging
 set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
-set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Disable throwing on unknown XML" FORCE)
+set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Enable throwing on unknown XML" FORCE)
 
 #Include directories for your source files
 add_subdirectory(submodules/musx_object_model)
