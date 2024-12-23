@@ -52,6 +52,7 @@ struct DenigmaOptions
     bool overwriteExisting{};
     bool allPartsAndScore{};
     std::optional<std::string> partName;
+    std::filesystem::path inputFilePath;
 };
 
 class ICommand
@@ -63,13 +64,12 @@ public:
     virtual int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) const = 0;
 
     virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const = 0;
-    virtual void processOutput(const Buffer& enigmaXml,
-                               const std::filesystem::path& inputFilePath,
-                               const std::filesystem::path& outputPath,
-                               const DenigmaOptions& options) const = 0;
+    virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaOptions& options) const = 0;
     virtual std::optional<std::string_view> defaultOutputFormat() const = 0;
     
     virtual const std::string_view commandName() const = 0;
 };
+
+bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const denigma::DenigmaOptions& options);
 
 }

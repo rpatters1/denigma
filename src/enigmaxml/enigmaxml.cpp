@@ -63,9 +63,9 @@ Buffer extract(const std::filesystem::path& inputPath)
     }
 }
 
-void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>&, bool)
+void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaOptions& options)
 {
-    std::cout << "extracting to " << outputPath.string() << std::endl;
+    if (!denigma::validatePathsAndOptions(outputPath, options)) return;
 
     try	{
         std::ifstream inFile;

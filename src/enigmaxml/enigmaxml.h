@@ -32,7 +32,7 @@ namespace enigmaxml {
 
 Buffer extract(const std::filesystem::path& inputFile);
 Buffer read(const std::filesystem::path& inputFile);
-void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>&, bool);
+void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaOptions& options);
 
 } // namespace enigmaxml
 } // namespace denigma

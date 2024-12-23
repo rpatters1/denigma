@@ -53,7 +53,7 @@ constexpr auto outputProcessors = []() {
     struct OutputProcessor
     {
         const char* extension;
-        void(*processor)(const std::filesystem::path&, const Buffer&, const std::optional<std::string>&, bool);
+        void(*processor)(const std::filesystem::path&, const Buffer&, const DenigmaOptions&);
     };
 
     return to_array<OutputProcessor>({
@@ -116,29 +116,10 @@ Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const
     return inputProcessor(inputPath);
 }
 
-void ExportCommand::processOutput(const Buffer& enigmaXml,
-                                  const std::filesystem::path& inputFilePath,
-                                  const std::filesystem::path& outputFilePath,
-                                  const DenigmaOptions& options) const
+void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaOptions& options) const
 {
-    if (inputFilePath == outputFilePath) {
-        std::cout << "Input and output are the same. No action taken." << std::endl;
-        return;
-    }
-
-    if (std::filesystem::exists(outputFilePath)) {
-        std::cout << "Output: " << outputFilePath.string() << std::endl;
-        if (options.overwriteExisting) {
-            std::cout << "Overwriting current file(s)." << std::endl;
-        }
-        else {
-            std::cout << "File exists. Use --force to overwrite it." << std::endl;
-            return;
-        }
-    }
-
-    auto outputProcessor = findProcessor(outputProcessors, outputFilePath.extension().string());
-    outputProcessor(outputFilePath, enigmaXml, options.partName, options.allPartsAndScore);
+    auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().string());
+    outputProcessor(outputPath, enigmaXml, options);
 }
 
 } // namespace denigma

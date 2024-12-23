@@ -24,6 +24,8 @@
 #include <fstream>
 #include <set>
 
+#include "denigma.h"
+
 #include "mss.h"
 #include "musx/musx.h"
 #include "tinyxml2.h"
@@ -719,8 +721,21 @@ void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pre
     }
 }
 
-static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const std::shared_ptr<others::PartDefinition>& part = nullptr)
+static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const DenigmaOptions& options, const std::shared_ptr<others::PartDefinition>& part = nullptr)
 {
+    // calculate actual output path
+    std::filesystem::path qualifiedOutputPath = outputPath;
+    if (part) {
+        auto partName = part->getName(); // Utf8-encoded partname can contain non-ASCII characters 
+        if (partName.empty()) {
+            partName = "Part" + std::to_string(part->getCmper());
+            std::cout << "using " << partName << " for part name extension" << std::endl;
+        }
+        auto currExtension = qualifiedOutputPath.extension();
+        qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.u8string()));
+    }
+    if (!denigma::validatePathsAndOptions(qualifiedOutputPath, options)) return;
+
     const Cmper forPartId = part ? part->getCmper() : 0;
     auto prefs = getCurrentPrefs(document, forPartId);
 
@@ -744,16 +759,6 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     writeTupletPrefs(styleElement, prefs);
     writeMarkingPrefs(styleElement, prefs);
     // output
-    std::filesystem::path qualifiedOutputPath = outputPath;
-    if (part) {
-        auto partName = part->getName(); // Utf8-encoded partname can contain non-ASCII characters 
-        if (partName.empty()) {
-            partName = "Part" + std::to_string(part->getCmper());
-            std::cout << "using " << partName << " for part name extension" << std::endl;
-        }
-        auto currExtension = qualifiedOutputPath.extension();
-        qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.u8string()));
-    }
     // open the file ourselves to avoid tinyxml2's use of Windows ACP encoding for path strings
     /// @todo encapsulate this into a callable function if/when we need to do it elsewhere
     FILE* fp = stringutils::openFile(qualifiedOutputPath, "w");
@@ -763,37 +768,34 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     if (result != ::tinyxml2::XML_SUCCESS) {
         throw std::runtime_error(mssDoc.ErrorStr());
     }
-    // use u8string to avoid encoding throw (it may print garbage on Windows, but it doesn't throw)
-    /// @todo work out encoding issues when we do logging
-    std::cout << "exported " << qualifiedOutputPath.u8string() << std::endl;
 }
 
-void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore)
+void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaOptions& options)
 {
     auto document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
-    if (allPartsAndScore || !partName.has_value()) {
-        processPart(outputPath, document); // process the score
+    if (options.allPartsAndScore || !options.partName.has_value()) {
+        processPart(outputPath, document, options); // process the score
     }
     bool foundPart = false;
-    if (allPartsAndScore || partName.has_value()) {
+    if (options.allPartsAndScore || options.partName.has_value()) {
         auto parts = document->getOthers()->getArray<others::PartDefinition>();
         for (const auto& part : parts) {
             if (part->getCmper()) {
-                if (allPartsAndScore) {
-                    processPart(outputPath, document, part);
-                } else if (partName->empty() || part->getName().rfind(partName.value(), 0) == 0) {
-                    processPart(outputPath, document, part);
+                if (options.allPartsAndScore) {
+                    processPart(outputPath, document, options, part);
+                } else if (options.partName->empty() || part->getName().rfind(options.partName.value(), 0) == 0) {
+                    processPart(outputPath, document, options, part);
                     foundPart = true;
                     break;
                 }
             }
         }
     }
-    if (partName.has_value() && !allPartsAndScore && !foundPart) {
-        if (partName->empty()) {
+    if (options.partName.has_value() && !options.allPartsAndScore && !foundPart) {
+        if (options.partName->empty()) {
             std::cout << "no parts were found in document" << std::endl;
         } else {
-            std::cout << "no part name starting with \"" << partName.value() << "\" was found" << std::endl;
+            std::cout << "no part name starting with \"" << options.partName.value() << "\" was found" << std::endl;
         }
     }
 }

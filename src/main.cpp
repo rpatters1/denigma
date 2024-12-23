@@ -63,6 +63,29 @@ static int showHelpPage(const std::string_view& programName)
     return 1;
 }
 
+namespace denigma {
+bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const denigma::DenigmaOptions& options)
+{
+    if (options.inputFilePath == outputFilePath) {
+        std::cout << outputFilePath.u8string() << ": " << "Input and output are the same. No action taken." << std::endl;
+        return false;
+    }
+
+    if (std::filesystem::exists(outputFilePath)) {
+        if (options.overwriteExisting) {
+            std::cout << "Overwriting " << outputFilePath.u8string() << std::endl; /// @todo fix encoding when we deal with logging
+        } else {
+            std::cout << outputFilePath.u8string() << " exists. Use --force to overwrite it." << std::endl; /// @todo fix encoding when we deal with logging
+            return false;
+        }
+    } else {
+        std::cout << "Output: " << outputFilePath.string() << std::endl; /// @todo fix encoding when we deal with logging
+    }
+
+    return true;
+}
+} // namespace denigma
+
 int main(int argc, char* argv[]) {
     if (argc <= 0) {
         std::cerr << "Error: argv[0] is unavailable" << std::endl;
@@ -139,6 +162,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         std::cout << "Input: " << inputFilePath.string() << std::endl;
+        options.inputFilePath = inputFilePath;
 
         // Find and call the input processor
         std::string inputExtension = inputFilePath.extension().string();
@@ -164,14 +188,14 @@ int main(int argc, char* argv[]) {
             if (option.rfind("--", 0) == 0) {  // Options start with "--"
                 std::string outputFormat = option.substr(2);
                 std::filesystem::path outputFilePath = (i + 1 < args.size() && std::string(args[i + 1]).rfind("--", 0) != 0) ? args[++i] : defaultPath;
-                currentCommand->processOutput(enigmaXml, inputFilePath, calcFilePath(outputFilePath, outputFormat), options);
+                currentCommand->processOutput(enigmaXml, calcFilePath(outputFilePath, outputFormat), options);
                 outputFormatSpecified = true;
             }
         }
         if (!outputFormatSpecified) {
             const auto& defaultFormat = currentCommand->defaultOutputFormat();
             if (defaultFormat.has_value()) {
-                currentCommand->processOutput(enigmaXml, inputFilePath, calcFilePath(defaultPath, defaultFormat.value()), options);
+                currentCommand->processOutput(enigmaXml, calcFilePath(defaultPath, defaultFormat.value()), options);
             }
         }
     } catch (const musx::xml::load_error& ex) {

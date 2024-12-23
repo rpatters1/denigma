@@ -31,7 +31,7 @@
 namespace denigma {
 namespace mss {
 
-void convert(const std::filesystem::path& file, const Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore);
+void convert(const std::filesystem::path& file, const Buffer& xmlBuffer, const DenigmaOptions& options);
 
 } // namespace mss
 } // namespace denigma

@@ -31,7 +31,7 @@
 namespace denigma {
 namespace mnx {
 
-void convert(const std::filesystem::path& file, const Buffer&, const std::optional<std::string>&, bool);
+void convert(const std::filesystem::path& file, const Buffer&, const DenigmaOptions& options);
 
 } // namespace mnx
 } // namespace denigma
