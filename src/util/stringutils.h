@@ -28,9 +28,12 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#else
-constexpr inline int CP_UTF8 = 65001;
-constexpr inline int CP_ACP = 0;
+#endif
+
+#if !defined(CP_UTF8) && !defined(CP_ACP) && !defined(STRINGUTILS_DEFINED_CPS)
+#define CP_UTF8 65001
+#define CP_ACP  0
+#define STRINGUTILS_DEFINED_CPS
 #endif
 
 namespace stringutils {
@@ -103,5 +106,10 @@ inline FILE* openFile(const std::filesystem::path& path, const char* mode) {
 #endif
 }
 
+#if defined(STRINGUTILS_DEFINED_CPS)
+#undef CP_UTF8
+#undef CP_ACP
+#undef STRINGUTILS_DEFINED_CPS
+#endif
 
 } // namespace stringutils
