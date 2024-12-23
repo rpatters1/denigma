@@ -118,28 +118,16 @@ Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const
 
 void ExportCommand::processOutput(const Buffer& enigmaXml,
                                   const std::filesystem::path& inputFilePath,
-                                  const std::filesystem::path& outputPath,
-                                  const DenigmaOptions& options,
-                                  const std::optional<std::string_view> outputFormat) const
+                                  const std::filesystem::path& outputFilePath,
+                                  const DenigmaOptions& options) const
 {
-    std::filesystem::path finalOutputPath = outputPath;
-    const std::string finalOutputFormat = outputFormat.has_value()
-                                        ? std::string(outputFormat.value())
-                                        : ENIGMAXML_EXTENSION;
-
-    if (std::filesystem::is_directory(finalOutputPath)) {
-        std::filesystem::path outputFileName = inputFilePath.filename();
-        outputFileName.replace_extension(finalOutputFormat);
-        finalOutputPath.append(outputFileName.string());
-    }
-
-    if (inputFilePath == finalOutputPath) {
+    if (inputFilePath == outputFilePath) {
         std::cout << "Input and output are the same. No action taken." << std::endl;
         return;
     }
 
-    if (std::filesystem::exists(finalOutputPath)) {
-        std::cout << "Output: " << finalOutputPath.string() << std::endl;
+    if (std::filesystem::exists(outputFilePath)) {
+        std::cout << "Output: " << outputFilePath.string() << std::endl;
         if (options.overwriteExisting) {
             std::cout << "Overwriting current file(s)." << std::endl;
         }
@@ -149,8 +137,8 @@ void ExportCommand::processOutput(const Buffer& enigmaXml,
         }
     }
 
-    auto outputProcessor = findProcessor(outputProcessors, finalOutputFormat);
-    outputProcessor(finalOutputPath, enigmaXml, options.partName, options.allPartsAndScore);
+    auto outputProcessor = findProcessor(outputProcessors, outputFilePath.extension());
+    outputProcessor(outputFilePath, enigmaXml, options.partName, options.allPartsAndScore);
 }
 
 } // namespace denigma

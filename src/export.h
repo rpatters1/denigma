@@ -35,9 +35,9 @@ struct ExportCommand : public ICommand
     void processOutput(const Buffer& enigmaXml,
                        const std::filesystem::path& inputFilePath,
                        const std::filesystem::path& outputPath,
-                       const DenigmaOptions& options,
-                       const std::optional<std::string_view> outputFormat = std::nullopt) const override;
-                                 
+                       const DenigmaOptions& options) const override;
+
+    std::optional<std::string_view> defaultOutputFormat() const override { return ENIGMAXML_EXTENSION; };
     const std::string_view commandName() const override { return "export"; }
 };
 

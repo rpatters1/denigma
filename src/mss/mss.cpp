@@ -718,7 +718,7 @@ void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pre
 
 static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const std::shared_ptr<others::PartDefinition>& part = nullptr)
 {
-    Cmper forPartId = part ? part->getCmper() : 0;
+    const Cmper forPartId = part ? part->getCmper() : 0;
     auto prefs = getCurrentPrefs(document, forPartId);
 
     // extract document to mss

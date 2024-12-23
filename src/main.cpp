@@ -73,61 +73,63 @@ int main(int argc, char* argv[]) {
         return showHelpPage(programName);
     }
 
-    try {
-        denigma::DenigmaOptions options;
-        bool showVersion = false;
-        bool showHelp = false;
-        std::vector<const char*> args;
-        for (int x = 1; x < argc; x++) {
-            const std::string_view next(argv[x]);
-            if (next == "--version") {
-                showVersion = true;
-            } else if (next == "--help") {
-                showHelp = true;
-            } else if (next == "--force") {
-                options.overwriteExisting = true;
-            } else if (next == "--all-parts") {
-                options.allPartsAndScore = true;
-            } else if (next == "--part") {
-                options.partName = "";
-                std::string_view arg(argv[x + 1]);
-                if (x < (argc - 1) && arg.rfind("--", 0) != 0) {
-                    options.partName = arg;
-                    x++;
-                }
-            } else {
-                args.push_back(argv[x]);
+    denigma::DenigmaOptions options;
+    bool showVersion = false;
+    bool showHelp = false;
+    std::vector<const char*> args;
+    for (int x = 1; x < argc; x++) {
+        const std::string_view next(argv[x]);
+        if (next == "--version") {
+            showVersion = true;
+        } else if (next == "--help") {
+            showHelp = true;
+        } else if (next == "--force") {
+            options.overwriteExisting = true;
+        } else if (next == "--all-parts") {
+            options.allPartsAndScore = true;
+        } else if (next == "--part") {
+            options.partName = "";
+            std::string_view arg(argv[x + 1]);
+            if (x < (argc - 1) && arg.rfind("--", 0) != 0) {
+                options.partName = arg;
+                x++;
             }
+        } else {
+            args.push_back(argv[x]);
         }
+    }
 
-        if (showVersion) {
-            std::cout << programName << " " << DENIGMA_VERSION << std::endl;
-            return 0;
-        }
-        if (showHelp) {
-            showHelpPage(programName);
-            return 0;
-        }
-        if (args.size() < 1) {
-            return showHelpPage(programName);
-        }
+    if (showVersion) {
+        std::cout << programName << " " << DENIGMA_VERSION << std::endl;
+        return 0;
+    }
+    if (showHelp) {
+        showHelpPage(programName);
+        return 0;
+    }
+    if (args.size() < 1) {
+        return showHelpPage(programName);
+    }
 
-        const auto currentCommand = [args]() -> std::shared_ptr<denigma::ICommand> {
-                auto it = registeredCommands.find(args[0]);
-                if (it != registeredCommands.end()) {
-                    return it->second;
-                } else {
-                    std::cerr << "Unknown command: " << args[0] << std::endl;
-                    return nullptr;
-                }
-            }();
-        if (!currentCommand) {
-            return showHelpPage(programName);
-        }
+    const auto currentCommand = [args]() -> std::shared_ptr<denigma::ICommand> {
+            auto it = registeredCommands.find(args[0]);
+            if (it != registeredCommands.end()) {
+                return it->second;
+            } else {
+                std::cerr << "Unknown command: " << args[0] << std::endl;
+                return nullptr;
+            }
+        }();
+    if (!currentCommand) {
+        return showHelpPage(programName);
+    }
 
+    // ToDo: This code needs to process input patterns in a loop, but
+    //          the try/catch needs to enclose each actual input file
+    //          so that we can log results and continue
+    try {
         const std::filesystem::path inputFilePath = args[1];
 
-        // ToDo: This code needs to process input patterns in a loop
         const std::filesystem::path defaultPath = inputFilePath.parent_path();
         if (!std::filesystem::is_regular_file(inputFilePath)) {
             std::cout << inputFilePath.string() << std::endl;
@@ -142,7 +144,17 @@ int main(int argc, char* argv[]) {
             return showHelpPage(options.programName);
         }
         const auto enigmaXml = currentCommand->processInput(inputFilePath, options);
-    
+
+        auto calcFilePath = [inputFilePath](const std::filesystem::path& path, const std::string_view& format) -> std::filesystem::path {
+            std::filesystem::path retval = path;
+            if (std::filesystem::is_directory(retval)) {
+                std::filesystem::path outputFileName = inputFilePath.filename();
+                outputFileName.replace_extension(format);
+                retval.append(outputFileName.string());
+            }
+            return retval;
+        };
+
         // Process output options
         bool outputFormatSpecified = false;
         for (size_t i = 0; i < args.size(); ++i) {
@@ -150,16 +162,17 @@ int main(int argc, char* argv[]) {
             if (option.rfind("--", 0) == 0) {  // Options start with "--"
                 std::string outputFormat = option.substr(2);
                 std::filesystem::path outputFilePath = (i + 1 < args.size() && std::string(args[i + 1]).rfind("--", 0) != 0) ? args[++i] : defaultPath;
-                currentCommand->processOutput(enigmaXml, inputFilePath, outputFilePath, options, outputFormat);
+                currentCommand->processOutput(enigmaXml, inputFilePath, calcFilePath(outputFilePath, outputFormat), options);
                 outputFormatSpecified = true;
             }
         }
         if (!outputFormatSpecified) {
-            currentCommand->processOutput(enigmaXml, inputFilePath, defaultPath, options);
+            const auto& defaultFormat = currentCommand->defaultOutputFormat();
+            if (defaultFormat.has_value()) {
+                currentCommand->processOutput(enigmaXml, inputFilePath, calcFilePath(defaultPath, defaultFormat.value()), options);
+            }
         }
-
-    }
-    catch (const std::exception& e) {
+    } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return showHelpPage(programName);
     }
