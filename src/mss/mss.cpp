@@ -748,7 +748,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
             partName = "Part" + std::to_string(part->partOrder);
         }
         auto currExtension = qualifiedOutputPath.extension();
-        qualifiedOutputPath.replace_extension(partName + currExtension.string());
+        qualifiedOutputPath.replace_extension(partName + currExtension.u8string());
     }
     if (mssDoc.SaveFile(qualifiedOutputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
         throw std::runtime_error(mssDoc.ErrorStr());
@@ -758,40 +758,31 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
 
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore)
 {
-    try {
-        auto document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
-        if (allPartsAndScore || !partName.has_value()) {
-            processPart(outputPath, document); // process the score
-        }
-        bool foundPart = false;
-        if (allPartsAndScore || partName.has_value()) {
-            auto parts = document->getOthers()->getArray<others::PartDefinition>();
-            for (const auto& part : parts) {
-                if (part->getCmper()) {
-                    if (allPartsAndScore) {
-                        processPart(outputPath, document, part);
-                    } else if (partName->empty() || part->getName().rfind(partName.value(), 0) == 0) {
-                        processPart(outputPath, document, part);
-                        foundPart = true;
-                        break;
-                    }
+    auto document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
+    if (allPartsAndScore || !partName.has_value()) {
+        processPart(outputPath, document); // process the score
+    }
+    bool foundPart = false;
+    if (allPartsAndScore || partName.has_value()) {
+        auto parts = document->getOthers()->getArray<others::PartDefinition>();
+        for (const auto& part : parts) {
+            if (part->getCmper()) {
+                if (allPartsAndScore) {
+                    processPart(outputPath, document, part);
+                } else if (partName->empty() || part->getName().rfind(partName.value(), 0) == 0) {
+                    processPart(outputPath, document, part);
+                    foundPart = true;
+                    break;
                 }
             }
         }
-        if (partName.has_value() && !allPartsAndScore && !foundPart) {
-            if (partName->empty()) {
-                std::cout << "no parts were found in document" << std::endl;
-            } else {
-                std::cout << "no part name starting with \"" << partName.value() << "\" was found" << std::endl;
-            }
-        }
     }
-    catch (const musx::xml::load_error& ex) {
-        std::cerr << "Load XML failed: " << ex.what() << std::endl;
-        throw;
-    } catch (const std::exception& ex) {
-        std::cerr << "Error: " << ex.what() << std::endl;
-        throw;
+    if (partName.has_value() && !allPartsAndScore && !foundPart) {
+        if (partName->empty()) {
+            std::cout << "no parts were found in document" << std::endl;
+        } else {
+            std::cout << "no part name starting with \"" << partName.value() << "\" was found" << std::endl;
+        }
     }
 }
 

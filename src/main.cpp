@@ -24,6 +24,8 @@
 #include <optional>
 #include <memory>
 
+#include "musx/musx.h"
+
 #include "denigma.h"
 #include "export.h"
 
@@ -150,7 +152,7 @@ int main(int argc, char* argv[]) {
             if (std::filesystem::is_directory(retval)) {
                 std::filesystem::path outputFileName = inputFilePath.filename();
                 outputFileName.replace_extension(format);
-                retval.append(outputFileName.string());
+                retval = retval / outputFileName;
             }
             return retval;
         };
@@ -172,9 +174,10 @@ int main(int argc, char* argv[]) {
                 currentCommand->processOutput(enigmaXml, inputFilePath, calcFilePath(defaultPath, defaultFormat.value()), options);
             }
         }
+    } catch (const musx::xml::load_error& ex) {
+        std::cerr << "Load XML failed: " << ex.what() << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
-        return showHelpPage(programName);
     }
 
     return 0;
