@@ -29,9 +29,15 @@ struct ExportCommand : public ICommand
 {
     using ICommand::ICommand;
 
-    int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) override;
-    int doCommand(const std::vector<const char*>& args, const DenigmaOptions& options) override;
-
+    int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) const override;
+    
+    virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const override;
+    void processOutput(const Buffer& enigmaXml,
+                       const std::filesystem::path& inputFilePath,
+                       const std::filesystem::path& outputPath,
+                       const DenigmaOptions& options,
+                       const std::optional<std::string_view> outputFormat = std::nullopt) const override;
+                                 
     const std::string_view commandName() const override { return "export"; }
 };
 

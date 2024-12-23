@@ -65,8 +65,12 @@ constexpr auto outputProcessors = []() {
 
 // Function to find the appropriate processor
 template <typename Processors>
-decltype(Processors::value_type::processor) findProcessor(const Processors& processors, const std::string& key)
+decltype(Processors::value_type::processor) findProcessor(const Processors& processors, const std::string& extension)
 {
+    std::string key = extension;
+    if (key.rfind(".", 0) == 0) {
+        key = extension.substr(1);
+    }
     for (const auto& p : processors) {
         if (key == p.extension) {
             return p.processor;
@@ -75,7 +79,7 @@ decltype(Processors::value_type::processor) findProcessor(const Processors& proc
     throw std::invalid_argument("Unsupported format: " + key);
 }
 
-int ExportCommand::showHelpPage(const std::string_view& programName, const std::string& indentSpaces)
+int ExportCommand::showHelpPage(const std::string_view& programName, const std::string& indentSpaces) const
 {
     std::string fullCommand = std::string(programName) + " " + std::string(commandName());
     // Print usage
@@ -106,77 +110,47 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     return 1;
 }
 
-int ExportCommand::doCommand(const std::vector<const char*>& args, const DenigmaOptions& options)
+Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaOptions&) const
 {
-    if (args.empty()) {
-        return showHelpPage(options.programName);
+    auto inputProcessor = findProcessor(inputProcessors, inputPath.extension());
+    return inputProcessor(inputPath.string());
+}
+
+void ExportCommand::processOutput(const Buffer& enigmaXml,
+                                  const std::filesystem::path& inputFilePath,
+                                  const std::filesystem::path& outputPath,
+                                  const DenigmaOptions& options,
+                                  const std::optional<std::string_view> outputFormat) const
+{
+    std::filesystem::path finalOutputPath = outputPath;
+    const std::string finalOutputFormat = outputFormat.has_value()
+                                        ? std::string(outputFormat.value())
+                                        : ENIGMAXML_EXTENSION;
+
+    if (std::filesystem::is_directory(finalOutputPath)) {
+        std::filesystem::path outputFileName = inputFilePath.filename();
+        outputFileName.replace_extension(finalOutputFormat);
+        finalOutputPath.append(outputFileName.string());
     }
 
-    const std::filesystem::path inputFilePath = args[0];
-    std::string inputExtension = inputFilePath.extension().string();
-    if (inputExtension.empty()) {
-        return showHelpPage(options.programName);
+    if (inputFilePath == finalOutputPath) {
+        std::cout << "Input and output are the same. No action taken." << std::endl;
+        return;
     }
-    inputExtension = inputExtension.substr(1);
-    const std::filesystem::path defaultPath = inputFilePath.parent_path();
-    if (!std::filesystem::is_regular_file(inputFilePath)) {
-        std::cout << inputFilePath.string() << std::endl;
-        std::cout << "Input file does not exists or is not a file." << std::endl;
-        return 1;
-    }
-    std::cout << "Input: " << inputFilePath.string() << std::endl;
 
-    // Find and call the input processor
-    auto inputProcessor = findProcessor(inputProcessors, inputExtension);
-    const Buffer enigmaXml = inputProcessor(inputFilePath.string());
-
-    auto processOutput = [&inputFilePath, &inputProcessor, &enigmaXml, options] (
-        const std::string& outputFormat,
-        const std::filesystem::path& outputPath) -> void {
-            std::filesystem::path finalOutputPath = outputPath;
-
-            if (std::filesystem::is_directory(finalOutputPath)) {
-                std::filesystem::path outputFileName = inputFilePath.filename();
-                outputFileName.replace_extension(outputFormat);
-                finalOutputPath.append(outputFileName.string());
-            }
-
-            if (inputFilePath == finalOutputPath) {
-                std::cout << "Input and output are the same. No action taken." << std::endl;
-                return;
-            }
-
-            if (std::filesystem::exists(finalOutputPath)) {
-                std::cout << "Output: " << finalOutputPath.string() << std::endl;
-                if (options.overwriteExisting) {
-                    std::cout << "Overwriting current file(s)." << std::endl;
-                }
-                else {
-                    std::cout << "File exists. Use --force to overwrite it." << std::endl;
-                    return;
-                }
-            }
-
-            auto outputProcessor = findProcessor(outputProcessors, outputFormat);
-            outputProcessor(finalOutputPath, enigmaXml, options.partName, options.allPartsAndScore);
-        };
-
-    // Process output options
-    bool outputFormatSpecified = false;
-    for (size_t i = 0; i < args.size(); ++i) {
-        std::string option = args[i];
-        if (option.rfind("--", 0) == 0) {  // Options start with "--"
-            std::string outputFormat = option.substr(2);
-            std::filesystem::path outputFilePath = (i + 1 < args.size() && std::string(args[i + 1]).rfind("--", 0) != 0) ? args[++i] : defaultPath;
-            processOutput(outputFormat, outputFilePath);
-            outputFormatSpecified = true;
+    if (std::filesystem::exists(finalOutputPath)) {
+        std::cout << "Output: " << finalOutputPath.string() << std::endl;
+        if (options.overwriteExisting) {
+            std::cout << "Overwriting current file(s)." << std::endl;
+        }
+        else {
+            std::cout << "File exists. Use --force to overwrite it." << std::endl;
+            return;
         }
     }
-    if (!outputFormatSpecified) {
-        processOutput(ENIGMAXML_EXTENSION, defaultPath);
-    }
 
-    return 0;
+    auto outputProcessor = findProcessor(outputProcessors, finalOutputFormat);
+    outputProcessor(finalOutputPath, enigmaXml, options.partName, options.allPartsAndScore);
 }
 
 } // namespace denigma

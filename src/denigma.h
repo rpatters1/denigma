@@ -24,6 +24,7 @@
 #include <string>
 #include <array>
 #include <vector>
+#include <optional>
 
 inline constexpr char MUSX_EXTENSION[]      = "musx";
 inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
@@ -59,8 +60,15 @@ public:
     ICommand() = default;
     virtual ~ICommand() = default;
 
-    virtual int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) = 0;
-    virtual int doCommand(const std::vector<const char*>& args, const DenigmaOptions& options) = 0;
+    virtual int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) const = 0;
+
+    virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const = 0;
+    virtual void processOutput(const Buffer& enigmaXml,
+                               const std::filesystem::path& inputFilePath,
+                               const std::filesystem::path& outputPath,
+                               const DenigmaOptions& options,
+                               const std::optional<std::string_view> outputFormat = std::nullopt) const = 0;
+
     virtual const std::string_view commandName() const = 0;
 };
 

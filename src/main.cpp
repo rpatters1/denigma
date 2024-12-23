@@ -108,20 +108,58 @@ int main(int argc, char* argv[]) {
             showHelpPage(programName);
             return 0;
         }
-        if (args.empty()) {
+        if (args.size() < 1) {
             return showHelpPage(programName);
         }
 
-        auto it = registeredCommands.find(args[0]);
-        if (it != registeredCommands.end()) {
-            args.erase(args.begin());
-            it->second->doCommand(args, options);
-        } else {
-            std::cerr << "Unknown command: " << args[0] << std::endl;
+        const auto currentCommand = [args]() -> std::shared_ptr<denigma::ICommand> {
+                auto it = registeredCommands.find(args[0]);
+                if (it != registeredCommands.end()) {
+                    return it->second;
+                } else {
+                    std::cerr << "Unknown command: " << args[0] << std::endl;
+                    return nullptr;
+                }
+            }();
+        if (!currentCommand) {
             return showHelpPage(programName);
         }
 
-    } catch (const std::exception &e) {
+        const std::filesystem::path inputFilePath = args[1];
+
+        // ToDo: This code needs to process input patterns in a loop
+        const std::filesystem::path defaultPath = inputFilePath.parent_path();
+        if (!std::filesystem::is_regular_file(inputFilePath)) {
+            std::cout << inputFilePath.string() << std::endl;
+            std::cout << "Input file does not exists or is not a file." << std::endl;
+            return 1;
+        }
+        std::cout << "Input: " << inputFilePath.string() << std::endl;
+
+        // Find and call the input processor
+        std::string inputExtension = inputFilePath.extension().string();
+        if (inputExtension.empty()) {
+            return showHelpPage(options.programName);
+        }
+        const auto enigmaXml = currentCommand->processInput(inputFilePath, options);
+    
+        // Process output options
+        bool outputFormatSpecified = false;
+        for (size_t i = 0; i < args.size(); ++i) {
+            std::string option = args[i];
+            if (option.rfind("--", 0) == 0) {  // Options start with "--"
+                std::string outputFormat = option.substr(2);
+                std::filesystem::path outputFilePath = (i + 1 < args.size() && std::string(args[i + 1]).rfind("--", 0) != 0) ? args[++i] : defaultPath;
+                currentCommand->processOutput(enigmaXml, inputFilePath, outputFilePath, options, outputFormat);
+                outputFormatSpecified = true;
+            }
+        }
+        if (!outputFormatSpecified) {
+            currentCommand->processOutput(enigmaXml, inputFilePath, defaultPath, options);
+        }
+
+    }
+    catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return showHelpPage(programName);
     }
