@@ -34,6 +34,8 @@ namespace stringutils {
 #ifdef _WIN32
 using path_string = std::wstring;
 #else
+constexpr inline int CP_UTF8 = 65001;
+constexpr inline int CP_ACP = 0;
 using path_string = std::string;
 #endif
 
@@ -44,7 +46,7 @@ public:
         m_msg(msg + " (codepage " + std::to_string(codepage) + ")"),
         m_codepage(codepage) {}
 
-    const char * what() const override
+    const char * what() const noexcept override
     {
         return m_msg.c_str();
     }
