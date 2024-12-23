@@ -24,20 +24,16 @@
 #include <string>
 #include <exception>
 #include <cstdio>
+#include <filesystem>
 
 #ifdef _WIN32
 #include <windows.h>
-#endif
-
-namespace stringutils {
-
-#ifdef _WIN32
-using path_string = std::wstring;
 #else
 constexpr inline int CP_UTF8 = 65001;
 constexpr inline int CP_ACP = 0;
-using path_string = std::string;
 #endif
+
+namespace stringutils {
 
 class encoding_error : public std::exception
 {
@@ -90,7 +86,7 @@ inline std::string wstringToString(const std::wstring& wide, int codepage = CP_U
 #endif
 }
 
-inline path_string utf8ToPath(const std::string& str)
+inline std::filesystem::path utf8ToPath(const std::string& str)
 {
 #ifdef _WIN32
     return stringToWstring(str, CP_UTF8);

@@ -746,15 +746,16 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     // output
     std::filesystem::path qualifiedOutputPath = outputPath;
     if (part) {
-        auto partName = part->getName();
+        auto partName = part->getName(); // Utf8-encoded partname can contain non-ASCII characters 
         if (partName.empty()) {
             partName = "Part" + std::to_string(part->getCmper());
             std::cout << "using " << partName << " for part name extension" << std::endl;
         }
         auto currExtension = qualifiedOutputPath.extension();
-        qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.string()));
+        qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.u8string()));
     }
     // open the file ourselves to avoid tinyxml2's use of Windows ACP encoding for path strings
+    /// @todo encapsulate this into a callable function if/when we need to do it elsewhere
     FILE* fp = stringutils::openFile(qualifiedOutputPath, "w");
     if (!fp) throw std::runtime_error("unable to open file " + qualifiedOutputPath.u8string()); // use u8string to avoid encoding errors
     auto result = mssDoc.SaveFile(fp);
@@ -762,7 +763,9 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     if (result != ::tinyxml2::XML_SUCCESS) {
         throw std::runtime_error(mssDoc.ErrorStr());
     }
-    std::cout << "exported " << qualifiedOutputPath.u8string() << std::endl; // use u8string to avoid encoding errors
+    // use u8string to avoid encoding throw (it may print garbage on Windows, but it doesn't throw)
+    /// @todo work out encoding issues when we do logging
+    std::cout << "exported " << qualifiedOutputPath.u8string() << std::endl;
 }
 
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore)
