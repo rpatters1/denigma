@@ -21,47 +21,18 @@
  */
 #pragma once
 
-#include <string>
-#include <array>
-#include <vector>
-
-inline constexpr char MUSX_EXTENSION[]      = "musx";
-inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
-inline constexpr char MNX_EXTENSION[]       = "mnx";
-inline constexpr char MSS_EXTENSION[]       = "mss";
+#include "denigma.h"
 
 namespace denigma {
 
-// This function exists as std::to_array in C++20
-template <typename T, std::size_t N>
-inline constexpr std::array<T, N> to_array(const T(&arr)[N])
+struct ExportCommand : public ICommand
 {
-    std::array<T, N> result{};
-    for (std::size_t i = 0; i < N; ++i) {
-        result[i] = arr[i];
-    }
-    return result;
-}
+    using ICommand::ICommand;
 
-using Buffer = std::vector<char>;
+    int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) override;
+    int doCommand(const std::vector<const char*>& args, const DenigmaOptions& options) override;
 
-struct DenigmaOptions
-{
-    std::string_view programName;
-    bool overwriteExisting{};
-    bool allPartsAndScore{};
-    std::optional<std::string> partName;
+    const std::string_view commandName() const override { return "export"; }
 };
 
-class ICommand
-{
-public:
-    ICommand() = default;
-    virtual ~ICommand() = default;
-
-    virtual int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) = 0;
-    virtual int doCommand(const std::vector<const char*>& args, const DenigmaOptions& options) = 0;
-    virtual const std::string_view commandName() const = 0;
-};
-
-}
+} // namespace denigma
