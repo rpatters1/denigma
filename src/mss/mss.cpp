@@ -27,6 +27,7 @@
 #include "mss.h"
 #include "musx/musx.h"
 #include "tinyxml2.h"
+#include "util/stringutils.h"
 
 namespace denigma {
 namespace mss {
@@ -478,6 +479,7 @@ void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPt
         // Helper lambdas for processing justification and alignment
         auto justificationString = [](MeasureNumberRegion::AlignJustify justi) -> std::string {
             switch (justi) {
+                default:
                 case MeasureNumberRegion::AlignJustify::Left: return "left,baseline";
                 case MeasureNumberRegion::AlignJustify::Center: return "center,baseline";
                 case MeasureNumberRegion::AlignJustify::Right: return "right,baseline";
@@ -486,6 +488,7 @@ void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPt
 
         auto horizontalAlignment = [](MeasureNumberRegion::AlignJustify align) -> int {
             switch (align) {
+                default:
                 case MeasureNumberRegion::AlignJustify::Left: return 0;
                 case MeasureNumberRegion::AlignJustify::Center: return 1;
                 case MeasureNumberRegion::AlignJustify::Right: return 2;
@@ -544,7 +547,7 @@ void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPt
     setElementValue(styleElement, "mmRestNumberPos", (prefs->mmRestOptions->numAdjY / EVPU_PER_SPACE) + 1);
     // setElementValue(styleElement, "multiMeasureRestMargin", prefs->mmRestOptions->startAdjust / EVPU_PER_SPACE); // Uncomment if margin is required
     setElementValue(styleElement, "oldStyleMultiMeasureRests", prefs->mmRestOptions->useSymbols && prefs->mmRestOptions->useSymsThreshold > 1);
-    setElementValue(styleElement, "mmRestOldStyleMaxMeasures", std::max(prefs->mmRestOptions->useSymsThreshold - 1, 0));
+    setElementValue(styleElement, "mmRestOldStyleMaxMeasures", (std::max)(prefs->mmRestOptions->useSymsThreshold - 1, 0));
     setElementValue(styleElement, "mmRestOldStyleSpacing", prefs->mmRestOptions->symSpacing / EVPU_PER_SPACE);
 }
 
@@ -630,7 +633,7 @@ void writeTupletPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pref
     setElementValue(
         styleElement,
         "tupletBracketHookHeight",
-        std::max(-tupletOptions->leftHookLen, -tupletOptions->rightHookLen) / EVPU_PER_SPACE
+        (std::max)(-tupletOptions->leftHookLen, -tupletOptions->rightHookLen) / EVPU_PER_SPACE
     );
 }
 
@@ -745,15 +748,21 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     if (part) {
         auto partName = part->getName();
         if (partName.empty()) {
-            partName = "Part" + std::to_string(part->partOrder);
+            partName = "Part" + std::to_string(part->getCmper());
+            std::cout << "using " << partName << " for part name extension" << std::endl;
         }
         auto currExtension = qualifiedOutputPath.extension();
-        qualifiedOutputPath.replace_extension(partName + currExtension.u8string());
+        qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.string()));
     }
-    if (mssDoc.SaveFile(qualifiedOutputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
+    // open the file ourselves to avoid tinyxml2's use of Windows ACP encoding for path strings
+    FILE* fp = stringutils::openFile(qualifiedOutputPath, "w");
+    if (!fp) throw std::runtime_error("unable to open file " + qualifiedOutputPath.u8string()); // use u8string to avoid encoding errors
+    auto result = mssDoc.SaveFile(fp);
+    fclose(fp);
+    if (result != ::tinyxml2::XML_SUCCESS) {
         throw std::runtime_error(mssDoc.ErrorStr());
     }
-    std::cout << "exported " << qualifiedOutputPath.string() << std::endl;
+    std::cout << "exported " << qualifiedOutputPath.u8string() << std::endl; // use u8string to avoid encoding errors
 }
 
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore)

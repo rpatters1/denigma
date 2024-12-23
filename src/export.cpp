@@ -112,7 +112,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
 
 Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaOptions&) const
 {
-    auto inputProcessor = findProcessor(inputProcessors, inputPath.extension());
+    auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().string());
     return inputProcessor(inputPath);
 }
 
@@ -137,7 +137,7 @@ void ExportCommand::processOutput(const Buffer& enigmaXml,
         }
     }
 
-    auto outputProcessor = findProcessor(outputProcessors, outputFilePath.extension());
+    auto outputProcessor = findProcessor(outputProcessors, outputFilePath.extension().string());
     outputProcessor(outputFilePath, enigmaXml, options.partName, options.allPartsAndScore);
 }
 
