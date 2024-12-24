@@ -175,7 +175,7 @@ void DenigmaOptions::startLogging(const std::filesystem::path& defaultLogPath, i
         LogMsg args;
         args << programName << " ";
         for (int i = 1; i < argc; i++) {
-            args << argv[i] << " ";
+            args << std::string(arg_string(argv[i])) << " ";
         }
         logMessage(std::move(args), *this);
         logMessage(LogMsg(), *this);
