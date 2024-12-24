@@ -32,7 +32,7 @@
 
 static const auto registeredCommands = []()
     {
-        std::map <std::string_view, std::shared_ptr <denigma::ICommand>> retval;
+        std::map <std::string, std::shared_ptr <denigma::ICommand>> retval;
         auto exportCmd = std::make_shared<denigma::ExportCommand>();
         retval.emplace(exportCmd->commandName(), exportCmd);
         return retval;
@@ -52,7 +52,7 @@ static int showHelpPage(const std::string_view& programName)
     std::cout << "  --version                   Show program version and exit" << std::endl;
 
     for (const auto& command : registeredCommands) {
-        std::string commandStr = "Command " + std::string(command.first);
+        std::string commandStr = "Command " + command.first;
         std::string sepStr(commandStr.size(), '=');
         std::cout << std::endl;
         std::cout << sepStr << std::endl;
@@ -70,13 +70,25 @@ void logMessage(LogMsg&& msg, const DenigmaOptions&, LogSeverity)
 {
     msg.flush();
     /// @todo add logging when options specify it
-    std::string msgStr;
-    try {
-        msgStr = stringutils::utf8ToAcp(msg.str());
-    } catch (const std::exception&) {
-        msgStr = msg.str(); // print garbage if conversion is not possible
+#ifdef _WIN32
+    HANDLE hConsole = GetStdHandle(STD_ERROR_HANDLE);
+    if (hConsole && hConsole != INVALID_HANDLE_VALUE) {
+        DWORD consoleMode{};
+        if (::GetConsoleMode(hConsole, &consoleMode)) {
+            std::wstringstream wMsg;
+            wMsg << stringutils::stringToWstring(msg.str()) << std::endl;
+            DWORD written{};
+            if (::WriteConsoleW(hConsole, wMsg.str().data(), static_cast<DWORD>(wMsg.str().size()), &written, nullptr)) {
+                return;
+            }
+            std::wcerr << L"Failed to write message to console: " << ::GetLastError() << std::endl;
+        }
     }
-    std::cerr << msgStr << std::endl;
+    std::wcerr << stringutils::stringToWstring(msg.str());
+    std::wcerr << std::endl;
+#else
+    std::cerr << msg.str() << std::endl;
+#endif
 }
 
 bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaOptions& options)
@@ -104,7 +116,15 @@ bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const 
 
 using namespace denigma;
 
+#ifdef _WIN32
+#define _ARG(S) L##S
+#define _ARG_CONV(S) (stringutils::wstringToString(std::wstring(S)))
+int wmain(int argc, WCHAR* argv[])
+#else
+#define _ARG(S) S
+#define _ARG_CONV(S) S
 int main(int argc, char* argv[])
+#endif
 {
     if (argc <= 0) {
         std::cerr << "Error: argv[0] is unavailable" << std::endl;
@@ -120,22 +140,22 @@ int main(int argc, char* argv[])
     DenigmaOptions options;
     bool showVersion = false;
     bool showHelp = false;
-    std::vector<const char*> args;
+    std::vector<const arg_char*> args;
     for (int x = 1; x < argc; x++) {
-        const std::string_view next(argv[x]);
-        if (next == "--version") {
+        const arg_view next(argv[x]);
+        if (next == _ARG("--version")) {
             showVersion = true;
-        } else if (next == "--help") {
+        } else if (next == _ARG("--help")) {
             showHelp = true;
-        } else if (next == "--force") {
+        } else if (next == _ARG("--force")) {
             options.overwriteExisting = true;
-        } else if (next == "--all-parts") {
+        } else if (next == _ARG("--all-parts")) {
             options.allPartsAndScore = true;
-        } else if (next == "--part") {
+        } else if (next == _ARG("--part")) {
             options.partName = "";
-            std::string_view arg(argv[x + 1]);
-            if (x < (argc - 1) && arg.rfind("--", 0) != 0) {
-                options.partName = arg;
+            arg_view arg(argv[x + 1]);
+            if (x < (argc - 1) && arg.rfind(_ARG("--"), 0) != 0) {
+                options.partName = _ARG_CONV(arg);
                 x++;
             }
         } else {
@@ -157,7 +177,7 @@ int main(int argc, char* argv[])
     }
 
     const auto currentCommand = [args]() -> std::shared_ptr<ICommand> {
-            auto it = registeredCommands.find(args[0]);
+            auto it = registeredCommands.find(arg_string(args[0]));
             if (it != registeredCommands.end()) {
                 return it->second;
             } else {
@@ -202,7 +222,7 @@ int main(int argc, char* argv[])
         }
         const auto enigmaXml = currentCommand->processInput(inputFilePath, options);
 
-        auto calcFilePath = [inputFilePath](const std::filesystem::path& path, const std::string_view& format) -> std::filesystem::path {
+        auto calcFilePath = [inputFilePath](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
             std::filesystem::path retval = path;
             if (std::filesystem::is_directory(retval)) {
                 std::filesystem::path outputFileName = inputFilePath.filename();
@@ -215,10 +235,12 @@ int main(int argc, char* argv[])
         // Process output options
         bool outputFormatSpecified = false;
         for (size_t i = 0; i < args.size(); ++i) {
-            std::string option = args[i];
-            if (option.rfind("--", 0) == 0) {  // Options start with "--"
-                std::string outputFormat = option.substr(2);
-                std::filesystem::path outputFilePath = (i + 1 < args.size() && std::string(args[i + 1]).rfind("--", 0) != 0) ? args[++i] : defaultPath;
+            arg_string option = args[i];
+            if (option.rfind(_ARG("--"), 0) == 0) {  // Options start with "--"
+                arg_string outputFormat = option.substr(2);
+                std::filesystem::path outputFilePath = (i + 1 < args.size() && arg_string(args[i + 1]).rfind(_ARG("--"), 0) != 0)
+                                                     ? std::filesystem::path(args[++i])
+                                                     : defaultPath;
                 currentCommand->processOutput(enigmaXml, calcFilePath(outputFilePath, outputFormat), options);
                 outputFormatSpecified = true;
             }
@@ -226,7 +248,7 @@ int main(int argc, char* argv[])
         if (!outputFormatSpecified) {
             const auto& defaultFormat = currentCommand->defaultOutputFormat();
             if (defaultFormat.has_value()) {
-                currentCommand->processOutput(enigmaXml, calcFilePath(defaultPath, defaultFormat.value()), options);
+                currentCommand->processOutput(enigmaXml, calcFilePath(defaultPath, std::string(defaultFormat.value())), options);
             }
         }
     } catch (const musx::xml::load_error& ex) {

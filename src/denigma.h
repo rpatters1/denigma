@@ -27,6 +27,8 @@
 #include <vector>
 #include <optional>
 
+#include "util/stringutils.h"
+
 inline constexpr char MUSX_EXTENSION[]      = "musx";
 inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
 inline constexpr char MNX_EXTENSION[]       = "mnx";
@@ -44,6 +46,29 @@ inline constexpr std::array<T, N> to_array(const T(&arr)[N])
     }
     return result;
 }
+
+#ifdef _WIN32
+using arg_view = std::wstring_view;
+using arg_char = WCHAR;
+struct arg_string : public std::wstring
+{
+    using std::wstring::wstring;
+    arg_string(const std::wstring& wstr) : std::wstring(wstr) {}
+
+    operator std::string() const
+    {
+        return stringutils::wstringToString(*this);
+    }
+};
+
+inline std::string operator+(const std::string& lhs, const arg_string& rhs) {
+    return lhs + static_cast<std::string>(rhs);
+}
+#else
+using arg_view = std::string_view;
+using arg_char = char;
+using arg_string = std::string;
+#endif
 
 using Buffer = std::vector<char>;
 

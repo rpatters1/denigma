@@ -25,10 +25,11 @@
 #include <iostream>
 #include <sstream>
 
-#include "musx/musx.h"
-#include "enigmaxml.h"
 #include "zip_file.hpp"		// miniz submodule (for zip)
 #include "ezgz.hpp"			// ezgz submodule (for gzip)
+
+#include "musx/musx.h"
+#include "enigmaxml.h"
 
 #include "denigma.h"
 
@@ -55,7 +56,10 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaOptions& option
 Buffer extract(const std::filesystem::path& inputPath, const DenigmaOptions& options)
 {
     try {
-        miniz_cpp::zip_file zip(inputPath.string());
+        std::ifstream zipFile;
+        zipFile.exceptions(std::ios::failbit | std::ios::badbit);
+        zipFile.open(inputPath, std::ios::binary);
+        miniz_cpp::zip_file zip(zipFile);
         std::string buffer = zip.read(SCORE_DAT_NAME);
         musx::util::ScoreFileEncoder::recodeBuffer(buffer);
         return EzGz::IGzFile<>({ reinterpret_cast<uint8_t*>(buffer.data()), buffer.size() }).readAll();
