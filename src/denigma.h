@@ -22,6 +22,7 @@
 #pragma once
 
 #include <string>
+#include <sstream>
 #include <array>
 #include <vector>
 #include <optional>
@@ -70,6 +71,24 @@ public:
     virtual const std::string_view commandName() const = 0;
 };
 
-bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const denigma::DenigmaOptions& options);
+bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaOptions& options);
 
-}
+/// @brief defines log message severity
+enum class LogSeverity
+{
+    Info,       ///< No error. The message is for information.
+    Warning,    ///< An event has occurred that may affect the result, but processing of output continues.
+    Error       ///< Processing of the current file has aborted. This level usually occurs in catch blocks.
+};
+
+using LogMsg = std::stringstream;
+
+/**
+ * @brief logs a message using the options or outputs to std::cerr
+ * @param msg a utf-8 encoded message.
+ * @param options the options that determine how to log the message
+ * @param severity the message severity
+*/
+void logMessage(const LogMsg& msg, const DenigmaOptions& options, LogSeverity severity = LogSeverity::Info);
+
+} // namespace denigma

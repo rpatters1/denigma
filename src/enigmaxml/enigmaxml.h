@@ -30,8 +30,8 @@
 namespace denigma {
 namespace enigmaxml {
 
-Buffer extract(const std::filesystem::path& inputFile);
-Buffer read(const std::filesystem::path& inputFile);
+Buffer extract(const std::filesystem::path& inputFile, const DenigmaOptions& options);
+Buffer read(const std::filesystem::path& inputFile, const DenigmaOptions& options);
 void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaOptions& options);
 
 } // namespace enigmaxml

@@ -28,6 +28,7 @@
 
 #include "denigma.h"
 #include "export.h"
+#include "util/stringutils.h"
 
 static const auto registeredCommands = []()
     {
@@ -64,29 +65,46 @@ static int showHelpPage(const std::string_view& programName)
 }
 
 namespace denigma {
-bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const denigma::DenigmaOptions& options)
+
+void logMessage(const LogMsg& msg, const DenigmaOptions&, LogSeverity)
+{
+    /// @todo add logging when options specify it
+    std::string msgStr;
+    try {
+        msgStr = stringutils::utf8ToAcp(msg.str());
+    } catch (const std::exception&) {
+        msgStr = msg.str(); // print garbage if conversion is not possible
+    }
+    std::cerr << msgStr << std::endl;
+}
+
+bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaOptions& options)
 {
     if (options.inputFilePath == outputFilePath) {
-        std::cerr << outputFilePath.u8string() << ": " << "Input and output are the same. No action taken." << std::endl;
+        logMessage(LogMsg() << outputFilePath.u8string() << ": " << "Input and output are the same. No action taken.", options);
         return false;
     }
 
     if (std::filesystem::exists(outputFilePath)) {
         if (options.overwriteExisting) {
-            std::cerr << "Overwriting " << outputFilePath.u8string() << std::endl; /// @todo fix encoding when we deal with logging
+            logMessage(LogMsg() << "Overwriting " << outputFilePath.u8string(), options);
         } else {
-            std::cerr << outputFilePath.u8string() << " exists. Use --force to overwrite it." << std::endl; /// @todo fix encoding when we deal with logging
+            logMessage(LogMsg() << outputFilePath.u8string() << " exists. Use --force to overwrite it.", options);
             return false;
         }
     } else {
-        std::cerr << "Output: " << outputFilePath.string() << std::endl; /// @todo fix encoding when we deal with logging
+        logMessage(LogMsg() << "Output: " << outputFilePath.u8string(), options);
     }
 
     return true;
 }
+
 } // namespace denigma
 
-int main(int argc, char* argv[]) {
+using namespace denigma;
+
+int main(int argc, char* argv[])
+{
     if (argc <= 0) {
         std::cerr << "Error: argv[0] is unavailable" << std::endl;
         return 1;
@@ -98,7 +116,7 @@ int main(int argc, char* argv[]) {
         return showHelpPage(programName);
     }
 
-    denigma::DenigmaOptions options;
+    DenigmaOptions options;
     bool showVersion = false;
     bool showHelp = false;
     std::vector<const char*> args;
@@ -133,10 +151,11 @@ int main(int argc, char* argv[]) {
         return 0;
     }
     if (args.size() < 1) {
+        std::cerr << "Not enough arguments passed" << std::endl;
         return showHelpPage(programName);
     }
 
-    const auto currentCommand = [args]() -> std::shared_ptr<denigma::ICommand> {
+    const auto currentCommand = [args]() -> std::shared_ptr<ICommand> {
             auto it = registeredCommands.find(args[0]);
             if (it != registeredCommands.end()) {
                 return it->second;
@@ -149,6 +168,19 @@ int main(int argc, char* argv[]) {
         return showHelpPage(programName);
     }
 
+    musx::util::Logger::setCallback([&options](musx::util::Logger::LogLevel logLevel, const std::string& msg) {
+            LogSeverity logSeverity = [logLevel]() {
+                    switch (logLevel) {
+                        default:
+                        case musx::util::Logger::LogLevel::Info: return LogSeverity::Info;
+                        case musx::util::Logger::LogLevel::Warning: return LogSeverity::Warning;
+                        case musx::util::Logger::LogLevel::Error: return LogSeverity::Error;
+                    }
+                }();
+            logMessage(LogMsg() << msg, options, logSeverity);
+        });
+
+    bool errorOccurred = false;
     // ToDo: This code needs to process input patterns in a loop, but
     //          the try/catch needs to enclose each actual input file
     //          so that we can log results and continue
@@ -157,11 +189,10 @@ int main(int argc, char* argv[]) {
 
         const std::filesystem::path defaultPath = inputFilePath.parent_path();
         if (!std::filesystem::is_regular_file(inputFilePath)) {
-            std::cerr << inputFilePath.string() << std::endl;
-            std::cerr << "Input file does not exists or is not a file." << std::endl;
-            return 1;
+            logMessage(LogMsg() << "Input file " << inputFilePath.u8string() << " does not exists or is not a file.", options, LogSeverity::Error);
+            return 1; // when this is a loop iteration, this should continue to the next iteration but maintain the return value so the error is flagged on exit
         }
-        std::cerr << "Input: " << inputFilePath.string() << std::endl;
+        logMessage(LogMsg() << "Input: " << inputFilePath.u8string(), options);
         options.inputFilePath = inputFilePath;
 
         // Find and call the input processor
@@ -199,10 +230,12 @@ int main(int argc, char* argv[]) {
             }
         }
     } catch (const musx::xml::load_error& ex) {
-        std::cerr << "Load XML failed: " << ex.what() << std::endl;
+        logMessage(LogMsg() << "Load XML failed: " << ex.what(), options, LogSeverity::Error);
+        errorOccurred = true;
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        logMessage(LogMsg() << e.what(), options, LogSeverity::Error);
+        errorOccurred = true;
     }
 
-    return 0;
+    return errorOccurred;
 }

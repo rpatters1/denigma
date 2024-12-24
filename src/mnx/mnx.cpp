@@ -30,22 +30,23 @@
 #include "mnx_schema.xxd"
 
 #include "musx/musx.h"
+#include "denigma.h"
 
 namespace denigma {
 namespace mnx {
 
 // placeholder
-void convert(const std::filesystem::path& file, const Buffer&, const DenigmaOptions&)
+void convert(const std::filesystem::path& file, const Buffer&, const DenigmaOptions& options)
 {
-    std::cerr << "converting to " << file.string() << std::endl;
+    logMessage(LogMsg() << "converting to " << file.u8string(), options);
 }
 
 // temp func
-static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath)
+static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath, const DenigmaOptions& options)
 {
     static const std::string_view kMnxSchema(reinterpret_cast<const char *>(mnx_schema_json), mnx_schema_json_len);
 
-    std::cerr << "validate JSON " << jsonFilePath << std::endl;
+    logMessage(LogMsg() << "validate JSON " << jsonFilePath.u8string(), options);
     try {
         // Load JSON schema
         nlohmann::json schemaJson = nlohmann::json::parse(kMnxSchema);
@@ -55,23 +56,23 @@ static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath)
         // Load JSON file
         std::ifstream jsonFile(jsonFilePath);
         if (!jsonFile.is_open()) {
-            throw std::runtime_error("Unable to open JSON file: " + jsonFilePath.string());
+            throw std::runtime_error("Unable to open JSON file: " + jsonFilePath.u8string());
         }
         nlohmann::json jsonData;
         jsonFile >> jsonData;
 
         // Validate JSON
         validator.validate(jsonData);
-        std::cerr << "JSON is valid against the MNX schema." << std::endl;
+        logMessage(LogMsg() << "JSON is valid against the MNX schema.", options);
         return true;
     } catch (const nlohmann::json::exception& e) {
-        std::cerr << "JSON parsing error: " << e.what() << std::endl;
+        logMessage(LogMsg() << "JSON parsing error: " << e.what(), options, LogSeverity::Error);
     } catch (const std::invalid_argument& e) {
-        std::cerr << "Invalid argument: " << e.what() << std::endl;
+        logMessage(LogMsg() << "Invalid argument: " << e.what(), options, LogSeverity::Error);
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        logMessage(LogMsg() << e.what(), options, LogSeverity::Error);
     }
-    std::cerr << "JSON is not valid against the MNX schema.\n";
+    logMessage(LogMsg() << "JSON is not valid against the MNX schema.", options, LogSeverity::Error);
     return false;
 }
 

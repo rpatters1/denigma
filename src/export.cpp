@@ -39,7 +39,7 @@ constexpr auto inputProcessors = []() {
     struct InputProcessor
     {
         const char* extension;
-        Buffer(*processor)(const std::filesystem::path&);
+        Buffer(*processor)(const std::filesystem::path&, const DenigmaOptions&);
     };
 
     return to_array<InputProcessor>({
@@ -110,10 +110,10 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     return 1;
 }
 
-Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaOptions&) const
+Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const
 {
     auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().string());
-    return inputProcessor(inputPath);
+    return inputProcessor(inputPath, options);
 }
 
 void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaOptions& options) const

@@ -63,6 +63,7 @@ static const std::set<std::string_view> museScoreSMuFLFonts{
 // Finale preferences:
 struct FinalePreferences
 {
+    DenigmaOptions options;
     DocumentPtr document;
     std::shared_ptr<FontInfo> defaultMusicFont;
     //
@@ -260,11 +261,11 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
 {
     auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(categoryType));
     if (!cat) {
-        std::cerr << "unable to load category def for " << namePrefix << std::endl;
+        logMessage(LogMsg() << "unable to load category def for " << namePrefix, prefs->options, LogSeverity::Warning);
         return;
     }
     if (!cat->textFont) {
-        std::cerr << "marking category " << cat->getName() << " has no text font." << std::endl;
+        logMessage(LogMsg() << "marking category " << cat->getName() << " has no text font.", prefs->options, LogSeverity::Warning);
         return;
     }
     writeFontPref(styleElement, namePrefix, cat->textFont.get());
@@ -273,7 +274,7 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
             writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
             break;
         } else {
-            std::cerr << "marking category " << cat->getName() << " has invalid text expression." << std::endl;
+            logMessage(LogMsg() << "marking category " << cat->getName() << " has invalid text expression.", prefs->options, LogSeverity::Warning);
         }
     }
 }
@@ -729,7 +730,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
         auto partName = part->getName(); // Utf8-encoded partname can contain non-ASCII characters 
         if (partName.empty()) {
             partName = "Part" + std::to_string(part->getCmper());
-            std::cerr << "using " << partName << " for part name extension" << std::endl;
+            logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension", options, LogSeverity::Warning);
         }
         auto currExtension = qualifiedOutputPath.extension();
         qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.u8string()));
@@ -738,6 +739,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
 
     const Cmper forPartId = part ? part->getCmper() : 0;
     auto prefs = getCurrentPrefs(document, forPartId);
+    prefs->options = options;
 
     // extract document to mss
     XmlDocument mssDoc; // output
@@ -762,7 +764,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     // open the file ourselves to avoid tinyxml2's use of Windows ACP encoding for path strings
     /// @todo encapsulate this into a callable function if/when we need to do it elsewhere
     FILE* fp = stringutils::openFile(qualifiedOutputPath, "w");
-    if (!fp) throw std::runtime_error("unable to open file " + qualifiedOutputPath.u8string()); // use u8string to avoid encoding errors
+    if (!fp) throw std::runtime_error("Unable to write to file " + qualifiedOutputPath.u8string());
     auto result = mssDoc.SaveFile(fp);
     fclose(fp);
     if (result != ::tinyxml2::XML_SUCCESS) {
@@ -793,9 +795,9 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     }
     if (options.partName.has_value() && !options.allPartsAndScore && !foundPart) {
         if (options.partName->empty()) {
-            std::cerr << "no parts were found in document" << std::endl;
+            logMessage(LogMsg() << "No parts were found in document", options, LogSeverity::Warning);
         } else {
-            std::cerr << "no part name starting with \"" << options.partName.value() << "\" was found" << std::endl;
+            logMessage(LogMsg() << "No part name starting with \"" << options.partName.value() << "\" was found", options, LogSeverity::Warning);
         }
     }
 }

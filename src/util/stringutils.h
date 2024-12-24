@@ -89,6 +89,15 @@ inline std::string wstringToString(const std::wstring& wide, int codepage = CP_U
 #endif
 }
 
+inline std::string utf8ToAcp(const std::string& utf8)
+{
+#ifdef _WIN32
+    return wstringToString(stringToWstring(utf8), CP_ACP);
+#else
+    return utf8;
+#endif
+}
+
 inline std::filesystem::path utf8ToPath(const std::string& str)
 {
 #ifdef _WIN32
