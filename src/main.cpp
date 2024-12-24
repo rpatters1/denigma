@@ -23,6 +23,7 @@
 #include <map>
 #include <optional>
 #include <memory>
+#include <chrono>
 
 #include "musx/musx.h"
 
@@ -45,11 +46,12 @@ static int showHelpPage(const std::string_view& programName)
 
     // General options
     std::cout << "General options:" << std::endl;
-    std::cout << "  --help                      Show this help message and exit" << std::endl;
-    std::cout << "  --force                     Overwrite existing file(s)" << std::endl;
-    std::cout << "  --part [optional-part-name] Process for named part or first part if name is omitted" << std::endl;
-    std::cout << "  --all-parts                 Process for all parts and score" << std::endl;
-    std::cout << "  --version                   Show program version and exit" << std::endl;
+    std::cout << "  --help                          Show this help message and exit" << std::endl;
+    std::cout << "  --force                         Overwrite existing file(s)" << std::endl;
+    std::cout << "  --log [optional-logfile-path]   Log messages instead of sending them to std::cerr" << std::endl;
+    std::cout << "  --part [optional-part-name]     Process named part or first part if name is omitted" << std::endl;
+    std::cout << "  --all-parts                     Process all parts and score" << std::endl;
+    std::cout << "  --version                       Show program version and exit" << std::endl;
 
     for (const auto& command : registeredCommands) {
         std::string commandStr = "Command " + command.first;
@@ -66,10 +68,13 @@ static int showHelpPage(const std::string_view& programName)
 
 namespace denigma {
 
-void logMessage(LogMsg&& msg, const DenigmaOptions&, LogSeverity)
+void logMessage(LogMsg&& msg, const DenigmaOptions& options, LogSeverity)
 {
     msg.flush();
-    /// @todo add logging when options specify it
+    if (options.logFile && options.logFile->is_open()) {
+        *options.logFile << msg.str() << std::endl;
+        return;
+    }
 #ifdef _WIN32
     HANDLE hConsole = GetStdHandle(STD_ERROR_HANDLE);
     if (hConsole && hConsole != INVALID_HANDLE_VALUE) {
@@ -131,7 +136,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    std::string programName = std::filesystem::path(argv[0]).stem().string();
+    std::string programName = std::filesystem::path(argv[0]).stem().u8string();
     
     if (argc < 2) {
         return showHelpPage(programName);
@@ -142,6 +147,16 @@ int main(int argc, char* argv[])
     bool showHelp = false;
     std::vector<const arg_char*> args;
     for (int x = 1; x < argc; x++) {
+        auto getNextArg = [&]() -> arg_view {
+                if (x + 1 < argc) {
+                    arg_view arg(argv[x + 1]);
+                    if (x < (argc - 1) && arg.rfind(_ARG("--"), 0) != 0) {
+                        x++;
+                        return arg;
+                    }
+                }
+                return {};
+            };
         const arg_view next(argv[x]);
         if (next == _ARG("--version")) {
             showVersion = true;
@@ -152,12 +167,9 @@ int main(int argc, char* argv[])
         } else if (next == _ARG("--all-parts")) {
             options.allPartsAndScore = true;
         } else if (next == _ARG("--part")) {
-            options.partName = "";
-            arg_view arg(argv[x + 1]);
-            if (x < (argc - 1) && arg.rfind(_ARG("--"), 0) != 0) {
-                options.partName = _ARG_CONV(arg);
-                x++;
-            }
+            options.partName = _ARG_CONV(getNextArg());
+        } else if (next == _ARG("--log")) {
+            options.logFilePath = getNextArg();
         } else {
             args.push_back(argv[x]);
         }
@@ -209,8 +221,35 @@ int main(int argc, char* argv[])
         const std::filesystem::path inputFilePath = args[1];
 
         const std::filesystem::path defaultPath = inputFilePath.parent_path();
+        
+        if (options.logFilePath.has_value()) {
+            auto& path = options.logFilePath.value();
+            if (path.empty()) {
+                path = defaultPath;
+            }
+            if (!path.has_filename() || std::filesystem::is_directory(path)) {
+                auto now = std::chrono::system_clock::now();
+                auto time_t_now = std::chrono::system_clock::to_time_t(now);
+                std::tm localTime;
+#ifdef _WIN32
+                localtime_s(&localTime, &time_t_now); // Windows
+#else
+                localtime_r(&time_t_now, &localTime); // Linux/Unix
+#endif
+                std::ostringstream timestamp;
+                timestamp << std::put_time(&localTime, "%Y%m%d-%H%M%S");
+                std::string logFileName = programName + "-" + timestamp.str() + ".log";
+                path /= (programName + "-logs");
+                std::filesystem::create_directories(path);
+                path /= logFileName;
+            }
+            options.logFile = std::make_shared<std::ofstream>();
+            options.logFile->exceptions(std::ios::failbit | std::ios::badbit);
+            options.logFile->open(path, std::ios::app);
+        }
+        
         if (!std::filesystem::is_regular_file(inputFilePath)) {
-            logMessage(LogMsg() << "Input file " << inputFilePath.u8string() << " does not exists or is not a file.", options, LogSeverity::Error);
+            logMessage(LogMsg() << "Input file " << inputFilePath.u8string() << " does not exist or is not a file.", options, LogSeverity::Error);
             return 1; // when this is a loop iteration, this should continue to the next iteration but maintain the return value so the error is flagged on exit
         }
         logMessage(LogMsg() << "Input: " << inputFilePath.u8string(), options);

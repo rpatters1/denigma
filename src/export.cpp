@@ -112,13 +112,13 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
 
 Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const
 {
-    auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().string());
+    auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
     return inputProcessor(inputPath, options);
 }
 
 void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaOptions& options) const
 {
-    auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().string());
+    auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
     outputProcessor(outputPath, enigmaXml, options);
 }
 

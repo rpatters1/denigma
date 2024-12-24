@@ -26,6 +26,7 @@
 #include <array>
 #include <vector>
 #include <optional>
+#include <fstream>
 
 #include "util/stringutils.h"
 
@@ -78,6 +79,8 @@ struct DenigmaOptions
     bool overwriteExisting{};
     bool allPartsAndScore{};
     std::optional<std::string> partName;
+    std::optional<std::filesystem::path> logFilePath;
+    std::shared_ptr<std::ofstream> logFile;
     std::filesystem::path inputFilePath;
 };
 
