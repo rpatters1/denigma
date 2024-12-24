@@ -39,25 +39,25 @@ static const auto registeredCommands = []()
 
 static int showHelpPage(const std::string_view& programName)
 {
-    std::cerr << "Usage: " << programName << " <command> <input-pattern> [--options]" << std::endl;
-    std::cerr << std::endl;
+    std::cout << "Usage: " << programName << " <command> <input-pattern> [--options]" << std::endl;
+    std::cout << std::endl;
 
     // General options
-    std::cerr << "General options:" << std::endl;
-    std::cerr << "  --help                      Show this help message and exit" << std::endl;
-    std::cerr << "  --force                     Overwrite existing file(s)" << std::endl;
-    std::cerr << "  --part [optional-part-name] Process for named part or first part if name is omitted" << std::endl;
-    std::cerr << "  --all-parts                 Process for all parts and score" << std::endl;
-    std::cerr << "  --version                   Show program version and exit" << std::endl;
+    std::cout << "General options:" << std::endl;
+    std::cout << "  --help                      Show this help message and exit" << std::endl;
+    std::cout << "  --force                     Overwrite existing file(s)" << std::endl;
+    std::cout << "  --part [optional-part-name] Process for named part or first part if name is omitted" << std::endl;
+    std::cout << "  --all-parts                 Process for all parts and score" << std::endl;
+    std::cout << "  --version                   Show program version and exit" << std::endl;
 
     for (const auto& command : registeredCommands) {
         std::string commandStr = "Command " + std::string(command.first);
         std::string sepStr(commandStr.size(), '=');
-        std::cerr << std::endl;
-        std::cerr << sepStr << std::endl;
-        std::cerr << commandStr << std::endl;
-        std::cerr << sepStr << std::endl;
-        std::cerr << std::endl;
+        std::cout << std::endl;
+        std::cout << sepStr << std::endl;
+        std::cout << commandStr << std::endl;
+        std::cout << sepStr << std::endl;
+        std::cout << std::endl;
         command.second->showHelpPage(programName, "    ");
     }
     return 1;
@@ -67,19 +67,19 @@ namespace denigma {
 bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const denigma::DenigmaOptions& options)
 {
     if (options.inputFilePath == outputFilePath) {
-        std::cout << outputFilePath.u8string() << ": " << "Input and output are the same. No action taken." << std::endl;
+        std::cerr << outputFilePath.u8string() << ": " << "Input and output are the same. No action taken." << std::endl;
         return false;
     }
 
     if (std::filesystem::exists(outputFilePath)) {
         if (options.overwriteExisting) {
-            std::cout << "Overwriting " << outputFilePath.u8string() << std::endl; /// @todo fix encoding when we deal with logging
+            std::cerr << "Overwriting " << outputFilePath.u8string() << std::endl; /// @todo fix encoding when we deal with logging
         } else {
-            std::cout << outputFilePath.u8string() << " exists. Use --force to overwrite it." << std::endl; /// @todo fix encoding when we deal with logging
+            std::cerr << outputFilePath.u8string() << " exists. Use --force to overwrite it." << std::endl; /// @todo fix encoding when we deal with logging
             return false;
         }
     } else {
-        std::cout << "Output: " << outputFilePath.string() << std::endl; /// @todo fix encoding when we deal with logging
+        std::cerr << "Output: " << outputFilePath.string() << std::endl; /// @todo fix encoding when we deal with logging
     }
 
     return true;
@@ -157,11 +157,11 @@ int main(int argc, char* argv[]) {
 
         const std::filesystem::path defaultPath = inputFilePath.parent_path();
         if (!std::filesystem::is_regular_file(inputFilePath)) {
-            std::cout << inputFilePath.string() << std::endl;
-            std::cout << "Input file does not exists or is not a file." << std::endl;
+            std::cerr << inputFilePath.string() << std::endl;
+            std::cerr << "Input file does not exists or is not a file." << std::endl;
             return 1;
         }
-        std::cout << "Input: " << inputFilePath.string() << std::endl;
+        std::cerr << "Input: " << inputFilePath.string() << std::endl;
         options.inputFilePath = inputFilePath;
 
         // Find and call the input processor

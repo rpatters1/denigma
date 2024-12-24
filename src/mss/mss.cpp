@@ -260,11 +260,11 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
 {
     auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(categoryType));
     if (!cat) {
-        std::cout << "unable to load category def for " << namePrefix << std::endl;
+        std::cerr << "unable to load category def for " << namePrefix << std::endl;
         return;
     }
     if (!cat->textFont) {
-        std::cout << "marking category " << cat->getName() << " has no text font." << std::endl;
+        std::cerr << "marking category " << cat->getName() << " has no text font." << std::endl;
         return;
     }
     writeFontPref(styleElement, namePrefix, cat->textFont.get());
@@ -273,7 +273,7 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
             writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
             break;
         } else {
-            std::cout << "marking category " << cat->getName() << " has invalid text expression." << std::endl;
+            std::cerr << "marking category " << cat->getName() << " has invalid text expression." << std::endl;
         }
     }
 }
@@ -729,7 +729,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
         auto partName = part->getName(); // Utf8-encoded partname can contain non-ASCII characters 
         if (partName.empty()) {
             partName = "Part" + std::to_string(part->getCmper());
-            std::cout << "using " << partName << " for part name extension" << std::endl;
+            std::cerr << "using " << partName << " for part name extension" << std::endl;
         }
         auto currExtension = qualifiedOutputPath.extension();
         qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.u8string()));
@@ -793,9 +793,9 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     }
     if (options.partName.has_value() && !options.allPartsAndScore && !foundPart) {
         if (options.partName->empty()) {
-            std::cout << "no parts were found in document" << std::endl;
+            std::cerr << "no parts were found in document" << std::endl;
         } else {
-            std::cout << "no part name starting with \"" << options.partName.value() << "\" was found" << std::endl;
+            std::cerr << "no part name starting with \"" << options.partName.value() << "\" was found" << std::endl;
         }
     }
 }

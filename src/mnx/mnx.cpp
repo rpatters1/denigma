@@ -37,7 +37,7 @@ namespace mnx {
 // placeholder
 void convert(const std::filesystem::path& file, const Buffer&, const DenigmaOptions&)
 {
-    std::cout << "converting to " << file.string() << std::endl;
+    std::cerr << "converting to " << file.string() << std::endl;
 }
 
 // temp func
@@ -45,7 +45,7 @@ static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath)
 {
     static const std::string_view kMnxSchema(reinterpret_cast<const char *>(mnx_schema_json), mnx_schema_json_len);
 
-    std::cout << "validate JSON " << jsonFilePath << std::endl;
+    std::cerr << "validate JSON " << jsonFilePath << std::endl;
     try {
         // Load JSON schema
         nlohmann::json schemaJson = nlohmann::json::parse(kMnxSchema);
@@ -62,7 +62,7 @@ static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath)
 
         // Validate JSON
         validator.validate(jsonData);
-        std::cout << "JSON is valid against the MNX schema." << std::endl;
+        std::cerr << "JSON is valid against the MNX schema." << std::endl;
         return true;
     } catch (const nlohmann::json::exception& e) {
         std::cerr << "JSON parsing error: " << e.what() << std::endl;
@@ -71,7 +71,7 @@ static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath)
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
-    std::cout << "JSON is not valid against the MNX schema.\n";
+    std::cerr << "JSON is not valid against the MNX schema.\n";
     return false;
 }
 

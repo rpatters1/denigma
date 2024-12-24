@@ -83,29 +83,29 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
 {
     std::string fullCommand = std::string(programName) + " " + std::string(commandName());
     // Print usage
-    std::cerr << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
-    std::cerr << indentSpaces << std::endl;
+    std::cout << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
+    std::cout << indentSpaces << std::endl;
 
     // Supported input formats
-    std::cerr << indentSpaces << "Supported input formats:" << std::endl;
+    std::cout << indentSpaces << "Supported input formats:" << std::endl;
     for (const auto& input : inputProcessors) {
-        std::cerr << indentSpaces << "  *." << input.extension << std::endl;
+        std::cout << indentSpaces << "  *." << input.extension << std::endl;
     }
-    std::cerr << indentSpaces << std::endl;
+    std::cout << indentSpaces << std::endl;
 
     // Supported output formats
-    std::cerr << indentSpaces << "Supported output options:" << std::endl;
+    std::cout << indentSpaces << "Supported output options:" << std::endl;
     for (const auto& output : outputProcessors) {
-        std::cerr << indentSpaces << "  --" << output.extension << " [optional filepath]" << std::endl;
+        std::cout << indentSpaces << "  --" << output.extension << " [optional filepath]" << std::endl;
     }
-    std::cerr << indentSpaces << std::endl;
+    std::cout << indentSpaces << std::endl;
 
     // Example usage
-    std::cerr << indentSpaces << "Examples:" << std::endl;
-    std::cerr << indentSpaces << "  " << fullCommand << " input.musx --mss output.mss" << std::endl;
-    std::cerr << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml" << std::endl;
-    //std::cerr << indentSpaces << "  " << programName << " input.enigmaxml --mnx --mss" << std::endl;
-    std::cerr << indentSpaces << "  " << fullCommand << " input.musx --mss --enigmaxml" << std::endl;
+    std::cout << indentSpaces << "Examples:" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " input.musx --mss output.mss" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml" << std::endl;
+    //std::cout << indentSpaces << "  " << programName << " input.enigmaxml --mnx --mss" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " input.musx --mss --enigmaxml" << std::endl;
 
     return 1;
 }
