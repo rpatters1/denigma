@@ -92,19 +92,21 @@ inline std::string wstringToString(const std::wstring& wide, int codepage = CP_U
 inline std::string utf8ToAcp(const std::string& utf8)
 {
 #ifdef _WIN32
-    return wstringToString(stringToWstring(utf8), CP_ACP);
-#else
-    return utf8;
+    if (::GetACP() != CP_UTF8) {
+        return wstringToString(stringToWstring(utf8), CP_ACP);
+    }   
 #endif
+    return utf8;
 }
 
 inline std::filesystem::path utf8ToPath(const std::string& str)
 {
 #ifdef _WIN32
-    return stringToWstring(str, CP_UTF8);
-#else
-    return str;
+    if (::GetACP() != CP_UTF8) {
+        return stringToWstring(str, CP_UTF8);
+    }
 #endif
+    return str;
 }
 
 inline FILE* openFile(const std::filesystem::path& path, const char* mode) {

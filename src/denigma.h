@@ -89,6 +89,6 @@ using LogMsg = std::stringstream;
  * @param options the options that determine how to log the message
  * @param severity the message severity
 */
-void logMessage(const LogMsg& msg, const DenigmaOptions& options, LogSeverity severity = LogSeverity::Info);
+void logMessage(LogMsg&& msg, const DenigmaOptions& options, LogSeverity severity = LogSeverity::Info);
 
 } // namespace denigma

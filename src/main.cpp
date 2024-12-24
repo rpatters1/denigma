@@ -66,8 +66,9 @@ static int showHelpPage(const std::string_view& programName)
 
 namespace denigma {
 
-void logMessage(const LogMsg& msg, const DenigmaOptions&, LogSeverity)
+void logMessage(LogMsg&& msg, const DenigmaOptions&, LogSeverity)
 {
+    msg.flush();
     /// @todo add logging when options specify it
     std::string msgStr;
     try {
@@ -196,8 +197,7 @@ int main(int argc, char* argv[])
         options.inputFilePath = inputFilePath;
 
         // Find and call the input processor
-        std::string inputExtension = inputFilePath.extension().string();
-        if (inputExtension.empty()) {
+        if (inputFilePath.extension().empty()) {
             return showHelpPage(options.programName);
         }
         const auto enigmaXml = currentCommand->processInput(inputFilePath, options);
