@@ -75,13 +75,15 @@ using Buffer = std::vector<char>;
 
 struct DenigmaOptions
 {
-    std::string_view programName;
+    std::string programName;
     bool overwriteExisting{};
     bool allPartsAndScore{};
     std::optional<std::string> partName;
     std::optional<std::filesystem::path> logFilePath;
     std::shared_ptr<std::ofstream> logFile;
     std::filesystem::path inputFilePath;
+
+    void startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[]); ///< Starts logging if logging was requested
 };
 
 class ICommand
@@ -98,6 +100,8 @@ public:
     
     virtual const std::string_view commandName() const = 0;
 };
+
+std::string getTimeStamp(const std::string& fmt);
 
 bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaOptions& options);
 

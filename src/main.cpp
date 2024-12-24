@@ -68,13 +68,46 @@ static int showHelpPage(const std::string_view& programName)
 
 namespace denigma {
 
-void logMessage(LogMsg&& msg, const DenigmaOptions& options, LogSeverity)
+std::string getTimeStamp(const std::string& fmt)
 {
+    auto now = std::chrono::system_clock::now();
+    auto time_t_now = std::chrono::system_clock::to_time_t(now);
+    std::tm localTime;
+#ifdef _WIN32
+    localtime_s(&localTime, &time_t_now); // Windows
+#else
+    localtime_r(&time_t_now, &localTime); // Linux/Unix
+#endif
+    std::ostringstream timestamp;
+    timestamp << std::put_time(&localTime, fmt.c_str());
+    return timestamp.str();
+}
+
+void logMessage(LogMsg&& msg, const DenigmaOptions& options, LogSeverity severity)
+{
+    auto getSeverityStr = [severity]() -> std::string {
+            switch (severity) {
+            default:
+            case LogSeverity::Info: return "";
+            case LogSeverity::Warning: return "[WARNING] ";
+            case LogSeverity::Error: return "[***ERROR***] ";
+            }
+        };
     msg.flush();
+    std::string inputFile = options.inputFilePath.filename().u8string();
+    if (!inputFile.empty()) {
+        inputFile += ' ';
+    }
     if (options.logFile && options.logFile->is_open()) {
-        *options.logFile << msg.str() << std::endl;
+        LogMsg prefix = LogMsg() << "[" << getTimeStamp("%Y-%m-%d %H:%M:%S") << "] " << inputFile;
+        prefix.flush();
+        *options.logFile << prefix.str() << getSeverityStr() << msg.str() << std::endl;
+        if (severity == LogSeverity::Error) {
+            *options.logFile << prefix.str() << "PROCESSING ABORTED" << std::endl;
+        }
         return;
     }
+
 #ifdef _WIN32
     HANDLE hConsole = GetStdHandle(STD_ERROR_HANDLE);
     if (hConsole && hConsole != INVALID_HANDLE_VALUE) {
@@ -117,6 +150,38 @@ bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const 
     return true;
 }
 
+void DenigmaOptions::startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[])
+{
+    if (logFilePath.has_value() && !logFile) {
+        auto& path = logFilePath.value();
+        if (path.empty()) {
+            path = defaultLogPath;
+        }
+        if (!path.has_filename() || std::filesystem::is_directory(path)) {
+            std::string logFileName = programName + "-" + getTimeStamp("%Y%m%d-%H%M%S") + ".log";
+            path /= (programName + "-logs");
+            std::filesystem::create_directories(path);
+            path /= logFileName;
+        }
+        bool appending = std::filesystem::is_regular_file(path);
+        logFile = std::make_shared<std::ofstream>();
+        logFile->exceptions(std::ios::failbit | std::ios::badbit);
+        logFile->open(path, std::ios::app);
+        if (appending) {
+            *logFile << std::endl;
+        }
+        logMessage(LogMsg() << "====== STARTED ======", *this);
+        logMessage(LogMsg() << programName << " executed with the following arguments:", *this);
+        LogMsg args;
+        args << programName << " ";
+        for (int i = 1; i < argc; i++) {
+            args << argv[i] << " ";
+        }
+        logMessage(std::move(args), *this);
+        logMessage(LogMsg(), *this);
+    }
+}
+
 } // namespace denigma
 
 using namespace denigma;
@@ -124,12 +189,13 @@ using namespace denigma;
 #ifdef _WIN32
 #define _ARG(S) L##S
 #define _ARG_CONV(S) (stringutils::wstringToString(std::wstring(S)))
-int wmain(int argc, WCHAR* argv[])
+#define _MAIN wmain
 #else
 #define _ARG(S) S
 #define _ARG_CONV(S) S
-int main(int argc, char* argv[])
+#define _MAIN main
 #endif
+int _MAIN(int argc, arg_char* argv[])
 {
     if (argc <= 0) {
         std::cerr << "Error: argv[0] is unavailable" << std::endl;
@@ -143,6 +209,7 @@ int main(int argc, char* argv[])
     }
 
     DenigmaOptions options;
+    options.programName = programName;
     bool showVersion = false;
     bool showHelp = false;
     std::vector<const arg_char*> args;
@@ -219,41 +286,19 @@ int main(int argc, char* argv[])
     //          so that we can log results and continue
     try {
         const std::filesystem::path inputFilePath = args[1];
-
         const std::filesystem::path defaultPath = inputFilePath.parent_path();
-        
-        if (options.logFilePath.has_value()) {
-            auto& path = options.logFilePath.value();
-            if (path.empty()) {
-                path = defaultPath;
-            }
-            if (!path.has_filename() || std::filesystem::is_directory(path)) {
-                auto now = std::chrono::system_clock::now();
-                auto time_t_now = std::chrono::system_clock::to_time_t(now);
-                std::tm localTime;
-#ifdef _WIN32
-                localtime_s(&localTime, &time_t_now); // Windows
-#else
-                localtime_r(&time_t_now, &localTime); // Linux/Unix
-#endif
-                std::ostringstream timestamp;
-                timestamp << std::put_time(&localTime, "%Y%m%d-%H%M%S");
-                std::string logFileName = programName + "-" + timestamp.str() + ".log";
-                path /= (programName + "-logs");
-                std::filesystem::create_directories(path);
-                path /= logFileName;
-            }
-            options.logFile = std::make_shared<std::ofstream>();
-            options.logFile->exceptions(std::ios::failbit | std::ios::badbit);
-            options.logFile->open(path, std::ios::app);
-        }
-        
+        options.startLogging(defaultPath, argc, argv);
         if (!std::filesystem::is_regular_file(inputFilePath)) {
             logMessage(LogMsg() << "Input file " << inputFilePath.u8string() << " does not exist or is not a file.", options, LogSeverity::Error);
             return 1; // when this is a loop iteration, this should continue to the next iteration but maintain the return value so the error is flagged on exit
         }
-        logMessage(LogMsg() << "Input: " << inputFilePath.u8string(), options);
-        options.inputFilePath = inputFilePath;
+        constexpr char kProcessingMessage[] = "Processing File: ";
+        std::string delimiter(sizeof(kProcessingMessage) + inputFilePath.u32string().size(), '=');
+        // log header for each file
+        logMessage(LogMsg() << delimiter, options);
+        logMessage(LogMsg() << kProcessingMessage << inputFilePath.u8string(), options);
+        logMessage(LogMsg() << delimiter, options);
+        options.inputFilePath = inputFilePath; // assign after logging the header
 
         // Find and call the input processor
         if (inputFilePath.extension().empty()) {
