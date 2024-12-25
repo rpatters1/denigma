@@ -155,11 +155,10 @@ void DenigmaOptions::startLogging(const std::filesystem::path& defaultLogPath, i
     if (logFilePath.has_value() && !logFile) {
         auto& path = logFilePath.value();
         if (path.empty()) {
-            path = defaultLogPath;
+            path = defaultLogPath / (programName + "-logs");
         }
-        if (!path.has_filename() || std::filesystem::is_directory(path)) {
+        if (std::filesystem::is_directory(path) || (!std::filesystem::exists(path) && !path.has_extension())) {
             std::string logFileName = programName + "-" + getTimeStamp("%Y%m%d-%H%M%S") + ".log";
-            path /= (programName + "-logs");
             std::filesystem::create_directories(path);
             path /= logFileName;
         }
@@ -293,7 +292,8 @@ int _MAIN(int argc, arg_char* argv[])
             return 1; // when this is a loop iteration, this should continue to the next iteration but maintain the return value so the error is flagged on exit
         }
         constexpr char kProcessingMessage[] = "Processing File: ";
-        std::string delimiter(sizeof(kProcessingMessage) + inputFilePath.u32string().size(), '=');
+        constexpr size_t kProcessingMessageSize = sizeof(kProcessingMessage) - 1; // account for null terminator.
+        std::string delimiter(kProcessingMessageSize + inputFilePath.u32string().size(), '='); // use u32string().size to get actual number of characters displayed
         // log header for each file
         logMessage(LogMsg() << delimiter, options);
         logMessage(LogMsg() << kProcessingMessage << inputFilePath.u8string(), options);
