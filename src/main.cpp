@@ -24,6 +24,7 @@
 #include <optional>
 #include <memory>
 #include <chrono>
+#include <regex>
 
 #include "musx/musx.h"
 
@@ -117,7 +118,9 @@ void logMessage(LogMsg&& msg, const DenigmaOptions& options, LogSeverity severit
         if (severity == LogSeverity::Error) {
             *options.logFile << prefix.str() << "PROCESSING ABORTED" << std::endl;
         }
-        return;
+        if (severity != LogSeverity::Error) {
+            return;
+        }
     }
 
 #ifdef _WIN32
@@ -354,27 +357,49 @@ int _MAIN(int argc, arg_char* argv[])
     try {
         options.inputFilePath = "";
         std::filesystem::path inputFilePattern = args[1];
-        bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);
-        if (!inputIsOneFile && std::filesystem::is_directory(inputFilePattern) && currentCommand->defaultInputFormat().has_value()) {
-            inputFilePattern /= "*." + std::string(currentCommand->defaultInputFormat().value());
-        }
 
-        options.startLogging(inputFilePattern.parent_path(), argc, argv);
-
-        { // ToDo: this needs to become a direcory iteration of `inputdir/*.format`
-            auto inputFilePath = inputFilePattern; // ToDo: inputFilePath needs to be the iterated result
-            if (currentCommand->canProcess(inputFilePath)) {
-                if (!processFile(currentCommand, inputFilePattern, args, options)) {
-                    errorOccurred = true;
-                }
+        // collect inputs
+        bool isSpecificFileOrDirectory = inputFilePattern.u8string().find('*') == std::string::npos && inputFilePattern.u8string().find('?') == std::string::npos;
+        if (std::filesystem::is_directory(inputFilePattern)) {
+            if (currentCommand->defaultInputFormat().has_value()) {
+                inputFilePattern /= "*." + std::string(currentCommand->defaultInputFormat().value());
             } else {
-                if (inputIsOneFile) {
-                    std::cerr << "Invalid input format." << std::endl;
-                    return showHelpPage(options.programName);
+                inputFilePattern /= ""; // assure parent_path returns inputFilePattern
+            }
+        }
+        std::filesystem::path inputDir = inputFilePattern.parent_path();
+        options.startLogging(inputDir, argc, argv);
+        auto wildcardPattern = inputFilePattern.filename().u8string();
+
+        if (isSpecificFileOrDirectory && !std::filesystem::exists(args[1])) {
+            throw std::runtime_error("Input path " + inputFilePattern.u8string() + " does not exist or is not a file or directory.");
+        }
+        bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);
+
+        // convert wildcard pattern to regex
+        auto regexPattern = std::regex_replace(wildcardPattern, std::regex(R"(\*)"), R"(.*)");
+        regexPattern = std::regex_replace(regexPattern, std::regex(R"(\?)"), R"(.)");
+        std::regex regex(regexPattern);
+
+        bool foundAFile = false;
+        for (const auto& entry : std::filesystem::directory_iterator(inputDir)) {
+            if (entry.is_regular_file() && std::regex_match(entry.path().filename().u8string(), regex)) {
+                foundAFile = true;
+                auto inputFilePath = entry.path();
+                if (currentCommand->canProcess(inputFilePath)) {
+                    if (!processFile(currentCommand, inputFilePath, args, options)) {
+                        errorOccurred = true;
+                    }
+                } else {
+                    if (inputIsOneFile) {
+                        std::cerr << "Invalid input format." << std::endl;
+                        return showHelpPage(options.programName);
+                    }
                 }
             }
         }
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception& e) {
         logMessage(LogMsg() << e.what(), options, LogSeverity::Error);
         errorOccurred = true;
     }
