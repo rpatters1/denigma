@@ -31,9 +31,11 @@ struct ExportCommand : public ICommand
 
     int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) const override;
     
-    virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const override;
+    bool canProcess(const std::filesystem::path& inputPath) const override;
+    Buffer processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const override;
     void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaOptions& options) const override;
 
+    std::optional<std::string_view> defaultInputFormat() const override { return MUSX_EXTENSION; };
     std::optional<std::string_view> defaultOutputFormat() const override { return ENIGMAXML_EXTENSION; };
     const std::string_view commandName() const override { return "export"; }
 };

@@ -31,6 +31,16 @@
 #include "export.h"
 #include "util/stringutils.h"
 
+#ifdef _WIN32
+#define _ARG(S) L##S
+#define _ARG_CONV(S) (stringutils::wstringToString(std::wstring(S)))
+#define _MAIN wmain
+#else
+#define _ARG(S) S
+#define _ARG_CONV(S) S
+#define _MAIN main
+#endif
+
 static const auto registeredCommands = []()
     {
         std::map <std::string, std::shared_ptr <denigma::ICommand>> retval;
@@ -50,6 +60,8 @@ static int showHelpPage(const std::string_view& programName)
     std::cout << "  --force                         Overwrite existing file(s)" << std::endl;
     std::cout << "  --log [optional-logfile-path]   Log messages instead of sending them to std::cerr" << std::endl;
     std::cout << "  --part [optional-part-name]     Process named part or first part if name is omitted" << std::endl;
+    std::cout << "  --recursive                     Recursively search subdirectories of the input directory" << std::endl;
+    std::cout << "  --relative                      Output directories are relative to the input file's parent directory" << std::endl;
     std::cout << "  --all-parts                     Process all parts and score" << std::endl;
     std::cout << "  --version                       Show program version and exit" << std::endl;
 
@@ -122,8 +134,7 @@ void logMessage(LogMsg&& msg, const DenigmaOptions& options, LogSeverity severit
             std::wcerr << L"Failed to write message to console: " << ::GetLastError() << std::endl;
         }
     }
-    std::wcerr << stringutils::stringToWstring(msg.str());
-    std::wcerr << std::endl;
+    std::wcerr << stringutils::stringToWstring(msg.str()) << std::endl;
 #else
     std::cerr << msg.str() << std::endl;
 #endif
@@ -150,6 +161,15 @@ bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const 
     return true;
 }
 
+bool createDirectoryIfNeeded(const std::filesystem::path& path)
+{
+    if (std::filesystem::is_directory(path) || (!std::filesystem::exists(path) && !path.has_extension())) {
+        std::filesystem::create_directories(path);
+        return true;
+    }
+    return false;
+}
+
 void DenigmaOptions::startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[])
 {
     if (logFilePath.has_value() && !logFile) {
@@ -157,9 +177,8 @@ void DenigmaOptions::startLogging(const std::filesystem::path& defaultLogPath, i
         if (path.empty()) {
             path = defaultLogPath / (programName + "-logs");
         }
-        if (std::filesystem::is_directory(path) || (!std::filesystem::exists(path) && !path.has_extension())) {
+        if (createDirectoryIfNeeded(path)) {
             std::string logFileName = programName + "-" + getTimeStamp("%Y%m%d-%H%M%S") + ".log";
-            std::filesystem::create_directories(path);
             path /= logFileName;
         }
         bool appending = std::filesystem::is_regular_file(path);
@@ -181,19 +200,69 @@ void DenigmaOptions::startLogging(const std::filesystem::path& defaultLogPath, i
     }
 }
 
+static bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaOptions& options)
+{
+    try {
+        if (!std::filesystem::is_regular_file(inputFilePath)) {
+            throw std::runtime_error("Input file " + inputFilePath.u8string() + " does not exist or is not a file.");
+        }
+        constexpr char kProcessingMessage[] = "Processing File: ";
+        constexpr size_t kProcessingMessageSize = sizeof(kProcessingMessage) - 1; // account for null terminator.
+        std::string delimiter(kProcessingMessageSize + inputFilePath.u32string().size(), '='); // use u32string().size to get actual number of characters displayed
+        // log header for each file
+        logMessage(LogMsg() << delimiter, options);
+        logMessage(LogMsg() << kProcessingMessage << inputFilePath.u8string(), options);
+        logMessage(LogMsg() << delimiter, options);
+        options.inputFilePath = inputFilePath; // assign after logging the header
+
+        const auto enigmaXml = currentCommand->processInput(inputFilePath, options);
+
+        auto calcOutpuFilePath = [inputFilePath, &options](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
+            std::filesystem::path retval = path;
+            if (options.relativeOutputDirs) {
+                retval = inputFilePath.parent_path() / retval;
+            }
+            if (createDirectoryIfNeeded(retval)) {
+                std::filesystem::path outputFileName = inputFilePath.filename();
+                outputFileName.replace_extension(format);
+                retval = retval / outputFileName;
+            }
+            return retval;
+        };
+
+        // Process output options
+        bool outputFormatSpecified = false;
+        for (size_t i = 0; i < args.size(); ++i) {
+            arg_string option = args[i];
+            if (option.rfind(_ARG("--"), 0) == 0) {  // Options start with "--"
+                arg_string outputFormat = option.substr(2);
+                std::filesystem::path outputFilePath = (i + 1 < args.size() && arg_string(args[i + 1]).rfind(_ARG("--"), 0) != 0)
+                                                     ? std::filesystem::path(args[++i])
+                                                     : inputFilePath.parent_path();
+                currentCommand->processOutput(enigmaXml, calcOutpuFilePath(outputFilePath, outputFormat), options);
+                outputFormatSpecified = true;
+            }
+        }
+        if (!outputFormatSpecified) {
+            const auto& defaultFormat = currentCommand->defaultOutputFormat();
+            if (defaultFormat.has_value()) {
+                currentCommand->processOutput(enigmaXml, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), options);
+            }
+        }
+        return true;
+    } catch (const musx::xml::load_error& ex) {
+        logMessage(LogMsg() << "Load XML failed: " << ex.what(), options, LogSeverity::Error);
+    } catch (const std::exception& e) {
+        logMessage(LogMsg() << e.what(), options, LogSeverity::Error);
+    }
+
+    return false;
+}
+
 } // namespace denigma
 
 using namespace denigma;
 
-#ifdef _WIN32
-#define _ARG(S) L##S
-#define _ARG_CONV(S) (stringutils::wstringToString(std::wstring(S)))
-#define _MAIN wmain
-#else
-#define _ARG(S) S
-#define _ARG_CONV(S) S
-#define _MAIN main
-#endif
 int _MAIN(int argc, arg_char* argv[])
 {
     if (argc <= 0) {
@@ -230,12 +299,14 @@ int _MAIN(int argc, arg_char* argv[])
             showHelp = true;
         } else if (next == _ARG("--force")) {
             options.overwriteExisting = true;
-        } else if (next == _ARG("--all-parts")) {
-            options.allPartsAndScore = true;
-        } else if (next == _ARG("--part")) {
-            options.partName = _ARG_CONV(getNextArg());
         } else if (next == _ARG("--log")) {
             options.logFilePath = getNextArg();
+        } else if (next == _ARG("--part")) {
+            options.partName = _ARG_CONV(getNextArg());
+        } else if (next == _ARG("--all-parts")) {
+            options.allPartsAndScore = true;
+        } else if (next == _ARG("--relative")) {
+            options.relativeOutputDirs = true;
         } else {
             args.push_back(argv[x]);
         }
@@ -280,64 +351,29 @@ int _MAIN(int argc, arg_char* argv[])
         });
 
     bool errorOccurred = false;
-    // ToDo: This code needs to process input patterns in a loop, but
-    //          the try/catch needs to enclose each actual input file
-    //          so that we can log results and continue
     try {
-        const std::filesystem::path inputFilePath = args[1];
-        const std::filesystem::path defaultPath = inputFilePath.parent_path();
-        options.startLogging(defaultPath, argc, argv);
-        if (!std::filesystem::is_regular_file(inputFilePath)) {
-            logMessage(LogMsg() << "Input file " << inputFilePath.u8string() << " does not exist or is not a file.", options, LogSeverity::Error);
-            return 1; // when this is a loop iteration, this should continue to the next iteration but maintain the return value so the error is flagged on exit
+        options.inputFilePath = "";
+        std::filesystem::path inputFilePattern = args[1];
+        bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);
+        if (!inputIsOneFile && std::filesystem::is_directory(inputFilePattern) && currentCommand->defaultInputFormat().has_value()) {
+            inputFilePattern /= "*." + std::string(currentCommand->defaultInputFormat().value());
         }
-        constexpr char kProcessingMessage[] = "Processing File: ";
-        constexpr size_t kProcessingMessageSize = sizeof(kProcessingMessage) - 1; // account for null terminator.
-        std::string delimiter(kProcessingMessageSize + inputFilePath.u32string().size(), '='); // use u32string().size to get actual number of characters displayed
-        // log header for each file
-        logMessage(LogMsg() << delimiter, options);
-        logMessage(LogMsg() << kProcessingMessage << inputFilePath.u8string(), options);
-        logMessage(LogMsg() << delimiter, options);
-        options.inputFilePath = inputFilePath; // assign after logging the header
 
-        // Find and call the input processor
-        if (inputFilePath.extension().empty()) {
-            return showHelpPage(options.programName);
-        }
-        const auto enigmaXml = currentCommand->processInput(inputFilePath, options);
+        options.startLogging(inputFilePattern.parent_path(), argc, argv);
 
-        auto calcFilePath = [inputFilePath](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
-            std::filesystem::path retval = path;
-            if (std::filesystem::is_directory(retval)) {
-                std::filesystem::path outputFileName = inputFilePath.filename();
-                outputFileName.replace_extension(format);
-                retval = retval / outputFileName;
-            }
-            return retval;
-        };
-
-        // Process output options
-        bool outputFormatSpecified = false;
-        for (size_t i = 0; i < args.size(); ++i) {
-            arg_string option = args[i];
-            if (option.rfind(_ARG("--"), 0) == 0) {  // Options start with "--"
-                arg_string outputFormat = option.substr(2);
-                std::filesystem::path outputFilePath = (i + 1 < args.size() && arg_string(args[i + 1]).rfind(_ARG("--"), 0) != 0)
-                                                     ? std::filesystem::path(args[++i])
-                                                     : defaultPath;
-                currentCommand->processOutput(enigmaXml, calcFilePath(outputFilePath, outputFormat), options);
-                outputFormatSpecified = true;
+        { // ToDo: this needs to become a direcory iteration of `inputdir/*.format`
+            auto inputFilePath = inputFilePattern; // ToDo: inputFilePath needs to be the iterated result
+            if (currentCommand->canProcess(inputFilePath)) {
+                if (!processFile(currentCommand, inputFilePattern, args, options)) {
+                    errorOccurred = true;
+                }
+            } else {
+                if (inputIsOneFile) {
+                    std::cerr << "Invalid input format." << std::endl;
+                    return showHelpPage(options.programName);
+                }
             }
         }
-        if (!outputFormatSpecified) {
-            const auto& defaultFormat = currentCommand->defaultOutputFormat();
-            if (defaultFormat.has_value()) {
-                currentCommand->processOutput(enigmaXml, calcFilePath(defaultPath, std::string(defaultFormat.value())), options);
-            }
-        }
-    } catch (const musx::xml::load_error& ex) {
-        logMessage(LogMsg() << "Load XML failed: " << ex.what(), options, LogSeverity::Error);
-        errorOccurred = true;
     } catch (const std::exception& e) {
         logMessage(LogMsg() << e.what(), options, LogSeverity::Error);
         errorOccurred = true;

@@ -78,6 +78,8 @@ struct DenigmaOptions
     std::string programName;
     bool overwriteExisting{};
     bool allPartsAndScore{};
+    bool relativeOutputDirs{};
+    bool recursiveSearch{};
     std::optional<std::string> partName;
     std::optional<std::filesystem::path> logFilePath;
     std::shared_ptr<std::ofstream> logFile;
@@ -94,8 +96,10 @@ public:
 
     virtual int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) const = 0;
 
+    virtual bool canProcess(const std::filesystem::path& inputPath) const = 0;
     virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const = 0;
     virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaOptions& options) const = 0;
+    virtual std::optional<std::string_view> defaultInputFormat() const = 0;
     virtual std::optional<std::string_view> defaultOutputFormat() const = 0;
     
     virtual const std::string_view commandName() const = 0;

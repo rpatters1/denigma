@@ -110,6 +110,15 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     return 1;
 }
 
+bool ExportCommand::canProcess(const std::filesystem::path& inputPath) const
+{
+    try {
+        findProcessor(inputProcessors, inputPath.extension().u8string());
+        return true;
+    } catch (...) {}
+    return false;
+}
+
 Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const
 {
     auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
