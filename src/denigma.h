@@ -72,6 +72,15 @@ using arg_string = std::string;
 #endif
 
 using Buffer = std::vector<char>;
+using LogMsg = std::stringstream;
+
+/// @brief defines log message severity
+enum class LogSeverity
+{
+    Info,       ///< No error. The message is for information.
+    Warning,    ///< An event has occurred that may affect the result, but processing of output continues.
+    Error       ///< Processing of the current file has aborted. This level usually occurs in catch blocks.
+};
 
 struct DenigmaOptions
 {
@@ -86,6 +95,15 @@ struct DenigmaOptions
     std::filesystem::path inputFilePath;
 
     void startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[]); ///< Starts logging if logging was requested
+
+    /**
+     * @brief logs a message using the options or outputs to std::cerr
+     * @param msg a utf-8 encoded message.
+     * @param severity the message severity
+    */
+    void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info) const;
+
+    void endLogging();
 };
 
 class ICommand
@@ -99,8 +117,8 @@ public:
     virtual bool canProcess(const std::filesystem::path& inputPath) const = 0;
     virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const = 0;
     virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaOptions& options) const = 0;
-    virtual std::optional<std::string_view> defaultInputFormat() const = 0;
-    virtual std::optional<std::string_view> defaultOutputFormat() const = 0;
+    virtual std::optional<std::string_view> defaultInputFormat() const { return std::nullopt; }
+    virtual std::optional<std::string_view> defaultOutputFormat() const { return std::nullopt; }
     
     virtual const std::string_view commandName() const = 0;
 };
@@ -108,23 +126,5 @@ public:
 std::string getTimeStamp(const std::string& fmt);
 
 bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaOptions& options);
-
-/// @brief defines log message severity
-enum class LogSeverity
-{
-    Info,       ///< No error. The message is for information.
-    Warning,    ///< An event has occurred that may affect the result, but processing of output continues.
-    Error       ///< Processing of the current file has aborted. This level usually occurs in catch blocks.
-};
-
-using LogMsg = std::stringstream;
-
-/**
- * @brief logs a message using the options or outputs to std::cerr
- * @param msg a utf-8 encoded message.
- * @param options the options that determine how to log the message
- * @param severity the message severity
-*/
-void logMessage(LogMsg&& msg, const DenigmaOptions& options, LogSeverity severity = LogSeverity::Info);
 
 } // namespace denigma

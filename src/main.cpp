@@ -96,7 +96,7 @@ std::string getTimeStamp(const std::string& fmt)
     return timestamp.str();
 }
 
-void logMessage(LogMsg&& msg, const DenigmaOptions& options, LogSeverity severity)
+void DenigmaOptions::logMessage(LogMsg&& msg, LogSeverity severity) const
 {
     auto getSeverityStr = [severity]() -> std::string {
             switch (severity) {
@@ -107,16 +107,16 @@ void logMessage(LogMsg&& msg, const DenigmaOptions& options, LogSeverity severit
             }
         };
     msg.flush();
-    std::string inputFile = options.inputFilePath.filename().u8string();
+    std::string inputFile = inputFilePath.filename().u8string();
     if (!inputFile.empty()) {
         inputFile += ' ';
     }
-    if (options.logFile && options.logFile->is_open()) {
+    if (logFile && logFile->is_open()) {
         LogMsg prefix = LogMsg() << "[" << getTimeStamp("%Y-%m-%d %H:%M:%S") << "] " << inputFile;
         prefix.flush();
-        *options.logFile << prefix.str() << getSeverityStr() << msg.str() << std::endl;
+        *logFile << prefix.str() << getSeverityStr() << msg.str() << std::endl;
         if (severity == LogSeverity::Error) {
-            *options.logFile << prefix.str() << "PROCESSING ABORTED" << std::endl;
+            *logFile << prefix.str() << "PROCESSING ABORTED" << std::endl;
         }
         if (severity != LogSeverity::Error) {
             return;
@@ -146,19 +146,19 @@ void logMessage(LogMsg&& msg, const DenigmaOptions& options, LogSeverity severit
 bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaOptions& options)
 {
     if (options.inputFilePath == outputFilePath) {
-        logMessage(LogMsg() << outputFilePath.u8string() << ": " << "Input and output are the same. No action taken.", options);
+        options.logMessage(LogMsg() << outputFilePath.u8string() << ": " << "Input and output are the same. No action taken.");
         return false;
     }
 
     if (std::filesystem::exists(outputFilePath)) {
         if (options.overwriteExisting) {
-            logMessage(LogMsg() << "Overwriting " << outputFilePath.u8string(), options);
+            options.logMessage(LogMsg() << "Overwriting " << outputFilePath.u8string());
         } else {
-            logMessage(LogMsg() << outputFilePath.u8string() << " exists. Use --force to overwrite it.", options);
+            options.logMessage(LogMsg() << outputFilePath.u8string() << " exists. Use --force to overwrite it.");
             return false;
         }
     } else {
-        logMessage(LogMsg() << "Output: " << outputFilePath.u8string(), options);
+        options.logMessage(LogMsg() << "Output: " << outputFilePath.u8string());
     }
 
     return true;
@@ -191,15 +191,25 @@ void DenigmaOptions::startLogging(const std::filesystem::path& defaultLogPath, i
         if (appending) {
             *logFile << std::endl;
         }
-        logMessage(LogMsg() << "====== STARTED ======", *this);
-        logMessage(LogMsg() << programName << " executed with the following arguments:", *this);
+        logMessage(LogMsg() << "======= START =======");
+        logMessage(LogMsg() << programName << " executed with the following arguments:");
         LogMsg args;
         args << programName << " ";
         for (int i = 1; i < argc; i++) {
             args << std::string(arg_string(argv[i])) << " ";
         }
-        logMessage(std::move(args), *this);
-        logMessage(LogMsg(), *this);
+        logMessage(std::move(args));
+    }   
+}
+
+void DenigmaOptions::endLogging()
+{
+    if (logFilePath.has_value()) {
+        inputFilePath = "";
+        logMessage(LogMsg());
+        logMessage(LogMsg() << programName << " processing complete");
+        logMessage(LogMsg() << "======== END ========");
+        logFile.reset();
     }
 }
 
@@ -213,9 +223,10 @@ static bool processFile(const std::shared_ptr<ICommand>& currentCommand, const s
         constexpr size_t kProcessingMessageSize = sizeof(kProcessingMessage) - 1; // account for null terminator.
         std::string delimiter(kProcessingMessageSize + inputFilePath.u32string().size(), '='); // use u32string().size to get actual number of characters displayed
         // log header for each file
-        logMessage(LogMsg() << delimiter, options);
-        logMessage(LogMsg() << kProcessingMessage << inputFilePath.u8string(), options);
-        logMessage(LogMsg() << delimiter, options);
+        options.logMessage(LogMsg());
+        options.logMessage(LogMsg() << delimiter);
+        options.logMessage(LogMsg() << kProcessingMessage << inputFilePath.u8string());
+        options.logMessage(LogMsg() << delimiter);
         options.inputFilePath = inputFilePath; // assign after logging the header
 
         const auto enigmaXml = currentCommand->processInput(inputFilePath, options);
@@ -254,9 +265,9 @@ static bool processFile(const std::shared_ptr<ICommand>& currentCommand, const s
         }
         return true;
     } catch (const musx::xml::load_error& ex) {
-        logMessage(LogMsg() << "Load XML failed: " << ex.what(), options, LogSeverity::Error);
+        options.logMessage(LogMsg() << "Load XML failed: " << ex.what(), LogSeverity::Error);
     } catch (const std::exception& e) {
-        logMessage(LogMsg() << e.what(), options, LogSeverity::Error);
+        options.logMessage(LogMsg() << e.what(), LogSeverity::Error);
     }
 
     return false;
@@ -308,6 +319,8 @@ int _MAIN(int argc, arg_char* argv[])
             options.partName = _ARG_CONV(getNextArg());
         } else if (next == _ARG("--all-parts")) {
             options.allPartsAndScore = true;
+        } else if (next == _ARG("--recursive")) {
+            options.recursiveSearch = true;
         } else if (next == _ARG("--relative")) {
             options.relativeOutputDirs = true;
         } else {
@@ -350,12 +363,11 @@ int _MAIN(int argc, arg_char* argv[])
                         case musx::util::Logger::LogLevel::Error: return LogSeverity::Error;
                     }
                 }();
-            logMessage(LogMsg() << msg, options, logSeverity);
+            options.logMessage(LogMsg() << msg, logSeverity);
         });
 
     bool errorOccurred = false;
     try {
-        options.inputFilePath = "";
         std::filesystem::path inputFilePattern = args[1];
 
         // collect inputs
@@ -381,28 +393,38 @@ int _MAIN(int argc, arg_char* argv[])
         regexPattern = std::regex_replace(regexPattern, std::regex(R"(\?)"), R"(.)");
         std::regex regex(regexPattern);
 
-        bool foundAFile = false;
-        for (const auto& entry : std::filesystem::directory_iterator(inputDir)) {
-            if (entry.is_regular_file() && std::regex_match(entry.path().filename().u8string(), regex)) {
-                foundAFile = true;
-                auto inputFilePath = entry.path();
-                if (currentCommand->canProcess(inputFilePath)) {
-                    if (!processFile(currentCommand, inputFilePath, args, options)) {
-                        errorOccurred = true;
-                    }
-                } else {
-                    if (inputIsOneFile) {
-                        std::cerr << "Invalid input format." << std::endl;
-                        return showHelpPage(options.programName);
+        auto iterate = [&](auto& iterator) {
+            for (const auto& entry : iterator) {
+                if (entry.is_regular_file() && std::regex_match(entry.path().filename().u8string(), regex)) {
+                    auto inputFilePath = entry.path();
+                    if (currentCommand->canProcess(inputFilePath)) {
+                        options.inputFilePath = "";
+                        if (!processFile(currentCommand, inputFilePath, args, options)) {
+                            errorOccurred = true;
+                        }
+                    } else if (inputIsOneFile) {
+                            std::cerr << "Invalid input format." << std::endl;
+                            showHelpPage(options.programName);
+                            errorOccurred = true;
+                            break;
                     }
                 }
             }
-        }
+        };
+        if (options.recursiveSearch) {
+            std::filesystem::recursive_directory_iterator it(inputDir);
+            iterate(it);
+        } else {
+            std::filesystem::directory_iterator it(inputDir);
+            iterate(it);
+        }        
     }
     catch (const std::exception& e) {
-        logMessage(LogMsg() << e.what(), options, LogSeverity::Error);
+        options.logMessage(LogMsg() << e.what(), LogSeverity::Error);
         errorOccurred = true;
     }
+
+    options.endLogging();
 
     return errorOccurred;
 }

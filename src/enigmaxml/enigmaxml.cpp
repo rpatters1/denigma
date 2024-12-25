@@ -46,9 +46,9 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaOptions& option
         xmlFile.open(inputPath, std::ios::binary);
         return Buffer((std::istreambuf_iterator<char>(xmlFile)), std::istreambuf_iterator<char>());
     } catch (const std::ios_base::failure& ex) {
-        logMessage(LogMsg() << "unable to read " << inputPath.u8string(), options, LogSeverity::Error);
-        logMessage(LogMsg() << "message: " << ex.what(), options, LogSeverity::Error);
-        logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), options, LogSeverity::Error);
+        options.logMessage(LogMsg() << "unable to read " << inputPath.u8string(), LogSeverity::Error);
+        options.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
+        options.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
         throw;
     };
 }
@@ -64,8 +64,8 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaOptions& opt
         musx::util::ScoreFileEncoder::recodeBuffer(buffer);
         return EzGz::IGzFile<>({ reinterpret_cast<uint8_t*>(buffer.data()), buffer.size() }).readAll();
     } catch (const std::exception &ex) {
-        logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), options, LogSeverity::Error);
-        logMessage(LogMsg() << " (exception: " << ex.what() << ")", options, LogSeverity::Error);
+        options.logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), LogSeverity::Error);
+        options.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         throw;
     }
 }
@@ -78,7 +78,7 @@ void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, con
         std::ifstream inFile;
 
         size_t uncompressedSize = xmlBuffer.size();
-        logMessage(LogMsg() << "decompressed size of enigmaxml: " << uncompressedSize, options);
+        options.logMessage(LogMsg() << "decompressed size of enigmaxml: " << uncompressedSize);
 
         std::ofstream xmlFile;
         xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
@@ -86,9 +86,9 @@ void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, con
         xmlFile.write(xmlBuffer.data(), xmlBuffer.size());
     } catch (const std::ios_base::failure& ex) {
         std::stringstream sst;
-        logMessage(LogMsg() << "unable to write " << outputPath.u8string(), options, LogSeverity::Error);
-        logMessage(LogMsg() << "message: " << ex.what(), options, LogSeverity::Error);
-        logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), options, LogSeverity::Error);
+        options.logMessage(LogMsg() << "unable to write " << outputPath.u8string(), LogSeverity::Error);
+        options.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
+        options.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
         throw;
     }
 }

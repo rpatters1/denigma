@@ -261,11 +261,11 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
 {
     auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(categoryType));
     if (!cat) {
-        logMessage(LogMsg() << "unable to load category def for " << namePrefix, prefs->options, LogSeverity::Warning);
+        prefs->options.logMessage(LogMsg() << "unable to load category def for " << namePrefix, LogSeverity::Warning);
         return;
     }
     if (!cat->textFont) {
-        logMessage(LogMsg() << "marking category " << cat->getName() << " has no text font.", prefs->options, LogSeverity::Warning);
+        prefs->options.logMessage(LogMsg() << "marking category " << cat->getName() << " has no text font.", LogSeverity::Warning);
         return;
     }
     writeFontPref(styleElement, namePrefix, cat->textFont.get());
@@ -274,7 +274,7 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
             writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
             break;
         } else {
-            logMessage(LogMsg() << "marking category " << cat->getName() << " has invalid text expression.", prefs->options, LogSeverity::Warning);
+            prefs->options.logMessage(LogMsg() << "marking category " << cat->getName() << " has invalid text expression.", LogSeverity::Warning);
         }
     }
 }
@@ -730,7 +730,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
         auto partName = part->getName(); // Utf8-encoded partname can contain non-ASCII characters 
         if (partName.empty()) {
             partName = "Part" + std::to_string(part->getCmper());
-            logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension", options, LogSeverity::Warning);
+            options.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension", LogSeverity::Warning);
         }
         auto currExtension = qualifiedOutputPath.extension();
         qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.u8string()));
@@ -795,9 +795,9 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     }
     if (options.partName.has_value() && !options.allPartsAndScore && !foundPart) {
         if (options.partName->empty()) {
-            logMessage(LogMsg() << "No parts were found in document", options, LogSeverity::Warning);
+            options.logMessage(LogMsg() << "No parts were found in document", LogSeverity::Warning);
         } else {
-            logMessage(LogMsg() << "No part name starting with \"" << options.partName.value() << "\" was found", options, LogSeverity::Warning);
+            options.logMessage(LogMsg() << "No part name starting with \"" << options.partName.value() << "\" was found", LogSeverity::Warning);
         }
     }
 }
