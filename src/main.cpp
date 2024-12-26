@@ -164,9 +164,19 @@ bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const 
     return true;
 }
 
+/** returns true if input path is a directory */
 bool createDirectoryIfNeeded(const std::filesystem::path& path)
 {
-    if (std::filesystem::is_directory(path) || (!std::filesystem::exists(path) && !path.has_extension())) {
+    // std::filesystem::path::exists() somethimes erroneously throws on Windows network drives.
+    // this works around that issue.
+    bool exists = false;
+    try {
+        exists = std::filesystem::exists(path);
+    } catch(...) {}
+    if (!exists) {
+        std::filesystem::create_directories(path.parent_path());
+    }
+    if (std::filesystem::is_directory(path) || (!exists && !path.has_extension())) {
         std::filesystem::create_directories(path);
         return true;
     }
