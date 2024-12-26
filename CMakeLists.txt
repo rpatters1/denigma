@@ -95,6 +95,7 @@ include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 # Add executable target
 add_executable(denigma
     src/main.cpp
+    src/denigma.cpp
     src/export.cpp
     src/enigmaxml/enigmaxml.cpp
     src/mnx/mnx.cpp

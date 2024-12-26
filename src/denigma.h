@@ -35,6 +35,16 @@ inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
 inline constexpr char MNX_EXTENSION[]       = "mnx";
 inline constexpr char MSS_EXTENSION[]       = "mss";
 
+#ifdef _WIN32
+#define _ARG(S) L##S
+#define _ARG_CONV(S) (stringutils::wstringToString(std::wstring(S)))
+#define _MAIN wmain
+#else
+#define _ARG(S) S
+#define _ARG_CONV(S) S
+#define _MAIN main
+#endif
+
 namespace denigma {
 
 // This function exists as std::to_array in C++20
@@ -130,5 +140,7 @@ public:
 std::string getTimeStamp(const std::string& fmt);
 
 bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaContext& denigmaContext);
+bool createDirectoryIfNeeded(const std::filesystem::path& path);
+bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext);
 
 } // namespace denigma
