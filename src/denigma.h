@@ -82,13 +82,14 @@ enum class LogSeverity
     Error       ///< Processing of the current file has aborted. This level usually occurs in catch blocks.
 };
 
-struct DenigmaOptions
+struct DenigmaContext
 {
     std::string programName;
     bool overwriteExisting{};
     bool allPartsAndScore{};
     bool relativeOutputDirs{};
     bool recursiveSearch{};
+    bool noLog{};
     std::optional<std::string> partName;
     std::optional<std::filesystem::path> logFilePath;
     std::shared_ptr<std::ofstream> logFile;
@@ -97,7 +98,7 @@ struct DenigmaOptions
     void startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[]); ///< Starts logging if logging was requested
 
     /**
-     * @brief logs a message using the options or outputs to std::cerr
+     * @brief logs a message using the denigmaContext or outputs to std::cerr
      * @param msg a utf-8 encoded message.
      * @param severity the message severity
     */
@@ -115,8 +116,8 @@ public:
     virtual int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) const = 0;
 
     virtual bool canProcess(const std::filesystem::path& inputPath) const = 0;
-    virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const = 0;
-    virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaOptions& options) const = 0;
+    virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
+    virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const = 0;
     virtual std::optional<std::string_view> defaultInputFormat() const { return std::nullopt; }
     virtual std::optional<std::string_view> defaultOutputFormat() const { return std::nullopt; }
     
@@ -125,6 +126,6 @@ public:
 
 std::string getTimeStamp(const std::string& fmt);
 
-bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaOptions& options);
+bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaContext& denigmaContext);
 
 } // namespace denigma

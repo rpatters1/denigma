@@ -39,7 +39,7 @@ constexpr auto inputProcessors = []() {
     struct InputProcessor
     {
         const char* extension;
-        Buffer(*processor)(const std::filesystem::path&, const DenigmaOptions&);
+        Buffer(*processor)(const std::filesystem::path&, const DenigmaContext&);
     };
 
     return to_array<InputProcessor>({
@@ -53,7 +53,7 @@ constexpr auto outputProcessors = []() {
     struct OutputProcessor
     {
         const char* extension;
-        void(*processor)(const std::filesystem::path&, const Buffer&, const DenigmaOptions&);
+        void(*processor)(const std::filesystem::path&, const Buffer&, const DenigmaContext&);
     };
 
     return to_array<OutputProcessor>({
@@ -89,7 +89,11 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     // Supported input formats
     std::cout << indentSpaces << "Supported input formats:" << std::endl;
     for (const auto& input : inputProcessors) {
-        std::cout << indentSpaces << "  *." << input.extension << std::endl;
+        std::cout << indentSpaces << "  *." << input.extension;
+        if (input.extension == defaultInputFormat()) {
+            std::cout << " (default input format)";
+        }
+        std::cout << std::endl;
     }
     std::cout << indentSpaces << std::endl;
 
@@ -102,10 +106,13 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
 
     // Example usage
     std::cout << indentSpaces << "Examples:" << std::endl;
-    std::cout << indentSpaces << "  " << fullCommand << " input.musx --mss output.mss" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --recursive --relative" << std::endl;
+    std::cout << indentSpaces << "  " << "  exports .musx files in myfolder and all subfolders to directory exports/mss within the same folder as each file found" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml" << std::endl;
+    std::cout << indentSpaces << "  " << "  exports the enigmaxml in input.musx to output.enigmaxml in the same folder" << std::endl;
     //std::cout << indentSpaces << "  " << programName << " input.enigmaxml --mnx --mss" << std::endl;
-    std::cout << indentSpaces << "  " << fullCommand << " input.musx --mss --enigmaxml" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " myfile.enigmaxml --mss" << std::endl;
+    std::cout << indentSpaces << "  " << "  exports myfile.enigmaxml to myfile.mss in the same folder" << std::endl;
 
     return 1;
 }
@@ -119,16 +126,16 @@ bool ExportCommand::canProcess(const std::filesystem::path& inputPath) const
     return false;
 }
 
-Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaOptions& options) const
+Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
     auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
-    return inputProcessor(inputPath, options);
+    return inputProcessor(inputPath, denigmaContext);
 }
 
-void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaOptions& options) const
+void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const
 {
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
-    outputProcessor(outputPath, enigmaXml, options);
+    outputProcessor(outputPath, enigmaXml, denigmaContext);
 }
 
 } // namespace denigma

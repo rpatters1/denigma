@@ -38,7 +38,7 @@ constexpr char SCORE_DAT_NAME[] = "score.dat";
 namespace denigma {
 namespace enigmaxml {
 
-Buffer read(const std::filesystem::path& inputPath, const DenigmaOptions& options)
+Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
     try {
         std::ifstream xmlFile;
@@ -46,14 +46,14 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaOptions& option
         xmlFile.open(inputPath, std::ios::binary);
         return Buffer((std::istreambuf_iterator<char>(xmlFile)), std::istreambuf_iterator<char>());
     } catch (const std::ios_base::failure& ex) {
-        options.logMessage(LogMsg() << "unable to read " << inputPath.u8string(), LogSeverity::Error);
-        options.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
-        options.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to read " << inputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
         throw;
     };
 }
 
-Buffer extract(const std::filesystem::path& inputPath, const DenigmaOptions& options)
+Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
     try {
         std::ifstream zipFile;
@@ -64,21 +64,21 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaOptions& opt
         musx::util::ScoreFileEncoder::recodeBuffer(buffer);
         return EzGz::IGzFile<>({ reinterpret_cast<uint8_t*>(buffer.data()), buffer.size() }).readAll();
     } catch (const std::exception &ex) {
-        options.logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), LogSeverity::Error);
-        options.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         throw;
     }
 }
 
-void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaOptions& options)
+void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
-    if (!denigma::validatePathsAndOptions(outputPath, options)) return;
+    if (!denigma::validatePathsAndOptions(outputPath, denigmaContext)) return;
 
     try	{
         std::ifstream inFile;
 
         size_t uncompressedSize = xmlBuffer.size();
-        options.logMessage(LogMsg() << "decompressed size of enigmaxml: " << uncompressedSize);
+        denigmaContext.logMessage(LogMsg() << "decompressed size of enigmaxml: " << uncompressedSize);
 
         std::ofstream xmlFile;
         xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
@@ -86,9 +86,9 @@ void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, con
         xmlFile.write(xmlBuffer.data(), xmlBuffer.size());
     } catch (const std::ios_base::failure& ex) {
         std::stringstream sst;
-        options.logMessage(LogMsg() << "unable to write " << outputPath.u8string(), LogSeverity::Error);
-        options.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
-        options.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to write " << outputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
         throw;
     }
 }

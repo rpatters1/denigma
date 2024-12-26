@@ -63,7 +63,7 @@ static const std::set<std::string_view> museScoreSMuFLFonts{
 // Finale preferences:
 struct FinalePreferences
 {
-    DenigmaOptions options;
+    DenigmaContext denigmaContext;
     DocumentPtr document;
     std::shared_ptr<FontInfo> defaultMusicFont;
     //
@@ -101,7 +101,7 @@ static std::shared_ptr<T> getDocOptions(const FinalePreferencesPtr& prefs, const
 {
     auto retval = prefs->document->getOptions()->get<T>();
     if (!retval) {
-        throw std::invalid_argument("document contains no default " + prefsName + " options");
+        throw std::invalid_argument("document contains no default " + prefsName + " denigmaContext");
     }
     return retval;
 }
@@ -261,11 +261,11 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
 {
     auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(categoryType));
     if (!cat) {
-        prefs->options.logMessage(LogMsg() << "unable to load category def for " << namePrefix, LogSeverity::Warning);
+        prefs->denigmaContext.logMessage(LogMsg() << "unable to load category def for " << namePrefix, LogSeverity::Warning);
         return;
     }
     if (!cat->textFont) {
-        prefs->options.logMessage(LogMsg() << "marking category " << cat->getName() << " has no text font.", LogSeverity::Warning);
+        prefs->denigmaContext.logMessage(LogMsg() << "marking category " << cat->getName() << " has no text font.", LogSeverity::Warning);
         return;
     }
     writeFontPref(styleElement, namePrefix, cat->textFont.get());
@@ -274,7 +274,7 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
             writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
             break;
         } else {
-            prefs->options.logMessage(LogMsg() << "marking category " << cat->getName() << " has invalid text expression.", LogSeverity::Warning);
+            prefs->denigmaContext.logMessage(LogMsg() << "marking category " << cat->getName() << " has invalid text expression.", LogSeverity::Warning);
         }
     }
 }
@@ -722,7 +722,7 @@ void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pre
     }
 }
 
-static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const DenigmaOptions& options, const std::shared_ptr<others::PartDefinition>& part = nullptr)
+static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const DenigmaContext& denigmaContext, const std::shared_ptr<others::PartDefinition>& part = nullptr)
 {
     // calculate actual output path
     std::filesystem::path qualifiedOutputPath = outputPath;
@@ -730,16 +730,16 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
         auto partName = part->getName(); // Utf8-encoded partname can contain non-ASCII characters 
         if (partName.empty()) {
             partName = "Part" + std::to_string(part->getCmper());
-            options.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension", LogSeverity::Warning);
         }
         auto currExtension = qualifiedOutputPath.extension();
         qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.u8string()));
     }
-    if (!denigma::validatePathsAndOptions(qualifiedOutputPath, options)) return;
+    if (!denigma::validatePathsAndOptions(qualifiedOutputPath, denigmaContext)) return;
 
     const Cmper forPartId = part ? part->getCmper() : 0;
     auto prefs = getCurrentPrefs(document, forPartId);
-    prefs->options = options;
+    prefs->denigmaContext = denigmaContext;
 
     // extract document to mss
     XmlDocument mssDoc; // output
@@ -772,32 +772,32 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     }
 }
 
-void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaOptions& options)
+void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
     auto document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
-    if (options.allPartsAndScore || !options.partName.has_value()) {
-        processPart(outputPath, document, options); // process the score
+    if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
+        processPart(outputPath, document, denigmaContext); // process the score
     }
     bool foundPart = false;
-    if (options.allPartsAndScore || options.partName.has_value()) {
+    if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
         auto parts = document->getOthers()->getArray<others::PartDefinition>();
         for (const auto& part : parts) {
             if (part->getCmper()) {
-                if (options.allPartsAndScore) {
-                    processPart(outputPath, document, options, part);
-                } else if (options.partName->empty() || part->getName().rfind(options.partName.value(), 0) == 0) {
-                    processPart(outputPath, document, options, part);
+                if (denigmaContext.allPartsAndScore) {
+                    processPart(outputPath, document, denigmaContext, part);
+                } else if (denigmaContext.partName->empty() || part->getName().rfind(denigmaContext.partName.value(), 0) == 0) {
+                    processPart(outputPath, document, denigmaContext, part);
                     foundPart = true;
                     break;
                 }
             }
         }
     }
-    if (options.partName.has_value() && !options.allPartsAndScore && !foundPart) {
-        if (options.partName->empty()) {
-            options.logMessage(LogMsg() << "No parts were found in document", LogSeverity::Warning);
+    if (denigmaContext.partName.has_value() && !denigmaContext.allPartsAndScore && !foundPart) {
+        if (denigmaContext.partName->empty()) {
+            denigmaContext.logMessage(LogMsg() << "No parts were found in document", LogSeverity::Warning);
         } else {
-            options.logMessage(LogMsg() << "No part name starting with \"" << options.partName.value() << "\" was found", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "No part name starting with \"" << denigmaContext.partName.value() << "\" was found", LogSeverity::Warning);
         }
     }
 }

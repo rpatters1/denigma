@@ -36,17 +36,17 @@ namespace denigma {
 namespace mnx {
 
 // placeholder
-void convert(const std::filesystem::path& file, const Buffer&, const DenigmaOptions& options)
+void convert(const std::filesystem::path& file, const Buffer&, const DenigmaContext& denigmaContext)
 {
-    options.logMessage(LogMsg() << "converting to " << file.u8string());
+    denigmaContext.logMessage(LogMsg() << "converting to " << file.u8string());
 }
 
 // temp func
-static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath, const DenigmaOptions& options)
+static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath, const DenigmaContext& denigmaContext)
 {
     static const std::string_view kMnxSchema(reinterpret_cast<const char *>(mnx_schema_json), mnx_schema_json_len);
 
-    options.logMessage(LogMsg() << "validate JSON " << jsonFilePath.u8string());
+    denigmaContext.logMessage(LogMsg() << "validate JSON " << jsonFilePath.u8string());
     try {
         // Load JSON schema
         nlohmann::json schemaJson = nlohmann::json::parse(kMnxSchema);
@@ -63,16 +63,16 @@ static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath,
 
         // Validate JSON
         validator.validate(jsonData);
-        options.logMessage(LogMsg() << "JSON is valid against the MNX schema.");
+        denigmaContext.logMessage(LogMsg() << "JSON is valid against the MNX schema.");
         return true;
     } catch (const nlohmann::json::exception& e) {
-        options.logMessage(LogMsg() << "JSON parsing error: " << e.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "JSON parsing error: " << e.what(), LogSeverity::Error);
     } catch (const std::invalid_argument& e) {
-        options.logMessage(LogMsg() << "Invalid argument: " << e.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "Invalid argument: " << e.what(), LogSeverity::Error);
     } catch (const std::exception& e) {
-        options.logMessage(LogMsg() << e.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
     }
-    options.logMessage(LogMsg() << "JSON is not valid against the MNX schema.", LogSeverity::Error);
+    denigmaContext.logMessage(LogMsg() << "JSON is not valid against the MNX schema.", LogSeverity::Error);
     return false;
 }
 
