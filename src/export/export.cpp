@@ -26,11 +26,10 @@
 #include <unordered_map>
 #include <optional>
 
-#include "export.h"
-
-#include "enigmaxml/enigmaxml.h"
-#include "mss/mss.h"
-#include "mnx/mnx.h"
+#include "export/export.h"
+#include "export/enigmaxml.h"
+#include "export/mss.h"
+#include "export/mnx.h"
 
 namespace denigma {
 

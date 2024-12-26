@@ -29,7 +29,7 @@
 #include "musx/musx.h"
 
 #include "denigma.h"
-#include "export.h"
+#include "export/export.h"
 #include "util/stringutils.h"
 
 static const auto registeredCommands = []()
