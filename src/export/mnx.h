@@ -24,14 +24,14 @@
 #include <filesystem>
 #include <optional>
 
-#include "enigmaxml/enigmaxml.h"
+#include "denigma.h"
 
  //placeholder function
 
 namespace denigma {
 namespace mnx {
 
-void convert(const std::filesystem::path& file, const enigmaxml::Buffer&, const std::optional<std::string>&, bool);
+void convert(const std::filesystem::path& file, const Buffer&, const DenigmaContext& denigmaContext);
 
 } // namespace mnx
 } // namespace denigma

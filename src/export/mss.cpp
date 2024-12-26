@@ -24,9 +24,12 @@
 #include <fstream>
 #include <set>
 
+#include "denigma.h"
+
 #include "mss.h"
 #include "musx/musx.h"
 #include "tinyxml2.h"
+#include "util/stringutils.h"
 
 namespace denigma {
 namespace mss {
@@ -60,6 +63,7 @@ static const std::set<std::string_view> museScoreSMuFLFonts{
 // Finale preferences:
 struct FinalePreferences
 {
+    DenigmaContext denigmaContext;
     DocumentPtr document;
     std::shared_ptr<FontInfo> defaultMusicFont;
     //
@@ -97,7 +101,7 @@ static std::shared_ptr<T> getDocOptions(const FinalePreferencesPtr& prefs, const
 {
     auto retval = prefs->document->getOptions()->get<T>();
     if (!retval) {
-        throw std::invalid_argument("document contains no default " + prefsName + " options");
+        throw std::invalid_argument("document contains no default " + prefsName + " denigmaContext");
     }
     return retval;
 }
@@ -257,11 +261,11 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
 {
     auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(categoryType));
     if (!cat) {
-        std::cout << "unable to load category def for " << namePrefix << std::endl;
+        prefs->denigmaContext.logMessage(LogMsg() << "unable to load category def for " << namePrefix, LogSeverity::Warning);
         return;
     }
     if (!cat->textFont) {
-        std::cout << "marking category " << cat->getName() << " has no text font." << std::endl;
+        prefs->denigmaContext.logMessage(LogMsg() << "marking category " << cat->getName() << " has no text font.", LogSeverity::Warning);
         return;
     }
     writeFontPref(styleElement, namePrefix, cat->textFont.get());
@@ -270,7 +274,7 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
             writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
             break;
         } else {
-            std::cout << "marking category " << cat->getName() << " has invalid text expression." << std::endl;
+            prefs->denigmaContext.logMessage(LogMsg() << "marking category " << cat->getName() << " has invalid text expression.", LogSeverity::Warning);
         }
     }
 }
@@ -478,6 +482,7 @@ void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPt
         // Helper lambdas for processing justification and alignment
         auto justificationString = [](MeasureNumberRegion::AlignJustify justi) -> std::string {
             switch (justi) {
+                default:
                 case MeasureNumberRegion::AlignJustify::Left: return "left,baseline";
                 case MeasureNumberRegion::AlignJustify::Center: return "center,baseline";
                 case MeasureNumberRegion::AlignJustify::Right: return "right,baseline";
@@ -486,6 +491,7 @@ void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPt
 
         auto horizontalAlignment = [](MeasureNumberRegion::AlignJustify align) -> int {
             switch (align) {
+                default:
                 case MeasureNumberRegion::AlignJustify::Left: return 0;
                 case MeasureNumberRegion::AlignJustify::Center: return 1;
                 case MeasureNumberRegion::AlignJustify::Right: return 2;
@@ -544,7 +550,7 @@ void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPt
     setElementValue(styleElement, "mmRestNumberPos", (prefs->mmRestOptions->numAdjY / EVPU_PER_SPACE) + 1);
     // setElementValue(styleElement, "multiMeasureRestMargin", prefs->mmRestOptions->startAdjust / EVPU_PER_SPACE); // Uncomment if margin is required
     setElementValue(styleElement, "oldStyleMultiMeasureRests", prefs->mmRestOptions->useSymbols && prefs->mmRestOptions->useSymsThreshold > 1);
-    setElementValue(styleElement, "mmRestOldStyleMaxMeasures", std::max(prefs->mmRestOptions->useSymsThreshold - 1, 0));
+    setElementValue(styleElement, "mmRestOldStyleMaxMeasures", (std::max)(prefs->mmRestOptions->useSymsThreshold - 1, 0));
     setElementValue(styleElement, "mmRestOldStyleSpacing", prefs->mmRestOptions->symSpacing / EVPU_PER_SPACE);
 }
 
@@ -630,7 +636,7 @@ void writeTupletPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pref
     setElementValue(
         styleElement,
         "tupletBracketHookHeight",
-        std::max(-tupletOptions->leftHookLen, -tupletOptions->rightHookLen) / EVPU_PER_SPACE
+        (std::max)(-tupletOptions->leftHookLen, -tupletOptions->rightHookLen) / EVPU_PER_SPACE
     );
 }
 
@@ -716,10 +722,24 @@ void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pre
     }
 }
 
-static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const std::shared_ptr<others::PartDefinition>& part = nullptr)
+static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const DenigmaContext& denigmaContext, const std::shared_ptr<others::PartDefinition>& part = nullptr)
 {
-    Cmper forPartId = part ? part->getCmper() : 0;
+    // calculate actual output path
+    std::filesystem::path qualifiedOutputPath = outputPath;
+    if (part) {
+        auto partName = part->getName(); // Utf8-encoded partname can contain non-ASCII characters 
+        if (partName.empty()) {
+            partName = "Part" + std::to_string(part->getCmper());
+            denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension", LogSeverity::Warning);
+        }
+        auto currExtension = qualifiedOutputPath.extension();
+        qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.u8string()));
+    }
+    if (!denigma::validatePathsAndOptions(qualifiedOutputPath, denigmaContext)) return;
+
+    const Cmper forPartId = part ? part->getCmper() : 0;
     auto prefs = getCurrentPrefs(document, forPartId);
+    prefs->denigmaContext = denigmaContext;
 
     // extract document to mss
     XmlDocument mssDoc; // output
@@ -741,57 +761,44 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     writeTupletPrefs(styleElement, prefs);
     writeMarkingPrefs(styleElement, prefs);
     // output
-    std::filesystem::path qualifiedOutputPath = outputPath;
-    if (part) {
-        auto partName = part->getName();
-        if (partName.empty()) {
-            partName = "Part" + std::to_string(part->partOrder);
-        }
-        auto currExtension = qualifiedOutputPath.extension();
-        qualifiedOutputPath.replace_extension(partName + currExtension.string());
-    }
-    if (mssDoc.SaveFile(qualifiedOutputPath.string().c_str()) != ::tinyxml2::XML_SUCCESS) {
+    // open the file ourselves to avoid tinyxml2's use of Windows ACP encoding for path strings
+    /// @todo encapsulate this into a callable function if/when we need to do it elsewhere
+    FILE* fp = stringutils::openFile(qualifiedOutputPath, "w");
+    if (!fp) throw std::runtime_error("Unable to write to file " + qualifiedOutputPath.u8string());
+    auto result = mssDoc.SaveFile(fp);
+    fclose(fp);
+    if (result != ::tinyxml2::XML_SUCCESS) {
         throw std::runtime_error(mssDoc.ErrorStr());
     }
-    std::cout << "exported " << qualifiedOutputPath.string() << std::endl;
 }
 
-void convert(const std::filesystem::path& outputPath, const enigmaxml::Buffer& xmlBuffer, const std::optional<std::string>& partName, bool allPartsAndScore)
+void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
-    try {
-        auto document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
-        if (allPartsAndScore || !partName.has_value()) {
-            processPart(outputPath, document); // process the score
-        }
-        bool foundPart = false;
-        if (allPartsAndScore || partName.has_value()) {
-            auto parts = document->getOthers()->getArray<others::PartDefinition>();
-            for (const auto& part : parts) {
-                if (part->getCmper()) {
-                    if (allPartsAndScore) {
-                        processPart(outputPath, document, part);
-                    } else if (partName->empty() || part->getName().rfind(partName.value(), 0) == 0) {
-                        processPart(outputPath, document, part);
-                        foundPart = true;
-                        break;
-                    }
+    auto document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
+    if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
+        processPart(outputPath, document, denigmaContext); // process the score
+    }
+    bool foundPart = false;
+    if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
+        auto parts = document->getOthers()->getArray<others::PartDefinition>();
+        for (const auto& part : parts) {
+            if (part->getCmper()) {
+                if (denigmaContext.allPartsAndScore) {
+                    processPart(outputPath, document, denigmaContext, part);
+                } else if (denigmaContext.partName->empty() || part->getName().rfind(denigmaContext.partName.value(), 0) == 0) {
+                    processPart(outputPath, document, denigmaContext, part);
+                    foundPart = true;
+                    break;
                 }
             }
         }
-        if (partName.has_value() && !allPartsAndScore && !foundPart) {
-            if (partName->empty()) {
-                std::cout << "no parts were found in document" << std::endl;
-            } else {
-                std::cout << "no part name starting with \"" << partName.value() << "\" was found" << std::endl;
-            }
-        }
     }
-    catch (const musx::xml::load_error& ex) {
-        std::cerr << "Load XML failed: " << ex.what() << std::endl;
-        throw;
-    } catch (const std::exception& ex) {
-        std::cerr << "Error: " << ex.what() << std::endl;
-        throw;
+    if (denigmaContext.partName.has_value() && !denigmaContext.allPartsAndScore && !foundPart) {
+        if (denigmaContext.partName->empty()) {
+            denigmaContext.logMessage(LogMsg() << "No parts were found in document", LogSeverity::Warning);
+        } else {
+            denigmaContext.logMessage(LogMsg() << "No part name starting with \"" << denigmaContext.partName.value() << "\" was found", LogSeverity::Warning);
+        }
     }
 }
 

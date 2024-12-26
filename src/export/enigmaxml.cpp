@@ -23,18 +23,22 @@
 #include <filesystem>
 #include <vector>
 #include <iostream>
+#include <sstream>
+
+#include "zip_file.hpp"		// miniz submodule (for zip)
+#include "ezgz.hpp"			// ezgz submodule (for gzip)
 
 #include "musx/musx.h"
 #include "enigmaxml.h"
-#include "zip_file.hpp"		// miniz submodule (for zip)
-#include "ezgz.hpp"			// ezgz submodule (for gzip)
+
+#include "denigma.h"
 
 constexpr char SCORE_DAT_NAME[] = "score.dat";
 
 namespace denigma {
 namespace enigmaxml {
 
-Buffer read(const std::filesystem::path& inputPath)
+Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
     try {
         std::ifstream xmlFile;
@@ -42,48 +46,49 @@ Buffer read(const std::filesystem::path& inputPath)
         xmlFile.open(inputPath, std::ios::binary);
         return Buffer((std::istreambuf_iterator<char>(xmlFile)), std::istreambuf_iterator<char>());
     } catch (const std::ios_base::failure& ex) {
-        std::cout << "unable to read " << inputPath.string() << std::endl
-                  << "message: " << ex.what() << std::endl
-                  << "details: " << std::strerror(ex.code().value()) << std::endl;
+        denigmaContext.logMessage(LogMsg() << "unable to read " << inputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
         throw;
     };
 }
 
-Buffer extract(const std::filesystem::path& inputPath)
+Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
     try {
-        miniz_cpp::zip_file zip(inputPath.string());
+        std::ifstream zipFile;
+        zipFile.exceptions(std::ios::failbit | std::ios::badbit);
+        zipFile.open(inputPath, std::ios::binary);
+        miniz_cpp::zip_file zip(zipFile);
         std::string buffer = zip.read(SCORE_DAT_NAME);
         musx::util::ScoreFileEncoder::recodeBuffer(buffer);
         return EzGz::IGzFile<>({ reinterpret_cast<uint8_t*>(buffer.data()), buffer.size() }).readAll();
     } catch (const std::exception &ex) {
-        std::cout << "Error: unable to extract enigmaxml from file " << inputPath.string() << std::endl
-                  << " (exception: " << ex.what() << ")" << std::endl;
+        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         throw;
     }
 }
 
-void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>&, bool)
+void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
-    std::cout << "extracting to " << outputPath.string() << std::endl;
+    if (!denigma::validatePathsAndOptions(outputPath, denigmaContext)) return;
 
     try	{
         std::ifstream inFile;
 
         size_t uncompressedSize = xmlBuffer.size();
-        std::cout << "decompressed size of enigmaxml: " << uncompressedSize << std::endl;
+        denigmaContext.logMessage(LogMsg() << "decompressed size of enigmaxml: " << uncompressedSize);
 
         std::ofstream xmlFile;
         xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
         xmlFile.open(outputPath, std::ios::binary);
         xmlFile.write(xmlBuffer.data(), xmlBuffer.size());
     } catch (const std::ios_base::failure& ex) {
-        std::cout << "unable to write " << outputPath << std::endl
-                  << "message: " << ex.what() << std::endl
-                  << "details: " << std::strerror(ex.code().value()) << std::endl;
-        throw;
-    } catch (const std::exception &ex) {
-        std::cout << "unable to write " << outputPath << " (exception: " << ex.what() << ")" << std::endl;
+        std::stringstream sst;
+        denigmaContext.logMessage(LogMsg() << "unable to write " << outputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
         throw;
     }
 }

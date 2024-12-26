@@ -95,19 +95,20 @@ include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 # Add executable target
 add_executable(denigma
     src/main.cpp
-    src/enigmaxml/enigmaxml.cpp
-    src/mnx/mnx.cpp
-    src/mss/mss.cpp
+    src/denigma.cpp
+    src/export/export.cpp
+    src/export/enigmaxml.cpp
+    src/export/mnx.cpp
+    src/export/mss.cpp
 )
 
 # Compile definitions
 #set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
 set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
 
-
 # temporary for reference and debugging
 set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
-set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Enable throwing on unknown XML" FORCE)
+#set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Enable throwing on unknown XML" FORCE)
 
 #Include directories for your source files
 add_subdirectory(submodules/musx_object_model)
@@ -127,8 +128,11 @@ target_link_libraries(denigma PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(denigma PRIVATE nlohmann_json_schema_validator)
 target_link_libraries(denigma PRIVATE musx)
 
+# Define an interface library for precompiled headers
+add_library(denigma_pch INTERFACE)
+
 # Add Precompiled Headers (PCH) for the test suite
-target_precompile_headers(denigma PUBLIC
+target_precompile_headers(denigma_pch INTERFACE
     <algorithm>
     <functional>
     <string>
@@ -137,3 +141,9 @@ target_precompile_headers(denigma PUBLIC
     "${MUSX_ROOT_DIR}/src/musx/musx.h"
     "${RAPIDXML_DIR}/rapidxml.hpp"
 )
+
+# Link the interface library to denigma
+target_link_libraries(denigma PUBLIC denigma_pch)
+
+# Link the interface library to musx
+target_link_libraries(musx PRIVATE denigma_pch)

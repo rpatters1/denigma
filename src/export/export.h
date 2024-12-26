@@ -21,18 +21,23 @@
  */
 #pragma once
 
-#include <string>
-#include <vector>
-#include <optional>
+#include "denigma.h"
 
 namespace denigma {
-namespace enigmaxml {
 
-using Buffer = std::vector<char>;
+struct ExportCommand : public ICommand
+{
+    using ICommand::ICommand;
 
-Buffer extract(const std::filesystem::path& inputFile);
-Buffer read(const std::filesystem::path& inputFile);
-void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const std::optional<std::string>&, bool);
+    int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) const override;
+    
+    bool canProcess(const std::filesystem::path& inputPath) const override;
+    Buffer processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
+    void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const override;
 
-} // namespace enigmaxml
+    std::optional<std::string_view> defaultInputFormat() const override { return MUSX_EXTENSION; };
+    std::optional<std::string_view> defaultOutputFormat() const override { return ENIGMAXML_EXTENSION; };
+    const std::string_view commandName() const override { return "export"; }
+};
+
 } // namespace denigma
