@@ -391,6 +391,7 @@ int _MAIN(int argc, arg_char* argv[])
                         case musx::util::Logger::LogLevel::Info: return LogSeverity::Info;
                         case musx::util::Logger::LogLevel::Warning: return LogSeverity::Warning;
                         case musx::util::Logger::LogLevel::Error: return LogSeverity::Error;
+                        case musx::util::Logger::LogLevel::Verbose: return LogSeverity::Verbose;
                     }
                 }();
             denigmaContext.logMessage(LogMsg() << msg, logSeverity);
@@ -442,7 +443,7 @@ int _MAIN(int argc, arg_char* argv[])
                         }
                     }
                 }
-                if (!entry.is_direcory()) {
+                if (!entry.is_directory()) {
                     denigmaContext.logMessage(LogMsg() << "considered file " << entry.path().u8string(), LogSeverity::Verbose);
                 }
                 if (entry.is_regular_file() && std::regex_match(entry.path().filename().u8string(), regex)) {
