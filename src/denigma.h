@@ -79,7 +79,8 @@ enum class LogSeverity
 {
     Info,       ///< No error. The message is for information.
     Warning,    ///< An event has occurred that may affect the result, but processing of output continues.
-    Error       ///< Processing of the current file has aborted. This level usually occurs in catch blocks.
+    Error,      ///< Processing of the current file has aborted. This level usually occurs in catch blocks.
+    Verbose     ///< Only emit if --verbose option specified. The message is for information.
 };
 
 struct DenigmaContext
@@ -90,6 +91,8 @@ struct DenigmaContext
     bool relativeOutputDirs{};
     bool recursiveSearch{};
     bool noLog{};
+    bool verbose{};
+    std::optional<std::filesystem::path> excludeFolder;
     std::optional<std::string> partName;
     std::optional<std::filesystem::path> logFilePath;
     std::shared_ptr<std::ofstream> logFile;

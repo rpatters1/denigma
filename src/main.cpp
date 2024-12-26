@@ -57,6 +57,7 @@ static int showHelpPage(const std::string_view& programName)
 
     // General options
     std::cout << "General options:" << std::endl;
+    std::cout << "  --exclude folder-name           Exclude the specified folder from recursive searches" << std::endl;
     std::cout << "  --help                          Show this help message and exit" << std::endl;
     std::cout << "  --force                         Overwrite existing file(s)" << std::endl;
     std::cout << "  --part [optional-part-name]     Process named part or first part if name is omitted" << std::endl;
@@ -71,6 +72,7 @@ static int showHelpPage(const std::string_view& programName)
     std::cout << "Logging options:" << std::endl;
     std::cout << "  --log [optional-logfile-path]   Always log messages instead of sending them to std::cerr" << std::endl;
     std::cout << "  --no-log                        Always send messages to std::cerr (overrides any other logging options)" << std::endl;
+    std::cout << "  --verbose                       Verbose output" << std::endl;
 
     for (const auto& command : registeredCommands) {
         std::string commandStr = "Command " + command.first;
@@ -112,6 +114,9 @@ void DenigmaContext::logMessage(LogMsg&& msg, LogSeverity severity) const
             case LogSeverity::Error: return "[***ERROR***] ";
             }
         };
+    if (severity == LogSeverity::Verbose && !verbose) {
+        return;
+    }
     msg.flush();
     std::string inputFile = inputFilePath.filename().u8string();
     if (!inputFile.empty()) {
@@ -339,8 +344,15 @@ int _MAIN(int argc, arg_char* argv[])
             denigmaContext.allPartsAndScore = true;
         } else if (next == _ARG("--recursive")) {
             denigmaContext.recursiveSearch = true;
+        } else if (next == _ARG("--exclude-folder")) {
+            auto option = getNextArg();
+            if (!option.empty()) {
+                denigmaContext.excludeFolder = option;
+            }
         } else if (next == _ARG("--relative")) {
             denigmaContext.relativeOutputDirs = true;
+        } else if (next == _ARG("--verbose")) {
+            denigmaContext.verbose = true;
         } else {
             args.push_back(argv[x]);
         }
@@ -420,7 +432,19 @@ int _MAIN(int argc, arg_char* argv[])
         // this avoids potential infinite recursion if input and output are the same format
         std::vector<std::filesystem::path> pathsToProcess;
         auto iterate = [&](auto& iterator) {
-            for (const auto& entry : iterator) {
+            for (auto it = iterator; it != std::filesystem::end(iterator); ++it) {
+                const auto& entry = *it;
+                if constexpr (std::is_same_v<std::remove_reference_t<decltype(iterator)>, std::filesystem::recursive_directory_iterator>) {
+                    if (entry.is_directory()) {
+                        if (entry.path().filename() == denigmaContext.excludeFolder) {
+                            it.disable_recursion_pending(); // Skip this folder and its subdirectories
+                            continue;
+                        }
+                    }
+                }
+                if (!entry.is_direcory()) {
+                    denigmaContext.logMessage(LogMsg() << "considered file " << entry.path().u8string(), LogSeverity::Verbose);
+                }
                 if (entry.is_regular_file() && std::regex_match(entry.path().filename().u8string(), regex)) {
                     auto inputFilePath = entry.path();
                     if (currentCommand->canProcess(inputFilePath)) {
@@ -431,7 +455,7 @@ int _MAIN(int argc, arg_char* argv[])
                         errorOccurred = true;
                         break;
                     }
-                }
+                }    
             }
         };
         if (denigmaContext.recursiveSearch) {
