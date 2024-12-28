@@ -237,7 +237,7 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
     Buffer xmlCopy = xmlBuffer;
     xmlCopy.push_back(0);
     auto& xmlDocument = context->xmlDocument;
-    xmlDocument.parse<::rapidxml::parse_full | ::rapidxml::parse_fastest>(xmlCopy.data());
+    xmlDocument.parse<::rapidxml::parse_full | ::rapidxml::parse_no_data_nodes>(xmlCopy.data());
     auto* scorePartwise = xmlDocument.first_node("score-partwise");
     if (!scorePartwise) {
         throw std::invalid_argument("file does not appear to be exported from Finale");
