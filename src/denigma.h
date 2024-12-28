@@ -116,7 +116,6 @@ struct DenigmaContext
     std::string programName;
     bool overwriteExisting{};
     bool allPartsAndScore{};
-    bool relativeOutputDirs{};
     bool recursiveSearch{};
     bool noLog{};
     bool verbose{};

@@ -89,7 +89,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
 
     // Example usage
     std::cout << indentSpaces << "Examples:" << std::endl;
-    std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive --relative" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive" << std::endl;
     std::cout << indentSpaces << "  " << "  exports .musx files in myfolder and all subfolders to directory exports/mss within the same folder as each file found" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml" << std::endl;
     std::cout << indentSpaces << "  " << "  exports the enigmaxml in input.musx to output.enigmaxml in the same folder" << std::endl;

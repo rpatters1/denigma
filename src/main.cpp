@@ -50,12 +50,11 @@ static int showHelpPage(const std::string_view& programName)
 
     // General options
     std::cout << "General options:" << std::endl;
-    std::cout << "  --exclude folder-name           Exclude the specified folder from recursive searches" << std::endl;
+    std::cout << "  --exclude folder-name           Exclude the specified folder name from recursive searches" << std::endl;
     std::cout << "  --help                          Show this help message and exit" << std::endl;
     std::cout << "  --force                         Overwrite existing file(s)" << std::endl;
     std::cout << "  --part [optional-part-name]     Process named part or first part if name is omitted" << std::endl;
     std::cout << "  --recursive                     Recursively search subdirectories of the input directory" << std::endl;
-    std::cout << "  --relative                      Output directories are relative to the input file's parent directory" << std::endl;
     std::cout << "  --all-parts                     Process all parts and score" << std::endl;
     std::cout << "  --version                       Show program version and exit" << std::endl;
     std::cout << std::endl;
@@ -66,7 +65,10 @@ static int showHelpPage(const std::string_view& programName)
     std::cout << "  --log [optional-logfile-path]   Always log messages instead of sending them to std::cerr" << std::endl;
     std::cout << "  --no-log                        Always send messages to std::cerr (overrides any other logging options)" << std::endl;
     std::cout << "  --verbose                       Verbose output" << std::endl;
-
+    std::cout << std::endl;
+    std::cout << "Any relative path is relative to the parent path of the input file or (for log files) to the top-level input folder.";
+    std::cout << std::endl;
+    
     for (const auto& command : registeredCommands) {
         std::string commandStr = "Command " + command.first;
         std::string sepStr(commandStr.size(), '=');
@@ -133,8 +135,6 @@ int _MAIN(int argc, arg_char* argv[])
             if (!option.empty()) {
                 denigmaContext.excludeFolder = option;
             }
-        } else if (next == _ARG("--relative")) {
-            denigmaContext.relativeOutputDirs = true;
         } else if (next == _ARG("--verbose")) {
             denigmaContext.verbose = true;
         } else {

@@ -188,7 +188,7 @@ bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
 
         auto calcOutpuFilePath = [inputFilePath, &denigmaContext](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
             std::filesystem::path retval = path;
-            if (denigmaContext.relativeOutputDirs) {
+            if (retval.is_relative()) {
                 retval = inputFilePath.parent_path() / retval;
             }
             if (createDirectoryIfNeeded(retval)) {
