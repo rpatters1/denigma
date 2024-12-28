@@ -28,6 +28,8 @@
 #include "musx/musx.h"
 #include "rapidxml.hpp"
 
+constexpr static double EDU_PER_QUARTER = 1024.0;
+
 namespace rapidxml {
 namespace internal {
 
@@ -69,6 +71,45 @@ OutIt print_pi_node(OutIt out, const xml_node<Ch>* node, int flags, int indent);
 namespace denigma {
 namespace musicxml {
 
+struct MassageMusicXmlContext
+{
+    DenigmaContext denigmaContext;
+    ::rapidxml::xml_document<> xmlDocument;
+    musx::dom::DocumentPtr musxDocument;
+    int currentPart{};
+    int currentMeasure{};
+    int currentStaff{};
+    int currentStaffOffset{};
+    int errorCount{};
+
+    // Option booleans
+    bool refloatRests{true};
+    bool extendOttavasLeft{true};
+    bool extendOttavasRight{true};
+    bool fermataWholeRests{true};
+
+    void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
+};
+
+void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
+{
+    if (severity == LogSeverity::Error) {
+        ++errorCount;
+    }
+    std::string logEntry;
+    if (currentStaff > 0 && currentMeasure > 0) {
+        std::string staffText = "p" + std::to_string(currentPart);
+        int staffNumber = currentStaff + currentStaffOffset;
+
+        // Simulate fetching the staff name (replace with actual implementation)
+        std::string staffName = "[StaffName]"; // Replace with staff name fetching logic
+
+        staffText += "[" + staffName + "]";
+        logEntry += "(" + staffText + " m" + std::to_string(currentMeasure) + ") ";
+    }
+    denigmaContext.logMessage(LogMsg() << logEntry << msg.str(), severity);
+}
+
 Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
     std::ifstream xmlFile;
@@ -84,6 +125,105 @@ static Buffer extract(const std::filesystem::path& inputPath, const DenigmaConte
     return Buffer(buffer.begin(), buffer.end());
 }
 
+static int staffNumberFromNote(::rapidxml::xml_node<>* xmlNote) {
+    if (!xmlNote) return 1;
+    auto* xmlStaff = xmlNote->first_node("staff");
+    if (xmlStaff && xmlStaff->value()) {
+        try {
+            return std::stoi(xmlStaff->value());
+        } catch (...) {}
+    }
+    return 1; // Default to 1 if no <staff> node or invalid content.
+}
+
+static void fixFermataWholeRests(::rapidxml::xml_node<>* xmlMeasure, const std::shared_ptr<MassageMusicXmlContext>& context)
+{
+    assert(xmlMeasure);
+
+    auto* noteNode = xmlMeasure->first_node("note");
+    if (!noteNode) return;
+    if (!noteNode->first_node("rest")) return;
+    auto* typeNode = noteNode->first_node("type");
+    if (!typeNode || std::strcmp(typeNode->value(), "whole") != 0) return;
+
+    // Process <notations> nodes
+    for (auto* notationsNode = noteNode->first_node("notations");
+         notationsNode;
+         notationsNode = notationsNode->next_sibling("notations")) {
+        if (notationsNode->first_node("fermata")) {
+            noteNode->remove_node(noteNode->first_node("rest"));
+            context->currentStaffOffset = staffNumberFromNote(noteNode) - 1;
+            context->logMessage(LogMsg() << "Removed real whole rest under fermata.");
+            break;
+        }
+    }
+}
+
+void processXml(::rapidxml::xml_node<>* scorePartWiseNode, const std::shared_ptr<MassageMusicXmlContext>& context)
+{
+    if (!context->musxDocument && context->refloatRests) {
+        context->logMessage(LogMsg() << "Corresponding Finale document not found.", LogSeverity::Warning);
+    }
+
+    context->currentPart = 1;
+    context->currentStaff = 1;
+    context->currentStaffOffset = 0;
+
+    for (auto* xmlPart = scorePartWiseNode->first_node("part"); xmlPart; xmlPart = xmlPart->next_sibling("part")) {
+        context->currentMeasure = 0;
+        double durationUnit = EDU_PER_QUARTER;
+        int stavesUsed = 1;
+
+        for (auto* xmlMeasure = xmlPart->first_node("measure"); xmlMeasure; xmlMeasure = xmlMeasure->next_sibling("measure")) {
+            auto* attributes = xmlMeasure->first_node("attributes");
+            if (attributes) {
+                if (auto* divisions = attributes->first_node("divisions")) {
+                    durationUnit = EDU_PER_QUARTER / std::stod(divisions->value());
+                }
+
+                if (auto* staves = attributes->first_node("staves")) {
+                    int numStaves = std::stoi(staves->value());
+                    if (numStaves > stavesUsed) {
+                        stavesUsed = numStaves;
+                    }
+                }
+            }
+
+            context->currentMeasure++;
+
+            /// @todo write the necessary functions and uncomment
+            /*
+            if (context->musxDocument && context->refloatRests) {
+                for (int staffNum = 1; staffNum <= stavesUsed; ++staffNum) {
+                    context->currentStaffOffset = staffNum - 1;
+                    processXmlWithFinaleDocument(
+                        xmlMeasure,
+                        context->currentStaff + context->currentStaffOffset,
+                        context->currentMeasure,
+                        durationUnit,
+                        staffNum
+                    );
+                }
+            }
+
+            fixDirectionBrackets(
+                xmlMeasure,
+                "octave-shift",
+                context->extendOttavasLeft,
+                context->extendOttavasRight
+            );
+*/
+            if (context->fermataWholeRests) {
+                fixFermataWholeRests(xmlMeasure, context);
+            }
+        }
+
+        context->currentPart++;
+        context->currentStaff += stavesUsed;
+        context->currentStaffOffset = 0;
+    }
+}
+
 static void processFile(const std::filesystem::path& outputPath, const Buffer &xmlBuffer, const DenigmaContext& denigmaContext, const std::shared_ptr<others::PartDefinition>& part = nullptr)
 {
     std::filesystem::path qualifiedOutputPath = outputPath;
@@ -92,10 +232,12 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
         return;
     }
 
+    auto context = std::make_shared<MassageMusicXmlContext>();
+    context->denigmaContext = denigmaContext;
     Buffer xmlCopy = xmlBuffer;
     xmlCopy.push_back(0);
-    ::rapidxml::xml_document<> xmlDocument;
-    xmlDocument.parse<::rapidxml::parse_full | ::rapidxml::parse_no_data_nodes>(xmlCopy.data());
+    auto& xmlDocument = context->xmlDocument;
+    xmlDocument.parse<::rapidxml::parse_full | ::rapidxml::parse_fastest>(xmlCopy.data());
     auto* scorePartwise = xmlDocument.first_node("score-partwise");
     if (!scorePartwise) {
         throw std::invalid_argument("file does not appear to be exported from Finale");
@@ -110,9 +252,6 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
         throw std::invalid_argument("missing required element 'software' and/or 'encoding-date'");
     }
 
-    std::cout << "Before Software: " << softwareElement->value() << std::endl;
-    std::cout << "Before Encoding Date: " << encodingDateElement->value() << std::endl;
-
     std::string creatorSoftware = softwareElement && softwareElement->value() ? softwareElement->value() : "Unspecified";
     if (creatorSoftware.substr(0, 6) != "Finale") {
         throw std::invalid_argument("skipping file exported by " + creatorSoftware);
@@ -122,9 +261,6 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
 
     std::string originalEncodingDate = encodingDateElement->value();
     encodingDateElement->value(xmlDocument.allocate_string(getTimeStamp("%Y-%m-%d").c_str()));
-       // Debug: Verify modifications
-    std::cout << "After Software: " << softwareElement->value() << std::endl;
-    std::cout << "After Encoding Date: " << encodingDateElement->value() << std::endl;
 
 
     auto* miscellaneousElement = encodingElement->first_node("miscellaneous");
@@ -148,7 +284,7 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
     //    insertMiscellaneousField(option.field, option.value);
     // }
 
-    /// @todo massage the xml
+    processXml(scorePartwise, context);
 
     // rapidxml::internal::writeRapidXml(xmlDocument, qualifiedOutputPath);
     std::ofstream outputFile;
