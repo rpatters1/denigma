@@ -184,7 +184,7 @@ bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
         denigmaContext.logMessage(LogMsg() << delimiter);
         denigmaContext.inputFilePath = inputFilePath; // assign after logging the header
 
-        const auto enigmaXml = currentCommand->processInput(inputFilePath, denigmaContext);
+        const auto xmlBuffer = currentCommand->processInput(inputFilePath, denigmaContext);
 
         auto calcOutpuFilePath = [inputFilePath, &denigmaContext](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
             std::filesystem::path retval = path;
@@ -208,14 +208,14 @@ bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
                 std::filesystem::path outputFilePath = (i + 1 < args.size() && arg_string(args[i + 1]).rfind(_ARG("--"), 0) != 0)
                                                      ? std::filesystem::path(args[++i])
                                                      : inputFilePath.parent_path();
-                currentCommand->processOutput(enigmaXml, calcOutpuFilePath(outputFilePath, outputFormat), denigmaContext);
+                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(outputFilePath, outputFormat), denigmaContext);
                 outputFormatSpecified = true;
             }
         }
         if (!outputFormatSpecified) {
             const auto& defaultFormat = currentCommand->defaultOutputFormat();
             if (defaultFormat.has_value()) {
-                currentCommand->processOutput(enigmaXml, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), denigmaContext);
+                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), denigmaContext);
             }
         }
         return true;

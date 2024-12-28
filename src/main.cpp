@@ -30,6 +30,7 @@
 
 #include "denigma.h"
 #include "export/export.h"
+#include "massage/massage.h"
 #include "util/stringutils.h"
 
 static const auto registeredCommands = []()
@@ -37,6 +38,8 @@ static const auto registeredCommands = []()
         std::map <std::string, std::shared_ptr <denigma::ICommand>> retval;
         auto exportCmd = std::make_shared<denigma::ExportCommand>();
         retval.emplace(exportCmd->commandName(), exportCmd);
+        auto massageCommand = std::make_shared<denigma::MassageCommand>();
+        retval.emplace(massageCommand->commandName(), massageCommand);
         return retval;
     }();
 

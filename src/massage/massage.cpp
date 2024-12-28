@@ -26,10 +26,8 @@
 #include <unordered_map>
 #include <optional>
 
-#include "export/export.h"
-#include "export/enigmaxml.h"
-#include "export/mss.h"
-#include "export/mnx.h"
+#include "massage/massage.h"
+#include "massage/musicxml.h"
 
 namespace denigma {
 
@@ -42,8 +40,8 @@ constexpr auto inputProcessors = []() {
     };
 
     return to_array<InputProcessor>({
-            { MUSX_EXTENSION, enigmaxml::extract },
-            { ENIGMAXML_EXTENSION, enigmaxml::read },
+            { MXL_EXTENSION, musicxml::extract },
+            { MUSICXML_EXTENSION, musicxml::read },
         });
     }();
 
@@ -56,13 +54,11 @@ constexpr auto outputProcessors = []() {
     };
 
     return to_array<OutputProcessor>({
-            { ENIGMAXML_EXTENSION, enigmaxml::write },
-            { MSS_EXTENSION, mss::convert },
-            // { MNX_EXTENSION, mnx::convert },
+            { MUSICXML_EXTENSION, musicxml::write },
         });
     }();
 
-int ExportCommand::showHelpPage(const std::string_view& programName, const std::string& indentSpaces) const
+int MassageCommand::showHelpPage(const std::string_view& programName, const std::string& indentSpaces) const
 {
     std::string fullCommand = std::string(programName) + " " + std::string(commandName());
     // Print usage
@@ -88,19 +84,19 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << std::endl;
 
     // Example usage
-    std::cout << indentSpaces << "Examples:" << std::endl;
-    std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive --relative" << std::endl;
-    std::cout << indentSpaces << "  " << "  exports .musx files in myfolder and all subfolders to directory exports/mss within the same folder as each file found" << std::endl;
-    std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml" << std::endl;
-    std::cout << indentSpaces << "  " << "  exports the enigmaxml in input.musx to output.enigmaxml in the same folder" << std::endl;
+    //std::cout << indentSpaces << "Examples:" << std::endl;
+    //std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive --relative" << std::endl;
+    //std::cout << indentSpaces << "  " << "  exports .musx files in myfolder and all subfolders to directory exports/mss within the same folder as each file found" << std::endl;
+    //std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml" << std::endl;
+    //std::cout << indentSpaces << "  " << "  exports the enigmaxml in input.musx to output.enigmaxml in the same folder" << std::endl;
     //std::cout << indentSpaces << "  " << programName << " input.enigmaxml --mnx --mss" << std::endl;
-    std::cout << indentSpaces << "  " << fullCommand << " myfile.enigmaxml --mss" << std::endl;
-    std::cout << indentSpaces << "  " << "  exports myfile.enigmaxml to myfile.mss in the same folder" << std::endl;
+    //std::cout << indentSpaces << "  " << fullCommand << " myfile.mxl" << std::endl;
+    std::cout << indentSpaces << "  " << "  massages the score from myfile.enigmaxml to myfile.massaged.musicxml in the same folder" << std::endl;
 
     return 1;
 }
 
-bool ExportCommand::canProcess(const std::filesystem::path& inputPath) const
+bool MassageCommand::canProcess(const std::filesystem::path& inputPath) const
 {
     try {
         findProcessor(inputProcessors, inputPath.extension().u8string());
@@ -109,16 +105,16 @@ bool ExportCommand::canProcess(const std::filesystem::path& inputPath) const
     return false;
 }
 
-Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
+Buffer MassageCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
     auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
     return inputProcessor(inputPath, denigmaContext);
 }
 
-void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const
+void MassageCommand::processOutput(const Buffer& musicXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const
 {
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
-    outputProcessor(outputPath, enigmaXml, denigmaContext);
+    outputProcessor(outputPath, musicXml, denigmaContext);
 }
 
 } // namespace denigma

@@ -100,6 +100,9 @@ add_executable(denigma
     src/export/enigmaxml.cpp
     src/export/mnx.cpp
     src/export/mss.cpp
+    src/massage/massage.cpp
+    src/massage/musicxml.cpp
+    src/util/ziputils.cpp
 )
 
 # Compile definitions

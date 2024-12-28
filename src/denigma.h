@@ -34,6 +34,8 @@ inline constexpr char MUSX_EXTENSION[]      = "musx";
 inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
 inline constexpr char MNX_EXTENSION[]       = "mnx";
 inline constexpr char MSS_EXTENSION[]       = "mss";
+inline constexpr char MXL_EXTENSION[]       = "mxl";
+inline constexpr char MUSICXML_EXTENSION[]  = "musicxml";
 
 #ifdef _WIN32
 #define _ARG(S) L##S
@@ -83,6 +85,22 @@ using arg_string = std::string;
 
 using Buffer = std::vector<char>;
 using LogMsg = std::stringstream;
+
+// Function to find the appropriate processor
+template <typename Processors>
+inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, const std::string& extension)
+{
+    std::string key = stringutils::toLowerCase(extension);
+    if (key.rfind(".", 0) == 0) {
+        key = extension.substr(1);
+    }
+    for (const auto& p : processors) {
+        if (key == p.extension) {
+            return p.processor;
+        }
+    }
+    throw std::invalid_argument("Unsupported format: " + key);
+}
 
 /// @brief defines log message severity
 enum class LogSeverity
