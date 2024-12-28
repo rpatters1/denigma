@@ -23,6 +23,7 @@
 
 #include <string>
 #include <filesystem>
+#include <functional>
 
 #include "denigma.h"
 
@@ -31,7 +32,36 @@
 
 namespace ziputils {
 
+/**
+ * @brief Reads a specific filename from the input zip archive.
+ * @param zipFilePath [in] the zip archive to search.
+ * @param fileName [in] the file name to search for within the archive.
+ * @param denigmaContext [in] the DenigmaContext (for logging).
+ */
 std::string readFile(const std::filesystem::path& zipFilePath, const std::string& fileName, const denigma::DenigmaContext& denigmaContext);
+
+/**
+ * @brief Iterates through each filename in the input zip archive.
+ * @param zipFilePath [in] the zip archive to search.
+ * @param denigmaContext [in] the DenigmaContext (for logging).
+ * @param iterator an iterator function that feeds the next file name. Return `false` from this function to stop iterating.
+ */
+void iterateFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext, std::function<bool(const std::string&)> iterator);
+
+/**
+ * @brief Iterates through each filename in the input zip archive.
+ * @param zipFilePath [in] the zip archive to search.
+ * @param denigmaContext [in] the DenigmaContext (for logging).
+ * @param searchFileName [in] only feed this file name.
+ * @param iterator an iterator function that feeds the contents of the next file. Return `false` from this function to stop iterating.
+ */
+void iterateFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext, const std::string& searchFileName, std::function<bool(const std::string&)> iterator);
+
+/**
+ * @brief Finds and returns the score file from a compressed MusicXml file.
+ * @param zipFilePath [in] the compressed MusicXml archive to search.
+ * @param denigmaContext [in] the DenigmaContext (for logging).
+ */
 std::string getMusicXmlRootFile(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext);
 
 } // namespace ziputils

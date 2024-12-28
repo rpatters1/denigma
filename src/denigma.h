@@ -147,7 +147,7 @@ public:
 
     virtual bool canProcess(const std::filesystem::path& inputPath) const = 0;
     virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
-    virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const = 0;
+    virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
     virtual std::optional<std::string_view> defaultInputFormat() const { return std::nullopt; }
     virtual std::optional<std::string_view> defaultOutputFormat() const { return std::nullopt; }
     

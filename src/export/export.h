@@ -33,7 +33,7 @@ struct ExportCommand : public ICommand
     
     bool canProcess(const std::filesystem::path& inputPath) const override;
     Buffer processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
-    void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const override;
+    void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const override;
 
     std::optional<std::string_view> defaultInputFormat() const override { return MUSX_EXTENSION; };
     std::optional<std::string_view> defaultOutputFormat() const override { return ENIGMAXML_EXTENSION; };

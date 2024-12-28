@@ -30,9 +30,8 @@
 namespace denigma {
 namespace musicxml {
 
-Buffer extract(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
 Buffer read(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
-void write(const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext);
+void massage(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext);
 
 } // namespace musicxml
 } // namespace denigma

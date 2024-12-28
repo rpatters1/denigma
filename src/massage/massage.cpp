@@ -25,11 +25,17 @@
 #include <array>
 #include <unordered_map>
 #include <optional>
+#include <functional>
 
 #include "massage/massage.h"
 #include "massage/musicxml.h"
 
 namespace denigma {
+
+static Buffer nullFunc(const std::filesystem::path&, const DenigmaContext&)
+{
+    return {};
+}
 
 // Input format processors
 constexpr auto inputProcessors = []() {
@@ -40,7 +46,7 @@ constexpr auto inputProcessors = []() {
     };
 
     return to_array<InputProcessor>({
-            { MXL_EXTENSION, musicxml::extract },
+            { MXL_EXTENSION, nullFunc },
             { MUSICXML_EXTENSION, musicxml::read },
         });
     }();
@@ -50,11 +56,11 @@ constexpr auto outputProcessors = []() {
     struct OutputProcessor
     {
         const char* extension;
-        void(*processor)(const std::filesystem::path&, const Buffer&, const DenigmaContext&);
+        void(*processor)(const std::filesystem::path&, const std::filesystem::path&, const Buffer&, const DenigmaContext&);
     };
 
     return to_array<OutputProcessor>({
-            { MUSICXML_EXTENSION, musicxml::write },
+            { MUSICXML_EXTENSION, musicxml::massage },
         });
     }();
 
@@ -111,10 +117,10 @@ Buffer MassageCommand::processInput(const std::filesystem::path& inputPath, cons
     return inputProcessor(inputPath, denigmaContext);
 }
 
-void MassageCommand::processOutput(const Buffer& musicXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const
+void MassageCommand::processOutput(const Buffer& musicXml, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
-    outputProcessor(outputPath, musicXml, denigmaContext);
+    outputProcessor(inputPath, outputPath, musicXml, denigmaContext);
 }
 
 } // namespace denigma

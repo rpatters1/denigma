@@ -115,7 +115,7 @@ Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const
     return inputProcessor(inputPath, denigmaContext);
 }
 
-void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const
+void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const
 {
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
     outputProcessor(outputPath, enigmaXml, denigmaContext);

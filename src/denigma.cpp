@@ -208,14 +208,14 @@ bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
                 std::filesystem::path outputFilePath = (i + 1 < args.size() && arg_string(args[i + 1]).rfind(_ARG("--"), 0) != 0)
                                                      ? std::filesystem::path(args[++i])
                                                      : inputFilePath.parent_path();
-                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(outputFilePath, outputFormat), denigmaContext);
+                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(outputFilePath, outputFormat), inputFilePath, denigmaContext);
                 outputFormatSpecified = true;
             }
         }
         if (!outputFormatSpecified) {
             const auto& defaultFormat = currentCommand->defaultOutputFormat();
             if (defaultFormat.has_value()) {
-                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), denigmaContext);
+                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), inputFilePath, denigmaContext);
             }
         }
         return true;
