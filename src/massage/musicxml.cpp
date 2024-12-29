@@ -344,20 +344,24 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
         miscellaneousElement = encodingElement.append_child("miscellaneous");
     }
     
-    auto insertMiscellaneousField = [&](const std::string& name, const std::string& value) {
+    auto insertMiscellaneousField = [&](const std::string& name, const auto& value) {
         pugi::xml_node element = miscellaneousElement.append_child("miscellaneous-field");
         element.append_attribute("name").set_value(name.c_str());
-        element.text().set(value.c_str());
+        
+        if constexpr (std::is_same_v<std::decay_t<decltype(value)>, std::string>) {
+            element.text().set(value.c_str());
+        } else {
+            element.text().set(value);
+        }
     };
 
-    // Insert fields
+    // Insert misc fields
     insertMiscellaneousField("original-software", creatorSoftware);
     insertMiscellaneousField("original-encoding-date", originalEncodingDate);
-
-    /// @todo set the options
-    // for (const auto& option : options) {
-    //    insertMiscellaneousField(option.field, option.value);
-    // }
+    insertMiscellaneousField("extend-ottavas-right", context->extendOttavasRight);
+    insertMiscellaneousField("extend-ottavas-left", context->extendOttavasLeft);
+    insertMiscellaneousField("fermata-whole-rests", context->fermataWholeRests);
+    insertMiscellaneousField("refloat-rests", context->refloatRests);
 
     processXml(scorePartwise, context);
 
