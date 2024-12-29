@@ -105,12 +105,8 @@ std::string getMusicXmlRootFile(const std::filesystem::path& zipFilePath, const 
                 if (!parseResult) {
                     throw std::runtime_error("Error parsing container.xml: " + std::string(parseResult.description()));
                 }
-                pugi::xml_node root = containerXml.child("rootfiles").child("rootfile");
-                if (root) {
-                    pugi::xml_attribute path = root.attribute("full-path");
-                    if (path) {
-                        fileName = path.value();
-                    }
+                if (auto path = containerXml.document_element().child("rootfiles").child("rootfile").attribute("full-path")) {
+                    fileName = path.value();
                 }
                 return false;
             }
