@@ -26,47 +26,13 @@
 #include <sstream>
 
 #include "musx/musx.h"
-#include "rapidxml.hpp"
-
-constexpr static double EDU_PER_QUARTER = 1024.0;
-
-namespace rapidxml {
-namespace internal {
-
-// These forward declarations are missing from rapidxml_print.hpp
-
-template <class OutIt, class Ch>
-OutIt print_children(OutIt out, const xml_node<Ch>* node, int flags, int indent);
-
-template <class OutIt, class Ch>
-OutIt print_element_node(OutIt out, const xml_node<Ch>* node, int flags, int indent);
-
-template <class OutIt, class Ch>
-OutIt print_data_node(OutIt out, const xml_node<Ch>* node, int flags, int indent);
-
-template <class OutIt, class Ch>
-OutIt print_cdata_node(OutIt out, const xml_node<Ch>* node, int flags, int indent);
-
-template <class OutIt, class Ch>
-OutIt print_declaration_node(OutIt out, const xml_node<Ch>* node, int flags, int indent);
-
-template <class OutIt, class Ch>
-OutIt print_comment_node(OutIt out, const xml_node<Ch>* node, int flags, int indent);
-
-template <class OutIt, class Ch>
-OutIt print_doctype_node(OutIt out, const xml_node<Ch>* node, int flags, int indent);
-
-template <class OutIt, class Ch>
-OutIt print_pi_node(OutIt out, const xml_node<Ch>* node, int flags, int indent);
-
-} // namespace internal
-} // namespace rapidxml
-
-#include "rapidxml_print.hpp" // For rapidxml::print
+#include "pugixml.hpp"
 
 #include "denigma.h"
 #include "massage/musicxml.h"
 #include "util/ziputils.h"
+
+constexpr static double EDU_PER_QUARTER = 1024.0;
 
 namespace denigma {
 namespace musicxml {
@@ -74,7 +40,7 @@ namespace musicxml {
 struct MassageMusicXmlContext
 {
     DenigmaContext denigmaContext;
-    ::rapidxml::xml_document<> xmlDocument;
+    pugi::xml_document xmlDocument;
     musx::dom::DocumentPtr musxDocument;
     int currentPart{};
     int currentMeasure{};
@@ -125,33 +91,40 @@ static Buffer extract(const std::filesystem::path& inputPath, const DenigmaConte
     return Buffer(buffer.begin(), buffer.end());
 }
 
-static int staffNumberFromNote(::rapidxml::xml_node<>* xmlNote) {
+static int staffNumberFromNote(pugi::xml_node xmlNote) {
     if (!xmlNote) return 1;
-    auto* xmlStaff = xmlNote->first_node("staff");
-    if (xmlStaff && xmlStaff->value()) {
+    auto xmlStaff = xmlNote.child("staff");
+    if (xmlStaff && xmlStaff.text().get()) {
         try {
-            return std::stoi(xmlStaff->value());
+            return std::stoi(xmlStaff.text().get());
         } catch (...) {}
     }
     return 1; // Default to 1 if no <staff> node or invalid content.
 }
 
-static void fixFermataWholeRests(::rapidxml::xml_node<>* xmlMeasure, const std::shared_ptr<MassageMusicXmlContext>& context)
+static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     assert(xmlMeasure);
 
-    auto* noteNode = xmlMeasure->first_node("note");
+    auto noteNode = xmlMeasure.child("note");
     if (!noteNode) return;
-    if (!noteNode->first_node("rest")) return;
-    auto* typeNode = noteNode->first_node("type");
-    if (!typeNode || std::strcmp(typeNode->value(), "whole") != 0) return;
+    auto restNode = noteNode.child("rest");
+    if (!restNode) return;
+    auto typeNode = noteNode.child("type");
+    if (!typeNode || std::strcmp(typeNode.text().get(), "whole") != 0) return;
 
     // Process <notations> nodes
-    for (auto* notationsNode = noteNode->first_node("notations");
+    for (auto notationsNode = noteNode.child("notations");
          notationsNode;
-         notationsNode = notationsNode->next_sibling("notations")) {
-        if (notationsNode->first_node("fermata")) {
-            noteNode->remove_node(noteNode->first_node("rest"));
+         notationsNode = notationsNode.next_sibling("notations")) {
+        if (notationsNode.child("fermata")) {
+            auto measureAttr = restNode.attribute("measure");
+            if (measureAttr) {
+                measureAttr.set_value("yes");
+            } else {
+                restNode.append_attribute("measure") = "yes";
+            }
+            noteNode.remove_child(typeNode);
             context->currentStaffOffset = staffNumberFromNote(noteNode) - 1;
             context->logMessage(LogMsg() << "Removed real whole rest under fermata.");
             break;
@@ -159,7 +132,7 @@ static void fixFermataWholeRests(::rapidxml::xml_node<>* xmlMeasure, const std::
     }
 }
 
-void processXml(::rapidxml::xml_node<>* scorePartWiseNode, const std::shared_ptr<MassageMusicXmlContext>& context)
+void processXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     if (!context->musxDocument && context->refloatRests) {
         context->logMessage(LogMsg() << "Corresponding Finale document not found.", LogSeverity::Warning);
@@ -169,20 +142,20 @@ void processXml(::rapidxml::xml_node<>* scorePartWiseNode, const std::shared_ptr
     context->currentStaff = 1;
     context->currentStaffOffset = 0;
 
-    for (auto* xmlPart = scorePartWiseNode->first_node("part"); xmlPart; xmlPart = xmlPart->next_sibling("part")) {
+    for (auto xmlPart = scorePartWiseNode.child("part"); xmlPart; xmlPart = xmlPart.next_sibling("part")) {
         context->currentMeasure = 0;
         double durationUnit = EDU_PER_QUARTER;
         int stavesUsed = 1;
 
-        for (auto* xmlMeasure = xmlPart->first_node("measure"); xmlMeasure; xmlMeasure = xmlMeasure->next_sibling("measure")) {
-            auto* attributes = xmlMeasure->first_node("attributes");
+        for (auto xmlMeasure = xmlPart.child("measure"); xmlMeasure; xmlMeasure = xmlMeasure.next_sibling("measure")) {
+            auto attributes = xmlMeasure.child("attributes");
             if (attributes) {
-                if (auto* divisions = attributes->first_node("divisions")) {
-                    durationUnit = EDU_PER_QUARTER / std::stod(divisions->value());
+                if (auto divisions = attributes.child("divisions")) {
+                    durationUnit = EDU_PER_QUARTER / std::stod(divisions.text().get());
                 }
 
-                if (auto* staves = attributes->first_node("staves")) {
-                    int numStaves = std::stoi(staves->value());
+                if (auto staves = attributes.child("staves")) {
+                    int numStaves = std::stoi(staves.text().get());
                     if (numStaves > stavesUsed) {
                         stavesUsed = numStaves;
                     }
@@ -212,7 +185,7 @@ void processXml(::rapidxml::xml_node<>* scorePartWiseNode, const std::shared_ptr
                 context->extendOttavasLeft,
                 context->extendOttavasRight
             );
-*/
+            */
             if (context->fermataWholeRests) {
                 fixFermataWholeRests(xmlMeasure, context);
             }
@@ -234,48 +207,48 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
 
     auto context = std::make_shared<MassageMusicXmlContext>();
     context->denigmaContext = denigmaContext;
-    Buffer xmlCopy = xmlBuffer;
-    xmlCopy.push_back(0);
-    auto& xmlDocument = context->xmlDocument;
-    xmlDocument.parse<::rapidxml::parse_full | ::rapidxml::parse_no_data_nodes>(xmlCopy.data());
-    auto* scorePartwise = xmlDocument.first_node("score-partwise");
+    pugi::xml_document& xmlDocument = context->xmlDocument;
+    auto parseResult = xmlDocument.load_buffer(xmlBuffer.data(), xmlBuffer.size(), pugi::parse_full | pugi::parse_ws_pcdata_single);
+    if (parseResult.status != pugi::xml_parse_status::status_ok) {
+        throw std::invalid_argument(std::string("Error parsing xml: ") + parseResult.description());
+    }
+    auto scorePartwise = xmlDocument.child("score-partwise");
     if (!scorePartwise) {
         throw std::invalid_argument("file does not appear to be exported from Finale");
     }
 
-    auto* identificationElement = scorePartwise->first_node("identification");
-    auto* encodingElement = identificationElement ? identificationElement->first_node("encoding") : nullptr;
-    auto* softwareElement = encodingElement ? encodingElement->first_node("software") : nullptr;
-    auto* encodingDateElement = encodingElement ? encodingElement->first_node("encoding-date") : nullptr;
+    auto identificationElement = scorePartwise.child("identification");
+    auto encodingElement = identificationElement.child("encoding");
+    auto softwareElement = encodingElement.child("software");
+    auto encodingDateElement = encodingElement.child("encoding-date");
 
     if (!softwareElement || !encodingDateElement) {
         throw std::invalid_argument("missing required element 'software' and/or 'encoding-date'");
     }
 
-    std::string creatorSoftware = softwareElement && softwareElement->value() ? softwareElement->value() : "Unspecified";
+    std::string creatorSoftware = softwareElement.text().get();
+    if (creatorSoftware.empty()) creatorSoftware = "Unspecified";
     if (creatorSoftware.substr(0, 6) != "Finale") {
         throw std::invalid_argument("skipping file exported by " + creatorSoftware);
     }
 
-    softwareElement->value(xmlDocument.allocate_string((denigmaContext.programName + ' ' + DENIGMA_VERSION).c_str()));
+    softwareElement.text().set((denigmaContext.programName + ' ' + DENIGMA_VERSION).c_str());
 
-    std::string originalEncodingDate = encodingDateElement->value();
-    encodingDateElement->value(xmlDocument.allocate_string(getTimeStamp("%Y-%m-%d").c_str()));
+    std::string originalEncodingDate = encodingDateElement.text().get();
+    encodingDateElement.text().set(getTimeStamp("%Y-%m-%d").c_str());
 
-
-    auto* miscellaneousElement = encodingElement->first_node("miscellaneous");
+    pugi::xml_node miscellaneousElement = encodingElement.child("miscellaneous");
     if (!miscellaneousElement) {
-        miscellaneousElement = xmlDocument.allocate_node(rapidxml::node_element, "miscellaneous");
-        encodingElement->append_node(miscellaneousElement);
+        miscellaneousElement = encodingElement.append_child("miscellaneous");
     }
-
+    
     auto insertMiscellaneousField = [&](const std::string& name, const std::string& value) {
-        auto* element = xmlDocument.allocate_node(rapidxml::node_element, "miscellaneous-field");
-        element->append_attribute(xmlDocument.allocate_attribute("name", xmlDocument.allocate_string(name.c_str())));
-        element->value(xmlDocument.allocate_string(value.c_str()));
-        miscellaneousElement->append_node(element);
+        pugi::xml_node element = miscellaneousElement.append_child("miscellaneous-field");
+        element.append_attribute("name").set_value(name.c_str());
+        element.text().set(value.c_str());
     };
 
+    // Insert fields
     insertMiscellaneousField("original-software", creatorSoftware);
     insertMiscellaneousField("original-encoding-date", originalEncodingDate);
 
@@ -286,12 +259,11 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
 
     processXml(scorePartwise, context);
 
-    // rapidxml::internal::writeRapidXml(xmlDocument, qualifiedOutputPath);
     std::ofstream outputFile;
     outputFile.exceptions(std::ios::failbit | std::ios::badbit);
     outputFile.open(qualifiedOutputPath);
-    std::ostream& outputStream = outputFile;
-    ::rapidxml::print(outputStream, xmlDocument);
+    pugi::xml_writer_stream writer(outputFile);
+    xmlDocument.save(writer, "    "); // 2 spaces for indentation
     outputFile.close();
 }
 

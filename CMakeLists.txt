@@ -53,9 +53,17 @@ FetchContent_MakeAvailable(EzGz)
 FetchContent_Declare(
     tinyxml2
     URL https://github.com/leethomason/tinyxml2/archive/refs/tags/9.0.0.tar.gz
-	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+	  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(tinyxml2)
+
+# Fetch pugixml
+FetchContent_Declare(
+    pugixml
+    URL https://github.com/zeux/pugixml/releases/download/v1.14/pugixml-1.14.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(pugixml)
 
 # Fetch miniz-cpp
 FetchContent_Declare(
@@ -127,6 +135,7 @@ target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # Ensure the libraries are added
 target_link_libraries(denigma PRIVATE tinyxml2)
+target_link_libraries(denigma PRIVATE pugixml)
 target_link_libraries(denigma PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(denigma PRIVATE nlohmann_json_schema_validator)
 target_link_libraries(denigma PRIVATE musx)
