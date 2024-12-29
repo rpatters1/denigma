@@ -29,6 +29,7 @@
 #include "pugixml.hpp"
 
 #include "denigma.h"
+#include "massage/massage.h"
 #include "massage/musicxml.h"
 #include "util/ziputils.h"
 
@@ -334,7 +335,7 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
         throw std::invalid_argument("skipping file exported by " + creatorSoftware);
     }
 
-    softwareElement.text().set((denigmaContext.programName + ' ' + DENIGMA_VERSION).c_str());
+    softwareElement.text().set((denigmaContext.programName + ' ' + MassageCommand().commandName().data() + ' ' + DENIGMA_VERSION).c_str());
 
     std::string originalEncodingDate = encodingDateElement.text().get();
     encodingDateElement.text().set(getTimeStamp("%Y-%m-%d").c_str());
