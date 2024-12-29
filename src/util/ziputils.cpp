@@ -20,7 +20,7 @@
  * THE SOFTWARE.
  */
 #include "util/ziputils.h"
-#include "tinyxml2.h"
+#include "pugixml.hpp"
 
  // NOTE: This namespace is necessary because zip_file.hpp is poorly implemented and
 //          can only be included once in the entire project.
@@ -100,15 +100,16 @@ std::string getMusicXmlRootFile(const std::filesystem::path& zipFilePath, const 
     try {
         iterateFiles(zip, denigmaContext, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
             if (fileInfo.filename == "META-INF/container.xml") {
-                ::tinyxml2::XMLDocument containerXml;
-                if (containerXml.Parse(zip.read(fileInfo).c_str()) != ::tinyxml2::XML_SUCCESS) {
-                    throw std::runtime_error("Error parsing container.xml: " + std::string(containerXml.ErrorStr()));
+                pugi::xml_document containerXml;
+                auto parseResult = containerXml.load_string(zip.read(fileInfo).c_str());
+                if (!parseResult) {
+                    throw std::runtime_error("Error parsing container.xml: " + std::string(parseResult.description()));
                 }
-                ::tinyxml2::XMLHandle root(containerXml.RootElement());
-                auto rootFileElement = root.FirstChildElement("rootfiles").FirstChildElement("rootfile").ToElement();
-                if (rootFileElement) {
-                    if (auto path = rootFileElement->FindAttribute("full-path")) {
-                        fileName = path->Value();
+                pugi::xml_node root = containerXml.child("rootfiles").child("rootfile");
+                if (root) {
+                    pugi::xml_attribute path = root.attribute("full-path");
+                    if (path) {
+                        fileName = path.value();
                     }
                 }
                 return false;

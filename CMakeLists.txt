@@ -43,18 +43,10 @@ FetchContent_Declare(
   EzGz
   GIT_REPOSITORY https://github.com/Dugy/EzGz.git
   GIT_TAG 9229cb8fabe28470eb0b74798cadcdbdb5e72c6d
-  SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from the fetched content cmake.
+  SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
   # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
 )
 FetchContent_MakeAvailable(EzGz)
-
-# Fetch tinyxml2
-FetchContent_Declare(
-    tinyxml2
-    URL https://github.com/leethomason/tinyxml2/archive/refs/tags/9.0.0.tar.gz
-	  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(tinyxml2)
 
 # Fetch pugixml
 FetchContent_Declare(
@@ -70,7 +62,7 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/tfussell/miniz-cpp.git
   GIT_TAG        052335e4f7773368df07b26d2baedb0e6d4dbd38
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-  SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from the fetched content cmake.
+  SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
   # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
 )
 FetchContent_MakeAvailable(miniz-cpp)
@@ -133,7 +125,6 @@ target_include_directories(denigma PRIVATE ${MUSX_OBJECT_MODEL_DIR})
 target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # Ensure the libraries are added
-target_link_libraries(denigma PRIVATE tinyxml2)
 target_link_libraries(denigma PRIVATE pugixml)
 target_link_libraries(denigma PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(denigma PRIVATE nlohmann_json_schema_validator)
@@ -149,7 +140,6 @@ target_precompile_headers(denigma_pch INTERFACE
     <string>
     <memory>
     "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
-    "${tinyxml2_SOURCE_DIR}/tinyxml2.h"
     "${MUSX_ROOT_DIR}/src/musx/musx.h"
 )
 
