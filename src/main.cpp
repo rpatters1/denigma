@@ -196,9 +196,7 @@ int _MAIN(int argc, arg_char* argv[])
             }
         }
         std::filesystem::path inputDir = inputFilePattern.parent_path();
-        auto wildcardPattern = inputFilePattern.filename().u8string();
-        bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);
-        
+        bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);        
         if (!inputIsOneFile && !denigmaContext.logFilePath.has_value()) {
             denigmaContext.logFilePath = "";
         }
@@ -209,9 +207,16 @@ int _MAIN(int argc, arg_char* argv[])
         }
 
         // convert wildcard pattern to regex
+        auto wildcardPattern = inputFilePattern.filename().native(); // native format avoids encoding issues
+#ifdef _WIN32
+        auto regexPattern = std::regex_replace(wildcardPattern, std::wregex(LR"(\*)"), L".*");
+        regexPattern = std::regex_replace(regexPattern, std::wregex(LR"(\?)"), L".");
+        std::wregex regex(regexPattern);
+#else
         auto regexPattern = std::regex_replace(wildcardPattern, std::regex(R"(\*)"), R"(.*)");
         regexPattern = std::regex_replace(regexPattern, std::regex(R"(\?)"), R"(.)");
         std::regex regex(regexPattern);
+#endif
 
         // collect files to process first
         // this avoids potential infinite recursion if input and output are the same format
@@ -230,7 +235,7 @@ int _MAIN(int argc, arg_char* argv[])
                 if (!entry.is_directory()) {
                     denigmaContext.logMessage(LogMsg() << "considered file " << entry.path().u8string(), LogSeverity::Verbose);
                 }
-                if (entry.is_regular_file() && std::regex_match(entry.path().filename().u8string(), regex)) {
+                if (entry.is_regular_file() && std::regex_match(entry.path().filename().native(), regex)) {
                     auto inputFilePath = entry.path();
                     if (currentCommand->canProcess(inputFilePath)) {
                         pathsToProcess.push_back(inputFilePath);
@@ -243,7 +248,9 @@ int _MAIN(int argc, arg_char* argv[])
                 }    
             }
         };
-        if (denigmaContext.recursiveSearch) {
+        if (false && inputIsOneFile) {
+            pathsToProcess.push_back(inputFilePattern);
+        } else if (denigmaContext.recursiveSearch) {
             std::filesystem::recursive_directory_iterator it(inputDir);
             iterate(it);
         } else {
