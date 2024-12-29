@@ -248,7 +248,7 @@ int _MAIN(int argc, arg_char* argv[])
                 }    
             }
         };
-        if (false && inputIsOneFile) {
+        if (inputIsOneFile) {
             pathsToProcess.push_back(inputFilePattern);
         } else if (denigmaContext.recursiveSearch) {
             std::filesystem::recursive_directory_iterator it(inputDir);
