@@ -33,7 +33,6 @@ set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/build")
 
 #define other directories
 set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
-set(RAPIDXML_DIR "${CMAKE_SOURCE_DIR}/third_party/rapidxml")
 
 # Set output directory for compiled executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
@@ -115,7 +114,8 @@ add_executable(denigma
 
 # Compile definitions
 #set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
-set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
+#set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
+set(MUSX_USE_PUGIXML ON CACHE BOOL "Enable pugixml parsing classes" FORCE)
 
 # temporary for reference and debugging
 set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
@@ -126,7 +126,6 @@ add_subdirectory(submodules/musx_object_model)
 
 # Ensure the include directories are added
 add_dependencies(denigma GenerateMnxSchemaXxd)
-target_include_directories(denigma PRIVATE ${RAPIDXML_DIR})
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
@@ -149,9 +148,9 @@ target_precompile_headers(denigma_pch INTERFACE
     <functional>
     <string>
     <memory>
+    "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
     "${tinyxml2_SOURCE_DIR}/tinyxml2.h"
     "${MUSX_ROOT_DIR}/src/musx/musx.h"
-    "${RAPIDXML_DIR}/rapidxml.hpp"
 )
 
 # Link the interface library to denigma

@@ -774,7 +774,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
 
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
-    auto document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
+    auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
         processPart(outputPath, document, denigmaContext); // process the score
     }
