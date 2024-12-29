@@ -49,10 +49,10 @@ struct MassageMusicXmlContext
     int errorCount{};
 
     // Option booleans
-    bool refloatRests{true};
+    bool refloatRests{false};
     bool extendOttavasLeft{true};
     bool extendOttavasRight{true};
-    bool fermataWholeRests{true};
+    bool fermataWholeRests{false};
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
 };
@@ -100,6 +100,102 @@ static int staffNumberFromNote(pugi::xml_node xmlNote) {
         } catch (...) {}
     }
     return 1; // Default to 1 if no <staff> node or invalid content.
+}
+#include <pugixml.hpp>
+#include <functional>
+#include <iostream>
+#include <string>
+
+// Static function that returns an iterator for filtered direction nodes
+static pugi::xml_node getNextDirectionOfType(pugi::xml_node parent, const std::string& nodeName) {
+    while (parent) {
+        if (auto nodeForType = parent.child("direction-type").child(nodeName.c_str())) {
+            return parent; // Found the matching node
+        }
+        parent = parent.next_sibling("direction");
+    }
+    return pugi::xml_node(); // Null node to indicate end
+}
+
+static void fixDirectionBrackets(pugi::xml_node xmlMeasure, const std::string& directionType, const std::shared_ptr<MassageMusicXmlContext>& context)
+{
+    if (!(context->extendOttavasLeft || context->extendOttavasRight)) return;
+
+    auto currentDirection = xmlMeasure.child("direction");
+
+    while (currentDirection) {
+        currentDirection = getNextDirectionOfType(currentDirection, directionType);
+        if (!currentDirection) break;
+
+        auto xmlDirectionType = currentDirection.child("direction-type");
+        if (!xmlDirectionType) continue;
+
+        auto nodeForType = xmlDirectionType.child(directionType.c_str());
+        if (!nodeForType) continue;
+
+        auto directionCopy = currentDirection; // Shallow copy
+        std::string shiftType = nodeForType.attribute("type").value();
+
+        // keep this for next iteration
+        auto nextDirection = currentDirection.next_sibling("direction");
+
+        if (shiftType == "stop") {
+            if (context->extendOttavasRight) {
+                auto nextNote = currentDirection.next_sibling("note");
+                // Find the next note, skipping over extra notes in chords
+                if (nextNote) {
+                    auto chordCheck = nextNote.next_sibling("note");
+                    while (chordCheck && chordCheck.child("chord")) {
+                        nextNote = chordCheck;
+                        chordCheck = chordCheck.next_sibling("note");
+                    }
+                }
+                if (nextNote && !nextNote.child("rest")) {
+                    xmlMeasure.remove_child(currentDirection);
+                    xmlMeasure.insert_copy_after(directionCopy, nextNote);
+                    context->currentStaffOffset = staffNumberFromNote(nextNote) - 1;
+                    context->logMessage(LogMsg() << "Extended " << directionType << " element by one note/chord.");
+                }
+            }
+        } else if (directionType == "octave-shift" && (shiftType == "up" || shiftType == "down")) {
+            if (context->extendOttavasLeft) {
+                int sign = (shiftType == "down") ? 1 : -1;
+                int octaves = (nodeForType.attribute("size").as_int(8) - 1) / 7;
+
+                auto prevNote = currentDirection.previous_sibling("note");
+                pugi::xml_node prevGraceNote;
+
+                while (prevNote) {
+                    if (!prevNote.child("rest") && prevNote.child("grace")) {
+                        prevGraceNote = prevNote;
+                        auto pitch = prevNote.child("pitch");
+                        auto octave = pitch.child("octave");
+                        if (octave) {
+                            octave.text().set(octave.text().as_int() + sign * octaves);
+                        }
+                    } else {
+                        break;
+                    }
+                    prevNote = prevNote.previous_sibling("note");
+                }
+
+                if (prevGraceNote) {
+                    xmlMeasure.remove_child(currentDirection);
+                    auto prevElement = prevGraceNote.previous_sibling();
+                    if (prevElement) {
+                        xmlMeasure.insert_copy_after(directionCopy, prevElement);
+                    } else {
+                        xmlMeasure.prepend_copy(directionCopy);
+                    }
+                    context->currentStaffOffset = staffNumberFromNote(prevGraceNote) - 1;
+                    context->logMessage(LogMsg() << "Adjusted octave-shift element of size "
+                                                 << std::to_string(nodeForType.attribute("size").as_int(8))
+                                                 << " to include preceding grace notes.");
+                }
+            }
+        }
+        currentDirection = nextDirection;
+    }
 }
 
 static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_ptr<MassageMusicXmlContext>& context)
@@ -178,14 +274,10 @@ void processXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
                     );
                 }
             }
-
-            fixDirectionBrackets(
-                xmlMeasure,
-                "octave-shift",
-                context->extendOttavasLeft,
-                context->extendOttavasRight
-            );
             */
+
+            fixDirectionBrackets(xmlMeasure, "octave-shift", context);
+
             if (context->fermataWholeRests) {
                 fixFermataWholeRests(xmlMeasure, context);
             }
