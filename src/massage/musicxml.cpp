@@ -106,32 +106,43 @@ static int staffNumberFromNote(pugi::xml_node xmlNote) {
 #include <iostream>
 #include <string>
 
-// Static function that returns an iterator for filtered direction nodes
-static pugi::xml_node getNextDirectionOfType(pugi::xml_node parent, const std::string& nodeName) {
-    while (parent) {
-        if (auto nodeForType = parent.child("direction-type").child(nodeName.c_str())) {
-            return parent; // Found the matching node
+// This iterator function finds the next matching direction *before* sending the current one to the callback.
+// This allows the callback to move the direction without perturbing the iteration sequence.
+void feedDirectionsOfType(pugi::xml_node node, const std::string& nodeName, const std::function<void(pugi::xml_node)>& processNode)
+{
+    // Local function to find the next matching <direction> node
+    auto findNextMatchingDirection = [&](pugi::xml_node& currentNode) {
+        while (currentNode) {
+            if (auto nodeForType = currentNode.child("direction-type").child(nodeName.c_str())) {
+                return; // Found a matching node, return to caller
+            }
+            currentNode = currentNode.next_sibling("direction");
         }
-        parent = parent.next_sibling("direction");
+    };
+
+    // Start with the first <direction> node
+    auto child = node.child("direction");
+    findNextMatchingDirection(child); // Initialize by finding the first match
+
+    // Process each matching <direction> node
+    while (child) {
+        pugi::xml_node currentNode = child; // Store the current node
+        child = child.next_sibling("direction"); // Move to the next sibling
+        findNextMatchingDirection(child); // Find the next matching node
+        processNode(currentNode); // Process the current node
     }
-    return pugi::xml_node(); // Null node to indicate end
 }
 
 static void fixDirectionBrackets(pugi::xml_node xmlMeasure, const std::string& directionType, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     if (!(context->extendOttavasLeft || context->extendOttavasRight)) return;
 
-    auto currentDirection = xmlMeasure.child("direction");
-
-    while (currentDirection) {
-        currentDirection = getNextDirectionOfType(currentDirection, directionType);
-        if (!currentDirection) break;
-
+    feedDirectionsOfType(xmlMeasure, directionType, [&](pugi::xml_node currentDirection) {
         auto xmlDirectionType = currentDirection.child("direction-type");
-        if (!xmlDirectionType) continue;
+        if (!xmlDirectionType) return;
 
         auto nodeForType = xmlDirectionType.child(directionType.c_str());
-        if (!nodeForType) continue;
+        if (!nodeForType) return;
 
         auto directionCopy = currentDirection; // Shallow copy
         std::string shiftType = nodeForType.attribute("type").value();
@@ -194,8 +205,7 @@ static void fixDirectionBrackets(pugi::xml_node xmlMeasure, const std::string& d
                 }
             }
         }
-        currentDirection = nextDirection;
-    }
+    });
 }
 
 static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_ptr<MassageMusicXmlContext>& context)
