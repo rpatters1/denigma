@@ -33,7 +33,6 @@ set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/build")
 
 #define other directories
 set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
-set(RAPIDXML_DIR "${CMAKE_SOURCE_DIR}/third_party/rapidxml")
 
 # Set output directory for compiled executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
@@ -44,18 +43,18 @@ FetchContent_Declare(
   EzGz
   GIT_REPOSITORY https://github.com/Dugy/EzGz.git
   GIT_TAG 9229cb8fabe28470eb0b74798cadcdbdb5e72c6d
-  SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from the fetched content cmake.
+  SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
   # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
 )
 FetchContent_MakeAvailable(EzGz)
 
-# Fetch tinyxml2
+# Fetch pugixml
 FetchContent_Declare(
-    tinyxml2
-    URL https://github.com/leethomason/tinyxml2/archive/refs/tags/9.0.0.tar.gz
-	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    pugixml
+    URL https://github.com/zeux/pugixml/releases/download/v1.14/pugixml-1.14.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
-FetchContent_MakeAvailable(tinyxml2)
+FetchContent_MakeAvailable(pugixml)
 
 # Fetch miniz-cpp
 FetchContent_Declare(
@@ -63,7 +62,7 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/tfussell/miniz-cpp.git
   GIT_TAG        052335e4f7773368df07b26d2baedb0e6d4dbd38
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-  SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from the fetched content cmake.
+  SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
   # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
 )
 FetchContent_MakeAvailable(miniz-cpp)
@@ -107,7 +106,8 @@ add_executable(denigma
 
 # Compile definitions
 #set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
-set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
+#set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
+set(MUSX_USE_PUGIXML ON CACHE BOOL "Enable pugixml parsing classes" FORCE)
 
 # temporary for reference and debugging
 set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
@@ -118,7 +118,6 @@ add_subdirectory(submodules/musx_object_model)
 
 # Ensure the include directories are added
 add_dependencies(denigma GenerateMnxSchemaXxd)
-target_include_directories(denigma PRIVATE ${RAPIDXML_DIR})
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
@@ -126,7 +125,7 @@ target_include_directories(denigma PRIVATE ${MUSX_OBJECT_MODEL_DIR})
 target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # Ensure the libraries are added
-target_link_libraries(denigma PRIVATE tinyxml2)
+target_link_libraries(denigma PRIVATE pugixml)
 target_link_libraries(denigma PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(denigma PRIVATE nlohmann_json_schema_validator)
 target_link_libraries(denigma PRIVATE musx)
@@ -140,9 +139,8 @@ target_precompile_headers(denigma_pch INTERFACE
     <functional>
     <string>
     <memory>
-    "${tinyxml2_SOURCE_DIR}/tinyxml2.h"
+    "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
     "${MUSX_ROOT_DIR}/src/musx/musx.h"
-    "${RAPIDXML_DIR}/rapidxml.hpp"
 )
 
 # Link the interface library to denigma

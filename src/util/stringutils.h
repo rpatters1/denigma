@@ -23,7 +23,6 @@
 
 #include <string>
 #include <exception>
-#include <cstdio>
 #include <filesystem>
 #include <algorithm>
 
@@ -108,14 +107,6 @@ inline std::filesystem::path utf8ToPath(const std::string& str)
     }
 #endif
     return str;
-}
-
-inline FILE* openFile(const std::filesystem::path& path, const char* mode) {
-#ifdef _WIN32
-    return _wfopen(path.wstring().c_str(), stringToWstring(mode).c_str());
-#else
-    return fopen(path.u8string().c_str(), mode);
-#endif
 }
 
 inline std::string toLowerCase(const std::string& inp)

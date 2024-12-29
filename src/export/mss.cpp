@@ -28,7 +28,7 @@
 
 #include "mss.h"
 #include "musx/musx.h"
-#include "tinyxml2.h"
+#include "pugixml.hpp"
 #include "util/stringutils.h"
 
 namespace denigma {
@@ -36,9 +36,9 @@ namespace mss {
 
 using namespace ::musx::dom;
 
-using XmlDocument = ::tinyxml2::XMLDocument;
-using XmlElement = ::tinyxml2::XMLElement;
-using XmlAttribute = ::tinyxml2::XMLAttribute;
+using XmlDocument = ::pugi::xml_document;
+using XmlElement = ::pugi::xml_node;
+using XmlAttribute = ::pugi::xml_attribute;
 
 constexpr static char MSS_VERSION[] = "4.50";
 
@@ -160,15 +160,15 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
 }
 
 template<typename T>
-static XmlElement* setElementValue(XmlElement* styleElement, const std::string& nodeName, const T& value)
+static XmlElement setElementValue(XmlElement& styleElement, const std::string& nodeName, const T& value)
 {
     if (!styleElement) {
         throw std::invalid_argument("styleElement cannot be null");
     }
 
-    XmlElement* element = styleElement->FirstChildElement(nodeName.c_str());
+    XmlElement element = styleElement.child(nodeName.c_str());
     if (!element) {
-        element = styleElement->InsertNewChildElement(nodeName.c_str());
+        element = styleElement.append_child(nodeName.c_str());
     }
 
     if constexpr (std::is_same_v<T, std::nullptr_t>) {
@@ -176,13 +176,13 @@ static XmlElement* setElementValue(XmlElement* styleElement, const std::string& 
     } else if constexpr (std::is_floating_point_v<T>) {
         char buffer[512];
         snprintf(buffer, sizeof(buffer), "%.5g", value);
-        element->SetText(buffer);
+        element.text().set(buffer);
     } else if constexpr (std::is_same_v<T, std::string>) {
-        element->SetText(value.c_str());
+        element.text().set(value.c_str());
     } else if constexpr (std::is_same_v<T, bool>) {
-        element->SetText(int(value)); // MuseScore .mss files use 0 and 1 for booleans
+        element.text().set(static_cast<int>(value)); // MuseScore .mss files use 0 and 1 for booleans
     } else {
-        element->SetText(value);
+        element.text().set(value);
     }
 
     return element;
@@ -209,7 +209,7 @@ static double museMagVal(const FinalePreferencesPtr& prefs, const options::FontO
     return 1.0;
 }
 
-static void writeFontPref(XmlElement* styleElement, const std::string& namePrefix, const FontInfo* fontInfo)
+static void writeFontPref(XmlElement& styleElement, const std::string& namePrefix, const FontInfo* fontInfo)
 {
     setElementValue(styleElement, namePrefix + "FontFace", fontInfo->getName());
     setElementValue(styleElement, namePrefix + "FontSize", 
@@ -218,13 +218,13 @@ static void writeFontPref(XmlElement* styleElement, const std::string& namePrefi
     setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
 }
 
-static void writeDefaultFontPref(XmlElement* styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
+static void writeDefaultFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
 {
     auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
     writeFontPref(styleElement, namePrefix, fontPrefs.get());
 }
 
-void writeLinePrefs(XmlElement* styleElement,
+void writeLinePrefs(XmlElement& styleElement,
                     const std::string& namePrefix, 
                     double widthEfix, 
                     double dashLength, 
@@ -240,7 +240,7 @@ void writeLinePrefs(XmlElement* styleElement,
     setElementValue(styleElement, namePrefix + "DashGapLen", dashGap / lineWidthEvpu);
 }
 
-static void writeFramePrefs(XmlElement* styleElement, const std::string& namePrefix, const others::Enclosure* enclosure = nullptr)
+static void writeFramePrefs(XmlElement& styleElement, const std::string& namePrefix, const others::Enclosure* enclosure = nullptr)
 {
     if (!enclosure || enclosure->shape == others::Enclosure::Shape::NoEnclosure || enclosure->lineWidth == 0) {
         setElementValue(styleElement, namePrefix + "FrameType", 0);
@@ -257,7 +257,7 @@ static void writeFramePrefs(XmlElement* styleElement, const std::string& namePre
                     enclosure->roundCorners ? enclosure->cornerRadius / EFIX_PER_EVPU : 0.0);
 }
 
-static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, others::MarkingCategory::CategoryType categoryType)
+static void writeCategoryTextFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, others::MarkingCategory::CategoryType categoryType)
 {
     auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(categoryType));
     if (!cat) {
@@ -279,7 +279,7 @@ static void writeCategoryTextFontPref(XmlElement* styleElement, const FinalePref
     }
 }
 
-static void writePagePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     auto pagePrefs = prefs->pageFormat;
 
@@ -321,7 +321,7 @@ static void writePagePrefs(XmlElement* styleElement, const FinalePreferencesPtr&
     }
 }
 
-static void writeLyricsPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+static void writeLyricsPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::LyricVerse);
     for (auto [verseNumber, evenOdd] : {
@@ -339,7 +339,7 @@ static void writeLyricsPrefs(XmlElement* styleElement, const FinalePreferencesPt
     }
 }
 
-void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
+void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
 {
     using RepeatWingStyle = options::RepeatOptions::WingStyle;
 
@@ -406,7 +406,7 @@ void writeLineMeasurePrefs(XmlElement* styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "hideEmptyStaves", !forPartId);
 }
 
-void writeStemPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+void writeStemPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     setElementValue(styleElement, "useStraightNoteFlags", prefs->flagOptions->straightFlags);
     setElementValue(styleElement, "stemWidth", prefs->stemOptions->stemWidth / EFIX_PER_SPACE);
@@ -416,7 +416,7 @@ void writeStemPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
     setElementValue(styleElement, "stemSlashThickness", prefs->graceOptions->graceSlashWidth / EFIX_PER_SPACE);
 }
 
-void writeMusicSpacingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+void writeMusicSpacingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     setElementValue(styleElement, "minMeasureWidth", prefs->musicSpacing->minWidth / EVPU_PER_SPACE);
     setElementValue(styleElement, "minNoteDistance", prefs->musicSpacing->minDistance / EVPU_PER_SPACE);
@@ -424,7 +424,7 @@ void writeMusicSpacingPrefs(XmlElement* styleElement, const FinalePreferencesPtr
     setElementValue(styleElement, "minTieLength", prefs->musicSpacing->minDistTiedNotes / EVPU_PER_SPACE);
 }
 
-void writeNoteRelatedPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     setElementValue(styleElement, "accidentalDistance", prefs->accidentalOptions->acciAcciSpace / EVPU_PER_SPACE);
     setElementValue(styleElement, "accidentalNoteDistance", prefs->accidentalOptions->acciNoteSpace / EVPU_PER_SPACE);
@@ -444,7 +444,7 @@ void writeNoteRelatedPrefs(XmlElement* styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "mergeMatchingRests", prefs->miscOptions->consolidateRestsAcrossLayers);
 }
 
-void writeSmartShapePrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+void writeSmartShapePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     // Hairpin-related settings
     setElementValue(styleElement, "hairpinHeight", prefs->smartShapeOptions->shortHairpinOpeningWidth / EVPU_PER_SPACE);
@@ -469,7 +469,7 @@ void writeSmartShapePrefs(XmlElement* styleElement, const FinalePreferencesPtr& 
     setElementValue(styleElement, "ottavaNumbersOnly", prefs->smartShapeOptions->showOctavaAsText);
 }
 
-void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
+void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
 {
     using MeasureNumberRegion = others::MeasureNumberRegion;
     setElementValue(styleElement, "showMeasureNumber", prefs->measNumScorePart != nullptr);
@@ -554,7 +554,7 @@ void writeMeasureNumberPrefs(XmlElement* styleElement, const FinalePreferencesPt
     setElementValue(styleElement, "mmRestOldStyleSpacing", prefs->mmRestOptions->symSpacing / EVPU_PER_SPACE);
 }
 
-void writeRepeatEndingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+void writeRepeatEndingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     const auto& repeatOptions = prefs->repeatOptions;
     setElementValue(styleElement, "voltaLineWidth", repeatOptions->bracketLineWidth / EFIX_PER_SPACE);
@@ -563,7 +563,7 @@ void writeRepeatEndingPrefs(XmlElement* styleElement, const FinalePreferencesPtr
     setElementValue(styleElement, "voltaAlign", "left,baseline");
 
     // Optionally include bracket height and hook lengths if uncommented
-    // XmlElement* element = setElementText(styleElement, "voltaPosAbove", "");
+    // XmlElement& element = setElementText(styleElement, "voltaPosAbove", "");
     // element->setDoubleAttribute("x", 0);
     // element->setDoubleAttribute("y", repeatOptions->bracketHeight / EVPU_PER_SPACE);
 
@@ -575,7 +575,7 @@ void writeRepeatEndingPrefs(XmlElement* styleElement, const FinalePreferencesPtr
     // element->setDoubleAttribute("y", repeatOptions->bracketTextVPos / EVPU_PER_SPACE);
 }
 
-void writeTupletPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     using TupletOptions = options::TupletOptions;
     const auto& tupletOptions = prefs->tupletOptions;
@@ -640,7 +640,7 @@ void writeTupletPrefs(XmlElement* styleElement, const FinalePreferencesPtr& pref
     );
 }
 
-void writeMarkingPrefs(XmlElement* styleElement, const FinalePreferencesPtr& prefs)
+void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     using FontType = options::FontOptions::FontType;
     using CategoryType = others::MarkingCategory::CategoryType;
@@ -743,11 +743,12 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
 
     // extract document to mss
     XmlDocument mssDoc; // output
-    mssDoc.InsertEndChild(mssDoc.NewDeclaration());
-    auto museScoreElement = mssDoc.NewElement("museScore");
-    museScoreElement->SetAttribute("version", MSS_VERSION);
-    mssDoc.InsertEndChild(museScoreElement);
-    auto styleElement = museScoreElement->InsertNewChildElement("Style");
+    auto declaration = mssDoc.append_child(pugi::node_declaration);
+    declaration.append_attribute("version") = "1.0";
+    declaration.append_attribute("encoding") = "UTF-8";
+    auto museScoreElement = mssDoc.append_child("museScore");
+    museScoreElement.append_attribute("version") = MSS_VERSION;
+    auto styleElement = museScoreElement.append_child("Style");
     // write prefs from document
     writePagePrefs(styleElement, prefs);
     writeLyricsPrefs(styleElement, prefs);
@@ -761,20 +762,18 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     writeTupletPrefs(styleElement, prefs);
     writeMarkingPrefs(styleElement, prefs);
     // output
-    // open the file ourselves to avoid tinyxml2's use of Windows ACP encoding for path strings
+    // open the file ourselves to avoid Windows ACP encoding issues for path strings
     /// @todo encapsulate this into a callable function if/when we need to do it elsewhere
-    FILE* fp = stringutils::openFile(qualifiedOutputPath, "w");
-    if (!fp) throw std::runtime_error("Unable to write to file " + qualifiedOutputPath.u8string());
-    auto result = mssDoc.SaveFile(fp);
-    fclose(fp);
-    if (result != ::tinyxml2::XML_SUCCESS) {
-        throw std::runtime_error(mssDoc.ErrorStr());
-    }
+    std::ofstream file;
+    file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+    file.open(qualifiedOutputPath, std::ios::out | std::ios::binary);
+    mssDoc.save(file, "    ");
+    file.close();
 }
 
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
-    auto document = musx::factory::DocumentFactory::create<musx::xml::rapidxml::Document>(xmlBuffer);
+    auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
         processPart(outputPath, document, denigmaContext); // process the score
     }
