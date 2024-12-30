@@ -24,6 +24,7 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <functional>
 
 #include "musx/musx.h"
 #include "pugixml.hpp"
@@ -31,6 +32,7 @@
 #include "denigma.h"
 #include "massage/massage.h"
 #include "massage/musicxml.h"
+#include "export/enigmaxml.h"
 #include "util/ziputils.h"
 
 constexpr static double EDU_PER_QUARTER = 1024.0;
@@ -41,19 +43,12 @@ namespace musicxml {
 struct MassageMusicXmlContext
 {
     DenigmaContext denigmaContext;
-    pugi::xml_document xmlDocument;
     musx::dom::DocumentPtr musxDocument;
     int currentPart{};
     int currentMeasure{};
     int currentStaff{};
     int currentStaffOffset{};
     int errorCount{};
-
-    // Option booleans
-    bool refloatRests{false};
-    bool extendOttavasLeft{true};
-    bool extendOttavasRight{true};
-    bool fermataWholeRests{false};
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
 };
@@ -85,10 +80,9 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
     return Buffer((std::istreambuf_iterator<char>(xmlFile)), std::istreambuf_iterator<char>());
 }
 
-static Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
+Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
-    /// @todo Find and extract the part if it is specified in denigmaContext
-    std::string buffer = ziputils::getMusicXmlRootFile(inputPath, denigmaContext);
+    std::string buffer = ziputils::getMusicXmlScoreFile(inputPath, denigmaContext);
     return Buffer(buffer.begin(), buffer.end());
 }
 
@@ -102,10 +96,6 @@ static int staffNumberFromNote(pugi::xml_node xmlNote) {
     }
     return 1; // Default to 1 if no <staff> node or invalid content.
 }
-#include <pugixml.hpp>
-#include <functional>
-#include <iostream>
-#include <string>
 
 // This iterator function finds the next matching direction *before* sending the current one to the callback.
 // This allows the callback to move the direction without perturbing the iteration sequence.
@@ -136,7 +126,8 @@ void feedDirectionsOfType(pugi::xml_node node, const std::string& nodeName, cons
 
 static void fixDirectionBrackets(pugi::xml_node xmlMeasure, const std::string& directionType, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    if (!(context->extendOttavasLeft || context->extendOttavasRight)) return;
+    const DenigmaContext& denigmaContext = context->denigmaContext;
+    if (!(denigmaContext.extendOttavasLeft || denigmaContext.extendOttavasRight)) return;
 
     feedDirectionsOfType(xmlMeasure, directionType, [&](pugi::xml_node currentDirection) {
         auto xmlDirectionType = currentDirection.child("direction-type");
@@ -152,7 +143,7 @@ static void fixDirectionBrackets(pugi::xml_node xmlMeasure, const std::string& d
         auto nextDirection = currentDirection.next_sibling("direction");
 
         if (shiftType == "stop") {
-            if (context->extendOttavasRight) {
+            if (denigmaContext.extendOttavasRight) {
                 auto nextNote = currentDirection.next_sibling("note");
                 // Find the next note, skipping over extra notes in chords
                 if (nextNote) {
@@ -170,7 +161,7 @@ static void fixDirectionBrackets(pugi::xml_node xmlMeasure, const std::string& d
                 }
             }
         } else if (directionType == "octave-shift" && (shiftType == "up" || shiftType == "down")) {
-            if (context->extendOttavasLeft) {
+            if (denigmaContext.extendOttavasLeft) {
                 int sign = (shiftType == "down") ? 1 : -1;
                 int octaves = (nodeForType.attribute("size").as_int(8) - 1) / 7;
 
@@ -241,7 +232,7 @@ static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_pt
 
 void processXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    if (!context->musxDocument && context->refloatRests) {
+    if (!context->musxDocument && context->denigmaContext.refloatRests) {
         context->logMessage(LogMsg() << "Corresponding Finale document not found.", LogSeverity::Warning);
     }
 
@@ -273,7 +264,7 @@ void processXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
 
             /// @todo write the necessary functions and uncomment
             /*
-            if (context->musxDocument && context->refloatRests) {
+            if (context->musxDocument && context->denigmaContext.refloatRests) {
                 for (int staffNum = 1; staffNum <= stavesUsed; ++staffNum) {
                     context->currentStaffOffset = staffNum - 1;
                     processXmlWithFinaleDocument(
@@ -289,7 +280,7 @@ void processXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
 
             fixDirectionBrackets(xmlMeasure, "octave-shift", context);
 
-            if (context->fermataWholeRests) {
+            if (context->denigmaContext.fermataWholeRests) {
                 fixFermataWholeRests(xmlMeasure, context);
             }
         }
@@ -300,21 +291,16 @@ void processXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
     }
 }
 
-static void processFile(const std::filesystem::path& outputPath, const Buffer &xmlBuffer, const DenigmaContext& denigmaContext, const std::shared_ptr<others::PartDefinition>& part = nullptr)
+static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem::path& outputPath, const std::shared_ptr<MassageMusicXmlContext>& context, const std::shared_ptr<others::PartDefinition>& part = nullptr)
 {
+    const DenigmaContext& denigmaContext = context->denigmaContext;
+
     std::filesystem::path qualifiedOutputPath = outputPath;
     qualifiedOutputPath.replace_extension(".massaged" + outputPath.extension().u8string());
     if (!denigma::validatePathsAndOptions(qualifiedOutputPath, denigmaContext)) {
         return;
     }
 
-    auto context = std::make_shared<MassageMusicXmlContext>();
-    context->denigmaContext = denigmaContext;
-    pugi::xml_document& xmlDocument = context->xmlDocument;
-    auto parseResult = xmlDocument.load_buffer(xmlBuffer.data(), xmlBuffer.size(), pugi::parse_full | pugi::parse_ws_pcdata_single);
-    if (parseResult.status != pugi::xml_parse_status::status_ok) {
-        throw std::invalid_argument(std::string("Error parsing xml: ") + parseResult.description());
-    }
     auto scorePartwise = xmlDocument.child("score-partwise");
     if (!scorePartwise) {
         throw std::invalid_argument("file does not appear to be exported from Finale");
@@ -359,10 +345,10 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
     // Insert misc fields
     insertMiscellaneousField("original-software", creatorSoftware);
     insertMiscellaneousField("original-encoding-date", originalEncodingDate);
-    insertMiscellaneousField("extend-ottavas-right", context->extendOttavasRight);
-    insertMiscellaneousField("extend-ottavas-left", context->extendOttavasLeft);
-    insertMiscellaneousField("fermata-whole-rests", context->fermataWholeRests);
-    insertMiscellaneousField("refloat-rests", context->refloatRests);
+    insertMiscellaneousField("extend-ottavas-right", denigmaContext.extendOttavasRight);
+    insertMiscellaneousField("extend-ottavas-left", denigmaContext.extendOttavasLeft);
+    insertMiscellaneousField("fermata-whole-rests", denigmaContext.fermataWholeRests);
+    insertMiscellaneousField("refloat-rests", denigmaContext.refloatRests);
 
     processXml(scorePartwise, context);
 
@@ -372,18 +358,192 @@ static void processFile(const std::filesystem::path& outputPath, const Buffer &x
     pugi::xml_writer_stream writer(outputFile);
     xmlDocument.save(writer, "    "); // 2 spaces for indentation
     outputFile.close();
+    xmlDocument.reset();
+}
+
+std::string findPartFileNameByPartName(const pugi::xml_document& scoreXml, const std::string& utf8PartName)
+{
+    auto nextScorePart = scoreXml
+        .child("score-partwise")
+        .child("part-list")
+        .child("score-part");
+    while (nextScorePart) {
+        for (auto partLink = nextScorePart.child("part-link"); partLink; partLink = partLink.next_sibling("part-link")) {
+            if (partLink.attribute("xlink:title").value() == utf8PartName) {
+                return partLink.attribute("xlink:href").value();
+            }
+        }
+        nextScorePart = nextScorePart.next_sibling("score-part");
+    }
+    return {};
+}
+
+std::filesystem::path findPartNameByPartFileName(const pugi::xml_document& scoreXml, const std::filesystem::path& partFileName)
+{
+    auto nextScorePart = scoreXml
+        .child("score-partwise")
+        .child("part-list")
+        .child("score-part");
+    while (nextScorePart) {
+        for (auto partLink = nextScorePart.child("part-link"); partLink; partLink = partLink.next_sibling("part-link")) {
+            if (partLink.attribute("xlink:href").value() == partFileName.u8string()) {
+                auto retval = stringutils::utf8ToPath(partLink.attribute("xlink:title").value());
+                retval.replace_extension(MUSICXML_EXTENSION);
+                return retval;
+            }
+        }
+        nextScorePart = nextScorePart.next_sibling("score-part");
+    }
+    return partFileName;
+}
+
+std::optional<std::filesystem::path> findFinaleFile(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
+{
+    // Helper function to check if a file exists
+    auto fileExists = [](const std::filesystem::path& path) -> bool {
+        return std::filesystem::exists(path) && std::filesystem::is_regular_file(path);
+    };
+
+    // Helper function to construct a candidate file path by replacing the extension
+    auto constructPath = [](const std::filesystem::path& basePath, const char* ext) -> std::filesystem::path {
+        std::filesystem::path candidate = basePath;
+        candidate.replace_extension(ext);
+        return candidate;
+    };
+
+    // Helper function to search for a specific extension in a directory
+    auto findWithExtension = [&](const std::filesystem::path& dir, const std::filesystem::path& baseName, const char* ext) -> std::filesystem::path {
+        auto candidate = constructPath(dir / baseName, ext);
+        if (fileExists(candidate)) {
+            return candidate;
+        }
+        return {};
+    };
+
+    // Search a list of directories for `.musx` files first, then `.enigmaxml` files
+    auto searchDirectories = [&](const std::vector<std::filesystem::path>& directories, const std::filesystem::path& baseName) -> std::filesystem::path {
+        // Search for `.musx`
+        for (const auto& dir : directories) {
+            auto result = findWithExtension(dir, baseName, MUSX_EXTENSION);
+            if (!result.empty()) return result;
+        }
+        // Search for `.enigmaxml`
+        for (const auto& dir : directories) {
+            auto result = findWithExtension(dir, baseName, ENIGMAXML_EXTENSION);
+            if (!result.empty()) return result;
+        }
+        return {};
+    };
+
+    // Check user-supplied path
+    if (denigmaContext.finaleFilePath.has_value()) {
+        const auto& userPath = denigmaContext.finaleFilePath.value();
+        if (std::filesystem::is_regular_file(userPath)) {
+            // If it's a file, return it directly
+            if (fileExists(userPath)) {
+                return userPath;
+            }
+        } else if (std::filesystem::is_directory(userPath)) {
+            // If it's a directory, search for `.musx` and `.enigmaxml` in order
+            auto result = searchDirectories({userPath}, inputPath.stem());
+            if (!result.empty()) {
+                return result;
+            }
+        }
+    }
+
+    // Define default search paths: current directory of inputPath and its parent
+    std::vector<std::filesystem::path> defaultPaths = {
+        inputPath.parent_path(),
+        inputPath.parent_path().parent_path()
+    };
+
+    // Search default paths for `.musx` and `.enigmaxml` in order
+    auto result = searchDirectories(defaultPaths, inputPath.stem());
+    if (!result.empty()) {
+        return result;
+    }
+
+    // Return nullopt if no matching file is found
+    return std::nullopt;
 }
 
 void massage(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
+    auto context = std::make_shared<MassageMusicXmlContext>();
+    context->denigmaContext = denigmaContext;
+    auto finaleFilePath = findFinaleFile(inputPath, denigmaContext);
+    if (finaleFilePath.has_value()) {
+        auto xmlBuffer = [&]() -> Buffer {
+            Buffer retval;
+            const auto& path = finaleFilePath.value();
+            if (path.extension().u8string() == std::string(".") + MUSX_EXTENSION) {
+                return enigmaxml::extract(path, denigmaContext);
+            } else if (path.extension().u8string() == std::string(".") + ENIGMAXML_EXTENSION) {
+                return enigmaxml::read(path, denigmaContext);
+            }
+            assert(false); // bug in findFinaleFile if here
+            return {};
+        }();
+        if (!xmlBuffer.empty()) {
+            context->musxDocument = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
+        }
+    }
+
+    auto openXmlDocument = [&](const auto& xmlData) -> pugi::xml_document {
+        pugi::xml_document xmlScore;
+        auto parseResult = xmlScore.load_buffer(xmlData.data(), xmlData.size(), pugi::parse_full | pugi::parse_ws_pcdata_single);
+        if (parseResult.status != pugi::xml_parse_status::status_ok) {
+            throw std::invalid_argument(std::string("Error parsing xml: ") + parseResult.description());
+        }
+        return xmlScore;
+    };
+
     if ((inputPath.extension() != std::string(".") + MXL_EXTENSION) || !xmlBuffer.empty()) {
-        processFile(outputPath, xmlBuffer, denigmaContext);
+        processFile(openXmlDocument(xmlBuffer), outputPath, context);
         return;
     }
 
-    /// @todo add code to search for parts.
-    Buffer extractedXml = musicxml::extract(inputPath, denigmaContext);
-    processFile(outputPath, extractedXml, denigmaContext);
+    auto xmlScore = openXmlDocument(ziputils::getMusicXmlScoreFile(inputPath, denigmaContext));
+    std::string partFileName = !denigmaContext.allPartsAndScore && denigmaContext.partName.has_value() && !denigmaContext.partName.value().empty()
+                             ? findPartFileNameByPartName(xmlScore, denigmaContext.partName.value())
+                             : "";
+
+    bool processedAFile = false;
+    auto processPartOrScore = [&](const std::filesystem::path& fileName, const std::string& xmlData) -> bool {
+        auto qualifiedOutputPath = outputPath;
+        std::shared_ptr<others::PartDefinition> partDef;
+        if (!partFileName.empty() && fileName.u8string() != partFileName) {
+            return true; // skip if we aren't interested in this part.
+        }
+        auto partFileNamePath = partFileName.empty()
+                              ? findPartNameByPartFileName(xmlScore, fileName)
+                              : stringutils::utf8ToPath(partFileName);
+        qualifiedOutputPath.replace_extension(partFileNamePath);
+        processFile(openXmlDocument(xmlData), qualifiedOutputPath, context, partDef);
+        processedAFile = true;
+        return denigmaContext.allPartsAndScore; // exit loop if not allPartsAndScore
+    };
+
+    /// @todo (eventually, maybe) reproduce a massaged.mxl file if allPartsAndScore is true.
+    ///         For now, though, just extract all the parts separately.
+    if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
+        ziputils::iterateMusicXmlPartFiles(inputPath, denigmaContext, processPartOrScore);
+        if (denigmaContext.allPartsAndScore) {
+            processFile(std::move(xmlScore), outputPath, context); // must do score last, because std::move
+        }
+    } else {
+        processFile(std::move(xmlScore), outputPath, context);
+        processedAFile = true;
+    }
+
+    if (!processedAFile && denigmaContext.partName.has_value() && !denigmaContext.allPartsAndScore) {
+        if (denigmaContext.partName->empty()) {
+            denigmaContext.logMessage(LogMsg() << "No parts were found in document", LogSeverity::Warning);
+        } else {
+            denigmaContext.logMessage(LogMsg() << "No part name starting with \"" << denigmaContext.partName.value() << "\" was found", LogSeverity::Warning);
+        }
+    }
 }
 
 } // namespace musicxml

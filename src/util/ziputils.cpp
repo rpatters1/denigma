@@ -53,9 +53,10 @@ std::string readFile(const std::filesystem::path& zipFilePath, const std::string
     return zip.read(fileName);
 }
 
-static void iterateFiles(miniz_cpp::zip_file& zip, const denigma::DenigmaContext& denigmaContext,
+static bool iterateFiles(miniz_cpp::zip_file& zip, const denigma::DenigmaContext& denigmaContext,
     std::optional<std::string> searchForFile, std::function<bool(const miniz_cpp::zip_info&)> iterator)
 {
+    bool calledIterator = false;
     for (auto& fileInfo : zip.infolist()) {
         /*
         std::cout << "Unzipping " << outputDir << "/" << fileInfo.filename << " ";
@@ -85,18 +86,19 @@ static void iterateFiles(miniz_cpp::zip_file& zip, const denigma::DenigmaContext
         if (searchForFile.has_value() && searchForFile.value() != fileInfo.filename) {
             continue;
         }
+        calledIterator = true;
         if (!iterator(fileInfo)) {
             break;
         }
     }
+    return calledIterator;
 }
 
-std::string getMusicXmlRootFile(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext)
+static std::string getMusicXmlScoreName(const std::filesystem::path& zipFilePath, miniz_cpp::zip_file& zip, const denigma::DenigmaContext& denigmaContext)
 {
     std::filesystem::path defaultName = zipFilePath.filename();
     defaultName.replace_extension(MUSICXML_EXTENSION);
     std::string fileName = defaultName.filename().u8string();
-    auto zip = openZip(zipFilePath, denigmaContext);
     try {
         iterateFiles(zip, denigmaContext, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
             if (fileInfo.filename == "META-INF/container.xml") {
@@ -105,34 +107,58 @@ std::string getMusicXmlRootFile(const std::filesystem::path& zipFilePath, const 
                 if (!parseResult) {
                     throw std::runtime_error("Error parsing container.xml: " + std::string(parseResult.description()));
                 }
-                if (auto path = containerXml.document_element().child("rootfiles").child("rootfile").attribute("full-path")) {
+                if (auto path = containerXml.child("container").child("rootfiles").child("rootfile").attribute("full-path")) {
                     fileName = path.value();
                 }
                 return false;
             }
             return true;
         });
-        return zip.read(fileName);
+        return fileName;
     } catch (const std::exception &ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to extract data from file " << zipFilePath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract META-INF/container.xml from file " << zipFilePath.u8string(), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         throw;
     }
 }
 
-void iterateFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext, std::function<bool(const std::string&)> iterator)
+std::string getMusicXmlScoreFile(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext)
 {
     auto zip = openZip(zipFilePath, denigmaContext);
-    iterateFiles(zip, denigmaContext, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
-        return iterator(zip.read(fileInfo.filename));
-    });
+    return zip.read(getMusicXmlScoreName(zipFilePath, zip, denigmaContext));
 }
 
-void iterateFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext, const std::string& searchFileName, std::function<bool(const std::string&)> iterator)
+std::string getMusicXmlFirstPart(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext)
 {
     auto zip = openZip(zipFilePath, denigmaContext);
-    iterateFiles(zip, denigmaContext, searchFileName, [&](const miniz_cpp::zip_info& fileInfo) {
-        return iterator(zip.read(fileInfo.filename));
+    std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
+    std::string retval;
+    iterateFiles(zip, denigmaContext, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
+        if (scoreName != fileInfo.filename) {
+            std::filesystem::path next = stringutils::utf8ToPath(fileInfo.filename);
+            if (next.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
+                retval = zip.read(fileInfo);
+                return false;
+            }
+        }
+        return true;
+    });
+    return retval;
+}
+
+bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext, IteratorFunc iterator)
+{
+    auto zip = openZip(zipFilePath, denigmaContext);
+    std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
+    return iterateFiles(zip, denigmaContext, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
+        if (scoreName == fileInfo.filename) {
+            return true; // skip score
+        }
+        std::filesystem::path next = stringutils::utf8ToPath(fileInfo.filename);
+        if (next.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
+            return iterator(next, zip.read(fileInfo.filename));
+        }
+        return true;
     });
 }
 

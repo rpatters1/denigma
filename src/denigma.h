@@ -27,6 +27,8 @@
 #include <vector>
 #include <optional>
 #include <fstream>
+#include <functional>
+
 
 #include "util/stringutils.h"
 
@@ -113,6 +115,23 @@ enum class LogSeverity
     Verbose     ///< Only emit if --verbose option specified. The message is for information.
 };
 
+enum class MusicProgramPreset
+{
+    Unspecified,
+    MuseScore,
+    Dorico,
+    LilyPond
+};
+
+inline MusicProgramPreset toMusicProgramPreset(const std::string& inp)
+{
+    const std::string lc = stringutils::toLowerCase(inp);
+    if (lc == "musescore") return MusicProgramPreset::MuseScore;
+    if (lc == "dorico") return MusicProgramPreset::Dorico;
+    if (lc == "lilypond") return MusicProgramPreset::LilyPond;
+    return MusicProgramPreset::Unspecified;
+}
+
 struct DenigmaContext
 {
     std::string programName;
@@ -127,6 +146,22 @@ struct DenigmaContext
     std::shared_ptr<std::ofstream> logFile;
     std::filesystem::path inputFilePath;
 
+    // Specific options for `massage` command
+    bool refloatRests{true};
+    bool extendOttavasLeft{true};
+    bool extendOttavasRight{true};
+    bool fermataWholeRests{ true };
+    std::optional<std::filesystem::path> finaleFilePath;
+
+    void setMassageTarget(const std::string& opt)
+    {
+        auto preset = toMusicProgramPreset(opt);
+        if (preset == MusicProgramPreset::Unspecified) return;
+        refloatRests = extendOttavasLeft = fermataWholeRests = true;
+        extendOttavasRight = (preset != MusicProgramPreset::LilyPond);
+    }
+
+    // Logging methods
     void startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[]); ///< Starts logging if logging was requested
 
     /**
@@ -136,7 +171,7 @@ struct DenigmaContext
     */
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info) const;
 
-    void endLogging();
+    void endLogging(); ///< Ends logging if logging was requested
 };
 
 class ICommand

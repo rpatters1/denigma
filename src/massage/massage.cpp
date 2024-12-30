@@ -70,6 +70,23 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
     // Print usage
     std::cout << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
     std::cout << indentSpaces << std::endl;
+    std::cout << "Specific options:" << std::endl;
+    std::cout << "  --finale-file <file|directory>  Specify a .musx or .enigmaxml file, or a directory to search for such files." << std::endl;
+    std::cout << "                                  The Finale file is used as co-input, especially to identify rests for refloating." << std::endl;
+    std::cout << "                                  If omitted, search the same directory as the input xml and its parent directory." << std::endl;
+    std::cout << "  --refloat-rests                 Refloat rests (default: on)." << std::endl;
+    std::cout << "  --no-refloat-rests              Disable refloating of rests." << std::endl;
+    std::cout << "  --extend-ottavas-left           Extend ottavas to the left of grace notes (default: on)." << std::endl;
+    std::cout << "  --no-extend-ottavas-left        Disable extending ottavas to the left of grace notes." << std::endl;
+    std::cout << "  --extend-ottavas-right          Extend ottavas to the right by one note or chord (default: on)." << std::endl;
+    std::cout << "  --no-extend-ottavas-right       Disable extending ottavas to the right by one note or chord ." << std::endl;
+    std::cout << "  --fermata-whole-rests           Convert fermatas on whole rests to full-measure rests (default: on)." << std::endl;
+    std::cout << "  --no-fermata-whole-rests        Disable converting on whole rests to full-measure rests ." << std::endl;
+    std::cout << std::endl;
+    std::cout << "  --target <program-name>         Sets the above options for best results in that program." << std::endl;
+    std::cout << "                                  If you specify this value first, you can override specific options later on the command line." << std::endl;
+    std::cout << "  --                              Currently supported options: \"musescore\" | \"dorico\" | \"lilypond\"" << std::endl;
+    std::cout << std::endl;
 
     // Supported input formats
     std::cout << indentSpaces << "Supported input formats:" << std::endl;
@@ -97,7 +114,7 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
     //std::cout << indentSpaces << "  " << "  exports the enigmaxml in input.musx to output.enigmaxml in the same folder" << std::endl;
     //std::cout << indentSpaces << "  " << programName << " input.enigmaxml --mnx --mss" << std::endl;
     //std::cout << indentSpaces << "  " << fullCommand << " myfile.mxl" << std::endl;
-    std::cout << indentSpaces << "  " << "  massages the score from myfile.enigmaxml to myfile.massaged.musicxml in the same folder" << std::endl;
+    //std::cout << indentSpaces << "  " << "  massages the score from myfile.enigmaxml to myfile.massaged.musicxml in the same folder" << std::endl;
 
     return 1;
 }

@@ -792,7 +792,7 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
             }
         }
     }
-    if (denigmaContext.partName.has_value() && !denigmaContext.allPartsAndScore && !foundPart) {
+    if (!foundPart && denigmaContext.partName.has_value() && !denigmaContext.allPartsAndScore) {
         if (denigmaContext.partName->empty()) {
             denigmaContext.logMessage(LogMsg() << "No parts were found in document", LogSeverity::Warning);
         } else {

@@ -137,6 +137,30 @@ int _MAIN(int argc, arg_char* argv[])
             }
         } else if (next == _ARG("--verbose")) {
             denigmaContext.verbose = true;
+        // Specific options for `massage` command
+        } else if (next == _ARG("--finale-file")) {
+            auto option = getNextArg();
+            if (!option.empty()) {
+                denigmaContext.finaleFilePath = option;
+            }
+        } else if (next == _ARG("--target")) {
+            denigmaContext.setMassageTarget(std::string(_ARG_CONV(getNextArg())));
+        } else if (next == _ARG("--refloat-rests")) {
+            denigmaContext.refloatRests = true;
+        } else if (next == _ARG("--no-refloat-rests")) {
+            denigmaContext.refloatRests = false;
+        } else if (next == _ARG("--extend-ottavas-left")) {
+            denigmaContext.extendOttavasLeft = true;
+        } else if (next == _ARG("--no-extend-ottavas-left")) {
+            denigmaContext.extendOttavasLeft = false;
+        } else if (next == _ARG("--extend-ottavas-right")) {
+            denigmaContext.extendOttavasRight = true;
+        } else if (next == _ARG("--no-extend-ottavas-right")) {
+            denigmaContext.extendOttavasRight = false;
+        } else if (next == _ARG("--fermata-whole-rests")) {
+            denigmaContext.fermataWholeRests = true;
+        } else if (next == _ARG("--no-fermata-whole-rests")) {
+            denigmaContext.fermataWholeRests = false;
         } else {
             args.push_back(argv[x]);
         }
