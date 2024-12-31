@@ -47,7 +47,9 @@ struct MassageMusicXmlContext
 {
     DenigmaContext denigmaContext;
     musx::dom::DocumentPtr musxDocument;
-    int currentPart{};
+    Cmper musxPartId{};
+
+    int currentMusicXmlPart{};
     int currentMeasure{};
     int currentStaff{};
     int currentStaffOffset{};
@@ -55,7 +57,7 @@ struct MassageMusicXmlContext
 
     void initCounts()
     {
-        currentPart = currentMeasure = currentStaff = currentStaffOffset = errorCount = 0;
+        currentMusicXmlPart = currentMeasure = currentStaff = currentStaffOffset = errorCount = 0;
     }
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
@@ -67,12 +69,18 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
         ++errorCount;
     }
     std::string logEntry;
-    if (currentStaff > 0 && currentMeasure > 0) {
-        std::string staffText = "p" + std::to_string(currentPart);
+    if (currentStaff >= 0 && currentMeasure > 0) {
+        std::string staffText = "p" + std::to_string(currentMusicXmlPart);
         int staffNumber = currentStaff + currentStaffOffset;
-
-        // Simulate fetching the staff name (replace with actual implementation)
-        std::string staffName = "[StaffName]"; // Replace with staff name fetching logic
+        std::string staffName = [&]() -> std::string {
+            auto iuList = musxDocument->getOthers()->getArrayForPart<others::InstrumentUsed>(musxPartId, 0); // 0 is the master list of staves in Scroll View
+            if (!iuList.empty()) { 
+                if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, currentStaff + currentStaffOffset)) {
+                    return staff->getFullName();
+                }
+            }
+            return "StaffName";
+        }();
 
         staffText += "[" + staffName + "]";
         logEntry += "(" + staffText + " m" + std::to_string(currentMeasure) + ") ";
@@ -230,9 +238,8 @@ void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
         context->logMessage(LogMsg() << "Corresponding Finale document not found.", LogSeverity::Warning);
     }
 
-    context->currentPart = 1;
-    context->currentStaff = 1;
-    context->currentStaffOffset = 0;
+    context->initCounts();
+    context->currentMusicXmlPart = 1;
 
     for (auto xmlPart = scorePartWiseNode.child("part"); xmlPart; xmlPart = xmlPart.next_sibling("part")) {
         context->currentMeasure = 0;
@@ -279,13 +286,13 @@ void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
             }
         }
 
-        context->currentPart++;
+        context->currentMusicXmlPart++;
         context->currentStaff += stavesUsed;
         context->currentStaffOffset = 0;
     }
 }
 
-static void processXml(pugi::xml_document& xmlDocument, const std::shared_ptr<MassageMusicXmlContext>& context, const std::shared_ptr<others::PartDefinition>& part = nullptr)
+static void processXml(pugi::xml_document& xmlDocument, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     const DenigmaContext& denigmaContext = context->denigmaContext;
 
@@ -348,14 +355,14 @@ static std::filesystem::path calcQualifiedOutputPath(const std::filesystem::path
     return qualifiedOutputPath;
 }
 
-static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem::path& outputPath, const std::shared_ptr<MassageMusicXmlContext>& context, const std::shared_ptr<others::PartDefinition>& part = nullptr)
+static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem::path& outputPath, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath);
     if (!denigma::validatePathsAndOptions(qualifiedOutputPath, context->denigmaContext)) {
         return;
     }
 
-    processXml(xmlDocument, context, part);
+    processXml(xmlDocument, context);
 
     std::ofstream outputFile;
     outputFile.exceptions(std::ios::failbit | std::ios::badbit);
@@ -402,10 +409,10 @@ std::filesystem::path findPartNameByPartFileName(const pugi::xml_document& score
     return partFileName;
 }
 
-std::shared_ptr<others::PartDefinition> getPartDefinitionFromPartFileName(const std::string& partFileName, const std::shared_ptr<MassageMusicXmlContext>& context)
+Cmper getMusxPartIdFromPartFileName(const std::string& partFileName, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     if (!context->musxDocument) {
-        return nullptr;
+        return 0;
     }
     
     std::regex pattern(R"(p(\d+)\.musicxml)");
@@ -417,12 +424,7 @@ std::shared_ptr<others::PartDefinition> getPartDefinitionFromPartFileName(const 
     } else {
         context->denigmaContext.logMessage(LogMsg() << "Unable to get part number from " << partFileName << ". Using score instead.", LogSeverity::Warning);
     }
-
-    auto retval = context->musxDocument->getOthers()->get<others::PartDefinition>(partNumber);
-    if (!retval) {
-        context->denigmaContext.logMessage(LogMsg() << "Finale file does not contain a part for " << partFileName);
-    }
-    return retval;
+    return partNumber;
 }
 
 std::optional<std::filesystem::path> findFinaleFile(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
@@ -551,7 +553,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
     bool processedAFile = false;
     auto processPartOrScore = [&](const std::filesystem::path& fileName, const std::string& xmlData) -> bool {
         auto qualifiedOutputPath = outputPath;
-        auto partDef = getPartDefinitionFromPartFileName(fileName.u8string(), context);
+        context->musxPartId = getMusxPartIdFromPartFileName(fileName.u8string(), context);
         auto partFileNamePath = [&]() {
             if (!partFileName.has_value()) {
                 return findPartNameByPartFileName(xmlScore, fileName);
@@ -564,7 +566,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
             }
         }();
         qualifiedOutputPath.replace_extension(partFileNamePath);
-        processFile(openXmlDocument(xmlData), qualifiedOutputPath, context, partDef);
+        processFile(openXmlDocument(xmlData), qualifiedOutputPath, context);
         processedAFile = true;
         return denigmaContext.allPartsAndScore; // exit loop if not allPartsAndScore
     };
@@ -601,15 +603,30 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
 
     auto context = createContext(inputPath, denigmaContext);
     ziputils::iterateModifyFilesInPlace(inputPath, qualifiedOutputPath, denigmaContext, [&](const std::filesystem::path& fileName, std::string& fileContents, bool isScore) {
-        denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << fileName.u8string() << " <<<<<<<<<<");
         if (fileName.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
+            context->musxPartId = !isScore ? getMusxPartIdFromPartFileName(fileName.u8string(), context) : 0;
+            auto partName = [&]() -> std::string {
+                std::string retval;
+                if (context->musxDocument) {
+                    if (auto part = context->musxDocument->getOthers()->get<others::PartDefinition>(context->musxPartId)) {
+                        retval = part->getName();
+                    }
+                }
+                if (retval.empty()) {
+                    return isScore ? "Score" : std::string("Part " + std::to_string(context->musxPartId));
+                }
+                return retval;
+            }();
+            denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << fileName.u8string() << " (" << partName << ") <<<<<<<<<<");
+
             auto xmlDocument = openXmlDocument(fileContents);
-            auto partDef = !isScore ? getPartDefinitionFromPartFileName(fileName.u8string(), context) : nullptr;
-            processXml(xmlDocument, context, partDef);
+            processXml(xmlDocument, context);
             std::stringstream ss;
             pugi::xml_writer_stream writer(ss);
             xmlDocument.save(writer, INDENT_SPACES);
             fileContents = ss.str();
+        } else {
+            denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << fileName.u8string() << " <<<<<<<<<<");
         }
         return true; // always save the file back, even if we didn't modify it
     });
