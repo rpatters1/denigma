@@ -25,6 +25,7 @@
 #include <iostream>
 #include <sstream>
 #include <functional>
+#include <regex>
 
 #include "musx/musx.h"
 #include "pugixml.hpp"
@@ -409,6 +410,29 @@ std::filesystem::path findPartNameByPartFileName(const pugi::xml_document& score
     return partFileName;
 }
 
+std::shared_ptr<others::PartDefinition> getPartDefinitionFromPartFileName(const std::string& partFileName, const std::shared_ptr<MassageMusicXmlContext>& context)
+{
+    if (!context->musxDocument) {
+        return nullptr;
+    }
+    
+    std::regex pattern(R"(p(\d+)\.musicxml)");
+    std::smatch match;
+
+    Cmper partNumber = 0;
+    if (std::regex_search(partFileName, match, pattern)) {
+        partNumber = Cmper(std::stoi(match[1].str()));
+    } else {
+        context->denigmaContext.logMessage(LogMsg() << "Unable to get part number from " << partFileName << ". Using score instead.", LogSeverity::Warning);
+    }
+
+    auto retval = context->musxDocument->getOthers()->get<others::PartDefinition>(partNumber);
+    if (!retval) {
+        context->denigmaContext.logMessage(LogMsg() << "Finale file does not contain a part for " << partFileName);
+    }
+    return retval;
+}
+
 std::optional<std::filesystem::path> findFinaleFile(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
     // Helper function to check if a file exists
@@ -449,7 +473,10 @@ std::optional<std::filesystem::path> findFinaleFile(const std::filesystem::path&
 
     // Check user-supplied path
     if (denigmaContext.finaleFilePath.has_value()) {
-        const auto& userPath = denigmaContext.finaleFilePath.value();
+        auto userPath = denigmaContext.finaleFilePath.value();
+        if (userPath.is_relative()) {
+            userPath = inputPath.parent_path() / userPath;
+        }
         if (std::filesystem::is_regular_file(userPath)) {
             // If it's a file, return it directly
             if (fileExists(userPath)) {
@@ -532,8 +559,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
     bool processedAFile = false;
     auto processPartOrScore = [&](const std::filesystem::path& fileName, const std::string& xmlData) -> bool {
         auto qualifiedOutputPath = outputPath;
-        std::shared_ptr<others::PartDefinition> partDef;
-        /// @todo figure out which part definition
+        auto partDef = getPartDefinitionFromPartFileName(fileName.u8string(), context);
         auto partFileNamePath = [&]() {
             if (!partFileName.has_value()) {
                 return findPartNameByPartFileName(xmlScore, fileName);
@@ -586,10 +612,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
         denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << fileName.u8string() << " <<<<<<<<<<");
         if (fileName.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
             auto xmlDocument = openXmlDocument(fileContents);
-            std::shared_ptr<others::PartDefinition> partDef;
-            if (!isScore) {
-                /// @todo figure out which part definition
-            }
+            auto partDef = !isScore ? getPartDefinitionFromPartFileName(fileName.u8string(), context) : nullptr;
             processXml(xmlDocument, context, partDef);
             std::stringstream ss;
             pugi::xml_writer_stream writer(ss);
