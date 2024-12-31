@@ -82,10 +82,7 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
 
 Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
-    std::ifstream xmlFile;
-    xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
-    xmlFile.open(inputPath, std::ios::binary);
-    return Buffer((std::istreambuf_iterator<char>(xmlFile)), std::istreambuf_iterator<char>());
+    return enigmaxml::read(inputPath, denigmaContext);
 }
 
 static int staffNumberFromNote(pugi::xml_node xmlNote) {
