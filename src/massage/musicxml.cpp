@@ -36,6 +36,8 @@
 #include "util/ziputils.h"
 
 constexpr static double EDU_PER_QUARTER = 1024.0;
+constexpr static char INDENT_SPACES[] = "    ";
+
 
 namespace denigma {
 namespace musicxml {
@@ -49,6 +51,11 @@ struct MassageMusicXmlContext
     int currentStaff{};
     int currentStaffOffset{};
     int errorCount{};
+
+    void initCounts()
+    {
+        currentPart = currentMeasure = currentStaff = currentStaffOffset = errorCount = 0;
+    }
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
 };
@@ -78,12 +85,6 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
     xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
     xmlFile.open(inputPath, std::ios::binary);
     return Buffer((std::istreambuf_iterator<char>(xmlFile)), std::istreambuf_iterator<char>());
-}
-
-Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
-{
-    std::string buffer = ziputils::getMusicXmlScoreFile(inputPath, denigmaContext);
-    return Buffer(buffer.begin(), buffer.end());
 }
 
 static int staffNumberFromNote(pugi::xml_node xmlNote) {
@@ -230,7 +231,7 @@ static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_pt
     }
 }
 
-void processXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageMusicXmlContext>& context)
+void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     if (!context->musxDocument && context->denigmaContext.refloatRests) {
         context->logMessage(LogMsg() << "Corresponding Finale document not found.", LogSeverity::Warning);
@@ -267,7 +268,7 @@ void processXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
             if (context->musxDocument && context->denigmaContext.refloatRests) {
                 for (int staffNum = 1; staffNum <= stavesUsed; ++staffNum) {
                     context->currentStaffOffset = staffNum - 1;
-                    processXmlWithFinaleDocument(
+                    massageXmlWithFinaleDocument(
                         xmlMeasure,
                         context->currentStaff + context->currentStaffOffset,
                         context->currentMeasure,
@@ -291,15 +292,9 @@ void processXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
     }
 }
 
-static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem::path& outputPath, const std::shared_ptr<MassageMusicXmlContext>& context, const std::shared_ptr<others::PartDefinition>& part = nullptr)
+static void processXml(pugi::xml_document& xmlDocument, const std::shared_ptr<MassageMusicXmlContext>& context, const std::shared_ptr<others::PartDefinition>& part = nullptr)
 {
     const DenigmaContext& denigmaContext = context->denigmaContext;
-
-    std::filesystem::path qualifiedOutputPath = outputPath;
-    qualifiedOutputPath.replace_extension(".massaged" + outputPath.extension().u8string());
-    if (!denigma::validatePathsAndOptions(qualifiedOutputPath, denigmaContext)) {
-        return;
-    }
 
     auto scorePartwise = xmlDocument.child("score-partwise");
     if (!scorePartwise) {
@@ -326,9 +321,9 @@ static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem:
     std::string originalEncodingDate = encodingDateElement.text().get();
     encodingDateElement.text().set(getTimeStamp("%Y-%m-%d").c_str());
 
-    pugi::xml_node miscellaneousElement = encodingElement.child("miscellaneous");
+    pugi::xml_node miscellaneousElement = identificationElement.child("miscellaneous");
     if (!miscellaneousElement) {
-        miscellaneousElement = encodingElement.append_child("miscellaneous");
+        miscellaneousElement = identificationElement.append_child("miscellaneous");
     }
     
     auto insertMiscellaneousField = [&](const std::string& name, const auto& value) {
@@ -350,13 +345,30 @@ static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem:
     insertMiscellaneousField("fermata-whole-rests", denigmaContext.fermataWholeRests);
     insertMiscellaneousField("refloat-rests", denigmaContext.refloatRests);
 
-    processXml(scorePartwise, context);
+    massageXml(scorePartwise, context);
+}
+
+static std::filesystem::path calcQualifiedOutputPath(const std::filesystem::path& outputPath)
+{
+    std::filesystem::path qualifiedOutputPath = outputPath;
+    qualifiedOutputPath.replace_extension(".massaged" + outputPath.extension().u8string());
+    return qualifiedOutputPath;
+}
+
+static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem::path& outputPath, const std::shared_ptr<MassageMusicXmlContext>& context, const std::shared_ptr<others::PartDefinition>& part = nullptr)
+{
+    std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath);
+    if (!denigma::validatePathsAndOptions(qualifiedOutputPath, context->denigmaContext)) {
+        return;
+    }
+
+    processXml(xmlDocument, context, part);
 
     std::ofstream outputFile;
     outputFile.exceptions(std::ios::failbit | std::ios::badbit);
     outputFile.open(qualifiedOutputPath);
     pugi::xml_writer_stream writer(outputFile);
-    xmlDocument.save(writer, "    "); // 2 spaces for indentation
+    xmlDocument.save(writer, INDENT_SPACES);
     outputFile.close();
     xmlDocument.reset();
 }
@@ -468,7 +480,7 @@ std::optional<std::filesystem::path> findFinaleFile(const std::filesystem::path&
     return std::nullopt;
 }
 
-void massage(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+static std::shared_ptr<MassageMusicXmlContext> createContext(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
     auto context = std::make_shared<MassageMusicXmlContext>();
     context->denigmaContext = denigmaContext;
@@ -489,15 +501,23 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
             context->musxDocument = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
         }
     }
+    return context;
+}
 
-    auto openXmlDocument = [&](const auto& xmlData) -> pugi::xml_document {
-        pugi::xml_document xmlScore;
-        auto parseResult = xmlScore.load_buffer(xmlData.data(), xmlData.size(), pugi::parse_full | pugi::parse_ws_pcdata_single);
-        if (parseResult.status != pugi::xml_parse_status::status_ok) {
-            throw std::invalid_argument(std::string("Error parsing xml: ") + parseResult.description());
-        }
-        return xmlScore;
-    };
+template <typename T>
+pugi::xml_document openXmlDocument(const T& xmlData)
+{
+    pugi::xml_document xmlDocument;
+    auto parseResult = xmlDocument.load_buffer(xmlData.data(), xmlData.size(), pugi::parse_full | pugi::parse_ws_pcdata_single);
+    if (parseResult.status != pugi::xml_parse_status::status_ok) {
+        throw std::invalid_argument(std::string("Error parsing xml: ") + parseResult.description());
+    }
+    return xmlDocument;
+};
+
+void massage(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+{
+    auto context = createContext(inputPath, denigmaContext);
 
     if ((inputPath.extension() != std::string(".") + MXL_EXTENSION) || !xmlBuffer.empty()) {
         processFile(openXmlDocument(xmlBuffer), outputPath, context);
@@ -512,10 +532,11 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
     bool processedAFile = false;
     auto processPartOrScore = [&](const std::filesystem::path& fileName, const std::string& xmlData) -> bool {
         auto qualifiedOutputPath = outputPath;
-        std::shared_ptr<others::PartDefinition> partDef;
         if (!partFileName.empty() && fileName.u8string() != partFileName) {
-            return true; // skip if we aren't interested in this part.
+                return true; // skip if we aren't interested in this part.
         }
+        std::shared_ptr<others::PartDefinition> partDef;
+        /// @todo figure out which part definition
         auto partFileNamePath = partFileName.empty()
                               ? findPartNameByPartFileName(xmlScore, fileName)
                               : stringutils::utf8ToPath(partFileName);
@@ -544,6 +565,32 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
             denigmaContext.logMessage(LogMsg() << "No part name starting with \"" << denigmaContext.partName.value() << "\" was found", LogSeverity::Warning);
         }
     }
+}
+
+void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext)
+{
+    std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath);
+    if (!denigma::validatePathsAndOptions(qualifiedOutputPath, denigmaContext)) {
+        return;
+    }
+
+    auto context = createContext(inputPath, denigmaContext);
+    ziputils::iterateModifyFilesInPlace(inputPath, qualifiedOutputPath, denigmaContext, [&](const std::filesystem::path& fileName, std::string& fileContents, bool isScore) {
+        denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << fileName.u8string() << " <<<<<<<<<<");
+        if (fileName.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
+            auto xmlDocument = openXmlDocument(fileContents);
+            std::shared_ptr<others::PartDefinition> partDef;
+            if (!isScore) {
+                /// @todo figure out which part definition
+            }
+            processXml(xmlDocument, context, partDef);
+            std::stringstream ss;
+            pugi::xml_writer_stream writer(ss);
+            xmlDocument.save(writer, INDENT_SPACES);
+            fileContents = ss.str();
+        }
+        return true;
+    });
 }
 
 } // namespace musicxml

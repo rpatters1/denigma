@@ -36,7 +36,7 @@ struct MassageCommand : public ICommand
     void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
 
     std::optional<std::string_view> defaultInputFormat() const override { return MXL_EXTENSION; };
-    std::optional<std::string_view> defaultOutputFormat() const override { return MUSICXML_EXTENSION; };
+    std::optional<std::string_view> defaultOutputFormat() const override { return MXL_EXTENSION; };
     const std::string_view commandName() const override { return "massage"; }
 };
 

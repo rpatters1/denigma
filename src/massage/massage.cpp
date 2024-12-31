@@ -60,6 +60,7 @@ constexpr auto outputProcessors = []() {
     };
 
     return to_array<OutputProcessor>({
+            { MXL_EXTENSION, musicxml::massageMxl },
             { MUSICXML_EXTENSION, musicxml::massage },
         });
     }();

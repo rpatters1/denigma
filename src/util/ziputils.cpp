@@ -20,7 +20,6 @@
  * THE SOFTWARE.
  */
 #include "util/ziputils.h"
-#include "pugixml.hpp"
 
  // NOTE: This namespace is necessary because zip_file.hpp is poorly implemented and
 //          can only be included once in the entire project.
@@ -36,10 +35,10 @@ using namespace denigma;
 static miniz_cpp::zip_file openZip(const std::filesystem::path& zipFilePath, const DenigmaContext& denigmaContext)
 {
     try {
-        std::ifstream zipFile;
-        zipFile.exceptions(std::ios::failbit | std::ios::badbit);
-        zipFile.open(zipFilePath, std::ios::binary);
-        return miniz_cpp::zip_file(zipFile);
+        std::ifstream zipReader;
+        zipReader.exceptions(std::ios::failbit | std::ios::badbit);
+        zipReader.open(zipFilePath, std::ios::binary);
+        return miniz_cpp::zip_file(zipReader);
     } catch (const std::exception &ex) {
         denigmaContext.logMessage(LogMsg() << "unable to extract data from file " << zipFilePath.u8string(), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
@@ -154,12 +153,40 @@ bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const de
         if (scoreName == fileInfo.filename) {
             return true; // skip score
         }
-        std::filesystem::path next = stringutils::utf8ToPath(fileInfo.filename);
-        if (next.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
-            return iterator(next, zip.read(fileInfo.filename));
+        std::filesystem::path nextPath = stringutils::utf8ToPath(fileInfo.filename);
+        if (nextPath.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
+            return iterator(nextPath, zip.read(fileInfo.filename));
         }
         return true;
     });
+}
+
+bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const std::filesystem::path& outputPath, const denigma::DenigmaContext& denigmaContext, ModifyIteratorFunc iterator)
+{
+    auto zip = openZip(zipFilePath, denigmaContext);
+    miniz_cpp::zip_file outputZip;
+    std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
+    bool retval = iterateFiles(zip, denigmaContext, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
+        std::filesystem::path nextPath = stringutils::utf8ToPath(fileInfo.filename);
+        if (nextPath.has_filename()) {
+            std::string buffer = zip.read(fileInfo);
+            if (iterator(nextPath, buffer, scoreName == fileInfo.filename)) {
+                outputZip.writestr(fileInfo, buffer);
+            }
+        }
+        return true;
+    });
+    try {
+        std::ofstream zipWriter;
+        zipWriter.exceptions(std::ios::failbit | std::ios::badbit);
+        zipWriter.open(outputPath, std::ios::binary);
+        outputZip.save(zipWriter);
+    } catch (const std::exception &ex) {
+        denigmaContext.logMessage(LogMsg() << "unable to save data to file " << outputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        throw;
+    }
+    return retval;
 }
 
 } // namespace ziputils

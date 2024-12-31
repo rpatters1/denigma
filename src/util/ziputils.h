@@ -51,11 +51,22 @@ using IteratorFunc = std::function<bool(const std::filesystem::path& fileName, c
 std::string getMusicXmlScoreFile(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext);
 
 /**
- * @brief Iterates through each music xml parat file in a compressed MusicXml file. (The score is skipped.)
+ * @brief Iterates through each music xml part file in a compressed MusicXml file. (The score is skipped.)
  * @param zipFilePath [in] the compressed MusicXml archive to search.
  * @param denigmaContext [in] the DenigmaContext (for logging).
  * @param iterator an iterator function that feeds the next filename and xmldata. Return `false` from this function to stop iterating.
  */
 bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext, IteratorFunc iterator);
+
+using ModifyIteratorFunc = std::function<bool(const std::filesystem::path& fileName, std::string& fileContents, bool isScore)>;
+
+/**
+ * @brief Iterates through every file in a zip archive to create a modified zip archive.
+ * @param zipFilePath [in] the compressed MusicXml archive to search.
+ * @param outputPath [in] the compressed MusicXml archive to search.
+ * @param denigmaContext [in] the DenigmaContext (for logging).
+ * @param iterator an iterator function that feeds the next filename and xmldata. You can modify the xmldata. You can skip a file by returning false.
+ */
+bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const std::filesystem::path& outputPath, const denigma::DenigmaContext& denigmaContext, ModifyIteratorFunc iterator);
 
 } // namespace ziputils
