@@ -80,11 +80,6 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
     denigmaContext.logMessage(LogMsg() << logEntry << msg.str(), severity);
 }
 
-Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
-{
-    return enigmaxml::read(inputPath, denigmaContext);
-}
-
 static int staffNumberFromNote(pugi::xml_node xmlNote) {
     if (!xmlNote) return 1;
     auto xmlStaff = xmlNote.child("staff");

@@ -29,6 +29,7 @@
 
 #include "massage/massage.h"
 #include "massage/musicxml.h"
+#include "export/enigmaxml.h"
 
 namespace denigma {
 
@@ -47,7 +48,7 @@ constexpr auto inputProcessors = []() {
 
     return to_array<InputProcessor>({
             { MXL_EXTENSION, nullFunc },
-            { MUSICXML_EXTENSION, musicxml::read },
+            { MUSICXML_EXTENSION, enigmaxml::read },
         });
     }();
 

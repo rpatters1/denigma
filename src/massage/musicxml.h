@@ -30,7 +30,6 @@
 namespace denigma {
 namespace musicxml {
 
-Buffer read(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
 void massage(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext);
 void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext);
 
