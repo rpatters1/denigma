@@ -54,9 +54,10 @@ std::string getMusicXmlScoreFile(const std::filesystem::path& zipFilePath, const
  * @brief Iterates through each music xml part file in a compressed MusicXml file. (The score is skipped.)
  * @param zipFilePath [in] the compressed MusicXml archive to search.
  * @param denigmaContext [in] the DenigmaContext (for logging).
+ * @param onlyFileName [in] if this has a value, only this name feeds to the iterator. It should be encoded utf-8.
  * @param iterator an iterator function that feeds the next filename and xmldata. Return `false` from this function to stop iterating.
  */
-bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext, IteratorFunc iterator);
+bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext, const std::optional<std::string>& fileName, IteratorFunc iterator);
 
 using ModifyIteratorFunc = std::function<bool(const std::filesystem::path& fileName, std::string& fileContents, bool isScore)>;
 

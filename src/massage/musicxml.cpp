@@ -373,7 +373,7 @@ static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem:
     xmlDocument.reset();
 }
 
-std::string findPartFileNameByPartName(const pugi::xml_document& scoreXml, const std::string& utf8PartName)
+std::optional<std::string> findPartFileNameByPartName(const pugi::xml_document& scoreXml, const std::string& utf8PartName)
 {
     auto nextScorePart = scoreXml
         .child("score-partwise")
@@ -387,7 +387,7 @@ std::string findPartFileNameByPartName(const pugi::xml_document& scoreXml, const
         }
         nextScorePart = nextScorePart.next_sibling("score-part");
     }
-    return {};
+    return std::nullopt;
 }
 
 std::filesystem::path findPartNameByPartFileName(const pugi::xml_document& scoreXml, const std::filesystem::path& partFileName)
@@ -525,31 +525,34 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
     }
 
     auto xmlScore = openXmlDocument(ziputils::getMusicXmlScoreFile(inputPath, denigmaContext));
-    std::string partFileName = !denigmaContext.allPartsAndScore && denigmaContext.partName.has_value() && !denigmaContext.partName.value().empty()
-                             ? findPartFileNameByPartName(xmlScore, denigmaContext.partName.value())
-                             : "";
+    auto partFileName = !denigmaContext.allPartsAndScore && denigmaContext.partName.has_value() && !denigmaContext.partName.value().empty()
+                      ? findPartFileNameByPartName(xmlScore, denigmaContext.partName.value())
+                      : std::nullopt;
 
     bool processedAFile = false;
     auto processPartOrScore = [&](const std::filesystem::path& fileName, const std::string& xmlData) -> bool {
         auto qualifiedOutputPath = outputPath;
-        if (!partFileName.empty() && fileName.u8string() != partFileName) {
-                return true; // skip if we aren't interested in this part.
-        }
         std::shared_ptr<others::PartDefinition> partDef;
         /// @todo figure out which part definition
-        auto partFileNamePath = partFileName.empty()
-                              ? findPartNameByPartFileName(xmlScore, fileName)
-                              : stringutils::utf8ToPath(partFileName);
+        auto partFileNamePath = [&]() {
+            if (!partFileName.has_value()) {
+                return findPartNameByPartFileName(xmlScore, fileName);
+            } else if (denigmaContext.partName.has_value()) {
+                auto retval = stringutils::utf8ToPath(denigmaContext.partName.value());
+                retval.replace_extension(MUSICXML_EXTENSION);
+                return retval;
+            } else {
+                return stringutils::utf8ToPath(partFileName.value());
+            }
+        }();
         qualifiedOutputPath.replace_extension(partFileNamePath);
         processFile(openXmlDocument(xmlData), qualifiedOutputPath, context, partDef);
         processedAFile = true;
         return denigmaContext.allPartsAndScore; // exit loop if not allPartsAndScore
     };
 
-    /// @todo (eventually, maybe) reproduce a massaged.mxl file if allPartsAndScore is true.
-    ///         For now, though, just extract all the parts separately.
     if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
-        ziputils::iterateMusicXmlPartFiles(inputPath, denigmaContext, processPartOrScore);
+        ziputils::iterateMusicXmlPartFiles(inputPath, denigmaContext, partFileName, processPartOrScore);
         if (denigmaContext.allPartsAndScore) {
             processFile(std::move(xmlScore), outputPath, context); // must do score last, because std::move
         }
@@ -569,6 +572,10 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 
 void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext)
 {
+    if (inputPath.extension().u8string() != std::string(".") + MXL_EXTENSION) {
+        denigmaContext.logMessage(LogMsg() << inputPath.u8string() << " is not a .mxl file.", LogSeverity::Error);
+        return;
+    }
     std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath);
     if (!denigma::validatePathsAndOptions(qualifiedOutputPath, denigmaContext)) {
         return;
@@ -589,7 +596,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
             xmlDocument.save(writer, INDENT_SPACES);
             fileContents = ss.str();
         }
-        return true;
+        return true; // always save the file back, even if we didn't modify it
     });
 }
 
