@@ -16,6 +16,7 @@ if(MSVC)
     add_compile_options(/wd5051) # don't care about C++20 attributes
     add_compile_options(/Zc:__cplusplus) # force MSVC to report correct c++ version
     add_compile_options(/DNOMINMAX) # do not use min and max macros from Win32
+    add_compile_options(/bigobj) # stoopid Microsoft can't handle industrial size without holding its hand
 endif()
 
 add_compile_definitions(
