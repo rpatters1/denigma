@@ -150,7 +150,7 @@ struct DenigmaContext
     bool refloatRests{true};
     bool extendOttavasLeft{true};
     bool extendOttavasRight{true};
-    bool fermataWholeRests{ true };
+    bool fermataWholeRests{true};
     std::optional<std::filesystem::path> finaleFilePath;
 
     void setMassageTarget(const std::string& opt)
@@ -186,7 +186,7 @@ public:
     virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
     virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
     virtual std::optional<std::string_view> defaultInputFormat() const { return std::nullopt; }
-    virtual std::optional<std::string_view> defaultOutputFormat() const { return std::nullopt; }
+    virtual std::optional<std::string> defaultOutputFormat(const std::filesystem::path&) const { return std::nullopt; }
     
     virtual const std::string_view commandName() const = 0;
 };

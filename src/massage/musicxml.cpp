@@ -37,11 +37,12 @@
 #include "util/ziputils.h"
 
 constexpr static double EDU_PER_QUARTER = 1024.0;
-constexpr static char INDENT_SPACES[] = "    ";
-
+constexpr static char INDENT_SPACES[] = "  ";
 
 namespace denigma {
 namespace musicxml {
+
+using namespace musx::dom;
 
 struct MassageMusicXmlContext
 {
@@ -159,7 +160,11 @@ static void fixDirectionBrackets(pugi::xml_node xmlMeasure, const std::string& d
                     xmlMeasure.remove_child(currentDirection);
                     xmlMeasure.insert_copy_after(directionCopy, nextNote);
                     context->currentStaffOffset = staffNumberFromNote(nextNote) - 1;
-                    context->logMessage(LogMsg() << "Extended " << directionType << " element by one note/chord.");
+                    if (directionType == "octave-shift") {
+                        context->logMessage(LogMsg() << "Extended octave-shift element of size " << std::to_string(nodeForType.attribute("size").as_int(8)) << " by one note/chord.");
+                    } else {
+                        context->logMessage(LogMsg() << "Extended " << directionType << " element by one note/chord.");
+                    }
                 }
             }
         } else if (directionType == "octave-shift" && (shiftType == "up" || shiftType == "down")) {
@@ -232,6 +237,142 @@ static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_pt
     }
 }
 
+// this table maps musicxml note types to enigma note types
+static const std::unordered_map<std::string, Entry::NoteType> durationTypeMap = {
+    {"maxima", Entry::NoteType::Maxima},
+    {"long", Entry::NoteType::Long},
+    {"breve", Entry::NoteType::Breve},
+    {"whole", Entry::NoteType::Whole},
+    {"half", Entry::NoteType::Half},
+    {"quarter", Entry::NoteType::Quarter},
+    {"eighth", Entry::NoteType::Eighth},
+    {"16th", Entry::NoteType::Note16th},
+    {"32nd", Entry::NoteType::Note32nd},
+    {"64th", Entry::NoteType::Note64th},
+    {"128th", Entry::NoteType::Note128th},
+    {"256th", Entry::NoteType::Note256th},
+    {"512th", Entry::NoteType::Note512th},
+    {"1024th", Entry::NoteType::Note1024th}
+};
+
+static int log2_exact(uint32_t value)
+{
+    int log = 0;
+    while (value >>= 1) {
+        ++log;
+    }
+    return log;
+}
+
+static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
+    int staffSlot, MeasCmper measure, double durationUnit, InstCmper staffNum,
+    const std::shared_ptr<MassageMusicXmlContext>& context)
+{
+    auto iuList = context->musxDocument->getOthers()->getArrayForPart<others::InstrumentUsed>(context->musxPartId, 0); // 0 is the master list of staves in Scroll View
+    if (iuList.empty()) {
+        context->logMessage(LogMsg() << "no staff list found for part", LogSeverity::Warning);
+        return;
+    }
+    auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, staffSlot);
+    if (!staff) {
+        context->logMessage(LogMsg() << "staff not found for slot " << staffSlot, LogSeverity::Warning);
+        return;
+    }
+    auto gfHold = context->musxDocument->getDetails()->get<details::GFrameHold>(staff->getCmper(), measure);
+    if (gfHold) {
+        pugi::xml_node nextNote;
+        gfHold->iterateEntries([&](const std::shared_ptr<const Entry>& entry) -> bool {
+            if (entry->isHidden) { // Dolet does not create note elements for invisible entries
+                return true;
+            }
+            // Find the next note corresponding to this entry
+            auto findNextNote = [&](pugi::xml_node currentNote) -> pugi::xml_node {
+                pugi::xml_node note = currentNote ? currentNote.next_sibling("note") : xmlMeasure.child("note");
+                while (note) {
+                    if (staffNum == staffNumberFromNote(note)) {
+                        break;
+                    }
+                    note = note.next_sibling("note");
+                }
+                return note;
+                };
+            nextNote = findNextNote(nextNote);
+            if (!nextNote) {
+                context->logMessage(LogMsg() << "xml notes do not match Finale file", LogSeverity::Warning);
+                return false;
+            }
+
+            auto it = durationTypeMap.find(nextNote.child("type").text().get());
+            if (it == durationTypeMap.end()) {
+                if (!nextNote.child("rest")) { // this is valid for full measure rests
+                    context->logMessage(LogMsg() << "xml note node has no type", LogSeverity::Warning);
+                }
+                return false;
+            }
+            auto musxNoteType = Edu(entry->calcNoteType());
+            auto xmlNoteType = Edu(it->second);
+            if (xmlNoteType != musxNoteType) {
+                // correct for tremolos
+                if (auto tremolo = nextNote.child("notations").child("ornaments").child("tremolo")) {
+                    // tremolos are stored in enigma as small notes with tuplets,
+                    // but Dolet apparently detects them and reports them as written value tremolos in musicxml
+                    // We compensate by shifting the note type in enigma back by the number of beams and the written note type
+                    // Then subtract out quarter note log, because that's the first non-beamed value.
+                    musxNoteType <<= tremolo.text().as_int() + log2_exact(xmlNoteType) - 10; // 10 is log2(Entry::NoteType::Quarter)
+                }
+            }
+            if (xmlNoteType != musxNoteType) {
+                context->logMessage(LogMsg() << "xml durations do not match Finale file: [" << Edu(entry->calcNoteType()) << ", " << it->first << "]", LogSeverity::Warning);
+                return false;
+            }
+
+            int numDots = 0;
+            for (pugi::xml_node dot = nextNote.child("dot"); dot; dot = dot.next_sibling("dot")) {
+                ++numDots;
+            }
+            if (numDots != entry->calcAugmentationDots()) {
+                context->logMessage(LogMsg() << "xml number of dots does not match Finale file: [" << entry->calcAugmentationDots() << ", " << numDots << "]", LogSeverity::Warning);
+                return false;
+            }
+            
+            // Handle floating rests
+            if (!entry->isNote) {
+                pugi::xml_node restElement = nextNote.child("rest");
+                if (!restElement) {
+                    context->logMessage(LogMsg() << "xml corresponding note value in Finale file is not a rest", LogSeverity::Warning);
+                    return false;
+                }
+                if (entry->floatRest) {
+                    auto deleteElement = [&restElement](const char* elementName) -> bool {
+                        pugi::xml_node element = restElement.child(elementName);
+                        if (element) {
+                            restElement.remove_child(element);
+                            return true;
+                        }
+                        return false;
+                    };
+                    bool deletedPitch = deleteElement("display-step");
+                    bool deletedOctave = deleteElement("display-octave");
+                    if (deletedPitch || deletedOctave) {
+                        context->logMessage(LogMsg() << "Refloated rest of duration "
+                                                     << entry->duration / EDU_PER_QUARTER
+                                                     << " quarter notes.");
+                    }
+                }
+            }
+
+            // Skip over extra notes in chords
+            pugi::xml_node chordCheck = nextNote.next_sibling("note");
+            while (chordCheck && chordCheck.child("chord")) {
+                nextNote = chordCheck;
+                chordCheck = chordCheck.next_sibling("note");
+            }
+
+            return true; // Continue iteration
+        });
+    }
+}
+
 void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     if (!context->musxDocument && context->denigmaContext.refloatRests) {
@@ -263,21 +404,19 @@ void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
 
             context->currentMeasure++;
 
-            /// @todo write the necessary functions and uncomment
-            /*
             if (context->musxDocument && context->denigmaContext.refloatRests) {
-                for (int staffNum = 1; staffNum <= stavesUsed; ++staffNum) {
+                for (InstCmper staffNum = 1; staffNum <= stavesUsed; ++staffNum) {
                     context->currentStaffOffset = staffNum - 1;
                     massageXmlWithFinaleDocument(
                         xmlMeasure,
                         context->currentStaff + context->currentStaffOffset,
                         context->currentMeasure,
                         durationUnit,
-                        staffNum
+                        staffNum,
+                        context
                     );
                 }
             }
-            */
 
             fixDirectionBrackets(xmlMeasure, "octave-shift", context);
 

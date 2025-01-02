@@ -213,7 +213,7 @@ bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
             }
         }
         if (!outputFormatSpecified) {
-            const auto& defaultFormat = currentCommand->defaultOutputFormat();
+            const auto& defaultFormat = currentCommand->defaultOutputFormat(inputFilePath);
             if (defaultFormat.has_value()) {
                 currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), inputFilePath, denigmaContext);
             }
