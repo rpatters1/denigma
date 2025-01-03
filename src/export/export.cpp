@@ -42,8 +42,8 @@ constexpr auto inputProcessors = []() {
     };
 
     return to_array<InputProcessor>({
-        { MUSX_EXTENSION, enigmaxml::extract },
-        { ENIGMAXML_EXTENSION, enigmaxml::read },
+            { MUSX_EXTENSION, enigmaxml::extract },
+            { ENIGMAXML_EXTENSION, enigmaxml::read },
         });
     }();
 
@@ -56,27 +56,11 @@ constexpr auto outputProcessors = []() {
     };
 
     return to_array<OutputProcessor>({
-        { ENIGMAXML_EXTENSION, enigmaxml::write },
-        { MSS_EXTENSION, mss::convert },
-        // { MNX_EXTENSION, mnx::convert },
+            { ENIGMAXML_EXTENSION, enigmaxml::write },
+            { MSS_EXTENSION, mss::convert },
+            // { MNX_EXTENSION, mnx::convert },
         });
     }();
-
-// Function to find the appropriate processor
-template <typename Processors>
-decltype(Processors::value_type::processor) findProcessor(const Processors& processors, const std::string& extension)
-{
-    std::string key = extension;
-    if (key.rfind(".", 0) == 0) {
-        key = extension.substr(1);
-    }
-    for (const auto& p : processors) {
-        if (key == p.extension) {
-            return p.processor;
-        }
-    }
-    throw std::invalid_argument("Unsupported format: " + key);
-}
 
 int ExportCommand::showHelpPage(const std::string_view& programName, const std::string& indentSpaces) const
 {
@@ -105,7 +89,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
 
     // Example usage
     std::cout << indentSpaces << "Examples:" << std::endl;
-    std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive --relative" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive" << std::endl;
     std::cout << indentSpaces << "  " << "  exports .musx files in myfolder and all subfolders to directory exports/mss within the same folder as each file found" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml" << std::endl;
     std::cout << indentSpaces << "  " << "  exports the enigmaxml in input.musx to output.enigmaxml in the same folder" << std::endl;
@@ -131,7 +115,7 @@ Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const
     return inputProcessor(inputPath, denigmaContext);
 }
 
-void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const
+void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const
 {
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
     outputProcessor(outputPath, enigmaXml, denigmaContext);

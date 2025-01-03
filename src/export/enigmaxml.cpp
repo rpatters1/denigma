@@ -25,13 +25,14 @@
 #include <iostream>
 #include <sstream>
 
-#include "zip_file.hpp"		// miniz submodule (for zip)
 #include "ezgz.hpp"			// ezgz submodule (for gzip)
 
 #include "musx/musx.h"
-#include "enigmaxml.h"
 
 #include "denigma.h"
+#include "export/enigmaxml.h"
+#include "utils/ziputils.h"
+#include "utils/score_encoder.h"
 
 constexpr char SCORE_DAT_NAME[] = "score.dat";
 
@@ -43,8 +44,15 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
     try {
         std::ifstream xmlFile;
         xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
-        xmlFile.open(inputPath, std::ios::binary);
-        return Buffer((std::istreambuf_iterator<char>(xmlFile)), std::istreambuf_iterator<char>());
+        xmlFile.open(inputPath, std::ios::binary | std::ios::ate);
+
+        // Preallocate buffer based on file size
+        std::streamsize fileSize = xmlFile.tellg();
+        xmlFile.seekg(0, std::ios::beg);
+
+        Buffer buffer(static_cast<std::size_t>(fileSize));
+        xmlFile.read(buffer.data(), fileSize);
+        return buffer;
     } catch (const std::ios_base::failure& ex) {
         denigmaContext.logMessage(LogMsg() << "unable to read " << inputPath.u8string(), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
@@ -56,12 +64,8 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
 Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
     try {
-        std::ifstream zipFile;
-        zipFile.exceptions(std::ios::failbit | std::ios::badbit);
-        zipFile.open(inputPath, std::ios::binary);
-        miniz_cpp::zip_file zip(zipFile);
-        std::string buffer = zip.read(SCORE_DAT_NAME);
-        musx::util::ScoreFileEncoder::recodeBuffer(buffer);
+        std::string buffer = utils::readFile(inputPath, SCORE_DAT_NAME, denigmaContext);
+        utils::ScoreFileEncoder::recodeBuffer(buffer);
         return EzGz::IGzFile<>({ reinterpret_cast<uint8_t*>(buffer.data()), buffer.size() }).readAll();
     } catch (const std::exception &ex) {
         denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), LogSeverity::Error);

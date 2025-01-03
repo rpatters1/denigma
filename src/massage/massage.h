@@ -25,7 +25,7 @@
 
 namespace denigma {
 
-struct ExportCommand : public ICommand
+struct MassageCommand : public ICommand
 {
     using ICommand::ICommand;
 
@@ -33,11 +33,13 @@ struct ExportCommand : public ICommand
     
     bool canProcess(const std::filesystem::path& inputPath) const override;
     Buffer processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
-    void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const override;
+    void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
 
-    std::optional<std::string_view> defaultInputFormat() const override { return MUSX_EXTENSION; };
-    std::optional<std::string> defaultOutputFormat(const std::filesystem::path&) const override { return ENIGMAXML_EXTENSION; };
-    const std::string_view commandName() const override { return "export"; }
+    std::optional<std::string_view> defaultInputFormat() const override { return MXL_EXTENSION; };
+    std::optional<std::string> defaultOutputFormat(const std::filesystem::path& inputPath) const override
+    { return inputPath.extension().u8string().substr(1); };
+
+    const std::string_view commandName() const override { return "massage"; }
 };
 
 } // namespace denigma

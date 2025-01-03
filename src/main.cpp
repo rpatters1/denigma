@@ -30,13 +30,16 @@
 
 #include "denigma.h"
 #include "export/export.h"
-#include "util/stringutils.h"
+#include "massage/massage.h"
+#include "utils/stringutils.h"
 
 static const auto registeredCommands = []()
     {
         std::map <std::string, std::shared_ptr <denigma::ICommand>> retval;
         auto exportCmd = std::make_shared<denigma::ExportCommand>();
         retval.emplace(exportCmd->commandName(), exportCmd);
+        auto massageCommand = std::make_shared<denigma::MassageCommand>();
+        retval.emplace(massageCommand->commandName(), massageCommand);
         return retval;
     }();
 
@@ -47,12 +50,11 @@ static int showHelpPage(const std::string_view& programName)
 
     // General options
     std::cout << "General options:" << std::endl;
-    std::cout << "  --exclude folder-name           Exclude the specified folder from recursive searches" << std::endl;
+    std::cout << "  --exclude folder-name           Exclude the specified folder name from recursive searches" << std::endl;
     std::cout << "  --help                          Show this help message and exit" << std::endl;
     std::cout << "  --force                         Overwrite existing file(s)" << std::endl;
     std::cout << "  --part [optional-part-name]     Process named part or first part if name is omitted" << std::endl;
     std::cout << "  --recursive                     Recursively search subdirectories of the input directory" << std::endl;
-    std::cout << "  --relative                      Output directories are relative to the input file's parent directory" << std::endl;
     std::cout << "  --all-parts                     Process all parts and score" << std::endl;
     std::cout << "  --version                       Show program version and exit" << std::endl;
     std::cout << std::endl;
@@ -63,7 +65,10 @@ static int showHelpPage(const std::string_view& programName)
     std::cout << "  --log [optional-logfile-path]   Always log messages instead of sending them to std::cerr" << std::endl;
     std::cout << "  --no-log                        Always send messages to std::cerr (overrides any other logging options)" << std::endl;
     std::cout << "  --verbose                       Verbose output" << std::endl;
-
+    std::cout << std::endl;
+    std::cout << "Any relative path is relative to the parent path of the input file or (for log files) to the top-level input folder.";
+    std::cout << std::endl;
+    
     for (const auto& command : registeredCommands) {
         std::string commandStr = "Command " + command.first;
         std::string sepStr(commandStr.size(), '=');
@@ -130,10 +135,32 @@ int _MAIN(int argc, arg_char* argv[])
             if (!option.empty()) {
                 denigmaContext.excludeFolder = option;
             }
-        } else if (next == _ARG("--relative")) {
-            denigmaContext.relativeOutputDirs = true;
         } else if (next == _ARG("--verbose")) {
             denigmaContext.verbose = true;
+        // Specific options for `massage` command
+        } else if (next == _ARG("--finale-file")) {
+            auto option = getNextArg();
+            if (!option.empty()) {
+                denigmaContext.finaleFilePath = option;
+            }
+        } else if (next == _ARG("--target")) {
+            denigmaContext.setMassageTarget(std::string(_ARG_CONV(getNextArg())));
+        } else if (next == _ARG("--refloat-rests")) {
+            denigmaContext.refloatRests = true;
+        } else if (next == _ARG("--no-refloat-rests")) {
+            denigmaContext.refloatRests = false;
+        } else if (next == _ARG("--extend-ottavas-left")) {
+            denigmaContext.extendOttavasLeft = true;
+        } else if (next == _ARG("--no-extend-ottavas-left")) {
+            denigmaContext.extendOttavasLeft = false;
+        } else if (next == _ARG("--extend-ottavas-right")) {
+            denigmaContext.extendOttavasRight = true;
+        } else if (next == _ARG("--no-extend-ottavas-right")) {
+            denigmaContext.extendOttavasRight = false;
+        } else if (next == _ARG("--fermata-whole-rests")) {
+            denigmaContext.fermataWholeRests = true;
+        } else if (next == _ARG("--no-fermata-whole-rests")) {
+            denigmaContext.fermataWholeRests = false;
         } else {
             args.push_back(argv[x]);
         }
@@ -193,9 +220,7 @@ int _MAIN(int argc, arg_char* argv[])
             }
         }
         std::filesystem::path inputDir = inputFilePattern.parent_path();
-        auto wildcardPattern = inputFilePattern.filename().u8string();
-        bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);
-        
+        bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);        
         if (!inputIsOneFile && !denigmaContext.logFilePath.has_value()) {
             denigmaContext.logFilePath = "";
         }
@@ -206,9 +231,16 @@ int _MAIN(int argc, arg_char* argv[])
         }
 
         // convert wildcard pattern to regex
+        auto wildcardPattern = inputFilePattern.filename().native(); // native format avoids encoding issues
+#ifdef _WIN32
+        auto regexPattern = std::regex_replace(wildcardPattern, std::wregex(LR"(\*)"), L".*");
+        regexPattern = std::regex_replace(regexPattern, std::wregex(LR"(\?)"), L".");
+        std::wregex regex(regexPattern);
+#else
         auto regexPattern = std::regex_replace(wildcardPattern, std::regex(R"(\*)"), R"(.*)");
         regexPattern = std::regex_replace(regexPattern, std::regex(R"(\?)"), R"(.)");
         std::regex regex(regexPattern);
+#endif
 
         // collect files to process first
         // this avoids potential infinite recursion if input and output are the same format
@@ -227,7 +259,7 @@ int _MAIN(int argc, arg_char* argv[])
                 if (!entry.is_directory()) {
                     denigmaContext.logMessage(LogMsg() << "considered file " << entry.path().u8string(), LogSeverity::Verbose);
                 }
-                if (entry.is_regular_file() && std::regex_match(entry.path().filename().u8string(), regex)) {
+                if (entry.is_regular_file() && std::regex_match(entry.path().filename().native(), regex)) {
                     auto inputFilePath = entry.path();
                     if (currentCommand->canProcess(inputFilePath)) {
                         pathsToProcess.push_back(inputFilePath);
@@ -240,7 +272,9 @@ int _MAIN(int argc, arg_char* argv[])
                 }    
             }
         };
-        if (denigmaContext.recursiveSearch) {
+        if (inputIsOneFile) {
+            pathsToProcess.push_back(inputFilePattern);
+        } else if (denigmaContext.recursiveSearch) {
             std::filesystem::recursive_directory_iterator it(inputDir);
             iterate(it);
         } else {

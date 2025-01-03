@@ -21,23 +21,17 @@
  */
 #pragma once
 
+#include <string>
+#include <vector>
+#include <optional>
+
 #include "denigma.h"
 
 namespace denigma {
+namespace musicxml {
 
-struct ExportCommand : public ICommand
-{
-    using ICommand::ICommand;
+void massage(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext);
+void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext);
 
-    int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) const override;
-    
-    bool canProcess(const std::filesystem::path& inputPath) const override;
-    Buffer processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
-    void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const override;
-
-    std::optional<std::string_view> defaultInputFormat() const override { return MUSX_EXTENSION; };
-    std::optional<std::string> defaultOutputFormat(const std::filesystem::path&) const override { return ENIGMAXML_EXTENSION; };
-    const std::string_view commandName() const override { return "export"; }
-};
-
+} // namespace musicxml
 } // namespace denigma

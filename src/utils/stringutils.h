@@ -23,8 +23,8 @@
 
 #include <string>
 #include <exception>
-#include <cstdio>
 #include <filesystem>
+#include <algorithm>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -36,7 +36,7 @@
 #define STRINGUTILS_DEFINED_CPS
 #endif
 
-namespace stringutils {
+namespace utils {
 
 class encoding_error : public std::exception
 {
@@ -109,13 +109,14 @@ inline std::filesystem::path utf8ToPath(const std::string& str)
     return str;
 }
 
-inline FILE* openFile(const std::filesystem::path& path, const char* mode) {
-#ifdef _WIN32
-    return _wfopen(path.wstring().c_str(), stringToWstring(mode).c_str());
-#else
-    return fopen(path.u8string().c_str(), mode);
-#endif
+inline std::string toLowerCase(const std::string& inp)
+{
+    std::string s = inp;
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return s;
 }
+
 
 #if defined(STRINGUTILS_DEFINED_CPS)
 #undef CP_UTF8
@@ -123,4 +124,4 @@ inline FILE* openFile(const std::filesystem::path& path, const char* mode) {
 #undef STRINGUTILS_DEFINED_CPS
 #endif
 
-} // namespace stringutils
+} // namespace utils

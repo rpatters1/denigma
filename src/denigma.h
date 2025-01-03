@@ -27,13 +27,17 @@
 #include <vector>
 #include <optional>
 #include <fstream>
+#include <functional>
 
-#include "util/stringutils.h"
+
+#include "utils/stringutils.h"
 
 inline constexpr char MUSX_EXTENSION[]      = "musx";
 inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
 inline constexpr char MNX_EXTENSION[]       = "mnx";
 inline constexpr char MSS_EXTENSION[]       = "mss";
+inline constexpr char MXL_EXTENSION[]       = "mxl";
+inline constexpr char MUSICXML_EXTENSION[]  = "musicxml";
 
 #ifdef _WIN32
 #define _ARG(S) L##S
@@ -68,7 +72,7 @@ struct arg_string : public std::wstring
 
     operator std::string() const
     {
-        return stringutils::wstringToString(*this);
+        return utils::wstringToString(*this);
     }
 };
 
@@ -81,8 +85,26 @@ using arg_char = char;
 using arg_string = std::string;
 #endif
 
+using MusxReader = ::musx::xml::pugi::Document;
+
 using Buffer = std::vector<char>;
 using LogMsg = std::stringstream;
+
+// Function to find the appropriate processor
+template <typename Processors>
+inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, const std::string& extension)
+{
+    std::string key = utils::toLowerCase(extension);
+    if (key.rfind(".", 0) == 0) {
+        key = extension.substr(1);
+    }
+    for (const auto& p : processors) {
+        if (key == p.extension) {
+            return p.processor;
+        }
+    }
+    throw std::invalid_argument("Unsupported format: " + key);
+}
 
 /// @brief defines log message severity
 enum class LogSeverity
@@ -93,12 +115,28 @@ enum class LogSeverity
     Verbose     ///< Only emit if --verbose option specified. The message is for information.
 };
 
+enum class MusicProgramPreset
+{
+    Unspecified,
+    MuseScore,
+    Dorico,
+    LilyPond
+};
+
+inline MusicProgramPreset toMusicProgramPreset(const std::string& inp)
+{
+    const std::string lc = utils::toLowerCase(inp);
+    if (lc == "musescore") return MusicProgramPreset::MuseScore;
+    if (lc == "dorico") return MusicProgramPreset::Dorico;
+    if (lc == "lilypond") return MusicProgramPreset::LilyPond;
+    return MusicProgramPreset::Unspecified;
+}
+
 struct DenigmaContext
 {
     std::string programName;
     bool overwriteExisting{};
     bool allPartsAndScore{};
-    bool relativeOutputDirs{};
     bool recursiveSearch{};
     bool noLog{};
     bool verbose{};
@@ -108,6 +146,22 @@ struct DenigmaContext
     std::shared_ptr<std::ofstream> logFile;
     std::filesystem::path inputFilePath;
 
+    // Specific options for `massage` command
+    bool refloatRests{true};
+    bool extendOttavasLeft{true};
+    bool extendOttavasRight{true};
+    bool fermataWholeRests{true};
+    std::optional<std::filesystem::path> finaleFilePath;
+
+    void setMassageTarget(const std::string& opt)
+    {
+        auto preset = toMusicProgramPreset(opt);
+        if (preset == MusicProgramPreset::Unspecified) return;
+        refloatRests = extendOttavasLeft = fermataWholeRests = true;
+        extendOttavasRight = (preset != MusicProgramPreset::LilyPond);
+    }
+
+    // Logging methods
     void startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[]); ///< Starts logging if logging was requested
 
     /**
@@ -117,7 +171,7 @@ struct DenigmaContext
     */
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info) const;
 
-    void endLogging();
+    void endLogging(); ///< Ends logging if logging was requested
 };
 
 class ICommand
@@ -130,9 +184,9 @@ public:
 
     virtual bool canProcess(const std::filesystem::path& inputPath) const = 0;
     virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
-    virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext) const = 0;
+    virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
     virtual std::optional<std::string_view> defaultInputFormat() const { return std::nullopt; }
-    virtual std::optional<std::string_view> defaultOutputFormat() const { return std::nullopt; }
+    virtual std::optional<std::string> defaultOutputFormat(const std::filesystem::path&) const { return std::nullopt; }
     
     virtual const std::string_view commandName() const = 0;
 };
