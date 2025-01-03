@@ -18,6 +18,7 @@ Install the latest cmake:
 
 ```bash
 brew install cmake
+brew install ninja
 ```
 
 ---
@@ -32,6 +33,7 @@ Install the latest cmake and xxd
 
 ```bat
 choco install cmake
+choco install ninja
 choco install xxd
 ```
 ---
@@ -90,7 +92,7 @@ or (for Linux or macOS)
 }
 ```
 
-3. Use the following `.vscode/launch.json` for debugging:
+3. Use the following `.vscode/launch.json` for debugging on macOS:
 
 ```json
 {
@@ -100,13 +102,65 @@ or (for Linux or macOS)
             "name": "C++ Debug (codeLLDB)",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/build/build/denigma",
+            "program": "${workspaceFolder}/build/build/Debug/denigma",
             "args": [], // specify command line arguments here for testing
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
             "env": {},
             "preLaunchTask": "build" // Optional: specify a task to build your program before debugging
         }
+    ]
+}
+```
+
+on Windows:
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C++ Debug (codeLLDB)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/build/Debug/denigma.exe",
+            "args":[],  // specify command line arguments here for testing
+            "console": "externalTerminal",
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "environment": [],
+            "preLaunchTask": "build" // Optional: specify a task to build your program before debugging
+        }
+    ]
+}
+```
+
+on Ubuntu:
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "${workspaceFolder}/build/build/Debug/denigma",
+        "args": [],  // specify command line arguments here for testing
+        "stopAtEntry": false,
+        "cwd": "${workspaceFolder}",
+        "environment": [],
+        "externalConsole": true,
+        "MIMode": "gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ],
+        "preLaunchTask": "Build"
+      }
     ]
 }
 ```

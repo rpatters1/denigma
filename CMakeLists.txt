@@ -8,6 +8,27 @@ project(denigma VERSION 0.1)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# Prevent in-source builds
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR "In-source builds are not allowed. Please use a separate directory for building.\n"
+                        "For example:\n"
+                        "  cmake -S . -B build\n"
+                        "  cmake --build build"
+    )
+endif()
+
+# Set default build type to Release if not specified
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
+    message(STATUS "No build type specified. Defaulting to Release.")
+endif()
+
+if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+endif()
+
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Configution Types: ${CMAKE_CONFIGURATION_TYPES}")
@@ -113,6 +134,11 @@ add_executable(denigma
     src/massage/massage.cpp
     src/massage/musicxml.cpp
     src/utils/ziputils.cpp
+)
+
+# For the denigma target specifically
+set_target_properties(denigma PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_BUILD_TYPE}
 )
 
 # Compile definitions
