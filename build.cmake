@@ -16,7 +16,7 @@ while(i LESS "${CMAKE_ARGC}")
 endwhile()
 
 if(CONFIG_ARG STREQUAL "")
-    set(CONGIG_ARG "Release")
+    set(CONFIG_ARG "Release")
 endif()
 
 # Define the build directory
@@ -36,14 +36,21 @@ if(EXISTS ${BUILD_DIR}/CMakeCache.txt)
     string(FIND "${CMAKE_CACHE_CONTENTS}" "CMAKE_CONFIGURATION_TYPES" MULTI_CONFIG_FOUND_INDEX)
     if(MULTI_CONFIG_FOUND_INDEX GREATER -1)
         set(MULTI_CONFIG_FOUND "TRUE")
+        message(STATUS "Multi-config system found.")
     endif()
+endif()
+
+set(BUILD_SYSTEM, "")
+if(NOT MULTI_CONFIG_FOUND)
+    message(STATUS "Setting build system to Ninja")
+    set(BUILD_SYSTEM, "-G Ninja")
 endif()
 
 # Configure the project for single-config systems or if CMakeCache is missing
 if(NOT MULTI_CONFIG_FOUND OR NOT EXISTS ${BUILD_DIR}/CMakeCache.txt)
     message(STATUS "Configuring project for configuration: ${CONFIG_ARG}")
     execute_process(
-        COMMAND ${CMAKE_COMMAND} -G Ninja  -S ${CMAKE_SOURCE_DIR} -B ${BUILD_DIR} -DCMAKE_BUILD_TYPE=${CONFIG_ARG}
+        COMMAND ${CMAKE_COMMAND} ${BUILD_SYSTEM} -S ${CMAKE_SOURCE_DIR} -B ${BUILD_DIR} -DCMAKE_BUILD_TYPE=${CONFIG_ARG}
     )
 endif()
 
