@@ -186,3 +186,21 @@ target_link_libraries(denigma PUBLIC denigma_pch)
 
 # Link the interface library to musx
 target_link_libraries(musx PRIVATE denigma_pch)
+
+function(copy_to_deploy target config)
+    set(DEPLOY_DIR ${CMAKE_BINARY_DIR}/../deploy)
+
+    # Add a custom command restricted to the given configuration
+    add_custom_command(
+        TARGET ${target}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${DEPLOY_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${target}> ${DEPLOY_DIR}
+        COMMENT "Copying ${config} build of ${target} to deploy directory"
+        VERBATIM
+    )
+endfunction()
+
+if (CMAKE_BUILD_TYPE STREQUAL "Release" OR "$<CONFIG>" STREQUAL "Release")
+    copy_to_deploy(denigma "Release")
+endif()
