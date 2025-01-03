@@ -19,13 +19,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "util/ziputils.h"
+#include "utils/ziputils.h"
 
  // NOTE: This namespace is necessary because zip_file.hpp is poorly implemented and
 //          can only be included once in the entire project.
 #include "zip_file.hpp"
 
-namespace ziputils {
+namespace utils {
 
 using namespace denigma;
 
@@ -138,7 +138,7 @@ bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const de
         if (fileName.has_value() && fileName.value() != fileInfo.filename) {
             return true; // skip parts that aren't the one we are looking for
         }
-        std::filesystem::path nextPath = stringutils::utf8ToPath(fileInfo.filename);
+        std::filesystem::path nextPath = utils::utf8ToPath(fileInfo.filename);
         if (nextPath.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
             return iterator(nextPath, zip.read(fileInfo.filename));
         }
@@ -152,7 +152,7 @@ bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const s
     miniz_cpp::zip_file outputZip;
     std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
     bool retval = iterateFiles(zip, denigmaContext, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
-        std::filesystem::path nextPath = stringutils::utf8ToPath(fileInfo.filename);
+        std::filesystem::path nextPath = utils::utf8ToPath(fileInfo.filename);
         if (nextPath.has_filename()) {
             std::string buffer = zip.read(fileInfo);
             if (iterator(nextPath, buffer, scoreName == fileInfo.filename)) {
@@ -174,4 +174,4 @@ bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const s
     return retval;
 }
 
-} // namespace ziputils
+} // namespace utils

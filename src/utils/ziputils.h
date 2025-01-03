@@ -30,7 +30,7 @@
 // NOTE: This namespace is necessary because zip_file.hpp is poorly implemented and
 //          can only be included once in the entire project.
 
-namespace ziputils {
+namespace utils {
 
 /**
  * @brief Reads a specific filename from the input zip archive.
@@ -70,4 +70,4 @@ using ModifyIteratorFunc = std::function<bool(const std::filesystem::path& fileN
  */
 bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const std::filesystem::path& outputPath, const denigma::DenigmaContext& denigmaContext, ModifyIteratorFunc iterator);
 
-} // namespace ziputils
+} // namespace utils

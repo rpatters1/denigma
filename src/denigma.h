@@ -30,7 +30,7 @@
 #include <functional>
 
 
-#include "util/stringutils.h"
+#include "utils/stringutils.h"
 
 inline constexpr char MUSX_EXTENSION[]      = "musx";
 inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
@@ -72,7 +72,7 @@ struct arg_string : public std::wstring
 
     operator std::string() const
     {
-        return stringutils::wstringToString(*this);
+        return utils::wstringToString(*this);
     }
 };
 
@@ -94,7 +94,7 @@ using LogMsg = std::stringstream;
 template <typename Processors>
 inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, const std::string& extension)
 {
-    std::string key = stringutils::toLowerCase(extension);
+    std::string key = utils::toLowerCase(extension);
     if (key.rfind(".", 0) == 0) {
         key = extension.substr(1);
     }
@@ -125,7 +125,7 @@ enum class MusicProgramPreset
 
 inline MusicProgramPreset toMusicProgramPreset(const std::string& inp)
 {
-    const std::string lc = stringutils::toLowerCase(inp);
+    const std::string lc = utils::toLowerCase(inp);
     if (lc == "musescore") return MusicProgramPreset::MuseScore;
     if (lc == "dorico") return MusicProgramPreset::Dorico;
     if (lc == "lilypond") return MusicProgramPreset::LilyPond;

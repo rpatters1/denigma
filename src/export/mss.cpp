@@ -29,7 +29,7 @@
 #include "mss.h"
 #include "musx/musx.h"
 #include "pugixml.hpp"
-#include "util/stringutils.h"
+#include "utils/stringutils.h"
 
 namespace denigma {
 namespace mss {
@@ -733,7 +733,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
             denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension", LogSeverity::Warning);
         }
         auto currExtension = qualifiedOutputPath.extension();
-        qualifiedOutputPath.replace_extension(stringutils::utf8ToPath(partName + currExtension.u8string()));
+        qualifiedOutputPath.replace_extension(utils::utf8ToPath(partName + currExtension.u8string()));
     }
     if (!denigma::validatePathsAndOptions(qualifiedOutputPath, denigmaContext)) return;
 

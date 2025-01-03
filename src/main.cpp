@@ -31,7 +31,7 @@
 #include "denigma.h"
 #include "export/export.h"
 #include "massage/massage.h"
-#include "util/stringutils.h"
+#include "utils/stringutils.h"
 
 static const auto registeredCommands = []()
     {

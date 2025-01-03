@@ -103,7 +103,7 @@ add_executable(denigma
     src/export/mss.cpp
     src/massage/massage.cpp
     src/massage/musicxml.cpp
-    src/util/ziputils.cpp
+    src/utils/ziputils.cpp
 )
 
 # Compile definitions

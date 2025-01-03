@@ -31,7 +31,8 @@
 
 #include "denigma.h"
 #include "export/enigmaxml.h"
-#include "util/ziputils.h"
+#include "utils/ziputils.h"
+#include "utils/score_encoder.h"
 
 constexpr char SCORE_DAT_NAME[] = "score.dat";
 
@@ -63,8 +64,8 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
 Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
     try {
-        std::string buffer = ziputils::readFile(inputPath, SCORE_DAT_NAME, denigmaContext);
-        musx::util::ScoreFileEncoder::recodeBuffer(buffer);
+        std::string buffer = utils::readFile(inputPath, SCORE_DAT_NAME, denigmaContext);
+        utils::ScoreFileEncoder::recodeBuffer(buffer);
         return EzGz::IGzFile<>({ reinterpret_cast<uint8_t*>(buffer.data()), buffer.size() }).readAll();
     } catch (const std::exception &ex) {
         denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), LogSeverity::Error);

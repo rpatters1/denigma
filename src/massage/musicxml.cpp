@@ -34,7 +34,7 @@
 #include "massage/massage.h"
 #include "massage/musicxml.h"
 #include "export/enigmaxml.h"
-#include "util/ziputils.h"
+#include "utils/ziputils.h"
 
 constexpr static double EDU_PER_QUARTER = 1024.0;
 constexpr static char INDENT_SPACES[] = "  ";
@@ -538,7 +538,7 @@ std::filesystem::path findPartNameByPartFileName(const pugi::xml_document& score
     while (nextScorePart) {
         for (auto partLink = nextScorePart.child("part-link"); partLink; partLink = partLink.next_sibling("part-link")) {
             if (partLink.attribute("xlink:href").value() == partFileName.u8string()) {
-                auto retval = stringutils::utf8ToPath(partLink.attribute("xlink:title").value());
+                auto retval = utils::utf8ToPath(partLink.attribute("xlink:title").value());
                 retval.replace_extension(MUSICXML_EXTENSION);
                 return retval;
             }
@@ -684,7 +684,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
         return;
     }
 
-    auto xmlScore = openXmlDocument(ziputils::getMusicXmlScoreFile(inputPath, denigmaContext));
+    auto xmlScore = openXmlDocument(utils::getMusicXmlScoreFile(inputPath, denigmaContext));
     auto partFileName = !denigmaContext.allPartsAndScore && denigmaContext.partName.has_value() && !denigmaContext.partName.value().empty()
                       ? findPartFileNameByPartName(xmlScore, denigmaContext.partName.value())
                       : std::nullopt;
@@ -697,11 +697,11 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
             if (!partFileName.has_value()) {
                 return findPartNameByPartFileName(xmlScore, fileName);
             } else if (denigmaContext.partName.has_value()) {
-                auto retval = stringutils::utf8ToPath(denigmaContext.partName.value());
+                auto retval = utils::utf8ToPath(denigmaContext.partName.value());
                 retval.replace_extension(MUSICXML_EXTENSION);
                 return retval;
             } else {
-                return stringutils::utf8ToPath(partFileName.value());
+                return utils::utf8ToPath(partFileName.value());
             }
         }();
         qualifiedOutputPath.replace_extension(partFileNamePath);
@@ -711,7 +711,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
     };
 
     if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
-        ziputils::iterateMusicXmlPartFiles(inputPath, denigmaContext, partFileName, processPartOrScore);
+        utils::iterateMusicXmlPartFiles(inputPath, denigmaContext, partFileName, processPartOrScore);
         if (denigmaContext.allPartsAndScore) {
             processFile(std::move(xmlScore), outputPath, context); // must do score last, because std::move
         }
@@ -741,7 +741,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
     }
 
     auto context = createContext(inputPath, denigmaContext);
-    ziputils::iterateModifyFilesInPlace(inputPath, qualifiedOutputPath, denigmaContext, [&](const std::filesystem::path& fileName, std::string& fileContents, bool isScore) {
+    utils::iterateModifyFilesInPlace(inputPath, qualifiedOutputPath, denigmaContext, [&](const std::filesystem::path& fileName, std::string& fileContents, bool isScore) {
         if (fileName.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
             context->musxPartId = !isScore ? getMusxPartIdFromPartFileName(fileName.u8string(), context) : 0;
             auto partName = [&]() -> std::string {

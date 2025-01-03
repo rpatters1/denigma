@@ -36,7 +36,7 @@
 #define STRINGUTILS_DEFINED_CPS
 #endif
 
-namespace stringutils {
+namespace utils {
 
 class encoding_error : public std::exception
 {
@@ -124,4 +124,4 @@ inline std::string toLowerCase(const std::string& inp)
 #undef STRINGUTILS_DEFINED_CPS
 #endif
 
-} // namespace stringutils
+} // namespace utils

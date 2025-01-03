@@ -74,7 +74,7 @@ void DenigmaContext::logMessage(LogMsg&& msg, LogSeverity severity) const
         DWORD consoleMode{};
         if (::GetConsoleMode(hConsole, &consoleMode)) {
             std::wstringstream wMsg;
-            wMsg << stringutils::stringToWstring(msg.str()) << std::endl;
+            wMsg << utils::stringToWstring(msg.str()) << std::endl;
             DWORD written{};
             if (::WriteConsoleW(hConsole, wMsg.str().data(), static_cast<DWORD>(wMsg.str().size()), &written, nullptr)) {
                 return;
@@ -82,7 +82,7 @@ void DenigmaContext::logMessage(LogMsg&& msg, LogSeverity severity) const
             std::wcerr << L"Failed to write message to console: " << ::GetLastError() << std::endl;
         }
     }
-    std::wcerr << stringutils::stringToWstring(msg.str()) << std::endl;
+    std::wcerr << utils::stringToWstring(msg.str()) << std::endl;
 #else
     std::cerr << msg.str() << std::endl;
 #endif
