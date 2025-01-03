@@ -295,7 +295,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                     note = note.next_sibling("note");
                 }
                 return note;
-                };
+            };
             nextNote = findNextNote(nextNote);
             if (!nextNote) {
                 context->logMessage(LogMsg() << "xml notes do not match Finale file", LogSeverity::Warning);
