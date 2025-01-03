@@ -41,7 +41,7 @@ inline constexpr char MUSICXML_EXTENSION[]  = "musicxml";
 
 #ifdef _WIN32
 #define _ARG(S) L##S
-#define _ARG_CONV(S) (stringutils::wstringToString(std::wstring(S)))
+#define _ARG_CONV(S) (utils::wstringToString(std::wstring(S)))
 #define _MAIN wmain
 #else
 #define _ARG(S) S

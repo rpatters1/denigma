@@ -10,8 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Configution Types: ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "Generator: ${CMAKE_GENERATOR}")
-message(STATUS "Runtime Output Directory: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
 if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET 10.15)
@@ -95,6 +95,10 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(json_schema_validator)
+
+add_custom_target(PrintConfig ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "Active build configuration: $<CONFIG>"
+)
 
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 
