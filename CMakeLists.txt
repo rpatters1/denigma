@@ -8,6 +8,11 @@ project(denigma VERSION 0.1)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Generator: ${CMAKE_GENERATOR}")
+message(STATUS "Runtime Output Directory: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+
 if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET 10.15)
 endif()
@@ -42,11 +47,11 @@ set(BUILD_TESTING OFF CACHE BOOL "Disable testing for external dependencies" FOR
 
 # Fetch EzGz
 FetchContent_Declare(
-  EzGz
-  GIT_REPOSITORY https://github.com/Dugy/EzGz.git
-  GIT_TAG 9229cb8fabe28470eb0b74798cadcdbdb5e72c6d
-  SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
-  # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
+    EzGz
+    GIT_REPOSITORY https://github.com/Dugy/EzGz.git
+    GIT_TAG 9229cb8fabe28470eb0b74798cadcdbdb5e72c6d
+    SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
+    # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
 )
 FetchContent_MakeAvailable(EzGz)
 
@@ -60,12 +65,12 @@ FetchContent_MakeAvailable(pugixml)
 
 # Fetch miniz-cpp
 FetchContent_Declare(
-  miniz-cpp
-  GIT_REPOSITORY https://github.com/tfussell/miniz-cpp.git
-  GIT_TAG        052335e4f7773368df07b26d2baedb0e6d4dbd38
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-  SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
-  # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
+    miniz-cpp
+    GIT_REPOSITORY https://github.com/tfussell/miniz-cpp.git
+    GIT_TAG        052335e4f7773368df07b26d2baedb0e6d4dbd38
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
+    # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
 )
 FetchContent_MakeAvailable(miniz-cpp)
 
@@ -74,20 +79,20 @@ set(NLOHMANN_JSON_VERSION v3.11.3)
 
 # Fetch nlohmann_json
 FetchContent_Declare(
-  nlohmann_json
-  URL https://github.com/nlohmann/json/releases/download/${NLOHMANN_JSON_VERSION}/json.tar.xz
-  URL_HASH SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d  # Verify the hash matches the tarball
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/${NLOHMANN_JSON_VERSION}/json.tar.xz
+    URL_HASH SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d  # Verify the hash matches the tarball
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
 # Fetch json_schema_validator from your fork
 set(nlohmann_json_VERSION ${NLOHMANN_JSON_VERSION})
 FetchContent_Declare(
-  json_schema_validator
-  GIT_REPOSITORY https://github.com/rpatters1/json-schema-validator.git # use my fork unless PR#338 is merged to upstream
-  GIT_TAG        010eba651fc2469f73ff132108747638e14f8cb0
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    json_schema_validator
+    GIT_REPOSITORY https://github.com/rpatters1/json-schema-validator.git # use my fork unless PR#338 is merged to upstream
+    GIT_TAG        010eba651fc2469f73ff132108747638e14f8cb0
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(json_schema_validator)
 
