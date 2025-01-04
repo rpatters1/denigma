@@ -23,6 +23,75 @@
 
 namespace denigma {
 
+std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* argv[])
+{
+    std::vector<const arg_char*> args;
+    for (int x = 1; x < argc; x++) {
+        auto getNextArg = [&]() -> arg_view {
+                if (x + 1 < argc) {
+                    arg_view arg(argv[x + 1]);
+                    if (x < (argc - 1) && arg.rfind(_ARG("--"), 0) != 0) {
+                        x++;
+                        return arg;
+                    }
+                }
+                return {};
+            };
+        const arg_view next(argv[x]);
+        if (next == _ARG("--version")) {
+            showVersion = true;
+        } else if (next == _ARG("--help")) {
+            showHelp = true;
+        } else if (next == _ARG("--force")) {
+            overwriteExisting = true;
+        } else if (next == _ARG("--log")) {
+            logFilePath = getNextArg();
+        } else if (next == _ARG("--no-log")) {
+            noLog = true;
+        } else if (next == _ARG("--part")) {
+            partName = _ARG_CONV(getNextArg());
+        } else if (next == _ARG("--all-parts")) {
+            allPartsAndScore = true;
+        } else if (next == _ARG("--recursive")) {
+            recursiveSearch = true;
+        } else if (next == _ARG("--exclude-folder")) {
+            auto option = getNextArg();
+            if (!option.empty()) {
+                excludeFolder = option;
+            }
+        } else if (next == _ARG("--verbose")) {
+            verbose = true;
+        // Specific options for `massage` command
+        } else if (next == _ARG("--finale-file")) {
+            auto option = getNextArg();
+            if (!option.empty()) {
+                finaleFilePath = option;
+            }
+        } else if (next == _ARG("--target")) {
+            setMassageTarget(std::string(_ARG_CONV(getNextArg())));
+        } else if (next == _ARG("--refloat-rests")) {
+            refloatRests = true;
+        } else if (next == _ARG("--no-refloat-rests")) {
+            refloatRests = false;
+        } else if (next == _ARG("--extend-ottavas-left")) {
+            extendOttavasLeft = true;
+        } else if (next == _ARG("--no-extend-ottavas-left")) {
+            extendOttavasLeft = false;
+        } else if (next == _ARG("--extend-ottavas-right")) {
+            extendOttavasRight = true;
+        } else if (next == _ARG("--no-extend-ottavas-right")) {
+            extendOttavasRight = false;
+        } else if (next == _ARG("--fermata-whole-rests")) {
+            fermataWholeRests = true;
+        } else if (next == _ARG("--no-fermata-whole-rests")) {
+            fermataWholeRests = false;
+        } else {
+            args.push_back(argv[x]);
+        }
+    }
+    return args;
+}
+
 std::string getTimeStamp(const std::string& fmt)
 {
     auto now = std::chrono::system_clock::now();
@@ -88,22 +157,22 @@ void DenigmaContext::logMessage(LogMsg&& msg, LogSeverity severity) const
 #endif
 }
 
-bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaContext& denigmaContext)
+bool DenigmaContext::validatePathsAndOptions(const std::filesystem::path& outputFilePath) const
 {
-    if (denigmaContext.inputFilePath == outputFilePath) {
-        denigmaContext.logMessage(LogMsg() << outputFilePath.u8string() << ": " << "Input and output are the same. No action taken.");
+    if (inputFilePath == outputFilePath) {
+        logMessage(LogMsg() << outputFilePath.u8string() << ": " << "Input and output are the same. No action taken.");
         return false;
     }
 
     if (std::filesystem::exists(outputFilePath)) {
-        if (denigmaContext.overwriteExisting) {
-            denigmaContext.logMessage(LogMsg() << "Overwriting " << outputFilePath.u8string());
+        if (overwriteExisting) {
+            logMessage(LogMsg() << "Overwriting " << outputFilePath.u8string());
         } else {
-            denigmaContext.logMessage(LogMsg() << outputFilePath.u8string() << " exists. Use --force to overwrite it.");
+            logMessage(LogMsg() << outputFilePath.u8string() << " exists. Use --force to overwrite it.");
             return false;
         }
     } else {
-        denigmaContext.logMessage(LogMsg() << "Output: " << outputFilePath.u8string());
+        logMessage(LogMsg() << "Output: " << outputFilePath.u8string());
     }
 
     return true;

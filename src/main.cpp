@@ -91,92 +91,25 @@ int _MAIN(int argc, arg_char* argv[])
         return 1;
     }
 
-    std::string programName = std::filesystem::path(argv[0]).stem().u8string();
+    DenigmaContext denigmaContext(std::filesystem::path(argv[0]).stem().u8string());
     
     if (argc < 2) {
-        return showHelpPage(programName);
+        return showHelpPage(denigmaContext.programName);
     }
 
-    DenigmaContext denigmaContext;
-    denigmaContext.programName = programName;
-    bool showVersion = false;
-    bool showHelp = false;
-    std::vector<const arg_char*> args;
-    for (int x = 1; x < argc; x++) {
-        auto getNextArg = [&]() -> arg_view {
-                if (x + 1 < argc) {
-                    arg_view arg(argv[x + 1]);
-                    if (x < (argc - 1) && arg.rfind(_ARG("--"), 0) != 0) {
-                        x++;
-                        return arg;
-                    }
-                }
-                return {};
-            };
-        const arg_view next(argv[x]);
-        if (next == _ARG("--version")) {
-            showVersion = true;
-        } else if (next == _ARG("--help")) {
-            showHelp = true;
-        } else if (next == _ARG("--force")) {
-            denigmaContext.overwriteExisting = true;
-        } else if (next == _ARG("--log")) {
-            denigmaContext.logFilePath = getNextArg();
-        } else if (next == _ARG("--no-log")) {
-            denigmaContext.noLog = true;
-        } else if (next == _ARG("--part")) {
-            denigmaContext.partName = _ARG_CONV(getNextArg());
-        } else if (next == _ARG("--all-parts")) {
-            denigmaContext.allPartsAndScore = true;
-        } else if (next == _ARG("--recursive")) {
-            denigmaContext.recursiveSearch = true;
-        } else if (next == _ARG("--exclude-folder")) {
-            auto option = getNextArg();
-            if (!option.empty()) {
-                denigmaContext.excludeFolder = option;
-            }
-        } else if (next == _ARG("--verbose")) {
-            denigmaContext.verbose = true;
-        // Specific options for `massage` command
-        } else if (next == _ARG("--finale-file")) {
-            auto option = getNextArg();
-            if (!option.empty()) {
-                denigmaContext.finaleFilePath = option;
-            }
-        } else if (next == _ARG("--target")) {
-            denigmaContext.setMassageTarget(std::string(_ARG_CONV(getNextArg())));
-        } else if (next == _ARG("--refloat-rests")) {
-            denigmaContext.refloatRests = true;
-        } else if (next == _ARG("--no-refloat-rests")) {
-            denigmaContext.refloatRests = false;
-        } else if (next == _ARG("--extend-ottavas-left")) {
-            denigmaContext.extendOttavasLeft = true;
-        } else if (next == _ARG("--no-extend-ottavas-left")) {
-            denigmaContext.extendOttavasLeft = false;
-        } else if (next == _ARG("--extend-ottavas-right")) {
-            denigmaContext.extendOttavasRight = true;
-        } else if (next == _ARG("--no-extend-ottavas-right")) {
-            denigmaContext.extendOttavasRight = false;
-        } else if (next == _ARG("--fermata-whole-rests")) {
-            denigmaContext.fermataWholeRests = true;
-        } else if (next == _ARG("--no-fermata-whole-rests")) {
-            denigmaContext.fermataWholeRests = false;
-        } else {
-            args.push_back(argv[x]);
-        }
-    }
+    std::vector<const arg_char*> args = denigmaContext.parseOptions(argc, argv);
 
-    if (showVersion) {
-        std::cout << programName << " " << DENIGMA_VERSION << std::endl;
+    if (denigmaContext.showVersion) {
+        std::cout << denigmaContext.programName << " " << DENIGMA_VERSION << std::endl;
         return 0;
     }
-    if (showHelp) {
-        showHelpPage(programName);
+    if (denigmaContext.showHelp) {
+        showHelpPage(denigmaContext.programName);
         return 0;
     }
     if (args.size() < 1) {
         std::cerr << "Not enough arguments passed" << std::endl;
-        return showHelpPage(programName);
+        return showHelpPage(denigmaContext.programName);
     }
 
     const auto currentCommand = [args]() -> std::shared_ptr<ICommand> {
@@ -189,7 +122,7 @@ int _MAIN(int argc, arg_char* argv[])
             }
         }();
     if (!currentCommand) {
-        return showHelpPage(programName);
+        return showHelpPage(denigmaContext.programName);
     }
 
     musx::util::Logger::setCallback([&denigmaContext](musx::util::Logger::LogLevel logLevel, const std::string& msg) {

@@ -76,7 +76,7 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& den
 
 void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
-    if (!denigma::validatePathsAndOptions(outputPath, denigmaContext)) return;
+    if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
     try	{
         std::ifstream inFile;

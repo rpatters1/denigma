@@ -49,6 +49,12 @@ inline constexpr char MUSICXML_EXTENSION[]  = "musicxml";
 #define _MAIN main
 #endif
 
+#ifdef DENIGMA_TEST // this is defined on the command line by the test program
+#undef _MAIN
+#define _MAIN denigmaTestMain
+int denigmaTextMain(int argc, arg_char* argv[]);
+#endif
+
 namespace denigma {
 
 // This function exists as std::to_array in C++20
@@ -134,7 +140,13 @@ inline MusicProgramPreset toMusicProgramPreset(const std::string& inp)
 
 struct DenigmaContext
 {
+public:
+    DenigmaContext(const std::string& progName)
+        : programName(progName) {}
+
     std::string programName;
+    bool showVersion{};
+    bool showHelp{};
     bool overwriteExisting{};
     bool allPartsAndScore{};
     bool recursiveSearch{};
@@ -160,6 +172,12 @@ struct DenigmaContext
         refloatRests = extendOttavasLeft = fermataWholeRests = true;
         extendOttavasRight = (preset != MusicProgramPreset::LilyPond);
     }
+
+    // Parse general options and return remaining options
+    std::vector<const arg_char*> parseOptions(int argc, arg_char* argv[]);
+    
+    // validate paths
+    bool validatePathsAndOptions(const std::filesystem::path& outputFilePath) const;
 
     // Logging methods
     void startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[]); ///< Starts logging if logging was requested
@@ -193,7 +211,6 @@ public:
 
 std::string getTimeStamp(const std::string& fmt);
 
-bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaContext& denigmaContext);
 bool createDirectoryIfNeeded(const std::filesystem::path& path);
 bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext);
 

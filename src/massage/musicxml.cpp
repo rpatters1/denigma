@@ -46,6 +46,9 @@ using namespace musx::dom;
 
 struct MassageMusicXmlContext
 {
+    MassageMusicXmlContext(const DenigmaContext& context)
+        : denigmaContext(context) {}
+
     DenigmaContext denigmaContext;
     musx::dom::DocumentPtr musxDocument;
     Cmper musxPartId{};
@@ -497,7 +500,7 @@ static std::filesystem::path calcQualifiedOutputPath(const std::filesystem::path
 static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem::path& outputPath, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath);
-    if (!denigma::validatePathsAndOptions(qualifiedOutputPath, context->denigmaContext)) {
+    if (!context->denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) {
         return;
     }
 
@@ -642,8 +645,7 @@ std::optional<std::filesystem::path> findFinaleFile(const std::filesystem::path&
 
 static std::shared_ptr<MassageMusicXmlContext> createContext(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
-    auto context = std::make_shared<MassageMusicXmlContext>();
-    context->denigmaContext = denigmaContext;
+    auto context = std::make_shared<MassageMusicXmlContext>(denigmaContext);
     auto finaleFilePath = findFinaleFile(inputPath, denigmaContext);
     if (finaleFilePath.has_value()) {
         auto xmlBuffer = [&]() -> Buffer {
@@ -736,7 +738,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
         return;
     }
     std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath);
-    if (!denigma::validatePathsAndOptions(qualifiedOutputPath, denigmaContext)) {
+    if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) {
         return;
     }
 
