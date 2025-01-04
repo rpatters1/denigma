@@ -76,6 +76,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(EzGz)
 
+# Disable building tests for pugixml
+set(PUGIXML_BUILD_TESTS OFF CACHE BOOL "Do not build tests for pugixml")
 # Fetch pugixml
 FetchContent_Declare(
     pugixml
@@ -95,9 +97,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz-cpp)
 
+# Disable building tests for nlohmann_json
+set(JSON_BuildTests OFF CACHE BOOL "Do not build tests for nlohmann_json")
 # Define the version of nlohmann_json to use
 set(NLOHMANN_JSON_VERSION v3.11.3)
-
 # Fetch nlohmann_json
 FetchContent_Declare(
     nlohmann_json
@@ -107,6 +110,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
+# Disable building tests for json_schema_validator
+set(JSON_VALIDATOR_BUILD_TESTS OFF CACHE BOOL "Do not build tests for json_schema_validator")
 # Fetch json_schema_validator from your fork
 set(nlohmann_json_VERSION ${NLOHMANN_JSON_VERSION})
 FetchContent_Declare(
@@ -153,6 +158,9 @@ set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they
 #set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Enable throwing on unknown XML" FORCE)
 #set(MUSX_THROW_ON_INTEGRITY_CHECK_FAIL ON CACHE BOOL "Enable throwing integrity check failures" FORCE)
 
+
+# Disable building tests for musx
+set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for pugixml")
 #Include directories for your source files
 add_subdirectory(submodules/musx_object_model)
 
