@@ -89,8 +89,8 @@ FetchContent_MakeAvailable(pugixml)
 # Fetch miniz-cpp
 FetchContent_Declare(
     miniz-cpp
-    GIT_REPOSITORY https://github.com/tfussell/miniz-cpp.git
-    GIT_TAG        052335e4f7773368df07b26d2baedb0e6d4dbd38
+    GIT_REPOSITORY https://github.com/rpatters1/miniz-cpp.git  #Use my fork until/unless PR #27 is merged on the upstream repo
+    GIT_TAG        3097a4b80528ebad5a51cd9315a39a9b5fa12e54
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
     # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
