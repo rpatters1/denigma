@@ -1,5 +1,5 @@
 # Minimum version of CMake required
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.22)
 
 # Project name and version
 project(denigma VERSION 0.1)
@@ -19,8 +19,8 @@ endif()
 
 # Set default build type to Release if not specified
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
-    message(STATUS "No build type specified. Defaulting to Release.")
+    #set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
+    #message(STATUS "No build type specified. Defaulting to Release.")
 endif()
 
 if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
@@ -137,9 +137,11 @@ add_executable(denigma
 )
 
 # For the denigma target specifically
-set_target_properties(denigma PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_BUILD_TYPE}
-)
+if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
+    set_target_properties(denigma PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_BUILD_TYPE}
+    )
+endif()
 
 # Compile definitions
 #set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
@@ -187,20 +189,24 @@ target_link_libraries(denigma PUBLIC denigma_pch)
 # Link the interface library to musx
 target_link_libraries(musx PRIVATE denigma_pch)
 
-function(copy_to_deploy target config)
-    set(DEPLOY_DIR ${CMAKE_BINARY_DIR}/../deploy)
+set(DEPLOY_DIR ${CMAKE_BINARY_DIR}/../deploy)
 
-    # Add a custom command restricted to the given configuration
+if(MSVC)
     add_custom_command(
-        TARGET ${target}
+        TARGET denigma
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory ${DEPLOY_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${target}> ${DEPLOY_DIR}
-        COMMENT "Copying ${config} build of ${target} to deploy directory"
+        COMMAND cmd.exe /c echo Environment Variable: $ENV{DENIGMA_PRODUCTION_DEPLOY_PATH}
+        COMMAND cmd.exe /c if "$(Configuration)" == "Release" echo Copying Release build of denigma to deploy directory
+        COMMAND cmd.exe /c if "$(Configuration)" == "Release" "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:denigma>" "${DEPLOY_DIR}"
+    )
+elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_custom_command(
+        TARGET denigma
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${DEPLOY_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:denigma> ${DEPLOY_DIR}
+        COMMENT "Copying Release build of denigma to deploy directory"
         VERBATIM
     )
-endfunction()
-
-if (CMAKE_BUILD_TYPE STREQUAL "Release" OR "$<CONFIG>" STREQUAL "Release")
-    copy_to_deploy(denigma "Release")
 endif()
