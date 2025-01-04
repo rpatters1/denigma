@@ -216,7 +216,7 @@ static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_pt
     auto restNode = noteNode.child("rest");
     if (!restNode) return;
     auto typeNode = noteNode.child("type");
-    if (!typeNode || typeNode.text().get() != std::string_view{"whole"}) return;
+    if (!typeNode || std::string_view{typeNode.text().get()} != "whole") return;
 
     // Process <notations> nodes
     for (auto notationsNode = noteNode.child("notations");
