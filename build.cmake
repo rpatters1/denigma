@@ -3,13 +3,21 @@
 # CMake arguments up to '-P' (ignore these)
 set(i "1")
 set(COMMAND_ARG "")
+set(CONFIG_ARG "")
 while(i LESS "${CMAKE_ARGC}")
 	if("${CMAKE_ARGV${i}}" STREQUAL "clean")
 		set(COMMAND_ARG "${CMAKE_ARGV${i}}")
-        break() # done with CMake arguments
+    elseif("${CMAKE_ARGV${i}}" STREQUAL "Release")
+        set(CONFIG_ARG "${CMAKE_ARGV${i}}")
+    elseif("${CMAKE_ARGV${i}}" STREQUAL "Debug")
+        set(CONFIG_ARG "${CMAKE_ARGV${i}}")
     endif()
     math(EXPR i "${i} + 1") # next argument
 endwhile()
+
+if(CONFIG_ARG STREQUAL "")
+    set(CONFIG_ARG "Release")
+endif()
 
 # Define the build directory
 set(BUILD_DIR "${CMAKE_BINARY_DIR}/build")
@@ -21,12 +29,36 @@ if(COMMAND_ARG STREQUAL "clean")
     return()  # Exit the script after cleaning
 endif()
 
-# Check if the build directory exists (implies CMake was run before)
-if(NOT EXISTS ${BUILD_DIR}/CMakeCache.txt)
-    message(STATUS "CMake cache not found, configuring project...")
-    execute_process(COMMAND ${CMAKE_COMMAND} -S ${CMAKE_SOURCE_DIR} -B ${BUILD_DIR})
+# Check if the system supports multi-config
+set(MULTI_CONFIG_FOUND "FALSE")
+if(EXISTS ${BUILD_DIR}/CMakeCache.txt)
+    file(READ "${BUILD_DIR}/CMakeCache.txt" CMAKE_CACHE_CONTENTS)
+    string(FIND "${CMAKE_CACHE_CONTENTS}" "CMAKE_CONFIGURATION_TYPES" MULTI_CONFIG_FOUND_INDEX)
+    if(MULTI_CONFIG_FOUND_INDEX GREATER -1)
+        set(MULTI_CONFIG_FOUND "TRUE")
+        message(STATUS "Multi-config system found.")
+    endif()
 endif()
 
-# Build the project
-message(STATUS "Building project...")
-execute_process(COMMAND ${CMAKE_COMMAND} --build ${BUILD_DIR})
+set(BUILD_SYSTEM, "")
+if(NOT MULTI_CONFIG_FOUND)
+    message(STATUS "Setting build system to Ninja")
+    set(BUILD_SYSTEM, "-G Ninja")
+endif()
+
+# Configure the project for single-config systems or if CMakeCache is missing
+if(NOT MULTI_CONFIG_FOUND OR NOT EXISTS ${BUILD_DIR}/CMakeCache.txt)
+    message(STATUS "Configuring project for configuration: ${CONFIG_ARG}")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} ${BUILD_SYSTEM} -S ${CMAKE_SOURCE_DIR} -B ${BUILD_DIR} -DCMAKE_BUILD_TYPE=${CONFIG_ARG}
+    )
+endif()
+
+# Build the project with the appropriate configuration
+if(MULTI_CONFIG_FOUND)
+    message(STATUS "Detected multi-config system. Building with configuration: ${CONFIG_ARG}")
+    execute_process(COMMAND ${CMAKE_COMMAND} --build ${BUILD_DIR} --config ${CONFIG_ARG})
+else()
+    message(STATUS "Detected single-config system. Building with configuration: ${CONFIG_ARG}")
+    execute_process(COMMAND ${CMAKE_COMMAND} --build ${BUILD_DIR})
+endif()

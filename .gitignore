@@ -4,6 +4,7 @@
 /bin/
 /lib/
 /obj/
+/deploy/
 
 # Ignore build tools and temporary files
 CMakeFiles/
