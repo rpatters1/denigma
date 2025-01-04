@@ -66,4 +66,13 @@ TEST(Options, ParseOptions)
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "show help";
         });
     }
+    {
+        ArgList args = { _ARG(DENIGMA_NAME), _ARG("--version") };
+        DenigmaContext ctx(DENIGMA_NAME);
+        ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_TRUE(ctx.showVersion);
+        checkStdout(std::string(ctx.programName) + " " + DENIGMA_VERSION, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "show version";
+        });
+    }
 }
