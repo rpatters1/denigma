@@ -189,24 +189,24 @@ target_link_libraries(denigma PUBLIC denigma_pch)
 # Link the interface library to musx
 target_link_libraries(musx PRIVATE denigma_pch)
 
-set(DEPLOY_DIR ${CMAKE_BINARY_DIR}/../deploy)
+set(DEPLOY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/deploy)
 
 if(MSVC)
     add_custom_command(
         TARGET denigma
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory ${DEPLOY_DIR}
-        COMMAND cmd.exe /c echo Environment Variable: $ENV{DENIGMA_PRODUCTION_DEPLOY_PATH}
         COMMAND cmd.exe /c if "$(Configuration)" == "Release" echo Copying Release build of denigma to deploy directory
         COMMAND cmd.exe /c if "$(Configuration)" == "Release" "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:denigma>" "${DEPLOY_DIR}"
     )
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
+    message(STATUS "Configuring POST_BUILD command for Release")
     add_custom_command(
         TARGET denigma
         POST_BUILD
+        COMMAND echo Copying Release build of denigma to deploy directory
         COMMAND ${CMAKE_COMMAND} -E make_directory ${DEPLOY_DIR}
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:denigma> ${DEPLOY_DIR}
-        COMMENT "Copying Release build of denigma to deploy directory"
         VERBATIM
     )
 endif()
