@@ -24,25 +24,46 @@
 #include "denigma.h"
 #include "test_utils.h"
 
-TEST(Options, Basic)
+using namespace denigma;
+
+TEST(Options, InsufficientOptions)
 {
     {
         ArgList args = {};
-        checkError("argv[0] is unavailable", [&]() {
+        checkStderr("argv[0] is unavailable", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "No arguments returns error";
         });
     }
 
     {
-        ArgList args = { _ARG("denigma") };
-        checkError("", [&]() {
+        ArgList args = { _ARG(DENIGMA_NAME) };
+        checkStderr("", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "1 argument returns help page but no message";
         });
     }
     {
-        ArgList args = { _ARG("denigma"), _ARG("export") };
-        checkError("Not enough arguments passed", [&]() {
+        ArgList args = { _ARG(DENIGMA_NAME), _ARG("export") };
+        checkStderr("Not enough arguments passed", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "2 arguments return error";
+        });
+    }
+    {
+        ArgList args = { _ARG(DENIGMA_NAME), _ARG("not-a-command"), _ARG("input") };
+        checkStderr("Unknown command:", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid command";
+        });
+    }
+}
+
+TEST(Options, ParseOptions)
+{
+    {
+        ArgList args = { _ARG(DENIGMA_NAME), _ARG("--help") };
+        DenigmaContext ctx(DENIGMA_NAME);
+        ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_TRUE(ctx.showHelp);
+        checkStdout(std::string("Usage: ") + ctx.programName + " <command> <input-pattern> [--options]", [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "show help";
         });
     }
 }

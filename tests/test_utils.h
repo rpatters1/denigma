@@ -66,4 +66,7 @@ private:
     std::vector<denigma::arg_char*> argv_;       // Cache for denigma::arg_char** representation
 };
 
-void checkError(const std::string& expectedMessage, std::function<void()> callback);
+void checkStderr(const std::string& expectedMessage, std::function<void()> callback);
+void checkStdout(const std::string& expectedMessage, std::function<void()> callback);
+
+constexpr const char DENIGMA_NAME[] = "denigma";
