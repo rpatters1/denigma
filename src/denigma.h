@@ -49,12 +49,6 @@ inline constexpr char MUSICXML_EXTENSION[]  = "musicxml";
 #define _MAIN main
 #endif
 
-#ifdef DENIGMA_TEST // this is defined on the command line by the test program
-#undef _MAIN
-#define _MAIN denigmaTestMain
-int denigmaTextMain(int argc, arg_char* argv[]);
-#endif
-
 namespace denigma {
 
 // This function exists as std::to_array in C++20
@@ -215,3 +209,9 @@ bool createDirectoryIfNeeded(const std::filesystem::path& path);
 bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext);
 
 } // namespace denigma
+
+#ifdef DENIGMA_TEST // this is defined on the command line by the test program
+#undef _MAIN
+#define _MAIN denigmaTestMain
+int denigmaTestMain(int argc, denigma::arg_char* argv[]);
+#endif

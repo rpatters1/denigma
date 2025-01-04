@@ -107,7 +107,7 @@ int _MAIN(int argc, arg_char* argv[])
         showHelpPage(denigmaContext.programName);
         return 0;
     }
-    if (args.size() < 1) {
+    if (args.size() < 2) {
         std::cerr << "Not enough arguments passed" << std::endl;
         return showHelpPage(denigmaContext.programName);
     }

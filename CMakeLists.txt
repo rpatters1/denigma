@@ -208,7 +208,7 @@ if(MSVC)
         COMMAND cmd.exe /c if "$(Configuration)" == "Release" "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:denigma>" "${DEPLOY_DIR}"
     )
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    message(STATUS "Configuring POST_BUILD command for Release")
+    message(STATUS "Configuring POST_BUILD command for Release.")
     add_custom_command(
         TARGET denigma
         POST_BUILD
@@ -217,4 +217,13 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:denigma> ${DEPLOY_DIR}
         VERBATIM
     )
+endif()
+
+option(denigma_BUILD_TESTING "Build the Denigma test suite" ON)
+
+if(denigma_BUILD_TESTING)
+    message(STATUS "Configuring tests for denigma_BUILD_TESTING.")
+    add_subdirectory(tests)
+else()
+    message(STATUS "Testing not enabled for denigma_BUILD_TESTING.")
 endif()
