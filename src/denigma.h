@@ -159,6 +159,10 @@ public:
     bool fermataWholeRests{true};
     std::optional<std::filesystem::path> finaleFilePath;
 
+#ifdef DENIGMA_TEST // this is defined on the command line by the test program
+    bool testOutput{};
+#endif
+
     void setMassageTarget(const std::string& opt)
     {
         auto preset = toMusicProgramPreset(opt);

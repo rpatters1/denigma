@@ -85,6 +85,10 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             fermataWholeRests = true;
         } else if (next == _ARG("--no-fermata-whole-rests")) {
             fermataWholeRests = false;
+#ifdef DENIGMA_TEST // this is defined on the command line by the test program
+        } else if (next == _ARG("--testing")) {
+            testOutput = true;
+#endif
         } else {
             args.push_back(argv[x]);
         }

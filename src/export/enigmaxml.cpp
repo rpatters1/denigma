@@ -60,6 +60,12 @@ namespace enigmaxml {
 
 Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
+#ifdef DENIGMA_TEST
+    if (denigmaContext.testOutput) {
+        denigmaContext.logMessage(LogMsg() << "Reading " << inputPath.u8string());
+        return {};
+    }
+#endif
     try {
         std::ifstream xmlFile;
         xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
@@ -84,6 +90,12 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
 
 Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
+#ifdef DENIGMA_TEST
+    if (denigmaContext.testOutput) {
+        denigmaContext.logMessage(LogMsg() << "Extracting " << inputPath.u8string());
+        return {};
+    }
+#endif
     try {
         std::string buffer = utils::readFile(inputPath, SCORE_DAT_NAME, denigmaContext);
         utils::ScoreFileEncoder::recodeBuffer(buffer);
@@ -97,6 +109,13 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& den
 
 void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
+#ifdef DENIGMA_TEST
+    if (denigmaContext.testOutput) {
+        denigmaContext.logMessage(LogMsg() << "Writing " << outputPath.u8string());
+        return;
+    }
+#endif
+
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
     try	{

@@ -775,6 +775,13 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
 
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
+#ifdef DENIGMA_TEST
+    if (denigmaContext.testOutput) {
+        denigmaContext.logMessage(LogMsg() << "Converting to " << outputPath.u8string());
+        return;
+    }
+#endif
+
     auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
         processPart(outputPath, document, denigmaContext); // process the score
