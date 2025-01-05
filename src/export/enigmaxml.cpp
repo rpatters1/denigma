@@ -56,7 +56,9 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
     } catch (const std::ios_base::failure& ex) {
         denigmaContext.logMessage(LogMsg() << "unable to read " << inputPath.u8string(), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
+        if (const auto* ec = dynamic_cast<const std::error_code*>(&ex.code())) {
+            denigmaContext.logMessage(LogMsg() << "details: " << ec->message(), LogSeverity::Error);
+        }
         throw;
     };
 }
@@ -92,7 +94,9 @@ void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, con
         std::stringstream sst;
         denigmaContext.logMessage(LogMsg() << "unable to write " << outputPath.u8string(), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
+        if (const auto* ec = dynamic_cast<const std::error_code*>(&ex.code())) {
+            denigmaContext.logMessage(LogMsg() << "details: " << ec->message(), LogSeverity::Error);
+        }
         throw;
     }
 }

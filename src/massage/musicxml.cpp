@@ -75,7 +75,7 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
     std::string logEntry;
     if (currentStaff >= 0 && currentMeasure > 0) {
         std::string staffText = "p" + std::to_string(currentMusicXmlPart);
-        int staffNumber = currentStaff + currentStaffOffset;
+        auto staffNumber = Cmper(currentStaff + currentStaffOffset);
         std::string staffName = [&]() -> std::string {
             auto iuList = musxDocument->getOthers()->getArrayForPart<others::InstrumentUsed>(musxPartId, 0); // 0 is the master list of staves in Scroll View
             if (!iuList.empty()) { 
@@ -273,7 +273,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
         context->logMessage(LogMsg() << "no staff list found for part", LogSeverity::Warning);
         return;
     }
-    auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, staffSlot);
+    auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, Cmper(staffSlot));
     if (!staff) {
         context->logMessage(LogMsg() << "staff not found for slot " << staffSlot, LogSeverity::Warning);
         return;
@@ -410,7 +410,7 @@ void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
                     massageXmlWithFinaleDocument(
                         xmlMeasure,
                         context->currentStaff + context->currentStaffOffset,
-                        context->currentMeasure,
+                        MeasCmper(context->currentMeasure),
                         durationUnit,
                         staffNum,
                         context

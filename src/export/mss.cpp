@@ -331,7 +331,7 @@ static void writeLyricsPrefs(XmlElement& styleElement, const FinalePreferencesPt
             std::make_pair(1, "Odd"),
             std::make_pair(2, "Even")
         }) {
-        auto verseText = prefs->document->getTexts()->get<texts::LyricsVerse>(verseNumber);
+        auto verseText = prefs->document->getTexts()->get<texts::LyricsVerse>(Cmper(verseNumber));
         if (verseText && !verseText->text.empty()) {
             auto font = verseText->parseFirstFontInfo();
             if (font) {

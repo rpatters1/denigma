@@ -69,4 +69,4 @@ private:
 void checkStderr(const std::string& expectedMessage, std::function<void()> callback);
 void checkStdout(const std::string& expectedMessage, std::function<void()> callback);
 
-constexpr const char DENIGMA_NAME[] = "denigma";
+constexpr const denigma::arg_char DENIGMA_NAME[] = _ARG("denigma");

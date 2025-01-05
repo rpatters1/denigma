@@ -36,19 +36,19 @@ TEST(Options, InsufficientOptions)
     }
 
     {
-        ArgList args = { _ARG(DENIGMA_NAME) };
+        ArgList args = { DENIGMA_NAME };
         checkStderr("", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "1 argument returns help page but no message";
         });
     }
     {
-        ArgList args = { _ARG(DENIGMA_NAME), _ARG("export") };
+        ArgList args = { DENIGMA_NAME, _ARG("export") };
         checkStderr("Not enough arguments passed", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "2 arguments return error";
         });
     }
     {
-        ArgList args = { _ARG(DENIGMA_NAME), _ARG("not-a-command"), _ARG("input") };
+        ArgList args = { DENIGMA_NAME, _ARG("not-a-command"), _ARG("input") };
         checkStderr("Unknown command:", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid command";
         });
@@ -58,7 +58,7 @@ TEST(Options, InsufficientOptions)
 TEST(Options, ParseOptions)
 {
     {
-        ArgList args = { _ARG(DENIGMA_NAME), _ARG("--help") };
+        ArgList args = { DENIGMA_NAME, _ARG("--help") };
         DenigmaContext ctx(DENIGMA_NAME);
         ctx.parseOptions(args.argc(), args.argv());
         EXPECT_TRUE(ctx.showHelp);
@@ -67,7 +67,7 @@ TEST(Options, ParseOptions)
         });
     }
     {
-        ArgList args = { _ARG(DENIGMA_NAME), _ARG("--version") };
+        ArgList args = { DENIGMA_NAME, _ARG("--version") };
         DenigmaContext ctx(DENIGMA_NAME);
         ctx.parseOptions(args.argc(), args.argv());
         EXPECT_TRUE(ctx.showVersion);

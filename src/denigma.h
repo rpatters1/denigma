@@ -135,8 +135,8 @@ inline MusicProgramPreset toMusicProgramPreset(const std::string& inp)
 struct DenigmaContext
 {
 public:
-    DenigmaContext(const std::string& progName)
-        : programName(progName) {}
+    DenigmaContext(const arg_string& progName)
+        : programName(std::string(progName)) {}
 
     std::string programName;
     bool showVersion{};
