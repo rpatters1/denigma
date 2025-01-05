@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - dev/add-testing
   pull_request:
     branches:
       - main
@@ -71,5 +70,5 @@ jobs:
         run: cmake --build build --config Release
 
       # Run Tests
-      - name: Run Tests on Linux and macOS
+      - name: Run Tests
         run: ctest --test-dir build/tests --output-on-failure
