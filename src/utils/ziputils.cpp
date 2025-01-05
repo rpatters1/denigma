@@ -54,8 +54,8 @@ std::string readFile(const std::filesystem::path& zipFilePath, const std::string
     return zip.read(fileName);
 }
 
-static bool iterateFiles(miniz_cpp::zip_file& zip, const denigma::DenigmaContext& denigmaContext,
-    std::optional<std::string> searchForFile, std::function<bool(const miniz_cpp::zip_info&)> iterator)
+static bool iterateFiles(miniz_cpp::zip_file& zip, std::optional<std::string> searchForFile,
+    std::function<bool(const miniz_cpp::zip_info&)> iterator)
 {
     bool calledIterator = false;
     for (auto& fileInfo : zip.infolist()) {
@@ -101,7 +101,7 @@ static std::string getMusicXmlScoreName(const std::filesystem::path& zipFilePath
     defaultName.replace_extension(MUSICXML_EXTENSION);
     std::string fileName = defaultName.filename().u8string();
     try {
-        iterateFiles(zip, denigmaContext, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
+        iterateFiles(zip, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
             if (fileInfo.filename == "META-INF/container.xml") {
                 pugi::xml_document containerXml;
                 auto parseResult = containerXml.load_string(zip.read(fileInfo).c_str());
@@ -133,7 +133,7 @@ bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const de
 {
     auto zip = openZip(zipFilePath, denigmaContext);
     std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
-    return iterateFiles(zip, denigmaContext, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
+    return iterateFiles(zip, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
         if (scoreName == fileInfo.filename) {
             return true; // skip score
         }
@@ -153,7 +153,7 @@ bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const s
     auto zip = openZip(zipFilePath, denigmaContext);
     miniz_cpp::zip_file outputZip;
     std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
-    bool retval = iterateFiles(zip, denigmaContext, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
+    bool retval = iterateFiles(zip, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
         std::filesystem::path nextPath = utils::utf8ToPath(fileInfo.filename);
         if (nextPath.has_filename()) {
             std::string buffer = zip.read(fileInfo);

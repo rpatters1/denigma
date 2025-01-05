@@ -255,7 +255,7 @@ bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
 
         const auto xmlBuffer = currentCommand->processInput(inputFilePath, denigmaContext);
 
-        auto calcOutpuFilePath = [inputFilePath, &denigmaContext](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
+        auto calcOutpuFilePath = [inputFilePath](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
             std::filesystem::path retval = path;
             if (retval.is_relative()) {
                 retval = inputFilePath.parent_path() / retval;

@@ -53,11 +53,11 @@ public:
     int codepage() const { return m_codepage; }
 
 private:
-    int m_codepage;
     std::string m_msg;
+    int m_codepage;
 };
 
-inline std::wstring stringToWstring(const std::string& acp, int codepage = CP_UTF8)
+inline std::wstring stringToWstring([[maybe_unused]]const std::string& acp, [[maybe_unused]]int codepage = CP_UTF8)
 {
 #ifdef _WIN32
     int wlen = MultiByteToWideChar(codepage, 0, acp.c_str(), -1, nullptr, 0);
@@ -71,7 +71,7 @@ inline std::wstring stringToWstring(const std::string& acp, int codepage = CP_UT
 #endif
 }
 
-inline std::string wstringToString(const std::wstring& wide, int codepage = CP_UTF8)
+inline std::string wstringToString([[maybe_unused]]const std::wstring& wide, [[maybe_unused]]int codepage = CP_UTF8)
 {
 #ifdef _WIN32
     BOOL usedDefaultChar{};

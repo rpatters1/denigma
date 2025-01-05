@@ -20,6 +20,23 @@ if(denigma_BUILD_TESTING)
         ${DENIGMA_SOURCES}
     )
 
+    if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
+        # Extra warnings for Clang/AppleClang
+        target_compile_options(denigma_tests PRIVATE -Wall -Wextra -Werror -pedantic)
+    elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        # Extra warnings for MSVC
+        target_compile_options(denigma_tests PRIVATE /W4 /WX)
+    endif()
+
+    # don't care about C++20 attributes
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang|AppleClang")
+        target_compile_options(denigma_tests PRIVATE -Wno-c++20-extensions)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(denigma_tests PRIVATE -Wno-attributes)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        target_compile_options(denigma_tests PRIVATE /wd5051) # Example warning code
+    endif()
+
     # Set the test app's output directory
     if (NOT CMAKE_CONFIGURATION_TYPES) # For single-config generators
         set_target_properties(denigma_tests PROPERTIES

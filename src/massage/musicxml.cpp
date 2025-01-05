@@ -79,11 +79,11 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
         std::string staffName = [&]() -> std::string {
             auto iuList = musxDocument->getOthers()->getArrayForPart<others::InstrumentUsed>(musxPartId, 0); // 0 is the master list of staves in Scroll View
             if (!iuList.empty()) { 
-                if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, currentStaff + currentStaffOffset)) {
+                if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, staffNumber)) {
                     return staff->getFullName();
                 }
             }
-            return "StaffName";
+            return "Staff " + std::to_string(staffNumber);
         }();
 
         staffText += "[" + staffName + "]";
@@ -144,9 +144,6 @@ static void fixDirectionBrackets(pugi::xml_node xmlMeasure, const std::string& d
 
         auto directionCopy = currentDirection; // Shallow copy
         std::string shiftType = nodeForType.attribute("type").value();
-
-        // keep this for next iteration
-        auto nextDirection = currentDirection.next_sibling("direction");
 
         if (shiftType == "stop") {
             if (denigmaContext.extendOttavasRight) {
@@ -268,7 +265,7 @@ static int log2_exact(uint32_t value)
 }
 
 static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
-    int staffSlot, MeasCmper measure, double durationUnit, InstCmper staffNum,
+    int staffSlot, MeasCmper measure, double /*durationUnit*/, InstCmper staffNum,
     const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     auto iuList = context->musxDocument->getOthers()->getArrayForPart<others::InstrumentUsed>(context->musxPartId, 0); // 0 is the master list of staves in Scroll View
@@ -740,6 +737,9 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
     std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath);
     if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) {
         return;
+    }
+    if (!musicXml.empty()) {
+        denigmaContext.logMessage(LogMsg() << "ignoring input buffer", LogSeverity::Warning);
     }
 
     auto context = createContext(inputPath, denigmaContext);

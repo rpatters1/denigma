@@ -1,3 +1,7 @@
+if(POLICY CMP0077)
+    cmake_policy(SET CMP0077 NEW) # Suppress pugixml warning
+endif()
+
 # Minimum version of CMake required
 cmake_minimum_required(VERSION 3.22)
 
@@ -39,10 +43,11 @@ if(APPLE)
 endif()
 
 if(MSVC)
-    add_compile_options(/wd5051) # don't care about C++20 attributes
     add_compile_options(/Zc:__cplusplus) # force MSVC to report correct c++ version
     add_compile_options(/DNOMINMAX) # do not use min and max macros from Win32
     add_compile_options(/bigobj) # stoopid Microsoft can't handle industrial size without holding its hand
+else()
+    add_compile_options(-Wno-c++20-extensions)
 endif()
 
 add_compile_definitions(
@@ -65,6 +70,10 @@ set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
 # Set output directory for compiled executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set(BUILD_TESTING OFF CACHE BOOL "Disable testing for external dependencies" FORCE)
+
+# Save the current state and disable deprecation warnings
+set(_original_WARN_DEPRECATED ${CMAKE_WARN_DEPRECATED})
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Suppress deprecation warnings for external projects" FORCE)
 
 # Fetch EzGz
 FetchContent_Declare(
@@ -122,6 +131,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json_schema_validator)
 
+# Restore the original state
+set(CMAKE_WARN_DEPRECATED ${_original_WARN_DEPRECATED} CACHE BOOL "Restore original deprecation warnings setting" FORCE)
+
 add_custom_target(PrintConfig ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Active build configuration: $<CONFIG>"
 )
@@ -140,6 +152,15 @@ add_executable(denigma
     src/massage/musicxml.cpp
     src/utils/ziputils.cpp
 )
+
+ # don't care about C++20 attributes
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang|AppleClang")
+    target_compile_options(denigma PRIVATE -Wno-c++20-extensions)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(denigma PRIVATE -Wno-attributes)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(denigma PRIVATE /wd5051) # Example warning code
+endif()
 
 # For the denigma target specifically
 if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
