@@ -25,7 +25,26 @@
 #include <iostream>
 #include <sstream>
 
+#if defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wc++20-extensions"
+#elif defined(__GNUC__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wattributes"
+#elif defined(_MSC_VER)
+    #pragma warning(push)
+    #pragma warning(disable : 5051)
+#endif
+
 #include "ezgz.hpp"			// ezgz submodule (for gzip)
+
+#if defined(__clang__)
+    #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+    #pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+    #pragma warning(pop)
+#endif
 
 #include "musx/musx.h"
 

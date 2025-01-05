@@ -153,15 +153,6 @@ add_executable(denigma
     src/utils/ziputils.cpp
 )
 
- # don't care about C++20 attributes
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang|AppleClang")
-    target_compile_options(denigma PRIVATE -Wno-c++20-extensions)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(denigma PRIVATE -Wno-attributes)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(denigma PRIVATE /wd5051) # Example warning code
-endif()
-
 # For the denigma target specifically
 if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
     set_target_properties(denigma PROPERTIES
