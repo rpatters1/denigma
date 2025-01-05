@@ -29,11 +29,9 @@ if(denigma_BUILD_TESTING)
     endif()
 
     # Set the test app's output directory
-    if (NOT CMAKE_CONFIGURATION_TYPES) # For single-config generators
-        set_target_properties(denigma_tests PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/${CMAKE_BUILD_TYPE}
-        )
-    endif()
+    set_target_properties(denigma_tests PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests
+    )
 
     # Include the necessary directories
     target_include_directories(denigma_tests PRIVATE
