@@ -22,7 +22,7 @@ if(denigma_BUILD_TESTING)
 
     if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
         # Extra warnings for Clang/AppleClang
-        target_compile_options(denigma_tests PRIVATE -Wall -Wextra -Werror -pedantic)
+        target_compile_options(denigma_tests PRIVATE -Wall -Wextra -Werror -Wpedantic)
     elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
         # Extra warnings for MSVC
         target_compile_options(denigma_tests PRIVATE /W4 /WX)

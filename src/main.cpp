@@ -91,7 +91,7 @@ int _MAIN(int argc, arg_char* argv[])
         return 1;
     }
 
-    DenigmaContext denigmaContext(std::filesystem::path(argv[0]).stem().native());
+    DenigmaContext denigmaContext(std::filesystem::path(*argv).stem().native());
     
     if (argc < 2) {
         return showHelpPage(denigmaContext.programName);

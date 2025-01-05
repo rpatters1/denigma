@@ -188,7 +188,7 @@ add_subdirectory(submodules/musx_object_model)
 # Ensure the include directories are added
 add_dependencies(denigma GenerateMnxSchemaXxd)
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
-target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
+target_include_directories(denigma SYSTEM PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
 target_include_directories(denigma PRIVATE ${MUSX_OBJECT_MODEL_DIR})
 target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)

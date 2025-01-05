@@ -25,7 +25,20 @@
 
  // NOTE: This namespace is necessary because zip_file.hpp is poorly implemented and
 //          can only be included once in the entire project.
+#ifdef __GNUC__
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wall"
+    #pragma GCC diagnostic ignored "-Wextra"
+    #pragma GCC diagnostic ignored "-Wpedantic"
+    #pragma GCC diagnostic ignored "-Wmisleading-indentation"
+#endif
+
 #include "zip_file.hpp"
+
+#ifdef __GNUC__
+    #pragma GCC diagnostic pop
+#endif
+
 
 namespace utils {
 
