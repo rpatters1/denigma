@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      #- dev/add-testing
+      - dev/add-testing
   pull_request:
     branches:
       - main
@@ -72,9 +72,4 @@ jobs:
 
       # Run Tests
       - name: Run Tests on Linux and macOS
-        if: matrix.os != 'windows-latest'
         run: ctest --test-dir build/tests --output-on-failure
-
-      - name: Run Tests on Windows
-        if: matrix.os == 'windows-latest'
-        run: ctest --test-dir build -C Release --output-on-failure
