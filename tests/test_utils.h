@@ -66,7 +66,12 @@ private:
     std::vector<denigma::arg_char*> argv_;       // Cache for denigma::arg_char** representation
 };
 
-void checkStderr(const std::string& expectedMessage, std::function<void()> callback);
-void checkStdout(const std::string& expectedMessage, std::function<void()> callback);
+void checkStderr(const std::vector<std::string_view>& expectedMessages, std::function<void()> callback);
+inline void checkStderr(const std::string_view& expectedMessage, std::function<void()> callback)
+{ checkStderr(std::vector<std::string_view>({ expectedMessage }), callback); }
+
+void checkStdout(const std::vector<std::string_view>& expectedMessages, std::function<void()> callback);
+inline void checkStdout(const std::string_view& expectedMessage, std::function<void()> callback)
+{ checkStdout(std::vector<std::string_view>({ expectedMessage }), callback); }
 
 constexpr const denigma::arg_char DENIGMA_NAME[] = _ARG("denigma");

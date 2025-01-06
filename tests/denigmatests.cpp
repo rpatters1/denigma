@@ -36,7 +36,7 @@ public:
 };
 
 // checks for a specific error string in the output
-void checkStderr(const std::string& expectedMessage, std::function<void()> callback)
+void checkStderr(const std::vector<std::string_view>& expectedMessages, std::function<void()> callback)
 {
     // Redirect stderr to capture messages
     std::ostringstream nullStream; // used to suppress std::cout
@@ -53,17 +53,21 @@ void checkStderr(const std::string& expectedMessage, std::function<void()> callb
 
     // check for errStream for error
     std::string capturedErrors = errStream.str();
-    if (expectedMessage.empty()) {
-        EXPECT_TRUE(capturedErrors.empty()) << "No error message expected but got " << capturedErrors;
-        return;
+    for (const auto& expectedMessage : expectedMessages) {
+        if (expectedMessage.empty()) {
+            EXPECT_TRUE(capturedErrors.empty()) << "No error message expected but got " << capturedErrors;
+        } else {
+            EXPECT_NE(capturedErrors.find(expectedMessage), std::string::npos)
+                << "Expected error message not found. Actual: " << capturedErrors;
+        }
     }
-    EXPECT_NE(capturedErrors.find(expectedMessage), std::string::npos)
-        << "Expected error message not found. Actual: " << capturedErrors;
 };
 
-void checkStdout(const std::string& expectedMessage, std::function<void()> callback)
+void checkStdout(const std::vector<std::string_view>& expectedMessages, std::function<void()> callback)
 {
-    // Redirect stderr to capture messages
+    // Redirect stdout to capture messages
+    std::ostringstream nullStream; // used to suppress std::cout
+    std::streambuf* originalCerr = std::cerr.rdbuf(nullStream.rdbuf()); // Redirect std::cerr to null
     std::ostringstream coutStream; // used to suppress std::cout
     std::streambuf* originalCout = std::cout.rdbuf(coutStream.rdbuf()); // Redirect std::cout to null
 
@@ -72,15 +76,20 @@ void checkStdout(const std::string& expectedMessage, std::function<void()> callb
 
     // Restore stderr and stdout
     std::cout.rdbuf(originalCout);
+    std::cerr.rdbuf(originalCerr);
 
-    // check for errStream for error
-    std::string capturedMessage = coutStream.str();
-    if (expectedMessage.empty()) {
-        EXPECT_TRUE(capturedMessage.empty()) << "No message expected but got " << capturedMessage;
-        return;
+    EXPECT_TRUE(nullStream.str().empty()) << "Error occurred: " << nullStream.str();
+
+    // check for coutStream for error
+    std::string capturesMessages = coutStream.str();
+    for (const auto& expectedMessage : expectedMessages) {
+        if (expectedMessage.empty()) {
+            EXPECT_TRUE(capturesMessages.empty()) << "No error message expected but got " << capturesMessages;
+        } else {
+            EXPECT_NE(capturesMessages.find(expectedMessage), std::string::npos)
+                << "Expected error message not found. Actual: " << capturesMessages;
+        }
     }
-    EXPECT_NE(capturedMessage.find(expectedMessage), std::string::npos)
-        << "Expected error message not found. Actual: " << capturedMessage;
 }
 
 int main(int argc, char** argv)
