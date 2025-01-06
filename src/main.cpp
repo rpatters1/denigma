@@ -154,12 +154,12 @@ int _MAIN(int argc, arg_char* argv[])
         }
         std::filesystem::path inputDir = inputFilePattern.parent_path();
         bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);        
-        if (!inputIsOneFile && !denigmaContext.logFilePath.has_value()) {
+        if (!inputIsOneFile && !rawInputPattern.has_filename() && !denigmaContext.logFilePath.has_value()) {
             denigmaContext.logFilePath = "";
         }
         denigmaContext.startLogging(inputDir, argc, argv);
 
-        if (isSpecificFileOrDirectory && !std::filesystem::exists(rawInputPattern)) {
+        if (isSpecificFileOrDirectory && !std::filesystem::exists(rawInputPattern) DENIGMA_TEST_CODE(&& !denigmaContext.testOutput)) {
             throw std::runtime_error("Input path " + inputFilePattern.u8string() + " does not exist or is not a file or directory.");
         }
 

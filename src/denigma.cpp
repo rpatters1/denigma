@@ -191,7 +191,7 @@ bool createDirectoryIfNeeded(const std::filesystem::path& path)
     try {
         exists = std::filesystem::exists(path);
     } catch(...) {}
-    if (!exists) {
+    if (!exists && !path.parent_path().empty()) {
         std::filesystem::create_directories(path.parent_path());
     }
     if (std::filesystem::is_directory(path) || (!exists && !path.has_extension())) {
@@ -203,7 +203,7 @@ bool createDirectoryIfNeeded(const std::filesystem::path& path)
 
 void DenigmaContext::startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[])
 {
-    if (!noLog && logFilePath.has_value() && !logFile) {
+    if (!calcNoLogging() && logFilePath.has_value() && !logFile) {
         auto& path = logFilePath.value();
         if (path.empty()) {
             path = defaultLogPath / (programName + "-logs");
@@ -232,7 +232,7 @@ void DenigmaContext::startLogging(const std::filesystem::path& defaultLogPath, i
 
 void DenigmaContext::endLogging()
 {
-    if (!noLog && logFilePath.has_value()) {
+    if (!calcNoLogging() && logFilePath.has_value()) {
         inputFilePath = "";
         logMessage(LogMsg());
         logMessage(LogMsg() << programName << " processing complete");

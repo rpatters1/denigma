@@ -188,6 +188,15 @@ public:
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info) const;
 
     void endLogging(); ///< Ends logging if logging was requested
+
+private:
+    bool calcNoLogging() const
+    {
+#ifdef DENIGMA_TEST
+        if (testOutput) return true;
+#endif
+        return noLog;
+    }
 };
 
 class ICommand
@@ -218,4 +227,7 @@ bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
 #undef _MAIN
 #define _MAIN denigmaTestMain
 int denigmaTestMain(int argc, denigma::arg_char* argv[]);
+#define DENIGMA_TEST_CODE(C) C
+#else
+#define DENIGMA_TEST_CODE(C)
 #endif
