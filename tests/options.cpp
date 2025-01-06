@@ -94,15 +94,15 @@ TEST(Options, ParseOptions)
         });
     }
     {
-        static const arg_char* fileName = _ARG("notAscii-其れ.musx");
-        ArgList args = { DENIGMA_NAME, _ARG("--testing"), _ARG("export"), fileName };
+        static const arg_char* fileName = _ARG("notAscii-其れ");
+        ArgList args = { DENIGMA_NAME, _ARG("--testing"), _ARG("export"), arg_string(fileName) + _ARG(".musx") };
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 2);
-        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), std::string(fileName)) << "utf-8 encoding check";
+        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), std::string(fileName) + ".musx") << "utf-8 encoding check";
         EXPECT_FALSE(ctx.logFilePath.has_value());
-        checkStderr("Input path " + std::string(fileName) + " does not exist", [&]() {
-            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
+        checkStderr({ "Extracting " + std::string(fileName) + ".musx", "Writing", std::string(fileName) + ".enigmaxml" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
         });
     }
 }

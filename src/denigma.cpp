@@ -203,7 +203,11 @@ bool createDirectoryIfNeeded(const std::filesystem::path& path)
 
 void DenigmaContext::startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[])
 {
-    if (!calcNoLogging() && logFilePath.has_value() && !logFile) {
+    if (!noLog && logFilePath.has_value() && !logFile) {
+        if (forTestOutput()) {
+            std::cout << "Logging to " << logFilePath.value().u8string() << std::endl;
+            return;
+        }
         auto& path = logFilePath.value();
         if (path.empty()) {
             path = defaultLogPath / (programName + "-logs");
@@ -232,7 +236,7 @@ void DenigmaContext::startLogging(const std::filesystem::path& defaultLogPath, i
 
 void DenigmaContext::endLogging()
 {
-    if (!calcNoLogging() && logFilePath.has_value()) {
+    if (!noLog && logFilePath.has_value() && !forTestOutput()) {
         inputFilePath = "";
         logMessage(LogMsg());
         logMessage(LogMsg() << programName << " processing complete");
@@ -244,7 +248,7 @@ void DenigmaContext::endLogging()
 bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext)
 {
     try {
-        if (!std::filesystem::is_regular_file(inputFilePath)) {
+        if (!std::filesystem::is_regular_file(inputFilePath) && !denigmaContext.forTestOutput()) {
             throw std::runtime_error("Input file " + inputFilePath.u8string() + " does not exist or is not a file.");
         }
         constexpr char kProcessingMessage[] = "Processing File: ";
@@ -263,6 +267,9 @@ bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
             std::filesystem::path retval = path;
             if (retval.is_relative()) {
                 retval = inputFilePath.parent_path() / retval;
+            }
+            if (retval.empty()) {
+                retval = std::filesystem::current_path();
             }
             if (createDirectoryIfNeeded(retval)) {
                 std::filesystem::path outputFileName = inputFilePath.filename();

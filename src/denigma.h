@@ -189,13 +189,13 @@ public:
 
     void endLogging(); ///< Ends logging if logging was requested
 
-private:
-    bool calcNoLogging() const
+    bool forTestOutput() const
     {
 #ifdef DENIGMA_TEST
-        if (testOutput) return true;
+        return testOutput;
+#else
+        return false;
 #endif
-        return noLog;
     }
 };
 

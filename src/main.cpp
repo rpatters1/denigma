@@ -144,8 +144,10 @@ int _MAIN(int argc, arg_char* argv[])
         std::filesystem::path inputFilePattern = rawInputPattern;
 
         // collect inputs
-        bool isSpecificFileOrDirectory = inputFilePattern.u8string().find('*') == std::string::npos && inputFilePattern.u8string().find('?') == std::string::npos;
+        const bool isSpecificFileOrDirectory = inputFilePattern.u8string().find('*') == std::string::npos && inputFilePattern.u8string().find('?') == std::string::npos;
+        bool isSpecificFile = isSpecificFileOrDirectory && inputFilePattern.has_filename();
         if (std::filesystem::is_directory(inputFilePattern)) {
+            isSpecificFile = false;
             if (currentCommand->defaultInputFormat().has_value()) {
                 inputFilePattern /= "*." + std::string(currentCommand->defaultInputFormat().value());
             } else {
@@ -159,7 +161,7 @@ int _MAIN(int argc, arg_char* argv[])
         }
         denigmaContext.startLogging(inputDir, argc, argv);
 
-        if (isSpecificFileOrDirectory && !std::filesystem::exists(rawInputPattern) DENIGMA_TEST_CODE(&& !denigmaContext.testOutput)) {
+        if (isSpecificFileOrDirectory && !std::filesystem::exists(rawInputPattern) && !denigmaContext.forTestOutput()) {
             throw std::runtime_error("Input path " + inputFilePattern.u8string() + " does not exist or is not a file or directory.");
         }
 
@@ -205,7 +207,7 @@ int _MAIN(int argc, arg_char* argv[])
                 }    
             }
         };
-        if (inputIsOneFile) {
+        if (inputIsOneFile || (denigmaContext.forTestOutput() && isSpecificFile)) {
             pathsToProcess.push_back(inputFilePattern);
         } else if (denigmaContext.recursiveSearch) {
             std::filesystem::recursive_directory_iterator it(inputDir);
