@@ -44,13 +44,13 @@ TEST(Options, InsufficientOptions)
         });
     }
     {
-        ArgList args = { DENIGMA_NAME, _ARG("export") };
+        ArgList args = { DENIGMA_NAME, "export" };
         checkStderr("Not enough arguments passed", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "2 arguments return error";
         });
     }
     {
-        ArgList args = { DENIGMA_NAME, _ARG("not-a-command"), _ARG("input") };
+        ArgList args = { DENIGMA_NAME, "not-a-command", "input" };
         checkStderr("Unknown command:", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid command";
         });
@@ -60,7 +60,7 @@ TEST(Options, InsufficientOptions)
 TEST(Options, ParseOptions)
 {
     {
-        ArgList args = { DENIGMA_NAME, _ARG("--help") };
+        ArgList args = { DENIGMA_NAME, "--help" };
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 0);
@@ -71,7 +71,7 @@ TEST(Options, ParseOptions)
         });
     }
     {
-        ArgList args = { DENIGMA_NAME, _ARG("--version") };
+        ArgList args = { DENIGMA_NAME, "--version" };
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 0);
@@ -82,26 +82,26 @@ TEST(Options, ParseOptions)
         });
     }
     {
-        static const arg_char* fileName = _ARG("notAscii-其れ.invalid");
-        ArgList args = { DENIGMA_NAME, _ARG("export"), fileName };
+        static const std::string fileName = "notAscii-其れ.invalid";
+        ArgList args = { DENIGMA_NAME, "export", fileName };
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 2);
-        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), std::string(fileName)) << "utf-8 encoding check";
+        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName) << "utf-8 encoding check";
         EXPECT_FALSE(ctx.logFilePath.has_value());
-        checkStderr("Input path " + std::string(fileName) + " does not exist", [&]() {
+        checkStderr("Input path " + fileName + " does not exist", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
         });
     }
     {
-        static const arg_char* fileName = _ARG("notAscii-其れ");
-        ArgList args = { DENIGMA_NAME, _ARG("--testing"), _ARG("export"), arg_string(fileName) + _ARG(".musx") };
+        static const std::string fileName = "notAscii-其れ";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx" };
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 2);
-        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), std::string(fileName) + ".musx") << "utf-8 encoding check";
+        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".musx") << "utf-8 encoding check";
         EXPECT_FALSE(ctx.logFilePath.has_value());
-        checkStderr({ "Extracting " + std::string(fileName) + ".musx", "Writing", std::string(fileName) + ".enigmaxml" }, [&]() {
+        checkStderr({ "Extracting " + fileName + ".musx", "Writing", fileName + ".enigmaxml" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
         });
     }

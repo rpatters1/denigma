@@ -30,8 +30,13 @@
 class ArgList {
 public:
     // Constructor to allow initialization with { "arg1", "arg2", ... }
-    ArgList(std::initializer_list<denigma::arg_string> init)
-        : args_(init) {}
+    ArgList(std::initializer_list<std::string> init)
+    {
+        args_.reserve(init.size()); // Reserve space for performance.
+        for (const auto& str : init) {
+            args_.emplace_back(str); // Convert std::string to denigma::arg_string.
+        }
+    }
 
     // Default constructor for manual addition
     ArgList() = default;
@@ -74,4 +79,4 @@ void checkStdout(const std::vector<std::string_view>& expectedMessages, std::fun
 inline void checkStdout(const std::string_view& expectedMessage, std::function<void()> callback)
 { checkStdout(std::vector<std::string_view>({ expectedMessage }), callback); }
 
-constexpr const denigma::arg_char DENIGMA_NAME[] = _ARG("denigma");
+constexpr const char DENIGMA_NAME[] = "denigma";
