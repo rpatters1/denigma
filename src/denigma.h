@@ -140,6 +140,8 @@ public:
     DenigmaContext(const arg_string& progName)
         : programName(std::string(progName)) {}
 
+    mutable bool errorOccurred{};
+
     std::string programName;
     bool showVersion{};
     bool showHelp{};
@@ -221,7 +223,7 @@ public:
 std::string getTimeStamp(const std::string& fmt);
 
 bool createDirectoryIfNeeded(const std::filesystem::path& path);
-bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext);
+void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext);
 
 } // namespace denigma
 

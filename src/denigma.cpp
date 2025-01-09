@@ -124,6 +124,9 @@ void DenigmaContext::logMessage(LogMsg&& msg, LogSeverity severity) const
     if (severity == LogSeverity::Verbose && !verbose) {
         return;
     }
+    if (severity == LogSeverity::Error) {
+        errorOccurred = true;
+    }
     msg.flush();
     std::string inputFile = inputFilePath.filename().u8string();
     if (!inputFile.empty()) {
@@ -203,6 +206,7 @@ bool createDirectoryIfNeeded(const std::filesystem::path& path)
 
 void DenigmaContext::startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[])
 {
+    errorOccurred = false;
     if (!noLog && logFilePath.has_value() && !logFile) {
         if (forTestOutput()) {
             std::cout << "Logging to " << logFilePath.value().u8string() << std::endl;
@@ -245,7 +249,7 @@ void DenigmaContext::endLogging()
     }
 }
 
-bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext)
+void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext)
 {
     try {
         if (!std::filesystem::is_regular_file(inputFilePath) && !denigmaContext.forTestOutput()) {
@@ -298,14 +302,11 @@ bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
                 currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), inputFilePath, denigmaContext);
             }
         }
-        return true;
     } catch (const musx::xml::load_error& ex) {
         denigmaContext.logMessage(LogMsg() << "Load XML failed: " << ex.what(), LogSeverity::Error);
     } catch (const std::exception& e) {
         denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
     }
-
-    return false;
 }
 
 } // namespace denigma

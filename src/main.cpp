@@ -138,7 +138,6 @@ int _MAIN(int argc, arg_char* argv[])
             denigmaContext.logMessage(LogMsg() << msg, logSeverity);
         });
 
-    bool errorOccurred = false;
     try {
         const std::filesystem::path rawInputPattern = args[1];
         std::filesystem::path inputFilePattern = rawInputPattern;
@@ -201,7 +200,6 @@ int _MAIN(int argc, arg_char* argv[])
                     } else if (inputIsOneFile) {
                         denigmaContext.logMessage(LogMsg() << "Invalid input format.", LogSeverity::Error);
                         showHelpPage(denigmaContext.programName);
-                        errorOccurred = true;
                         break;
                     }
                 }    
@@ -218,17 +216,14 @@ int _MAIN(int argc, arg_char* argv[])
         }
         for (const auto& path : pathsToProcess) {
             denigmaContext.inputFilePath = "";
-            if (!processFile(currentCommand, path, args, denigmaContext)) {
-                errorOccurred = true;
-            }
+            processFile(currentCommand, path, args, denigmaContext);
         }
     }
     catch (const std::exception& e) {
         denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
-        errorOccurred = true;
     }
 
     denigmaContext.endLogging();
 
-    return errorOccurred;
+    return denigmaContext.errorOccurred;
 }
