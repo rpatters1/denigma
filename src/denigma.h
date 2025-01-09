@@ -69,6 +69,8 @@ struct arg_string : public std::wstring
 {
     using std::wstring::wstring;
     arg_string(const std::wstring& wstr) : std::wstring(wstr) {}
+    arg_string(const std::string& str) : std::wstring(utils::stringToWstring(str)) {}
+    arg_string(const char * str) : std::wstring(utils::stringToWstring(str)) {}
 
     operator std::string() const
     {

@@ -36,7 +36,7 @@ public:
 };
 
 // checks for a specific error string in the output
-void checkStderr(const std::vector<std::string_view>& expectedMessages, std::function<void()> callback)
+void checkStderr(const std::vector<std::string>& expectedMessages, std::function<void()> callback)
 {
     // Redirect stderr to capture messages
     std::ostringstream nullStream; // used to suppress std::cout
@@ -63,7 +63,7 @@ void checkStderr(const std::vector<std::string_view>& expectedMessages, std::fun
     }
 };
 
-void checkStdout(const std::vector<std::string_view>& expectedMessages, std::function<void()> callback)
+void checkStdout(const std::vector<std::string>& expectedMessages, std::function<void()> callback)
 {
     // Redirect stdout to capture messages
     std::ostringstream nullStream; // used to suppress std::cout

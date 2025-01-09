@@ -28,7 +28,7 @@
 
 using namespace denigma;
 
-TEST(Options, InsufficientOptions)
+TEST(Options, IncorrectOptions)
 {
     {
         ArgList args = {};
@@ -53,6 +53,24 @@ TEST(Options, InsufficientOptions)
         ArgList args = { DENIGMA_NAME, "not-a-command", "input" };
         checkStderr("Unknown command:", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid command";
+        });
+    }
+    {
+        ArgList args = { DENIGMA_NAME, "--testing", "export", "input", "--xxx" };
+        checkStderr("Unsupported format: ", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
+        });
+    }
+    {
+        ArgList args = { DENIGMA_NAME, "--testing", "export", "input.yyy", "--xxx" };
+        checkStderr("Unsupported format: yyy", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
+        });
+    }
+    {
+        ArgList args = { DENIGMA_NAME, "--testing", "export", "input.enigmaxml", "--xxx" };
+        checkStderr("Unsupported format: xxx", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid output format";
         });
     }
 }
@@ -104,5 +122,79 @@ TEST(Options, ParseOptions)
         checkStderr({ "Extracting " + fileName + ".musx", "Writing", fileName + ".enigmaxml" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
         });
+    }
+    {
+        static const std::string fileName = "notAscii-其れ";
+        static const std::string subDir = "-exports";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx", "--enigmaxml", subDir };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 4);
+        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".musx") << "utf-8 encoding check";
+        EXPECT_FALSE(ctx.logFilePath.has_value());
+        checkStderr({ "Extracting " + fileName + ".musx", "Writing", subDir + DIRECTORY_SEP + fileName + ".enigmaxml" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
+        });
+    }
+    {
+        static const std::string fileName = "notAscii-其れ";
+        static const std::string subDir = "-exports";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx", "--mss", subDir };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 4);
+        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".musx") << "utf-8 encoding check";
+        EXPECT_FALSE(ctx.logFilePath.has_value());
+        checkStderr({ "Extracting " + fileName + ".musx", "Converting", subDir + DIRECTORY_SEP + fileName + ".mss" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
+        });
+    }
+}
+
+TEST(Options, MassageOptions)
+{
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--target", "MuseScore" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_TRUE(ctx.extendOttavasLeft);
+        EXPECT_TRUE(ctx.extendOttavasRight);
+        EXPECT_TRUE(ctx.fermataWholeRests);
+        EXPECT_TRUE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--target", "doRico" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_TRUE(ctx.extendOttavasLeft);
+        EXPECT_TRUE(ctx.extendOttavasRight);
+        EXPECT_TRUE(ctx.fermataWholeRests);
+        EXPECT_TRUE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--target", "lilypond" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_TRUE(ctx.extendOttavasLeft);
+        EXPECT_FALSE(ctx.extendOttavasRight);
+        EXPECT_TRUE(ctx.fermataWholeRests);
+        EXPECT_TRUE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--target", "lilypond", "--no-refloat-rests" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_TRUE(ctx.extendOttavasLeft);
+        EXPECT_FALSE(ctx.extendOttavasRight);
+        EXPECT_TRUE(ctx.fermataWholeRests);
+        EXPECT_FALSE(ctx.refloatRests);
     }
 }

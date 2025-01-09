@@ -141,7 +141,7 @@ void DenigmaContext::logMessage(LogMsg&& msg, LogSeverity severity) const
         }
     }
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(DENIGMA_TEST)
     HANDLE hConsole = GetStdHandle(STD_ERROR_HANDLE);
     if (hConsole && hConsole != INVALID_HANDLE_VALUE) {
         DWORD consoleMode{};
