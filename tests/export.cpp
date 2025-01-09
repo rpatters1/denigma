@@ -37,7 +37,7 @@ TEST(Export, InplaceExport)
     copyInputToOutput(inputFile + ".musx", inputPath);
     // enigmaxml
     {
-        ArgList args = { DENIGMA_NAME, "export", inputPath.native() };
+        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string() };
         checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0);
         });
@@ -48,7 +48,7 @@ TEST(Export, InplaceExport)
     }
     // mss
     {
-        ArgList args = { DENIGMA_NAME, "export", inputPath.native(), "--mss" };
+        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mss" };
         checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0);
         });

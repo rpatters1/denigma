@@ -305,6 +305,6 @@ TEST(Options, MassageOptions)
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 2);
         ASSERT_TRUE(ctx.finaleFilePath.has_value());
-        EXPECT_EQ(ctx.finaleFilePath, "parentƒ");
+        EXPECT_EQ(ctx.finaleFilePath.value().u8string(), "parentƒ");
     }
 }
