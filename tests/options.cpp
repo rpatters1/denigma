@@ -58,7 +58,7 @@ TEST(Options, IncorrectOptions)
     {
         ArgList args = { DENIGMA_NAME, "--testing", "export", "input", "--xxx" };
         checkStderr("Unsupported format: ", [&]() {
-            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format (none)";
         });
     }
     {
@@ -196,5 +196,115 @@ TEST(Options, MassageOptions)
         EXPECT_FALSE(ctx.extendOttavasRight);
         EXPECT_TRUE(ctx.fermataWholeRests);
         EXPECT_FALSE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--no-refloat-rests" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_TRUE(ctx.extendOttavasLeft);
+        EXPECT_TRUE(ctx.extendOttavasRight);
+        EXPECT_TRUE(ctx.fermataWholeRests);
+        EXPECT_FALSE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--no-extend-ottavas-left" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_FALSE(ctx.extendOttavasLeft);
+        EXPECT_TRUE(ctx.extendOttavasRight);
+        EXPECT_TRUE(ctx.fermataWholeRests);
+        EXPECT_TRUE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--no-extend-ottavas-right" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_TRUE(ctx.extendOttavasLeft);
+        EXPECT_FALSE(ctx.extendOttavasRight);
+        EXPECT_TRUE(ctx.fermataWholeRests);
+        EXPECT_TRUE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--no-refloat-rests" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_TRUE(ctx.extendOttavasLeft);
+        EXPECT_TRUE(ctx.extendOttavasRight);
+        EXPECT_TRUE(ctx.fermataWholeRests);
+        EXPECT_FALSE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--no-extend-ottavas-left", "--no-extend-ottavas-right", "--no-fermata-whole-rests", "--no-refloat-rests",
+                            "--extend-ottavas-left" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_TRUE(ctx.extendOttavasLeft);
+        EXPECT_FALSE(ctx.extendOttavasRight);
+        EXPECT_FALSE(ctx.fermataWholeRests);
+        EXPECT_FALSE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--no-extend-ottavas-left", "--no-extend-ottavas-right", "--no-fermata-whole-rests", "--no-refloat-rests",
+                            "--extend-ottavas-right" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_FALSE(ctx.extendOttavasLeft);
+        EXPECT_TRUE(ctx.extendOttavasRight);
+        EXPECT_FALSE(ctx.fermataWholeRests);
+        EXPECT_FALSE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--no-extend-ottavas-left", "--no-extend-ottavas-right", "--no-fermata-whole-rests", "--no-refloat-rests",
+                            "--fermata-whole-rests" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_FALSE(ctx.extendOttavasLeft);
+        EXPECT_FALSE(ctx.extendOttavasRight);
+        EXPECT_TRUE(ctx.fermataWholeRests);
+        EXPECT_FALSE(ctx.refloatRests);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--no-extend-ottavas-left", "--no-extend-ottavas-right", "--no-fermata-whole-rests", "--no-refloat-rests",
+                            "--refloat-rests" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_FALSE(ctx.extendOttavasLeft);
+        EXPECT_FALSE(ctx.extendOttavasRight);
+        EXPECT_FALSE(ctx.fermataWholeRests);
+        EXPECT_TRUE(ctx.refloatRests);
+        EXPECT_FALSE(ctx.finaleFilePath.has_value());
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--finale-file" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_FALSE(ctx.finaleFilePath.has_value());
+    }
+    {
+        static const std::string fileName = "notAscii-其れ.mxl";
+        ArgList args = { DENIGMA_NAME, "--testing", "massage", fileName, "--finale-file", "parentƒ" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        ASSERT_TRUE(ctx.finaleFilePath.has_value());
+        EXPECT_EQ(ctx.finaleFilePath, "parentƒ");
     }
 }
