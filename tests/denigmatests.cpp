@@ -19,6 +19,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <iterator>
+#include <filesystem>
 
 #include "gtest/gtest.h"
 #include "test_utils.h"
@@ -90,6 +92,24 @@ void checkStdout(const std::vector<std::string>& expectedMessages, std::function
                 << "Expected error message not found. Actual: " << capturesMessages;
         }
     }
+}
+
+void setupTestDataPaths()
+{
+    auto workingDir = std::filesystem::current_path();
+    ASSERT_TRUE(std::filesystem::is_directory(workingDir));
+    ASSERT_GE(std::distance(workingDir.begin(), workingDir.end()), 2);
+    ASSERT_EQ((--workingDir.end())->u8string(), "data");
+    ASSERT_EQ((--workingDir.parent_path().end())->u8string(), "tests");
+    ASSERT_TRUE(std::filesystem::exists(getInputPath()));
+    ASSERT_NO_THROW({
+        auto outputDir = getOutputPath();
+        if (std::filesystem::exists(outputDir)) {
+            std::filesystem::remove_all(outputDir);
+        }
+        std::filesystem::create_directories(outputDir);
+    });
+    ASSERT_TRUE(std::filesystem::exists(getOutputPath()));
 }
 
 int main(int argc, char** argv)

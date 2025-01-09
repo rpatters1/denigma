@@ -86,3 +86,11 @@ constexpr char DIRECTORY_SEP = '\\';
 #else
 constexpr char DIRECTORY_SEP = '/';
 #endif
+
+inline std::filesystem::path getInputPath()
+{ return std::filesystem::current_path() / "inputs"; }
+
+inline std::filesystem::path getOutputPath()
+{ return std::filesystem::current_path() / "outputs"; }
+
+void setupTestDataPaths();

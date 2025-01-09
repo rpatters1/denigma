@@ -14,7 +14,7 @@ if(denigma_BUILD_TESTING)
     add_executable(denigma_tests
         denigmatests.cpp
         options.cpp
-        #test/test_export.cpp
+        export.cpp
         #test/test_massage.cpp
         #test/test_utils.cpp
         ${DENIGMA_SOURCES}
@@ -73,6 +73,7 @@ if(denigma_BUILD_TESTING)
     gtest_discover_tests(denigma_tests
         DISCOVERY_TIMEOUT 60 # Set timeout to 60 seconds
         PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/data
             ENVIRONMENT "GTEST_COLOR=1"
         EXTRA_ARGS --gtest_color=yes
     )
