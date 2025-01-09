@@ -123,6 +123,22 @@ void copyInputToOutput(const std::string& fileName, std::filesystem::path& outpu
     ASSERT_TRUE(std::filesystem::exists(outputPath));
 }
 
+void compareFiles(const std::filesystem::path& path1, const std::filesystem::path& path2)
+{
+    ASSERT_TRUE(std::filesystem::is_regular_file(path1));
+    ASSERT_TRUE(std::filesystem::is_regular_file(path2));
+    std::ifstream file1(path1);
+    ASSERT_TRUE(file1);
+    std::ifstream file2(path2);
+    ASSERT_TRUE(file2);
+    char c1, c2;
+    while (file1.get(c1)) {
+        ASSERT_TRUE(file2.get(c2));
+        ASSERT_EQ(c1, c2);
+    }
+    EXPECT_FALSE(file2.get(c2));
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

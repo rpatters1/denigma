@@ -95,3 +95,4 @@ inline std::filesystem::path getOutputPath()
 
 void setupTestDataPaths();
 void copyInputToOutput(const std::string& fileName, std::filesystem::path& outputPath);
+void compareFiles(const std::filesystem::path& path1, const std::filesystem::path& path2);

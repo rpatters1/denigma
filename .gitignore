@@ -66,5 +66,5 @@ tests/data/*
 !tests/data/inputs/**
 
 # Explicitly exclude unwanted files in tests/data/inputs
-tests/data/inputs/.DS_Store
+tests/data/inputs/**/.DS_Store
 

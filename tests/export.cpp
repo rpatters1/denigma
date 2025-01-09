@@ -42,7 +42,9 @@ TEST(Export, InplaceExport)
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0);
         });
         std::filesystem::path enigmaFilename = utils::utf8ToPath(inputFile + ".enigmaxml");
+        std::filesystem::path referencePath = getInputPath() / "reference" / enigmaFilename;
         EXPECT_TRUE(std::filesystem::exists(getOutputPath() / enigmaFilename));
+        compareFiles(referencePath, getOutputPath() / enigmaFilename);
     }
     // mss
     {
@@ -50,7 +52,9 @@ TEST(Export, InplaceExport)
         checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0);
         });
-        std::filesystem::path enigmaFilename = utils::utf8ToPath(inputFile + ".mss");
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / enigmaFilename));
+        std::filesystem::path mssFilename = utils::utf8ToPath(inputFile + ".mss");
+        std::filesystem::path referencePath = getInputPath() / "reference" / mssFilename;
+        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / mssFilename));
+        compareFiles(referencePath, getOutputPath() / mssFilename);
     }
 }
