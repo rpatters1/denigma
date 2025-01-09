@@ -29,7 +29,28 @@
 
 using namespace denigma;
 
-TEST(Export, Setup)
+TEST(Export, InplaceExport)
 {
     setupTestDataPaths();
+    std::string inputFile = "notAscii-其れ";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".musx", inputPath);
+    // enigmaxml
+    {
+        ArgList args = { DENIGMA_NAME, "export", inputPath.native() };
+        checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0);
+        });
+        std::filesystem::path enigmaFilename = utils::utf8ToPath(inputFile + ".enigmaxml");
+        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / enigmaFilename));
+    }
+    // mss
+    {
+        ArgList args = { DENIGMA_NAME, "export", inputPath.native(), "--mss" };
+        checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0);
+        });
+        std::filesystem::path enigmaFilename = utils::utf8ToPath(inputFile + ".mss");
+        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / enigmaFilename));
+    }
 }

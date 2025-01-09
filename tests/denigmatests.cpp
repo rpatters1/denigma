@@ -112,6 +112,17 @@ void setupTestDataPaths()
     ASSERT_TRUE(std::filesystem::exists(getOutputPath()));
 }
 
+void copyInputToOutput(const std::string& fileName, std::filesystem::path& outputPath)
+{
+    auto inputPath = getInputPath() / utils::utf8ToPath(fileName);
+    ASSERT_TRUE(std::filesystem::exists(inputPath));
+    outputPath = getOutputPath() / utils::utf8ToPath(fileName);
+    ASSERT_NO_THROW({
+        std::filesystem::copy(inputPath, outputPath, std::filesystem::copy_options::overwrite_existing);
+    });
+    ASSERT_TRUE(std::filesystem::exists(outputPath));
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

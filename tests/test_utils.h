@@ -94,3 +94,4 @@ inline std::filesystem::path getOutputPath()
 { return std::filesystem::current_path() / "outputs"; }
 
 void setupTestDataPaths();
+void copyInputToOutput(const std::string& fileName, std::filesystem::path& outputPath);
