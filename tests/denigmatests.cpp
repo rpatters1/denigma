@@ -135,7 +135,7 @@ void compareFiles(const std::filesystem::path& path1, const std::filesystem::pat
     char c1, c2;
     while (file1.get(c1)) {
         ASSERT_TRUE(file2.get(c2));
-        ASSERT_EQ(c1, c2) << "comparing " << path1.u8string() << " and " << path2.u8string();
+        ASSERT_EQ(c1, c2) << _ARG("comparing ") << path1.native() << _ARG(" and ") << path2.native();
     }
     EXPECT_FALSE(file2.get(c2));
 }
