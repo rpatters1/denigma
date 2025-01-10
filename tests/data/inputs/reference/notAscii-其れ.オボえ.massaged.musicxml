@@ -65,7 +65,7 @@
   <part-list>
     <score-part id="P1">
       <part-name print-object="no">MusicXML Part</part-name>
-      <group>score</group>
+      <group>parts</group>
       <score-instrument id="P1-I1">
         <instrument-name>SmartMusic SoftSynth 1</instrument-name>
       </score-instrument>
@@ -111,16 +111,11 @@
           <straight />
         </swing>
       </sound>
-      <direction>
-        <direction-type>
-          <octave-shift dash-length="7.5" default-y="20" relative-x="-34" size="8" space-length="7.5" type="down" />
-        </direction-type>
-      </direction>
       <note default-x="83">
         <grace />
         <pitch>
           <step>B</step>
-          <octave>5</octave>
+          <octave>4</octave>
         </pitch>
         <voice>1</voice>
         <type>16th</type>
@@ -136,7 +131,7 @@
         <pitch>
           <step>C</step>
           <alter>1</alter>
-          <octave>6</octave>
+          <octave>5</octave>
         </pitch>
         <voice>1</voice>
         <type>16th</type>
@@ -149,7 +144,7 @@
         <pitch>
           <step>C</step>
           <alter>1</alter>
-          <octave>6</octave>
+          <octave>5</octave>
         </pitch>
         <duration>4</duration>
         <voice>1</voice>
@@ -162,7 +157,7 @@
       <note default-x="252">
         <pitch>
           <step>D</step>
-          <octave>6</octave>
+          <octave>5</octave>
         </pitch>
         <duration>4</duration>
         <voice>1</voice>
@@ -170,11 +165,6 @@
         <accidental>natural</accidental>
         <stem default-y="15">up</stem>
       </note>
-      <direction>
-        <direction-type>
-          <octave-shift relative-x="14" size="8" type="stop" />
-        </direction-type>
-      </direction>
       <note default-x="385">
         <rest />
         <duration>8</duration>

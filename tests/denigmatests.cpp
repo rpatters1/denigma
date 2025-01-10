@@ -126,8 +126,8 @@ void copyInputToOutput(const std::string& fileName, std::filesystem::path& outpu
 
 void compareFiles(const std::filesystem::path& path1, const std::filesystem::path& path2)
 {
-    ASSERT_TRUE(std::filesystem::is_regular_file(path1));
-    ASSERT_TRUE(std::filesystem::is_regular_file(path2));
+    ASSERT_TRUE(std::filesystem::is_regular_file(path1)) << "unable to find " << path1.u8string();
+    ASSERT_TRUE(std::filesystem::is_regular_file(path2)) << "unable to find " << path2.u8string();
     std::ifstream file1(path1);
     ASSERT_TRUE(file1);
     std::ifstream file2(path2);

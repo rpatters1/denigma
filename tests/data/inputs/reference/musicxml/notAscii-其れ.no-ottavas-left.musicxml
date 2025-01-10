@@ -15,7 +15,7 @@
       <miscellaneous-field name="original-software">Finale v27.4 for Mac</miscellaneous-field>
       <miscellaneous-field name="original-encoding-date">2025-01-10</miscellaneous-field>
       <miscellaneous-field name="extend-ottavas-right">true</miscellaneous-field>
-      <miscellaneous-field name="extend-ottavas-left">true</miscellaneous-field>
+      <miscellaneous-field name="extend-ottavas-left">false</miscellaneous-field>
       <miscellaneous-field name="fermata-whole-rests">true</miscellaneous-field>
       <miscellaneous-field name="refloat-rests">true</miscellaneous-field>
     </miscellaneous>
@@ -111,16 +111,11 @@
           <straight />
         </swing>
       </sound>
-      <direction>
-        <direction-type>
-          <octave-shift dash-length="7.5" default-y="20" relative-x="-34" size="8" space-length="7.5" type="down" />
-        </direction-type>
-      </direction>
       <note default-x="83">
         <grace />
         <pitch>
           <step>B</step>
-          <octave>5</octave>
+          <octave>4</octave>
         </pitch>
         <voice>1</voice>
         <type>16th</type>
@@ -136,7 +131,7 @@
         <pitch>
           <step>C</step>
           <alter>1</alter>
-          <octave>6</octave>
+          <octave>5</octave>
         </pitch>
         <voice>1</voice>
         <type>16th</type>
@@ -145,6 +140,11 @@
         <beam number="1">end</beam>
         <beam number="2">end</beam>
       </note>
+      <direction>
+        <direction-type>
+          <octave-shift dash-length="7.5" default-y="20" relative-x="-34" size="8" space-length="7.5" type="down" />
+        </direction-type>
+      </direction>
       <note default-x="118">
         <pitch>
           <step>C</step>

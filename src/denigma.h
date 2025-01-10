@@ -141,6 +141,7 @@ public:
         : programName(std::string(progName)) {}
 
     mutable bool errorOccurred{};
+    bool outputIsFilename;
 
     std::string programName;
     bool showVersion{};

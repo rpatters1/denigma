@@ -143,14 +143,14 @@ TEST(Export, Parts)
     {
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mss", "--part" };
         checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
-            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << inputPath.u8string();
             });
         checkStderr(inputFile + ".オボえ.mss exists. Use --force to overwrite it.", [&]() {
-            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "no force options when creating " << inputPath.u8string();
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "no force options when creating from " << inputPath.u8string();
             });
         args.add(_ARG("--force"));
         checkStderr({ "Overwriting", inputFile + ".オボえ.mss" }, [&]() {
-            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "force create " << inputPath.u8string();
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "force create from " << inputPath.u8string();
             });
         std::filesystem::path mssFilename = utils::utf8ToPath(inputFile + ".オボえ.mss");
         std::filesystem::path referencePath = getInputPath() / "reference" / mssFilename;
@@ -171,9 +171,9 @@ TEST(Export, Parts)
     // non-existent part
     {
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mss", "-exports", "--part", "Doesn't Exist" };
-        checkStderr({ "No part name starting with \"Doesn't Exist\" was found", inputFile + ".musx" }, [&]() {
+        checkStderr({ "No part name starting with \"Doesn't Exist\" was found", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << inputPath.u8string();
-            });
+        });
     }
     // all parts and score
     {

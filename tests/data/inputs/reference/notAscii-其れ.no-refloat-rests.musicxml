@@ -17,7 +17,7 @@
       <miscellaneous-field name="extend-ottavas-right">true</miscellaneous-field>
       <miscellaneous-field name="extend-ottavas-left">true</miscellaneous-field>
       <miscellaneous-field name="fermata-whole-rests">true</miscellaneous-field>
-      <miscellaneous-field name="refloat-rests">true</miscellaneous-field>
+      <miscellaneous-field name="refloat-rests">false</miscellaneous-field>
     </miscellaneous>
   </identification>
   <defaults>
@@ -64,6 +64,7 @@
   </defaults>
   <part-list>
     <score-part id="P1">
+      <part-link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="p1.musicxml" xlink:show="new" xlink:title="オボえ" />
       <part-name print-object="no">MusicXML Part</part-name>
       <group>score</group>
       <score-instrument id="P1-I1">
@@ -176,7 +177,10 @@
         </direction-type>
       </direction>
       <note default-x="385">
-        <rest />
+        <rest>
+          <display-step>F</display-step>
+          <display-octave>5</display-octave>
+        </rest>
         <duration>8</duration>
         <voice>1</voice>
         <type>half</type>
@@ -185,7 +189,10 @@
         <duration>16</duration>
       </backup>
       <note default-x="116">
-        <rest />
+        <rest>
+          <display-step>E</display-step>
+          <display-octave>4</display-octave>
+        </rest>
         <duration>8</duration>
         <voice>2</voice>
         <type>half</type>

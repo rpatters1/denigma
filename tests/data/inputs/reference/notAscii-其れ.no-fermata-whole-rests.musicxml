@@ -16,7 +16,7 @@
       <miscellaneous-field name="original-encoding-date">2025-01-10</miscellaneous-field>
       <miscellaneous-field name="extend-ottavas-right">true</miscellaneous-field>
       <miscellaneous-field name="extend-ottavas-left">true</miscellaneous-field>
-      <miscellaneous-field name="fermata-whole-rests">true</miscellaneous-field>
+      <miscellaneous-field name="fermata-whole-rests">false</miscellaneous-field>
       <miscellaneous-field name="refloat-rests">true</miscellaneous-field>
     </miscellaneous>
   </identification>
@@ -64,6 +64,7 @@
   </defaults>
   <part-list>
     <score-part id="P1">
+      <part-link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="p1.musicxml" xlink:show="new" xlink:title="オボえ" />
       <part-name print-object="no">MusicXML Part</part-name>
       <group>score</group>
       <score-instrument id="P1-I1">
@@ -214,9 +215,10 @@
     <!--=======================================================-->
     <measure number="2" width="328">
       <note default-x="152">
-        <rest measure="yes" />
+        <rest />
         <duration>16</duration>
         <voice>1</voice>
+        <type>whole</type>
         <notations>
           <fermata default-x="-5" default-y="5" type="upright" />
         </notations>

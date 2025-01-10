@@ -487,8 +487,11 @@ static void processXml(pugi::xml_document& xmlDocument, const std::shared_ptr<Ma
     massageXml(scorePartwise, context);
 }
 
-static std::filesystem::path calcQualifiedOutputPath(const std::filesystem::path& outputPath)
+static std::filesystem::path calcQualifiedOutputPath(const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext)
 {
+    if (denigmaContext.outputIsFilename) {
+        return outputPath;
+    }
     std::filesystem::path qualifiedOutputPath = outputPath;
     qualifiedOutputPath.replace_extension(".massaged" + outputPath.extension().u8string());
     return qualifiedOutputPath;
@@ -496,7 +499,7 @@ static std::filesystem::path calcQualifiedOutputPath(const std::filesystem::path
 
 static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem::path& outputPath, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath);
+    std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath, context->denigmaContext);
     if (!context->denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) {
         return;
     }
@@ -526,7 +529,7 @@ std::optional<std::string> findPartFileNameByPartName(const pugi::xml_document& 
         }
         nextScorePart = nextScorePart.next_sibling("score-part");
     }
-    return std::nullopt;
+    return "";
 }
 
 std::filesystem::path findPartNameByPartFileName(const pugi::xml_document& scoreXml, const std::filesystem::path& partFileName)
@@ -717,9 +720,11 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
     };
 
     if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
-        utils::iterateMusicXmlPartFiles(inputPath, denigmaContext, partFileName, processPartOrScore);
-        if (denigmaContext.allPartsAndScore) {
-            processFile(std::move(xmlScore), outputPath, context); // must do score last, because std::move
+        if (!partFileName.has_value() || !partFileName.value().empty()) {
+            utils::iterateMusicXmlPartFiles(inputPath, denigmaContext, partFileName, processPartOrScore);
+            if (denigmaContext.allPartsAndScore) {
+                processFile(std::move(xmlScore), outputPath, context); // must do score last, because std::move
+            }
         }
     } else {
         processFile(std::move(xmlScore), outputPath, context);
@@ -749,7 +754,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
     }
 #endif
     
-    std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath);
+    std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath, denigmaContext);
     if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) {
         return;
     }

@@ -267,7 +267,7 @@ void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
 
         const auto xmlBuffer = currentCommand->processInput(inputFilePath, denigmaContext);
 
-        auto calcOutpuFilePath = [inputFilePath](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
+        auto calcOutpuFilePath = [&](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
             std::filesystem::path retval = path;
             if (retval.is_relative()) {
                 retval = inputFilePath.parent_path() / retval;
@@ -276,9 +276,12 @@ void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
                 retval = std::filesystem::current_path();
             }
             if (createDirectoryIfNeeded(retval)) {
+                denigmaContext.outputIsFilename = false;
                 std::filesystem::path outputFileName = inputFilePath.filename();
                 outputFileName.replace_extension(format);
                 retval = retval / outputFileName;
+            } else {
+                denigmaContext.outputIsFilename = true;
             }
             return retval;
         };

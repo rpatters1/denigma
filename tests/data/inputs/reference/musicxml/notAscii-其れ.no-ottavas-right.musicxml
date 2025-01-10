@@ -14,7 +14,7 @@
     <miscellaneous>
       <miscellaneous-field name="original-software">Finale v27.4 for Mac</miscellaneous-field>
       <miscellaneous-field name="original-encoding-date">2025-01-10</miscellaneous-field>
-      <miscellaneous-field name="extend-ottavas-right">true</miscellaneous-field>
+      <miscellaneous-field name="extend-ottavas-right">false</miscellaneous-field>
       <miscellaneous-field name="extend-ottavas-left">true</miscellaneous-field>
       <miscellaneous-field name="fermata-whole-rests">true</miscellaneous-field>
       <miscellaneous-field name="refloat-rests">true</miscellaneous-field>
@@ -159,6 +159,11 @@
           <slur bezier-x="-10" bezier-y="16" default-x="7" default-y="3" number="1" type="stop" />
         </notations>
       </note>
+      <direction>
+        <direction-type>
+          <octave-shift relative-x="14" size="8" type="stop" />
+        </direction-type>
+      </direction>
       <note default-x="252">
         <pitch>
           <step>D</step>
@@ -170,11 +175,6 @@
         <accidental>natural</accidental>
         <stem default-y="15">up</stem>
       </note>
-      <direction>
-        <direction-type>
-          <octave-shift relative-x="14" size="8" type="stop" />
-        </direction-type>
-      </direction>
       <note default-x="385">
         <rest />
         <duration>8</duration>

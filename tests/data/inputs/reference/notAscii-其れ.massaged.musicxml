@@ -3,7 +3,7 @@
 <score-partwise version="4.0">
   <identification>
     <encoding>
-      <software>denigma massage 0.1</software>
+      <software>denigma massage TEST</software>
       <encoding-date>2025-01-10</encoding-date>
       <supports attribute="new-system" element="print" type="yes" value="yes" />
       <supports attribute="new-page" element="print" type="yes" value="yes" />
