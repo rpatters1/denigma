@@ -231,6 +231,10 @@ void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
 #undef _MAIN
 #define _MAIN denigmaTestMain
 int denigmaTestMain(int argc, denigma::arg_char* argv[]);
+#ifdef DENIGMA_VERSION
+#undef DENIGMA_VERSION
+#define DENIGMA_VERSION "TEST"
+#endif
 #define DENIGMA_TEST_CODE(C) C
 #else
 #define DENIGMA_TEST_CODE(C)

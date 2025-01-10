@@ -29,7 +29,7 @@
 
 using namespace denigma;
 
-TEST(Export, InplaceExport)
+TEST(Export, InPlace)
 {
     setupTestDataPaths();
     std::string inputFile = "notAscii-其れ";
@@ -38,7 +38,7 @@ TEST(Export, InplaceExport)
     // enigmaxml
     {
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string() };
-        checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
         });
         checkStderr(inputFile + ".enigmaxml exists. Use --force to overwrite it.", [&]() {
@@ -56,7 +56,7 @@ TEST(Export, InplaceExport)
     // mss
     {
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mss" };
-        checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
         });
         checkStderr(inputFile + ".mss exists. Use --force to overwrite it.", [&]() {
@@ -73,7 +73,7 @@ TEST(Export, InplaceExport)
     }
 }
 
-TEST(Export, SubdirectoryExport)
+TEST(Export, Subdirectory)
 {
     setupTestDataPaths();
     std::string inputFile = "notAscii-其れ";
@@ -82,7 +82,7 @@ TEST(Export, SubdirectoryExport)
     // enigmaxml
     {
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--enigmaxml", "-exports" };
-        checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
         });
         std::filesystem::path enigmaFilename = utils::utf8ToPath(inputFile + ".enigmaxml");
@@ -93,7 +93,7 @@ TEST(Export, SubdirectoryExport)
     // mss
     {
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mss", "-exports" };
-        checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
         });
         std::filesystem::path mssFilename = utils::utf8ToPath(inputFile + ".mss");
@@ -103,7 +103,7 @@ TEST(Export, SubdirectoryExport)
     }
 }
 
-TEST(Export, OutputFilenameExport)
+TEST(Export, OutputFilename)
 {
     setupTestDataPaths();
     std::string inputFile = "notAscii-其れ";
@@ -112,7 +112,7 @@ TEST(Export, OutputFilenameExport)
     // enigmaxml
     {
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--enigmaxml", "-exports/output.enigmaxml" };
-        checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
         });
         std::filesystem::path enigmaFilename = utils::utf8ToPath("output.enigmaxml");
@@ -123,7 +123,7 @@ TEST(Export, OutputFilenameExport)
     // mss
     {
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mss", "-exports/output.mss" };
-        checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
         });
         std::filesystem::path mssFilename = utils::utf8ToPath("output.mss");
@@ -133,7 +133,7 @@ TEST(Export, OutputFilenameExport)
     }
 }
 
-TEST(Export, PartExport)
+TEST(Export, Parts)
 {
     setupTestDataPaths();
     std::string inputFile = "notAscii-其れ";
@@ -142,7 +142,7 @@ TEST(Export, PartExport)
     // inplace 
     {
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mss", "--part" };
-        checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
             });
         checkStderr(inputFile + ".オボえ.mss exists. Use --force to overwrite it.", [&]() {
@@ -160,7 +160,7 @@ TEST(Export, PartExport)
     // explicit to subdir
     {
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mss", "-exports", "--part", "オボえ" };
-        checkStderr({ "Processing", inputFile + ".musx" }, [&]() {
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
             });
         std::filesystem::path mssFilename = utils::utf8ToPath(inputFile + ".オボえ.mss");

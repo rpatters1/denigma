@@ -118,6 +118,7 @@ void copyInputToOutput(const std::string& fileName, std::filesystem::path& outpu
     ASSERT_TRUE(std::filesystem::exists(inputPath));
     outputPath = getOutputPath() / utils::utf8ToPath(fileName);
     ASSERT_NO_THROW({
+        std::filesystem::create_directories(outputPath.parent_path());
         std::filesystem::copy(inputPath, outputPath, std::filesystem::copy_options::overwrite_existing);
     });
     ASSERT_TRUE(std::filesystem::exists(outputPath));
@@ -134,7 +135,7 @@ void compareFiles(const std::filesystem::path& path1, const std::filesystem::pat
     char c1, c2;
     while (file1.get(c1)) {
         ASSERT_TRUE(file2.get(c2));
-        ASSERT_EQ(c1, c2);
+        ASSERT_EQ(c1, c2) << "comparing " << path1 << " and " << path2;
     }
     EXPECT_FALSE(file2.get(c2));
 }

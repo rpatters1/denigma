@@ -15,8 +15,7 @@ if(denigma_BUILD_TESTING)
         denigmatests.cpp
         options.cpp
         export.cpp
-        #test/test_massage.cpp
-        #test/test_utils.cpp
+        massage.cpp
         ${DENIGMA_SOURCES}
     )
 
