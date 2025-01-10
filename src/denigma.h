@@ -69,6 +69,8 @@ struct arg_string : public std::wstring
 {
     using std::wstring::wstring;
     arg_string(const std::wstring& wstr) : std::wstring(wstr) {}
+    arg_string(const std::string& str) : std::wstring(utils::stringToWstring(str)) {}
+    arg_string(const char * str) : std::wstring(utils::stringToWstring(str)) {}
 
     operator std::string() const
     {
@@ -134,7 +136,16 @@ inline MusicProgramPreset toMusicProgramPreset(const std::string& inp)
 
 struct DenigmaContext
 {
+public:
+    DenigmaContext(const arg_string& progName)
+        : programName(std::string(progName)) {}
+
+    mutable bool errorOccurred{};
+    bool outputIsFilename;
+
     std::string programName;
+    bool showVersion{};
+    bool showHelp{};
     bool overwriteExisting{};
     bool allPartsAndScore{};
     bool recursiveSearch{};
@@ -153,6 +164,10 @@ struct DenigmaContext
     bool fermataWholeRests{true};
     std::optional<std::filesystem::path> finaleFilePath;
 
+#ifdef DENIGMA_TEST // this is defined on the command line by the test program
+    bool testOutput{};
+#endif
+
     void setMassageTarget(const std::string& opt)
     {
         auto preset = toMusicProgramPreset(opt);
@@ -160,6 +175,12 @@ struct DenigmaContext
         refloatRests = extendOttavasLeft = fermataWholeRests = true;
         extendOttavasRight = (preset != MusicProgramPreset::LilyPond);
     }
+
+    // Parse general options and return remaining options
+    std::vector<const arg_char*> parseOptions(int argc, arg_char* argv[]);
+    
+    // validate paths
+    bool validatePathsAndOptions(const std::filesystem::path& outputFilePath) const;
 
     // Logging methods
     void startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[]); ///< Starts logging if logging was requested
@@ -172,6 +193,15 @@ struct DenigmaContext
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info) const;
 
     void endLogging(); ///< Ends logging if logging was requested
+
+    bool forTestOutput() const
+    {
+#ifdef DENIGMA_TEST
+        return testOutput;
+#else
+        return false;
+#endif
+    }
 };
 
 class ICommand
@@ -193,8 +223,20 @@ public:
 
 std::string getTimeStamp(const std::string& fmt);
 
-bool validatePathsAndOptions(const std::filesystem::path& outputFilePath, const DenigmaContext& denigmaContext);
 bool createDirectoryIfNeeded(const std::filesystem::path& path);
-bool processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext);
+void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext);
 
 } // namespace denigma
+
+#ifdef DENIGMA_TEST // this is defined on the command line by the test program
+#undef _MAIN
+#define _MAIN denigmaTestMain
+int denigmaTestMain(int argc, denigma::arg_char* argv[]);
+#ifdef DENIGMA_VERSION
+#undef DENIGMA_VERSION
+#define DENIGMA_VERSION "TEST"
+#endif
+#define DENIGMA_TEST_CODE(C) C
+#else
+#define DENIGMA_TEST_CODE(C)
+#endif

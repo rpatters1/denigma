@@ -1,3 +1,7 @@
+if(POLICY CMP0077)
+    cmake_policy(SET CMP0077 NEW) # Suppress pugixml warning
+endif()
+
 # Minimum version of CMake required
 cmake_minimum_required(VERSION 3.22)
 
@@ -39,10 +43,11 @@ if(APPLE)
 endif()
 
 if(MSVC)
-    add_compile_options(/wd5051) # don't care about C++20 attributes
     add_compile_options(/Zc:__cplusplus) # force MSVC to report correct c++ version
     add_compile_options(/DNOMINMAX) # do not use min and max macros from Win32
     add_compile_options(/bigobj) # stoopid Microsoft can't handle industrial size without holding its hand
+else()
+    add_compile_options(-Wno-c++20-extensions)
 endif()
 
 add_compile_definitions(
@@ -65,6 +70,10 @@ set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
 # Set output directory for compiled executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set(BUILD_TESTING OFF CACHE BOOL "Disable testing for external dependencies" FORCE)
+
+# Save the current state and disable deprecation warnings
+set(_original_WARN_DEPRECATED ${CMAKE_WARN_DEPRECATED})
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Suppress deprecation warnings for external projects" FORCE)
 
 # Fetch EzGz
 FetchContent_Declare(
@@ -122,6 +131,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json_schema_validator)
 
+# Restore the original state
+set(CMAKE_WARN_DEPRECATED ${_original_WARN_DEPRECATED} CACHE BOOL "Restore original deprecation warnings setting" FORCE)
+
 add_custom_target(PrintConfig ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Active build configuration: $<CONFIG>"
 )
@@ -167,7 +179,7 @@ add_subdirectory(submodules/musx_object_model)
 # Ensure the include directories are added
 add_dependencies(denigma GenerateMnxSchemaXxd)
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
-target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
+target_include_directories(denigma SYSTEM PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
 target_include_directories(denigma PRIVATE ${MUSX_OBJECT_MODEL_DIR})
 target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -208,7 +220,7 @@ if(MSVC)
         COMMAND cmd.exe /c if "$(Configuration)" == "Release" "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:denigma>" "${DEPLOY_DIR}"
     )
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    message(STATUS "Configuring POST_BUILD command for Release")
+    message(STATUS "Configuring POST_BUILD command for Release.")
     add_custom_command(
         TARGET denigma
         POST_BUILD
@@ -217,4 +229,13 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:denigma> ${DEPLOY_DIR}
         VERBATIM
     )
+endif()
+
+option(denigma_BUILD_TESTING "Build the Denigma test suite" ON)
+
+if(denigma_BUILD_TESTING)
+    message(STATUS "Configuring tests for denigma_BUILD_TESTING.")
+    add_subdirectory(tests)
+else()
+    message(STATUS "Testing not enabled for denigma_BUILD_TESTING.")
 endif()

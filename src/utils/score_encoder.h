@@ -70,7 +70,7 @@ public:
             // this algorithm is BSD rand()!
             state = state * 0x41c64e6d + 0x3039;
             uint16_t upper = state >> 16;
-            uint8_t c = upper + upper / 255;
+            uint8_t c = uint8_t(upper + upper / 255);
             buffer[i] ^= c;
         }
     }

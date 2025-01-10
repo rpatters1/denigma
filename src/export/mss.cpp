@@ -63,6 +63,9 @@ static const std::set<std::string_view> museScoreSMuFLFonts{
 // Finale preferences:
 struct FinalePreferences
 {
+    FinalePreferences(const DenigmaContext& context)
+        : denigmaContext(context) {}
+
     DenigmaContext denigmaContext;
     DocumentPtr document;
     std::shared_ptr<FontInfo> defaultMusicFont;
@@ -106,9 +109,9 @@ static std::shared_ptr<T> getDocOptions(const FinalePreferencesPtr& prefs, const
     return retval;
 }
 
-static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper forPartId)
+static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper forPartId, const DenigmaContext& denigmaContext)
 {
-    auto retval = std::make_shared<FinalePreferences>();
+    auto retval = std::make_shared<FinalePreferences>(denigmaContext);
     retval->document = document;
 
     auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
@@ -328,7 +331,7 @@ static void writeLyricsPrefs(XmlElement& styleElement, const FinalePreferencesPt
             std::make_pair(1, "Odd"),
             std::make_pair(2, "Even")
         }) {
-        auto verseText = prefs->document->getTexts()->get<texts::LyricsVerse>(verseNumber);
+        auto verseText = prefs->document->getTexts()->get<texts::LyricsVerse>(Cmper(verseNumber));
         if (verseText && !verseText->text.empty()) {
             auto font = verseText->parseFirstFontInfo();
             if (font) {
@@ -735,11 +738,10 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
         auto currExtension = qualifiedOutputPath.extension();
         qualifiedOutputPath.replace_extension(utils::utf8ToPath(partName + currExtension.u8string()));
     }
-    if (!denigma::validatePathsAndOptions(qualifiedOutputPath, denigmaContext)) return;
+    if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) return;
 
     const Cmper forPartId = part ? part->getCmper() : 0;
-    auto prefs = getCurrentPrefs(document, forPartId);
-    prefs->denigmaContext = denigmaContext;
+    auto prefs = getCurrentPrefs(document, forPartId, denigmaContext);
 
     // extract document to mss
     XmlDocument mssDoc; // output
@@ -773,6 +775,13 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
 
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
+#ifdef DENIGMA_TEST
+    if (denigmaContext.testOutput) {
+        denigmaContext.logMessage(LogMsg() << "Converting to " << outputPath.u8string());
+        return;
+    }
+#endif
+
     auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
         processPart(outputPath, document, denigmaContext); // process the score

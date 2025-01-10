@@ -42,7 +42,7 @@ void convert(const std::filesystem::path& file, const Buffer&, const DenigmaCont
 }
 
 // temp func
-static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath, const DenigmaContext& denigmaContext)
+[[maybe_unused]]static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath, const DenigmaContext& denigmaContext)
 {
     static const std::string_view kMnxSchema(reinterpret_cast<const char *>(mnx_schema_json), mnx_schema_json_len);
 

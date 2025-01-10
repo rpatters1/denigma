@@ -25,7 +25,26 @@
 #include <iostream>
 #include <sstream>
 
+#if defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wc++20-extensions"
+#elif defined(__GNUC__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wattributes"
+#elif defined(_MSC_VER)
+    #pragma warning(push)
+    #pragma warning(disable : 5051)
+#endif
+
 #include "ezgz.hpp"			// ezgz submodule (for gzip)
+
+#if defined(__clang__)
+    #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+    #pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+    #pragma warning(pop)
+#endif
 
 #include "musx/musx.h"
 
@@ -41,6 +60,12 @@ namespace enigmaxml {
 
 Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
+#ifdef DENIGMA_TEST
+    if (denigmaContext.testOutput) {
+        denigmaContext.logMessage(LogMsg() << "Reading " << inputPath.u8string());
+        return {};
+    }
+#endif
     try {
         std::ifstream xmlFile;
         xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
@@ -56,13 +81,21 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
     } catch (const std::ios_base::failure& ex) {
         denigmaContext.logMessage(LogMsg() << "unable to read " << inputPath.u8string(), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
+        if (const auto* ec = dynamic_cast<const std::error_code*>(&ex.code())) {
+            denigmaContext.logMessage(LogMsg() << "details: " << ec->message(), LogSeverity::Error);
+        }
         throw;
     };
 }
 
 Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
+#ifdef DENIGMA_TEST
+    if (denigmaContext.testOutput) {
+        denigmaContext.logMessage(LogMsg() << "Extracting " << inputPath.u8string());
+        return {};
+    }
+#endif
     try {
         std::string buffer = utils::readFile(inputPath, SCORE_DAT_NAME, denigmaContext);
         utils::ScoreFileEncoder::recodeBuffer(buffer);
@@ -76,7 +109,14 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& den
 
 void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
-    if (!denigma::validatePathsAndOptions(outputPath, denigmaContext)) return;
+#ifdef DENIGMA_TEST
+    if (denigmaContext.testOutput) {
+        denigmaContext.logMessage(LogMsg() << "Writing " << outputPath.u8string());
+        return;
+    }
+#endif
+
+    if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
     try	{
         std::ifstream inFile;
@@ -92,7 +132,9 @@ void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, con
         std::stringstream sst;
         denigmaContext.logMessage(LogMsg() << "unable to write " << outputPath.u8string(), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << "details: " << std::strerror(ex.code().value()), LogSeverity::Error);
+        if (const auto* ec = dynamic_cast<const std::error_code*>(&ex.code())) {
+            denigmaContext.logMessage(LogMsg() << "details: " << ec->message(), LogSeverity::Error);
+        }
         throw;
     }
 }

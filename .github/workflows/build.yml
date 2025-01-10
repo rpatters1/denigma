@@ -1,4 +1,4 @@
-name: Build Denigma
+name: Build and Test Denigma
 
 on:
   push:
@@ -68,3 +68,7 @@ jobs:
       - name: Build on Windows
         if: matrix.os == 'windows-latest'
         run: cmake --build build --config Release
+
+      # Run Tests
+      - name: Run Tests
+        run: ctest --test-dir build/tests --output-on-failure
