@@ -50,6 +50,7 @@ static int showHelpPage(const std::string_view& programName)
 
     // General options
     std::cout << "General options:" << std::endl;
+    std::cout << "  --about                         Show acknowledgements and exit" << std::endl;
     std::cout << "  --exclude folder-name           Exclude the specified folder name from recursive searches" << std::endl;
     std::cout << "  --help                          Show this help message and exit" << std::endl;
     std::cout << "  --force                         Overwrite existing file(s)" << std::endl;
@@ -105,6 +106,10 @@ int _MAIN(int argc, arg_char* argv[])
     }
     if (denigmaContext.showHelp) {
         showHelpPage(denigmaContext.programName);
+        return 0;
+    }
+    if (denigmaContext.showAbout) {
+        showAboutPage();
         return 0;
     }
     if (args.size() < 2) {

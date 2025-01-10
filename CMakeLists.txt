@@ -139,10 +139,12 @@ add_custom_target(PrintConfig ALL
 )
 
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
 
 # Add executable target
 add_executable(denigma
     src/main.cpp
+    src/about.cpp
     src/denigma.cpp
     src/export/export.cpp
     src/export/enigmaxml.cpp
@@ -177,7 +179,7 @@ set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for pugixml")
 add_subdirectory(submodules/musx_object_model)
 
 # Ensure the include directories are added
-add_dependencies(denigma GenerateMnxSchemaXxd)
+add_dependencies(denigma GenerateMnxSchemaXxd GenerateLicenseXxd)
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
 target_include_directories(denigma SYSTEM PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})

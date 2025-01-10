@@ -40,6 +40,8 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
         const arg_view next(argv[x]);
         if (next == _ARG("--version")) {
             showVersion = true;
+        } else if (next == _ARG("--about")) {
+            showAbout = true;
         } else if (next == _ARG("--help")) {
             showHelp = true;
         } else if (next == _ARG("--force")) {
