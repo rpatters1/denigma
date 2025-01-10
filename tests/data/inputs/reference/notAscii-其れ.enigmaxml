@@ -61,7 +61,7 @@
       <modified>
         <year>2025</year>
         <month>1</month>
-        <day>9</day>
+        <day>10</day>
         <modifiedBy/>
         <enigmaVersion>
           <major>27</major>
@@ -1430,35 +1430,76 @@
     </tupletOptions>
   </options>
   <others>
+    <articDef cmper="1">
+      <charMain>85</charMain>
+      <sizeMain>24</sizeMain>
+      <autoHorz/>
+      <autoVert/>
+      <autoVertMode>aboveEntry</autoVertMode>
+      <outsideStaff/>
+      <belowSymbolAlt/>
+      <charAlt>117</charAlt>
+      <sizeAlt>24</sizeAlt>
+    </articDef>
+    <beatChart cmper="1" inci="0">
+      <control>
+        <totalDur>4096</totalDur>
+        <totalWidth>336</totalWidth>
+        <minWidth>284</minWidth>
+        <allotWidth>362</allotWidth>
+      </control>
+    </beatChart>
+    <beatChart cmper="1" inci="1">
+      <endPos>84</endPos>
+      <minPos>82</minPos>
+    </beatChart>
+    <beatChart cmper="1" inci="2">
+      <dur>1024</dur>
+      <pos>84</pos>
+      <endPos>168</endPos>
+      <minPos>152</minPos>
+    </beatChart>
+    <beatChart cmper="1" inci="3">
+      <dur>2048</dur>
+      <pos>168</pos>
+      <endPos>252</endPos>
+      <minPos>198</minPos>
+    </beatChart>
+    <beatChart cmper="1" inci="4">
+      <dur>3072</dur>
+      <pos>252</pos>
+      <endPos>336</endPos>
+      <minPos>241</minPos>
+    </beatChart>
     <beatChart cmper="1" inci="0" part="1" shared="false">
       <control>
         <totalDur>4096</totalDur>
         <totalWidth>336</totalWidth>
-        <minWidth>187</minWidth>
-        <allotWidth>311</allotWidth>
+        <minWidth>284</minWidth>
+        <allotWidth>362</allotWidth>
       </control>
     </beatChart>
     <beatChart cmper="1" inci="1" part="1" shared="false">
       <endPos>84</endPos>
-      <minPos>31</minPos>
+      <minPos>82</minPos>
     </beatChart>
     <beatChart cmper="1" inci="2" part="1" shared="false">
       <dur>1024</dur>
       <pos>84</pos>
       <endPos>168</endPos>
-      <minPos>101</minPos>
+      <minPos>152</minPos>
     </beatChart>
     <beatChart cmper="1" inci="3" part="1" shared="false">
       <dur>2048</dur>
       <pos>168</pos>
       <endPos>252</endPos>
-      <minPos>144</minPos>
+      <minPos>198</minPos>
     </beatChart>
     <beatChart cmper="1" inci="4" part="1" shared="false">
       <dur>3072</dur>
       <pos>252</pos>
       <endPos>336</endPos>
-      <minPos>187</minPos>
+      <minPos>241</minPos>
     </beatChart>
     <durAllot cmper="0">
       <allotment>84</allotment>
@@ -1540,20 +1581,6 @@
       <family>0</family>
       <name>Broadway Copyist Text</name>
     </fontName>
-    <fontName cmper="11">
-      <charsetBank>Mac</charsetBank>
-      <charsetVal>0</charsetVal>
-      <pitch>0</pitch>
-      <family>0</family>
-      <name>Lucida Grande</name>
-    </fontName>
-    <fontName cmper="12">
-      <charsetBank>Mac</charsetBank>
-      <charsetVal>4095</charsetVal>
-      <pitch>0</pitch>
-      <family>0</family>
-      <name>Symbol</name>
-    </fontName>
     <fontName cmper="13">
       <charsetBank>Mac</charsetBank>
       <charsetVal>0</charsetVal>
@@ -1568,13 +1595,39 @@
       <family>0</family>
       <name>Engraver Text T</name>
     </fontName>
+    <fontName cmper="15">
+      <charsetBank>Mac</charsetBank>
+      <charsetVal>0</charsetVal>
+      <pitch>0</pitch>
+      <family>0</family>
+      <name>Lucida Grande</name>
+    </fontName>
+    <fontName cmper="16">
+      <charsetBank>Mac</charsetBank>
+      <charsetVal>4095</charsetVal>
+      <pitch>0</pitch>
+      <family>0</family>
+      <name>Symbol</name>
+    </fontName>
     <frameSpec cmper="1" inci="0">
       <startEntry>1</startEntry>
       <endEntry>4</endEntry>
     </frameSpec>
     <frameSpec cmper="2" inci="0">
-      <startEntry>5</startEntry>
+      <startEntry>16</startEntry>
       <endEntry>7</endEntry>
+    </frameSpec>
+    <frameSpec cmper="3" inci="0">
+      <startEntry>8</startEntry>
+      <endEntry>11</endEntry>
+    </frameSpec>
+    <frameSpec cmper="4" inci="0">
+      <startEntry>12</startEntry>
+      <endEntry>12</endEntry>
+    </frameSpec>
+    <frameSpec cmper="5" inci="0">
+      <startEntry>13</startEntry>
+      <endEntry>15</endEntry>
     </frameSpec>
     <fretInst cmper="1">
       <numFrets>20</numFrets>
@@ -1710,7 +1763,7 @@
       </range>
     </instUsed>
     <layerAtts cmper="0">
-      <restOffset>6</restOffset>
+      <restOffset>4</restOffset>
       <flipTies/>
       <floatLayer/>
       <useRestOff/>
@@ -1721,11 +1774,9 @@
       <ignoreHidden/>
     </layerAtts>
     <layerAtts cmper="1">
-      <restOffset>-6</restOffset>
+      <restOffset>-4</restOffset>
       <flipTies/>
-      <floatLayer/>
       <useRestOff/>
-      <freezeLayUp/>
       <freezeLayer/>
       <playback/>
       <spacing/>
@@ -1734,6 +1785,7 @@
     <layerAtts cmper="2">
       <playback/>
       <spacing/>
+      <ignoreHidden/>
     </layerAtts>
     <layerAtts cmper="3">
       <playback/>
@@ -1846,6 +1898,9 @@
       <useScoreInfoForPart/>
       <region>1</region>
     </measNumbRegion>
+    <metaArtic cmper="45">
+      <artic>1</artic>
+    </metaArtic>
     <metaClef cmper="49">
       <clef>0</clef>
     </metaClef>
@@ -1900,8 +1955,23 @@
     <metaClef cmper="73">
       <clef>17</clef>
     </metaClef>
+    <metaShape cmper="45">
+      <toolID>8va</toolID>
+    </metaShape>
     <measSpec cmper="1">
-      <width>600</width>
+      <width>450</width>
+      <beats>4</beats>
+      <divbeat>1024</divbeat>
+      <dispBeats>4</dispBeats>
+      <dispDivbeat>1024</dispDivbeat>
+      <hasSmartShape/>
+      <posMode>beatchartPlusPos</posMode>
+      <barline>normal</barline>
+      <leftBarline>default</leftBarline>
+    </measSpec>
+    <measSpec cmper="1" part="1" shared="true"/>
+    <measSpec cmper="2">
+      <width>252</width>
       <beats>4</beats>
       <divbeat>1024</divbeat>
       <dispBeats>4</dispBeats>
@@ -1910,10 +1980,7 @@
       <barline>normal</barline>
       <leftBarline>default</leftBarline>
     </measSpec>
-    <measSpec cmper="1" part="1" shared="true">
-      <width>399</width>
-      <posMode>beatchartPlusPos</posMode>
-    </measSpec>
+    <measSpec cmper="2" part="1" shared="true"/>
     <textBlock cmper="1">
       <textID>1</textID>
       <lineSpacingPercent>100</lineSpacingPercent>
@@ -2520,6 +2587,59 @@
         <tag>stroke</tag>
       </instruct>
     </shapeList>
+    <smartShape cmper="1">
+      <shapeType>slurAuto</shapeType>
+      <entryBased/>
+      <rotate/>
+      <yBreakType>opposite</yBreakType>
+      <startTermSeg>
+        <endPt>
+          <inst>1</inst>
+          <meas>1</meas>
+          <entryNum>16</entryNum>
+        </endPt>
+      </startTermSeg>
+      <endTermSeg>
+        <endPt>
+          <inst>1</inst>
+          <meas>1</meas>
+          <entryNum>5</entryNum>
+        </endPt>
+      </endTermSeg>
+    </smartShape>
+    <smartShape cmper="2">
+      <shapeType>octaveUp</shapeType>
+      <makeHorz/>
+      <startTermSeg>
+        <endPt>
+          <inst>1</inst>
+          <meas>1</meas>
+        </endPt>
+        <endPtAdj>
+          <x>-82</x>
+          <y>47</y>
+          <on/>
+        </endPtAdj>
+      </startTermSeg>
+      <endTermSeg>
+        <endPt>
+          <inst>1</inst>
+          <meas>1</meas>
+          <edu>1024</edu>
+        </endPt>
+        <endPtAdj>
+          <x>34</x>
+          <y>47</y>
+          <on/>
+        </endPtAdj>
+      </endTermSeg>
+    </smartShape>
+    <smartShapeMeasMark cmper="1" inci="0">
+      <shapeNum>1</shapeNum>
+    </smartShapeMeasMark>
+    <smartShapeMeasMark cmper="1" inci="1">
+      <shapeNum>2</shapeNum>
+    </smartShapeMeasMark>
     <ssLineStyle cmper="1">
       <lineStyle>char</lineStyle>
       <charParams>
@@ -2544,8 +2664,8 @@
     </ssLineStyle>
     <staffSystemSpec cmper="1">
       <startMeas>1</startMeas>
-      <endMeas>2</endMeas>
-      <horzPercent>36500</horzPercent>
+      <endMeas>3</endMeas>
+      <horzPercent>31168</horzPercent>
       <ssysPercent>100</ssysPercent>
       <staffHeight>5248</staffHeight>
       <top>-432</top>
@@ -2556,8 +2676,8 @@
     </staffSystemSpec>
     <staffSystemSpec cmper="1" part="1" shared="false">
       <startMeas>1</startMeas>
-      <endMeas>2</endMeas>
-      <horzPercent>54887</horzPercent>
+      <endMeas>3</endMeas>
+      <horzPercent>31168</horzPercent>
       <ssysPercent>100</ssysPercent>
       <staffHeight>5248</staffHeight>
       <top>-432</top>
@@ -2917,6 +3037,10 @@
     <bypassFxValue cmper="102"/>
   </others>
   <details>
+    <articAssign entnum="12" inci="0">
+      <articDef>1</articDef>
+      <numSlursAvoided>-1</numSlursAvoided>
+    </articAssign>
     <baselinesChords cmper1="0" cmper2="0">
       <basedisp>144</basedisp>
     </baselinesChords>
@@ -3050,12 +3174,33 @@
       <clefID>0</clefID>
       <clefPercent>75</clefPercent>
       <frame1>2</frame1>
+      <frame2>5</frame2>
+    </gfhold>
+    <gfhold cmper1="1" cmper2="2">
+      <clefID>0</clefID>
+      <clefPercent>75</clefPercent>
+      <frame1>4</frame1>
     </gfhold>
     <gfhold cmper1="32767" cmper2="1">
       <clefID>0</clefID>
       <clefPercent>75</clefPercent>
       <frame1>1</frame1>
     </gfhold>
+    <gfhold cmper1="32767" cmper2="2">
+      <clefID>0</clefID>
+      <clefPercent>75</clefPercent>
+      <frame1>3</frame1>
+    </gfhold>
+    <smartShapeEntryMark entnum="5" inci="0">
+      <shapeNum>1</shapeNum>
+    </smartShapeEntryMark>
+    <smartShapeEntryMark entnum="16" inci="0">
+      <shapeNum>1</shapeNum>
+    </smartShapeEntryMark>
+    <entryPartFieldDetail entnum="16"/>
+    <entryPartFieldDetail entnum="16" part="1" shared="true"/>
+    <entryPartFieldDetail entnum="17"/>
+    <entryPartFieldDetail entnum="17" part="1" shared="true"/>
   </details>
   <entries>
     <entry entnum="1" prev="0" next="2">
@@ -3094,7 +3239,7 @@
         <isValid/>
       </note>
     </entry>
-    <entry entnum="4" prev="3" next="0">
+    <entry entnum="4" prev="3" next="8">
       <dura>1024</dura>
       <numNotes>1</numNotes>
       <isValid/>
@@ -3106,12 +3251,14 @@
         <isValid/>
       </note>
     </entry>
-    <entry entnum="5" prev="0" next="6">
+    <entry entnum="5" prev="17" next="6">
       <dura>1024</dura>
       <numNotes>1</numNotes>
       <isValid/>
       <isNote/>
       <beam/>
+      <upStem/>
+      <smartShapeDetail/>
       <sorted/>
       <note id="1">
         <harmLev>7</harmLev>
@@ -3126,6 +3273,7 @@
       <isValid/>
       <isNote/>
       <beam/>
+      <upStem/>
       <sorted/>
       <note id="1">
         <harmLev>8</harmLev>
@@ -3135,17 +3283,137 @@
         <freezeAcci/>
       </note>
     </entry>
-    <entry entnum="7" prev="6" next="0">
+    <entry entnum="7" prev="6" next="12">
       <dura>2048</dura>
+      <numNotes>0</numNotes>
+      <isValid/>
+      <floatRest/>
+      <beam/>
+      <upStem/>
+      <sorted/>
+    </entry>
+    <entry entnum="8" prev="4" next="9">
+      <dura>1024</dura>
+      <numNotes>1</numNotes>
+      <isValid/>
+      <isNote/>
+      <sorted/>
+      <note id="1">
+        <harmLev>6</harmLev>
+        <harmAlt>0</harmAlt>
+        <isValid/>
+      </note>
+    </entry>
+    <entry entnum="9" prev="8" next="10">
+      <dura>1024</dura>
+      <numNotes>1</numNotes>
+      <isValid/>
+      <isNote/>
+      <sorted/>
+      <note id="1">
+        <harmLev>6</harmLev>
+        <harmAlt>0</harmAlt>
+        <isValid/>
+      </note>
+    </entry>
+    <entry entnum="10" prev="9" next="11">
+      <dura>1024</dura>
+      <numNotes>1</numNotes>
+      <isValid/>
+      <isNote/>
+      <sorted/>
+      <note id="1">
+        <harmLev>6</harmLev>
+        <harmAlt>0</harmAlt>
+        <isValid/>
+      </note>
+    </entry>
+    <entry entnum="11" prev="10" next="0">
+      <dura>1024</dura>
+      <numNotes>1</numNotes>
+      <isValid/>
+      <isNote/>
+      <sorted/>
+      <note id="1">
+        <harmLev>6</harmLev>
+        <harmAlt>0</harmAlt>
+        <isValid/>
+      </note>
+    </entry>
+    <entry entnum="12" prev="7" next="0">
+      <dura>4096</dura>
+      <numNotes>0</numNotes>
+      <isValid/>
+      <floatRest/>
+      <articDetail/>
+      <beam/>
+      <sorted/>
+    </entry>
+    <entry entnum="13" prev="0" next="14">
+      <dura>2048</dura>
+      <numNotes>0</numNotes>
+      <isValid/>
+      <floatRest/>
+      <beam/>
+      <sorted/>
+    </entry>
+    <entry entnum="14" prev="13" next="15">
+      <dura>1024</dura>
       <numNotes>1</numNotes>
       <isValid/>
       <isNote/>
       <beam/>
       <sorted/>
       <note id="1">
-        <harmLev>9</harmLev>
+        <harmLev>3</harmLev>
         <harmAlt>0</harmAlt>
         <isValid/>
+      </note>
+    </entry>
+    <entry entnum="15" prev="14" next="0">
+      <dura>1024</dura>
+      <numNotes>1</numNotes>
+      <isValid/>
+      <isNote/>
+      <beam/>
+      <sorted/>
+      <note id="1">
+        <harmLev>2</harmLev>
+        <harmAlt>0</harmAlt>
+        <isValid/>
+      </note>
+    </entry>
+    <entry entnum="16" prev="0" next="17">
+      <dura>256</dura>
+      <numNotes>1</numNotes>
+      <posi>-34</posi>
+      <isValid/>
+      <isNote/>
+      <graceNote/>
+      <beam/>
+      <upStem/>
+      <smartShapeDetail/>
+      <sorted/>
+      <note id="1">
+        <harmLev>6</harmLev>
+        <harmAlt>0</harmAlt>
+        <isValid/>
+      </note>
+    </entry>
+    <entry entnum="17" prev="16" next="5">
+      <dura>256</dura>
+      <numNotes>1</numNotes>
+      <posi>-6</posi>
+      <isValid/>
+      <isNote/>
+      <graceNote/>
+      <upStem/>
+      <sorted/>
+      <note id="1">
+        <harmLev>7</harmLev>
+        <harmAlt>1</harmAlt>
+        <isValid/>
+        <showAcci/>
       </note>
     </entry>
   </entries>
