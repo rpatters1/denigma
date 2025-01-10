@@ -96,3 +96,7 @@ inline std::filesystem::path getOutputPath()
 void setupTestDataPaths();
 void copyInputToOutput(const std::string& fileName, std::filesystem::path& outputPath);
 void compareFiles(const std::filesystem::path& path1, const std::filesystem::path& path2);
+
+void assertStringsInFile(const std::vector<std::string>& targets, const std::filesystem::path& filePath, const std::filesystem::path& extension = {});
+inline void assertStringInFile(const std::string& target, const std::filesystem::path& filePath, const std::filesystem::path& extension = {})
+{ assertStringsInFile(std::vector<std::string>({ target }), filePath, extension); }

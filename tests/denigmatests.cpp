@@ -140,6 +140,30 @@ void compareFiles(const std::filesystem::path& path1, const std::filesystem::pat
     EXPECT_FALSE(file2.get(c2));
 }
 
+void assertStringsInFile(const std::vector<std::string>& targets, const std::filesystem::path& filePath, const std::filesystem::path& extension)
+{
+    std::filesystem::path actualFilePath;
+    if (std::filesystem::is_regular_file(filePath)) {
+        actualFilePath = filePath;
+    } else if (std::filesystem::is_directory(filePath)) {
+        auto it = std::filesystem::directory_iterator(filePath);
+        auto matchingFile = std::find_if(begin(it), end(it), [&extension](const std::filesystem::directory_entry& entry) {
+            return entry.is_regular_file() && entry.path().extension() == extension;
+        });
+        ASSERT_NE(matchingFile, std::filesystem::end(it)) << "No file with extension " << extension.u8string() << " found in directory: " << filePath.u8string();
+        actualFilePath = matchingFile->path();
+    } else {
+        FAIL() << "Path is neither a regular file nor a directory: " << filePath.u8string();
+    }
+    std::ifstream file(actualFilePath, std::ios::binary);
+    ASSERT_TRUE(file.is_open()) << "failed to open file: " << actualFilePath.u8string();
+    std::string fileContents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    for (const auto& target : targets) {
+        EXPECT_NE(fileContents.find(target), std::string::npos)
+            << "String \"" << target << "\" not found in file: " << actualFilePath.u8string();
+    }
+}
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);

@@ -214,7 +214,10 @@ void DenigmaContext::startLogging(const std::filesystem::path& defaultLogPath, i
         }
         auto& path = logFilePath.value();
         if (path.empty()) {
-            path = defaultLogPath / (programName + "-logs");
+            path = programName + "-logs";
+        }
+        if (path.is_relative()) {
+            path = defaultLogPath / path;
         }
         if (createDirectoryIfNeeded(path)) {
             std::string logFileName = programName + "-" + getTimeStamp("%Y%m%d-%H%M%S") + ".log";

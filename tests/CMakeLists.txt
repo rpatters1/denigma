@@ -13,9 +13,10 @@ if(denigma_BUILD_TESTING)
     # Add an executable for the test suite
     add_executable(denigma_tests
         denigmatests.cpp
-        test_options.cpp
         test_export.cpp
+        test_logging.cpp
         test_massage.cpp
+        test_options.cpp
         ${DENIGMA_SOURCES}
     )
 
