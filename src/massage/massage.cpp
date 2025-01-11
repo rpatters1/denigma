@@ -113,7 +113,7 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
 
     // Example usage
     std::cout << indentSpaces << "Examples:" << std::endl;
-    std::cout << indentSpaces << "  " << fullCommand << " myfile.mxl" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " myfile.mxl --target lilypond" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " myfile.musicxml --finale-file otherfile.musx --musicxml musicxml" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " myfolder/*.mxl --mxl exports --recursive --exclude exports" << std::endl;
 
