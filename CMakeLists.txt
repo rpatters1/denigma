@@ -6,7 +6,7 @@ endif()
 cmake_minimum_required(VERSION 3.22)
 
 # Project name and version
-project(denigma VERSION 0.1)
+project(denigma VERSION 1.0)
 
 # Specify C++ standard and minimum macOS version
 set(CMAKE_CXX_STANDARD 17)
