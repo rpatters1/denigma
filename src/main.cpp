@@ -59,16 +59,6 @@ static int showHelpPage(const std::string_view& programName)
     std::cout << "  --all-parts                     Process all parts and score" << std::endl;
     std::cout << "  --version                       Show program version and exit" << std::endl;
     std::cout << std::endl;
-    std::cout << "By default, if the input is a single file, messages are sent to std::cerr." << std::endl;
-    std::cout << "If the input is a multiple files, messages are logged in `" << programName << "-logs` in the top-level input directory." << std::endl;
-    std::cout << std::endl;
-    std::cout << "Logging options:" << std::endl;
-    std::cout << "  --log [optional-logfile-path]   Always log messages instead of sending them to std::cerr" << std::endl;
-    std::cout << "  --no-log                        Always send messages to std::cerr (overrides any other logging options)" << std::endl;
-    std::cout << "  --verbose                       Verbose output" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Any relative path is relative to the parent path of the input file or (for log files) to the top-level input folder.";
-    std::cout << std::endl;
     
     for (const auto& command : registeredCommands) {
         std::string commandStr = "Command " + command.first;
@@ -80,6 +70,18 @@ static int showHelpPage(const std::string_view& programName)
         std::cout << std::endl;
         command.second->showHelpPage(programName, "    ");
     }
+
+    std::cout << std::endl;
+    std::cout << "By default, if the input is a single file, messages are sent to std::cerr." << std::endl;
+    std::cout << "If the input is a multiple files, messages are logged in `" << programName << "-logs` in the top-level input directory." << std::endl;
+    std::cout << std::endl;
+    std::cout << "Logging options:" << std::endl;
+    std::cout << "  --log [optional-logfile-path]   Always log messages instead of sending them to std::cerr" << std::endl;
+    std::cout << "  --no-log                        Always send messages to std::cerr (overrides any other logging options)" << std::endl;
+    std::cout << "  --verbose                       Verbose output" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Any relative path is relative to the parent path of the input file or (for log files) to the top-level input folder." << std::endl;
+
     return 1;
 }
 

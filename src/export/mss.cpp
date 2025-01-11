@@ -64,9 +64,9 @@ static const std::set<std::string_view> museScoreSMuFLFonts{
 struct FinalePreferences
 {
     FinalePreferences(const DenigmaContext& context)
-        : denigmaContext(context) {}
+        : denigmaContext(&context) {}
 
-    DenigmaContext denigmaContext;
+    const DenigmaContext* denigmaContext;
     DocumentPtr document;
     std::shared_ptr<FontInfo> defaultMusicFont;
     //
@@ -264,11 +264,11 @@ static void writeCategoryTextFontPref(XmlElement& styleElement, const FinalePref
 {
     auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(categoryType));
     if (!cat) {
-        prefs->denigmaContext.logMessage(LogMsg() << "unable to load category def for " << namePrefix, LogSeverity::Warning);
+        prefs->denigmaContext->logMessage(LogMsg() << "unable to load category def for " << namePrefix, LogSeverity::Warning);
         return;
     }
     if (!cat->textFont) {
-        prefs->denigmaContext.logMessage(LogMsg() << "marking category " << cat->getName() << " has no text font.", LogSeverity::Warning);
+        prefs->denigmaContext->logMessage(LogMsg() << "marking category " << cat->getName() << " has no text font.", LogSeverity::Warning);
         return;
     }
     writeFontPref(styleElement, namePrefix, cat->textFont.get());
@@ -277,7 +277,7 @@ static void writeCategoryTextFontPref(XmlElement& styleElement, const FinalePref
             writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
             break;
         } else {
-            prefs->denigmaContext.logMessage(LogMsg() << "marking category " << cat->getName() << " has invalid text expression.", LogSeverity::Warning);
+            prefs->denigmaContext->logMessage(LogMsg() << "marking category " << cat->getName() << " has invalid text expression.", LogSeverity::Warning);
         }
     }
 }

@@ -66,8 +66,12 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
 {
     std::string fullCommand = std::string(programName) + " " + std::string(commandName());
     // Print usage
+    std::cout << indentSpaces << "Exports other formats from Finale files. Currently it can export" << std::endl;
+    std::cout << indentSpaces << "  enigmaxml:  the internal xml representation of musx" << std::endl;
+    std::cout << indentSpaces << "  mss:        the Styles format for MuseScore" << std::endl;
+    std::cout << std::endl;
     std::cout << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
-    std::cout << indentSpaces << std::endl;
+    std::cout << std::endl;
 
     // Supported input formats
     std::cout << indentSpaces << "Supported input formats:" << std::endl;
@@ -83,19 +87,21 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     // Supported output formats
     std::cout << indentSpaces << "Supported output options:" << std::endl;
     for (const auto& output : outputProcessors) {
-        std::cout << indentSpaces << "  --" << output.extension << " [optional filepath]" << std::endl;
+        std::cout << indentSpaces << "  --" << output.extension << " [optional filepath]";
+        if (output.extension == defaultOutputFormat({})) {
+            std::cout << " (default output format)";
+        }
+        std::cout << std::endl;
     }
-    std::cout << indentSpaces << std::endl;
+    std::cout << std::endl;
 
     // Example usage
     std::cout << indentSpaces << "Examples:" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " input.musx" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml -mss" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mss --part" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive" << std::endl;
-    std::cout << indentSpaces << "  " << "  exports .musx files in myfolder and all subfolders to directory exports/mss within the same folder as each file found" << std::endl;
-    std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml" << std::endl;
-    std::cout << indentSpaces << "  " << "  exports the enigmaxml in input.musx to output.enigmaxml in the same folder" << std::endl;
-    //std::cout << indentSpaces << "  " << programName << " input.enigmaxml --mnx --mss" << std::endl;
-    std::cout << indentSpaces << "  " << fullCommand << " myfile.enigmaxml --mss" << std::endl;
-    std::cout << indentSpaces << "  " << "  exports myfile.enigmaxml to myfile.mss in the same folder" << std::endl;
+    //std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mnx --mss" << std::endl;
 
     return 1;
 }
