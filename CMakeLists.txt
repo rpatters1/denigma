@@ -40,6 +40,21 @@ message(STATUS "Generator: ${CMAKE_GENERATOR}")
 
 if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET 10.15)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        # Build for both arm64 and x86_64 in Release mode
+        set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures for Release" FORCE)
+    else()
+        # Use CMAKE_SYSTEM_PROCESSOR for Debug mode to match the current architecture
+        if(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+            set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "macOS architecture for Debug" FORCE)
+        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "amd64")
+            set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE STRING "macOS architecture for Debug" FORCE)
+        else()
+            message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+        endif()
+    endif()
+    message(STATUS "macOS Deployment Target: ${CMAKE_OSX_DEPLOYMENT_TARGET}")
+    message(STATUS "macOS Architectures: ${CMAKE_OSX_ARCHITECTURES}")
 endif()
 
 if(MSVC)
@@ -211,7 +226,7 @@ target_link_libraries(denigma PUBLIC denigma_pch)
 # Link the interface library to musx
 target_link_libraries(musx PRIVATE denigma_pch)
 
-set(DEPLOY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/deploy)
+set(DEPLOY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/denigma)
 
 if(MSVC)
     add_custom_command(
