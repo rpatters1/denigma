@@ -73,11 +73,12 @@ static int showHelpPage(const std::string_view& programName)
 
     std::cout << std::endl;
     std::cout << "By default, if the input is a single file, messages are sent to std::cerr." << std::endl;
-    std::cout << "If the input is a multiple files, messages are logged in `" << programName << "-logs` in the top-level input directory." << std::endl;
+    std::cout << "If the input is multiple files, messages are logged in `" << programName << "-logs` in the top-level input directory." << std::endl;
     std::cout << std::endl;
     std::cout << "Logging options:" << std::endl;
     std::cout << "  --log [optional-logfile-path]   Always log messages instead of sending them to std::cerr" << std::endl;
     std::cout << "  --no-log                        Always send messages to std::cerr (overrides any other logging options)" << std::endl;
+    std::cout << "  --quiet                         Only display errors and warning messages (overrides --verbose)" << std::endl;
     std::cout << "  --verbose                       Verbose output" << std::endl;
     std::cout << std::endl;
     std::cout << "Any relative path is relative to the parent path of the input file or (for log files) to the top-level input folder." << std::endl;
@@ -223,7 +224,7 @@ int _MAIN(int argc, arg_char* argv[])
         }
         for (const auto& path : pathsToProcess) {
             denigmaContext.inputFilePath = "";
-            processFile(currentCommand, path, args, denigmaContext);
+            denigmaContext.processFile(currentCommand, path, args);
         }
     }
     catch (const std::exception& e) {

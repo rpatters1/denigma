@@ -41,6 +41,7 @@ TEST(Export, InPlace)
         checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
         });
+        args.add(_ARG("--quiet"));
         checkStderr(inputFile + ".enigmaxml exists. Use --force to overwrite it.", [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "no force options when creating " << inputPath.u8string();
         });

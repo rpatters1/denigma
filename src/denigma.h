@@ -134,6 +134,7 @@ inline MusicProgramPreset toMusicProgramPreset(const std::string& inp)
     return MusicProgramPreset::Unspecified;
 }
 
+class ICommand;
 struct DenigmaContext
 {
 public:
@@ -152,6 +153,7 @@ public:
     bool recursiveSearch{};
     bool noLog{};
     bool verbose{};
+    bool quiet{};
     std::optional<std::filesystem::path> excludeFolder;
     std::optional<std::string> partName;
     std::optional<std::filesystem::path> logFilePath;
@@ -183,6 +185,8 @@ public:
     // validate paths
     bool validatePathsAndOptions(const std::filesystem::path& outputFilePath) const;
 
+    void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inpFilePath, const std::vector<const arg_char*>& args);
+
     // Logging methods
     void startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[]); ///< Starts logging if logging was requested
 
@@ -191,7 +195,8 @@ public:
      * @param msg a utf-8 encoded message.
      * @param severity the message severity
     */
-    void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info) const;
+    void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info) const
+    { logMessage(std::move(msg), false, severity); }
 
     void endLogging(); ///< Ends logging if logging was requested
 
@@ -203,6 +208,9 @@ public:
         return false;
 #endif
     }
+
+private:
+    void logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity severity = LogSeverity::Info) const;
 };
 
 class ICommand
@@ -225,7 +233,6 @@ public:
 std::string getTimeStamp(const std::string& fmt);
 
 bool createDirectoryIfNeeded(const std::filesystem::path& path);
-void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext);
 void showAboutPage();
 
 } // namespace denigma
