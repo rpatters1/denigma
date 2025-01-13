@@ -78,7 +78,7 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
         auto staffNumber = Cmper(currentStaff + currentStaffOffset);
         std::string staffName = [&]() -> std::string {
             if (musxDocument) {
-                auto iuList = musxDocument->getOthers()->getArrayForPart<others::InstrumentUsed>(musxPartId, 0); // 0 is the master list of staves in Scroll View
+                auto iuList = musxDocument->getOthers()->getArray<others::InstrumentUsed>(musxPartId, 0); // 0 is the master list of staves in Scroll View
                 if (!iuList.empty()) {
                     if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, staffNumber)) {
                         return staff->getFullName();
@@ -270,7 +270,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
     int staffSlot, MeasCmper measure, double /*durationUnit*/, InstCmper staffNum,
     const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    auto iuList = context->musxDocument->getOthers()->getArrayForPart<others::InstrumentUsed>(context->musxPartId, 0); // 0 is the master list of staves in Scroll View
+    auto iuList = context->musxDocument->getOthers()->getArray<others::InstrumentUsed>(context->musxPartId, 0); // 0 is the master list of staves in Scroll View
     if (iuList.empty()) {
         context->logMessage(LogMsg() << "no staff list found for part", LogSeverity::Warning);
         return;
@@ -280,7 +280,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
         context->logMessage(LogMsg() << "staff not found for slot " << staffSlot, LogSeverity::Warning);
         return;
     }
-    auto gfHold = context->musxDocument->getDetails()->get<details::GFrameHold>(staff->getCmper(), measure);
+    auto gfHold = context->musxDocument->getDetails()->get<details::GFrameHold>(context->musxPartId, staff->getCmper(), measure);
     if (gfHold) {
         pugi::xml_node nextNote;
         gfHold->iterateEntries([&](const std::shared_ptr<const Entry>& entry) -> bool {
@@ -460,9 +460,7 @@ static void processXml(pugi::xml_document& xmlDocument, const std::shared_ptr<Ma
     softwareElement.text().set((denigmaContext.programName + ' ' + MassageCommand().commandName().data() + ' ' + DENIGMA_VERSION).c_str());
 
     std::string originalEncodingDate = encodingDateElement.text().get();
-#ifdef DENIGMA_TEST
-    encodingDateElement.text().set("2025-01-10"); // use the same date as the reference files
-#else
+#ifndef DENIGMA_TEST // skipping this in tests allows it to match the reference files
     encodingDateElement.text().set(getTimeStamp("%Y-%m-%d").c_str());
 #endif
     pugi::xml_node miscellaneousElement = identificationElement.child("miscellaneous");
@@ -774,7 +772,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
             auto partName = [&]() -> std::string {
                 std::string retval;
                 if (context->musxDocument) {
-                    if (auto part = context->musxDocument->getOthers()->get<others::PartDefinition>(context->musxPartId)) {
+                    if (auto part = context->musxDocument->getOthers()->get<others::PartDefinition>(SCORE_PARTID, context->musxPartId)) {
                         retval = part->getName();
                     }
                 }

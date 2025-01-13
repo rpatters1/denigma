@@ -69,6 +69,7 @@ struct FinalePreferences
     const DenigmaContext* denigmaContext;
     DocumentPtr document;
     std::shared_ptr<FontInfo> defaultMusicFont;
+    Cmper forPartId{};
     //
     std::shared_ptr<options::AccidentalOptions> accidentalOptions;
     std::shared_ptr<options::AlternateNotationOptions> alternateNotationOptions;
@@ -113,6 +114,7 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
 {
     auto retval = std::make_shared<FinalePreferences>(denigmaContext);
     retval->document = document;
+    retval->forPartId = forPartId;
 
     auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
     retval->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
@@ -141,11 +143,11 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(retval, "time signature");
     retval->tupletOptions = getDocOptions<options::TupletOptions>(retval, "tuplet");
     //
-    retval->layerOneAttributes = retval->document->getOthers()->get<others::LayerAttributes>(0);
+    retval->layerOneAttributes = retval->document->getOthers()->get<others::LayerAttributes>(forPartId, 0);
     if (!retval->layerOneAttributes) {
         throw std::invalid_argument("document contains no options for Layer 1");
     }
-    auto measNumRegions = retval->document->getOthers()->getArray<others::MeasureNumberRegion>();
+    auto measNumRegions = retval->document->getOthers()->getArray<others::MeasureNumberRegion>(forPartId);
     if (measNumRegions.size() > 0) {
         retval->measNumScorePart = (forPartId && measNumRegions[0]->useScoreInfoForPart && measNumRegions[0]->partData)
                                  ? measNumRegions[0]->partData
@@ -154,7 +156,7 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
             throw std::invalid_argument("document contains no ScorePartData for measure number region " + std::to_string(measNumRegions[0]->getCmper()));
         }
     }
-    retval->partGlobals = retval->document->getOthers()->getEffectiveForPart<others::PartGlobals>(forPartId, MUSX_GLOBALS_CMPER);
+    retval->partGlobals = retval->document->getOthers()->get<others::PartGlobals>(forPartId, MUSX_GLOBALS_CMPER);
     if (!retval->layerOneAttributes) {
         throw std::invalid_argument("document contains no options for Layer 1");
     }
@@ -262,7 +264,7 @@ static void writeFramePrefs(XmlElement& styleElement, const std::string& namePre
 
 static void writeCategoryTextFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, others::MarkingCategory::CategoryType categoryType)
 {
-    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(categoryType));
+    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(prefs->forPartId, Cmper(categoryType));
     if (!cat) {
         prefs->denigmaContext->logMessage(LogMsg() << "unable to load category def for " << namePrefix, LogSeverity::Warning);
         return;
@@ -342,7 +344,7 @@ static void writeLyricsPrefs(XmlElement& styleElement, const FinalePreferencesPt
     }
 }
 
-void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
+void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     using RepeatWingStyle = options::RepeatOptions::WingStyle;
 
@@ -369,7 +371,7 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "clefLeftMargin", prefs->clefOptions->clefFrontSepar / EVPU_PER_SPACE);
     setElementValue(styleElement, "keysigLeftMargin", prefs->keyOptions->keyFront / EVPU_PER_SPACE);
 
-    const double timeSigSpaceBefore = forPartId
+    const double timeSigSpaceBefore = prefs->forPartId
                                       ? prefs->timeOptions->timeFrontParts
                                       : prefs->timeOptions->timeFront;
     setElementValue(styleElement, "timesigLeftMargin", timeSigSpaceBefore / EVPU_PER_SPACE);
@@ -406,7 +408,7 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     setElementValue(styleElement, "keySigCourtesyBarlineMode", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
     setElementValue(styleElement, "timeSigCourtesyBarlineMode", 0); // Hard-coded as 0 in Lua
-    setElementValue(styleElement, "hideEmptyStaves", !forPartId);
+    setElementValue(styleElement, "hideEmptyStaves", !prefs->forPartId);
 }
 
 void writeStemPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
@@ -472,7 +474,7 @@ void writeSmartShapePrefs(XmlElement& styleElement, const FinalePreferencesPtr& 
     setElementValue(styleElement, "ottavaNumbersOnly", prefs->smartShapeOptions->showOctavaAsText);
 }
 
-void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs, Cmper forPartId)
+void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     using MeasureNumberRegion = others::MeasureNumberRegion;
     setElementValue(styleElement, "showMeasureNumber", prefs->measNumScorePart != nullptr);
@@ -547,7 +549,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         processSegment(scorePart->mmRestFont, scorePart->multipleEnclosure, scorePart->useMultipleEncl,
                        scorePart->mmRestJustify, scorePart->mmRestAlign, scorePart->mmRestYdisp, "mmRestRange");
     }
-    setElementValue(styleElement, "createMultiMeasureRests", forPartId != 0); // Equivalent to Lua's `current_is_part`
+    setElementValue(styleElement, "createMultiMeasureRests", prefs->forPartId != 0);
     setElementValue(styleElement, "minEmptyMeasures", prefs->mmRestOptions->numStart);
     setElementValue(styleElement, "minMMRestWidth", prefs->mmRestOptions->measWidth / EVPU_PER_SPACE);
     setElementValue(styleElement, "mmRestNumberPos", (prefs->mmRestOptions->numAdjY / EVPU_PER_SPACE) + 1);
@@ -648,7 +650,7 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     using FontType = options::FontOptions::FontType;
     using CategoryType = others::MarkingCategory::CategoryType;
 
-    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(Cmper(CategoryType::Dynamics));
+    auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(prefs->forPartId, Cmper(CategoryType::Dynamics));
     if (!cat) {
         throw std::invalid_argument("unable to find MarkingCategory for dynamics");
     }
@@ -754,12 +756,12 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     // write prefs from document
     writePagePrefs(styleElement, prefs);
     writeLyricsPrefs(styleElement, prefs);
-    writeLineMeasurePrefs(styleElement, prefs, forPartId);
+    writeLineMeasurePrefs(styleElement, prefs);
     writeStemPrefs(styleElement, prefs);
     writeMusicSpacingPrefs(styleElement, prefs);
     writeNoteRelatedPrefs(styleElement, prefs);
     writeSmartShapePrefs(styleElement, prefs);
-    writeMeasureNumberPrefs(styleElement, prefs, forPartId);
+    writeMeasureNumberPrefs(styleElement, prefs);
     writeRepeatEndingPrefs(styleElement, prefs);
     writeTupletPrefs(styleElement, prefs);
     writeMarkingPrefs(styleElement, prefs);
@@ -788,7 +790,7 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     }
     bool foundPart = false;
     if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
-        auto parts = document->getOthers()->getArray<others::PartDefinition>();
+        auto parts = document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
         for (const auto& part : parts) {
             if (part->getCmper()) {
                 if (denigmaContext.allPartsAndScore) {
