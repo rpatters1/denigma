@@ -89,6 +89,17 @@ TEST(Options, ParseOptions)
         });
     }
     {
+        ArgList args = { DENIGMA_NAME, "--about" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 0);
+        EXPECT_TRUE(ctx.showAbout);
+        EXPECT_FALSE(ctx.logFilePath.has_value());
+        checkStdout("MIT License", [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "show help";
+        });
+    }
+    {
         ArgList args = { DENIGMA_NAME, "--version" };
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());

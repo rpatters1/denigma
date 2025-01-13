@@ -50,6 +50,7 @@ static int showHelpPage(const std::string_view& programName)
 
     // General options
     std::cout << "General options:" << std::endl;
+    std::cout << "  --about                         Show acknowledgements and exit" << std::endl;
     std::cout << "  --exclude folder-name           Exclude the specified folder name from recursive searches" << std::endl;
     std::cout << "  --help                          Show this help message and exit" << std::endl;
     std::cout << "  --force                         Overwrite existing file(s)" << std::endl;
@@ -57,16 +58,6 @@ static int showHelpPage(const std::string_view& programName)
     std::cout << "  --recursive                     Recursively search subdirectories of the input directory" << std::endl;
     std::cout << "  --all-parts                     Process all parts and score" << std::endl;
     std::cout << "  --version                       Show program version and exit" << std::endl;
-    std::cout << std::endl;
-    std::cout << "By default, if the input is a single file, messages are sent to std::cerr." << std::endl;
-    std::cout << "If the input is a multiple files, messages are logged in `" << programName << "-logs` in the top-level input directory." << std::endl;
-    std::cout << std::endl;
-    std::cout << "Logging options:" << std::endl;
-    std::cout << "  --log [optional-logfile-path]   Always log messages instead of sending them to std::cerr" << std::endl;
-    std::cout << "  --no-log                        Always send messages to std::cerr (overrides any other logging options)" << std::endl;
-    std::cout << "  --verbose                       Verbose output" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Any relative path is relative to the parent path of the input file or (for log files) to the top-level input folder.";
     std::cout << std::endl;
     
     for (const auto& command : registeredCommands) {
@@ -79,6 +70,18 @@ static int showHelpPage(const std::string_view& programName)
         std::cout << std::endl;
         command.second->showHelpPage(programName, "    ");
     }
+
+    std::cout << std::endl;
+    std::cout << "By default, if the input is a single file, messages are sent to std::cerr." << std::endl;
+    std::cout << "If the input is a multiple files, messages are logged in `" << programName << "-logs` in the top-level input directory." << std::endl;
+    std::cout << std::endl;
+    std::cout << "Logging options:" << std::endl;
+    std::cout << "  --log [optional-logfile-path]   Always log messages instead of sending them to std::cerr" << std::endl;
+    std::cout << "  --no-log                        Always send messages to std::cerr (overrides any other logging options)" << std::endl;
+    std::cout << "  --verbose                       Verbose output" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Any relative path is relative to the parent path of the input file or (for log files) to the top-level input folder." << std::endl;
+
     return 1;
 }
 
@@ -105,6 +108,10 @@ int _MAIN(int argc, arg_char* argv[])
     }
     if (denigmaContext.showHelp) {
         showHelpPage(denigmaContext.programName);
+        return 0;
+    }
+    if (denigmaContext.showAbout) {
+        showAboutPage();
         return 0;
     }
     if (args.size() < 2) {

@@ -47,9 +47,9 @@ using namespace musx::dom;
 struct MassageMusicXmlContext
 {
     MassageMusicXmlContext(const DenigmaContext& context)
-        : denigmaContext(context) {}
+        : denigmaContext(&context) {}
 
-    DenigmaContext denigmaContext;
+    const DenigmaContext* denigmaContext;
     musx::dom::DocumentPtr musxDocument;
     Cmper musxPartId{};
 
@@ -89,7 +89,7 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
         staffText += "[" + staffName + "]";
         logEntry += "(" + staffText + " m" + std::to_string(currentMeasure) + ") ";
     }
-    denigmaContext.logMessage(LogMsg() << logEntry << msg.str(), severity);
+    denigmaContext->logMessage(LogMsg() << logEntry << msg.str(), severity);
 }
 
 static int staffNumberFromNote(pugi::xml_node xmlNote) {
@@ -132,7 +132,7 @@ void feedDirectionsOfType(pugi::xml_node node, const std::string& nodeName, cons
 
 static void fixDirectionBrackets(pugi::xml_node xmlMeasure, const std::string& directionType, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    const DenigmaContext& denigmaContext = context->denigmaContext;
+    const DenigmaContext& denigmaContext = *context->denigmaContext;
     if (!(denigmaContext.extendOttavasLeft || denigmaContext.extendOttavasRight)) return;
 
     feedDirectionsOfType(xmlMeasure, directionType, [&](pugi::xml_node currentDirection) {
@@ -375,7 +375,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
 
 void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    if (!context->musxDocument && context->denigmaContext.refloatRests) {
+    if (!context->musxDocument && context->denigmaContext->refloatRests) {
         context->logMessage(LogMsg() << "Corresponding Finale document not found.", LogSeverity::Warning);
     }
 
@@ -404,7 +404,7 @@ void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
 
             context->currentMeasure++;
 
-            if (context->musxDocument && context->denigmaContext.refloatRests) {
+            if (context->musxDocument && context->denigmaContext->refloatRests) {
                 for (InstCmper staffNum = 1; staffNum <= stavesUsed; ++staffNum) {
                     context->currentStaffOffset = staffNum - 1;
                     massageXmlWithFinaleDocument(
@@ -420,7 +420,7 @@ void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
 
             fixDirectionBrackets(xmlMeasure, "octave-shift", context);
 
-            if (context->denigmaContext.fermataWholeRests) {
+            if (context->denigmaContext->fermataWholeRests) {
                 fixFermataWholeRests(xmlMeasure, context);
             }
         }
@@ -433,7 +433,7 @@ void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
 
 static void processXml(pugi::xml_document& xmlDocument, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    const DenigmaContext& denigmaContext = context->denigmaContext;
+    const DenigmaContext& denigmaContext = *context->denigmaContext;
 
     auto scorePartwise = xmlDocument.child("score-partwise");
     if (!scorePartwise) {
@@ -458,8 +458,11 @@ static void processXml(pugi::xml_document& xmlDocument, const std::shared_ptr<Ma
     softwareElement.text().set((denigmaContext.programName + ' ' + MassageCommand().commandName().data() + ' ' + DENIGMA_VERSION).c_str());
 
     std::string originalEncodingDate = encodingDateElement.text().get();
+#ifdef DENIGMA_TEST
+    encodingDateElement.text().set("2025-01-10"); // use the same date as the reference files
+#else
     encodingDateElement.text().set(getTimeStamp("%Y-%m-%d").c_str());
-
+#endif
     pugi::xml_node miscellaneousElement = identificationElement.child("miscellaneous");
     if (!miscellaneousElement) {
         miscellaneousElement = identificationElement.append_child("miscellaneous");
@@ -499,8 +502,8 @@ static std::filesystem::path calcQualifiedOutputPath(const std::filesystem::path
 
 static void processFile(pugi::xml_document&& xmlDocument, const std::filesystem::path& outputPath, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath, context->denigmaContext);
-    if (!context->denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) {
+    std::filesystem::path qualifiedOutputPath = calcQualifiedOutputPath(outputPath, *context->denigmaContext);
+    if (!context->denigmaContext->validatePathsAndOptions(qualifiedOutputPath)) {
         return;
     }
 
@@ -564,7 +567,7 @@ Cmper getMusxPartIdFromPartFileName(const std::string& partFileName, const std::
     if (std::regex_search(partFileName, match, pattern)) {
         partNumber = Cmper(std::stoi(match[1].str()));
     } else {
-        context->denigmaContext.logMessage(LogMsg() << "Unable to get part number from " << partFileName << ". Using score instead.", LogSeverity::Warning);
+        context->denigmaContext->logMessage(LogMsg() << "Unable to get part number from " << partFileName << ". Using score instead.", LogSeverity::Warning);
     }
     return partNumber;
 }

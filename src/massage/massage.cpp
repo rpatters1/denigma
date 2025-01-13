@@ -70,24 +70,27 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
 {
     std::string fullCommand = std::string(programName) + " " + std::string(commandName());
     // Print usage
-    std::cout << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
-    std::cout << indentSpaces << std::endl;
-    std::cout << "Specific options:" << std::endl;
-    std::cout << "  --finale-file <file|directory>  Specify a .musx or .enigmaxml file, or a directory to search for such files." << std::endl;
-    std::cout << "                                  The Finale file is used as co-input, especially to identify rests for refloating." << std::endl;
-    std::cout << "                                  If omitted, search the same directory as the input xml and its parent directory." << std::endl;
-    std::cout << "  --refloat-rests                 Refloat rests (default: on)." << std::endl;
-    std::cout << "  --no-refloat-rests              Disable refloating of rests." << std::endl;
-    std::cout << "  --extend-ottavas-left           Extend ottavas to the left of grace notes (default: on)." << std::endl;
-    std::cout << "  --no-extend-ottavas-left        Disable extending ottavas to the left of grace notes." << std::endl;
-    std::cout << "  --extend-ottavas-right          Extend ottavas to the right by one note or chord (default: on)." << std::endl;
-    std::cout << "  --no-extend-ottavas-right       Disable extending ottavas to the right by one note or chord ." << std::endl;
-    std::cout << "  --fermata-whole-rests           Convert fermatas on whole rests to full-measure rests (default: on)." << std::endl;
-    std::cout << "  --no-fermata-whole-rests        Disable converting on whole rests to full-measure rests ." << std::endl;
+    std::cout << indentSpaces << "Massages a compressed mxl or non-compressed musicxml file exported by Finale." << std::endl;
+    std::cout << indentSpaces << "The goal is to improve the musicxml imports into other notation programs." << std::endl;
     std::cout << std::endl;
-    std::cout << "  --target <program-name>         Sets the above options for best results in that program." << std::endl;
-    std::cout << "                                  If you specify this value first, you can override specific options later on the command line." << std::endl;
-    std::cout << "  --                              Currently supported options: \"musescore\" | \"dorico\" | \"lilypond\"" << std::endl;
+    std::cout << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
+    std::cout << std::endl;
+    std::cout << indentSpaces << "Specific options:" << std::endl;
+    std::cout << indentSpaces << "  --finale-file <file|directory>  Specify a .musx or .enigmaxml file, or a directory to search for such files." << std::endl;
+    std::cout << indentSpaces << "                                  The Finale file is used as co-input, especially to identify rests for refloating." << std::endl;
+    std::cout << indentSpaces << "                                  If omitted, search the same directory as the input xml and its parent directory." << std::endl;
+    std::cout << indentSpaces << "  --refloat-rests                 Refloat rests (default: on)." << std::endl;
+    std::cout << indentSpaces << "  --no-refloat-rests              Disable refloating of rests." << std::endl;
+    std::cout << indentSpaces << "  --extend-ottavas-left           Extend ottavas to the left of grace notes (default: on)." << std::endl;
+    std::cout << indentSpaces << "  --no-extend-ottavas-left        Disable extending ottavas to the left of grace notes." << std::endl;
+    std::cout << indentSpaces << "  --extend-ottavas-right          Extend ottavas to the right by one note or chord (default: on)." << std::endl;
+    std::cout << indentSpaces << "  --no-extend-ottavas-right       Disable extending ottavas to the right by one note or chord ." << std::endl;
+    std::cout << indentSpaces << "  --fermata-whole-rests           Convert fermatas on whole rests to full-measure rests (default: on)." << std::endl;
+    std::cout << indentSpaces << "  --no-fermata-whole-rests        Disable converting on whole rests to full-measure rests ." << std::endl;
+    std::cout << std::endl;
+    std::cout << indentSpaces << "  --target <program-name>         Sets the above options for best results in that program." << std::endl;
+    std::cout << indentSpaces << "                                  If you specify this value first, you can override specific options later on the command line." << std::endl;
+    std::cout << indentSpaces << "                                  Currently supported options: \"musescore\" | \"dorico\" | \"lilypond\"" << std::endl;
     std::cout << std::endl;
 
     // Supported input formats
@@ -99,7 +102,7 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
         }
         std::cout << std::endl;
     }
-    std::cout << indentSpaces << std::endl;
+    std::cout << std::endl;
 
     // Supported output formats
     std::cout << indentSpaces << "Supported output options:" << std::endl;
@@ -109,14 +112,10 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
     std::cout << indentSpaces << std::endl;
 
     // Example usage
-    //std::cout << indentSpaces << "Examples:" << std::endl;
-    //std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive --relative" << std::endl;
-    //std::cout << indentSpaces << "  " << "  exports .musx files in myfolder and all subfolders to directory exports/mss within the same folder as each file found" << std::endl;
-    //std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml" << std::endl;
-    //std::cout << indentSpaces << "  " << "  exports the enigmaxml in input.musx to output.enigmaxml in the same folder" << std::endl;
-    //std::cout << indentSpaces << "  " << programName << " input.enigmaxml --mnx --mss" << std::endl;
-    //std::cout << indentSpaces << "  " << fullCommand << " myfile.mxl" << std::endl;
-    //std::cout << indentSpaces << "  " << "  massages the score from myfile.enigmaxml to myfile.massaged.musicxml in the same folder" << std::endl;
+    std::cout << indentSpaces << "Examples:" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " myfile.mxl --target lilypond" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " myfile.musicxml --finale-file otherfile.musx --musicxml musicxml" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " myfolder/*.mxl --mxl exports --recursive --exclude exports" << std::endl;
 
     return 1;
 }
