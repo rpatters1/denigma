@@ -57,10 +57,13 @@ void checkStderr(const std::vector<std::string>& expectedMessages, std::function
     std::string capturedErrors = errStream.str();
     for (const auto& expectedMessage : expectedMessages) {
         if (expectedMessage.empty()) {
-            EXPECT_TRUE(capturedErrors.empty()) << "No error message expected but got " << capturedErrors;
+            EXPECT_TRUE(capturedErrors.empty()) << "No message expected but got " << capturedErrors;
+        } else if (expectedMessage[0] == '!') {
+            EXPECT_EQ(capturedErrors.find(expectedMessage.substr(1)), std::string::npos)
+                << "Message \"" << expectedMessage.substr(1) << "\" found but not expected";
         } else {
             EXPECT_NE(capturedErrors.find(expectedMessage), std::string::npos)
-                << "Error message \"" << expectedMessage << "\" not found. Actual: " << capturedErrors;
+                << "Message \"" << expectedMessage << "\" not found. Actual: " << capturedErrors;
         }
     }
 };
@@ -86,10 +89,13 @@ void checkStdout(const std::vector<std::string>& expectedMessages, std::function
     std::string capturesMessages = coutStream.str();
     for (const auto& expectedMessage : expectedMessages) {
         if (expectedMessage.empty()) {
-            EXPECT_TRUE(capturesMessages.empty()) << "No error message expected but got " << capturesMessages;
+            EXPECT_TRUE(capturesMessages.empty()) << "No message expected but got " << capturesMessages;
+        } else if (expectedMessage[0] == '!') {
+            EXPECT_EQ(capturesMessages.find(expectedMessage.substr(1)), std::string::npos)
+                << "Message \"" << expectedMessage.substr(1) << "\" found but not expected";
         } else {
             EXPECT_NE(capturesMessages.find(expectedMessage), std::string::npos)
-                << "Expected error message not found. Actual: " << capturesMessages;
+                << "Message \"" << expectedMessage << "\" not found. Actual: " << capturesMessages;
         }
     }
 }

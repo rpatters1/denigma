@@ -270,3 +270,20 @@ TEST(Massage, NoFinaleFile)
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << inputPath.u8string();
     });
 }
+
+TEST(Massage, EighthTremolo)
+{
+    setupTestDataPaths();
+    std::string inputFile = "tremolos";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".musx", inputPath); // inputPath points to musx file
+    copyInputToOutput(inputFile + ".musicxml", inputPath); // inputPath now points to musicxml file
+    ArgList args = { DENIGMA_NAME, "massage", inputPath.u8string(), "--finale-file", "." };
+    checkStderr("!xml durations do not match", [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << inputPath.u8string();
+    });
+    std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".massaged.musicxml");
+    std::filesystem::path referencePath = getInputPath() / "reference" / musicXmlFilename;
+    EXPECT_TRUE(std::filesystem::exists(getOutputPath() / musicXmlFilename));
+    compareFiles(referencePath, getOutputPath() / musicXmlFilename);
+}
