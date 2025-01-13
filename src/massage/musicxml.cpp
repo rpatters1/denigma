@@ -460,9 +460,7 @@ static void processXml(pugi::xml_document& xmlDocument, const std::shared_ptr<Ma
     softwareElement.text().set((denigmaContext.programName + ' ' + MassageCommand().commandName().data() + ' ' + DENIGMA_VERSION).c_str());
 
     std::string originalEncodingDate = encodingDateElement.text().get();
-#ifdef DENIGMA_TEST
-    encodingDateElement.text().set("2025-01-10"); // use the same date as the reference files
-#else
+#ifndef DENIGMA_TEST // skipping this in tests allows it to match the reference files
     encodingDateElement.text().set(getTimeStamp("%Y-%m-%d").c_str());
 #endif
     pugi::xml_node miscellaneousElement = identificationElement.child("miscellaneous");

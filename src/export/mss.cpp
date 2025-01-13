@@ -147,7 +147,7 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     if (!retval->layerOneAttributes) {
         throw std::invalid_argument("document contains no options for Layer 1");
     }
-    auto measNumRegions = retval->document->getOthers()->getArray<others::MeasureNumberRegion>(SCORE_PARTID);
+    auto measNumRegions = retval->document->getOthers()->getArray<others::MeasureNumberRegion>(forPartId);
     if (measNumRegions.size() > 0) {
         retval->measNumScorePart = (forPartId && measNumRegions[0]->useScoreInfoForPart && measNumRegions[0]->partData)
                                  ? measNumRegions[0]->partData
