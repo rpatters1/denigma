@@ -60,7 +60,7 @@ void checkStderr(const std::vector<std::string>& expectedMessages, std::function
             EXPECT_TRUE(capturedErrors.empty()) << "No error message expected but got " << capturedErrors;
         } else {
             EXPECT_NE(capturedErrors.find(expectedMessage), std::string::npos)
-                << "Expected error message not found. Actual: " << capturedErrors;
+                << "Error message \"" << expectedMessage << "\" not found. Actual: " << capturedErrors;
         }
     }
 };

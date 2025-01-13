@@ -77,10 +77,12 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
         std::string staffText = "p" + std::to_string(currentMusicXmlPart);
         auto staffNumber = Cmper(currentStaff + currentStaffOffset);
         std::string staffName = [&]() -> std::string {
-            auto iuList = musxDocument->getOthers()->getArrayForPart<others::InstrumentUsed>(musxPartId, 0); // 0 is the master list of staves in Scroll View
-            if (!iuList.empty()) { 
-                if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, staffNumber)) {
-                    return staff->getFullName();
+            if (musxDocument) {
+                auto iuList = musxDocument->getOthers()->getArrayForPart<others::InstrumentUsed>(musxPartId, 0); // 0 is the master list of staves in Scroll View
+                if (!iuList.empty()) {
+                    if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, staffNumber)) {
+                        return staff->getFullName();
+                    }
                 }
             }
             return "Staff " + std::to_string(staffNumber);

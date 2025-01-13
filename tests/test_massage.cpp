@@ -258,3 +258,15 @@ TEST(Massage, Parts)
         compareFiles(referencePathPart, getOutputPath() / "-exports" / musicXmlFilenamePart);
     }
 }
+
+TEST(Massage, NoFinaleFile)
+{
+    setupTestDataPaths();
+    std::string inputFile = "notAscii-其れ";
+    std::filesystem::path inputPath;
+    copyInputToOutput("musicxml/" + inputFile + ".musicxml", inputPath); // inputPath now points to musicxml file
+    ArgList args = { DENIGMA_NAME, "massage", inputPath.u8string(), "--finale-file", "." };
+    checkStderr({ "Corresponding Finale document not found", inputFile + ".musicxml" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << inputPath.u8string();
+    });
+}
