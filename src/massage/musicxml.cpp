@@ -55,16 +55,18 @@ struct MassageMusicXmlContext
 
     int currentMusicXmlPart{};
     int currentMeasure{};
+    int currentXmlMeasure{};
     int currentStaff{};
     int currentStaffOffset{};
     int errorCount{};
 
     void initCounts()
     {
-        currentMusicXmlPart = currentMeasure = currentStaff = currentStaffOffset = errorCount = 0;
+        currentMusicXmlPart = currentXmlMeasure = currentMeasure = currentStaff = currentStaffOffset = errorCount = 0;
     }
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
+    void logXmlNode(pugi::xml_node node);
 };
 
 void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
@@ -89,9 +91,19 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
         }();
 
         staffText += "[" + staffName + "]";
-        logEntry += "(" + staffText + " m" + std::to_string(currentMeasure) + ") ";
+        logEntry += "(" + staffText + " fm" + std::to_string(currentMeasure) + ", xm" + std::to_string(currentXmlMeasure) + ") ";
     }
     denigmaContext->logMessage(LogMsg() << logEntry << msg.str(), severity);
+}
+
+void MassageMusicXmlContext::logXmlNode(pugi::xml_node node)
+{
+    if (denigmaContext->verbose) {
+        LogMsg msg;
+        msg << "MusicXml node:" << std::endl;
+        node.print(msg);
+        logMessage(std::move(msg), LogSeverity::Verbose);
+    }
 }
 
 static int staffNumberFromNote(pugi::xml_node xmlNote) {
@@ -308,6 +320,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
             if (it == durationTypeMap.end()) {
                 if (!nextNote.child("rest")) { // this is valid for full measure rests
                     context->logMessage(LogMsg() << "xml note node has no type", LogSeverity::Warning);
+                    context->logXmlNode(nextNote);
                 }
                 return false;
             }
@@ -319,12 +332,13 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                     // tremolos are stored in enigma as small notes with tuplets,
                     // but Dolet apparently detects them and reports them as written value tremolos in musicxml
                     // We compensate by shifting the note type in enigma back by the number of beams and the written note type
-                    // Then subtract out quarter note log, because that's the first non-beamed value.
-                    musxNoteType <<= tremolo.text().as_int() + log2_exact(xmlNoteType) - 10; // 10 is log2(Entry::NoteType::Quarter)
+                    // Then subtract out quarter note log (if it's >= quaerter), because that's the first non-beamed value.
+                    musxNoteType <<= tremolo.text().as_int() + log2_exact(xmlNoteType) - std::min(10, log2_exact(xmlNoteType)); // 10 is log2(Entry::NoteType::Quarter)
                 }
             }
             if (xmlNoteType != musxNoteType) {
                 context->logMessage(LogMsg() << "xml durations do not match Finale file: [" << Edu(entry->calcNoteType()) << ", " << it->first << "]", LogSeverity::Warning);
+                context->logXmlNode(nextNote);
                 return false;
             }
 
@@ -334,6 +348,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
             }
             if (numDots != entry->calcAugmentationDots()) {
                 context->logMessage(LogMsg() << "xml number of dots does not match Finale file: [" << entry->calcAugmentationDots() << ", " << numDots << "]", LogSeverity::Warning);
+                context->logXmlNode(nextNote);
                 return false;
             }
             
@@ -342,6 +357,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 pugi::xml_node restElement = nextNote.child("rest");
                 if (!restElement) {
                     context->logMessage(LogMsg() << "xml corresponding note value in Finale file is not a rest", LogSeverity::Warning);
+                    context->logXmlNode(nextNote);
                     return false;
                 }
                 if (entry->floatRest) {
@@ -386,10 +402,14 @@ void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
 
     for (auto xmlPart = scorePartWiseNode.child("part"); xmlPart; xmlPart = xmlPart.next_sibling("part")) {
         context->currentMeasure = 0;
+        context->currentXmlMeasure = 0;
         double durationUnit = EDU_PER_QUARTER;
         int stavesUsed = 1;
 
         for (auto xmlMeasure = xmlPart.child("measure"); xmlMeasure; xmlMeasure = xmlMeasure.next_sibling("measure")) {
+            if (auto numberAttr = xmlMeasure.attribute("number")) {
+                context->currentXmlMeasure = numberAttr.as_int();
+            }
             auto attributes = xmlMeasure.child("attributes");
             if (attributes) {
                 if (auto divisions = attributes.child("divisions")) {

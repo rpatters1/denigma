@@ -61,6 +61,8 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             if (!option.empty()) {
                 excludeFolder = option;
             }
+        } else if (next == _ARG("--quiet")) {
+            quiet = true;
         } else if (next == _ARG("--verbose")) {
             verbose = true;
         // Specific options for `massage` command
@@ -113,7 +115,7 @@ std::string getTimeStamp(const std::string& fmt)
     return timestamp.str();
 }
 
-void DenigmaContext::logMessage(LogMsg&& msg, LogSeverity severity) const
+void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity severity) const
 {
     auto getSeverityStr = [severity]() -> std::string {
             switch (severity) {
@@ -123,8 +125,13 @@ void DenigmaContext::logMessage(LogMsg&& msg, LogSeverity severity) const
             case LogSeverity::Error: return "[***ERROR***] ";
             }
         };
-    if (severity == LogSeverity::Verbose && !verbose) {
-        return;
+    if (!alwaysShow) {
+        if (severity == LogSeverity::Verbose && (!verbose || quiet)) {
+            return;
+        }
+        if (severity == LogSeverity::Info && quiet) {
+            return;
+        }
     }
     if (severity == LogSeverity::Error) {
         errorOccurred = true;
@@ -177,7 +184,7 @@ bool DenigmaContext::validatePathsAndOptions(const std::filesystem::path& output
         if (overwriteExisting) {
             logMessage(LogMsg() << "Overwriting " << outputFilePath.u8string());
         } else {
-            logMessage(LogMsg() << outputFilePath.u8string() << " exists. Use --force to overwrite it.");
+            logMessage(LogMsg() << outputFilePath.u8string() << " exists. Use --force to overwrite it.", LogSeverity::Warning);
             return false;
         }
     } else {
@@ -232,14 +239,14 @@ void DenigmaContext::startLogging(const std::filesystem::path& defaultLogPath, i
         if (appending) {
             *logFile << std::endl;
         }
-        logMessage(LogMsg() << "======= START =======");
-        logMessage(LogMsg() << programName << " executed with the following arguments:");
+        logMessage(LogMsg() << "======= START =======", true);
+        logMessage(LogMsg() << programName << " executed with the following arguments:", true);
         LogMsg args;
         args << programName << " ";
         for (int i = 1; i < argc; i++) {
             args << std::string(arg_string(argv[i])) << " ";
         }
-        logMessage(std::move(args));
+        logMessage(std::move(args), true);
     }   
 }
 
@@ -247,30 +254,30 @@ void DenigmaContext::endLogging()
 {
     if (!noLog && logFilePath.has_value() && !forTestOutput()) {
         inputFilePath = "";
-        logMessage(LogMsg());
-        logMessage(LogMsg() << programName << " processing complete");
-        logMessage(LogMsg() << "======== END ========");
+        logMessage(LogMsg(), true);
+        logMessage(LogMsg() << programName << " processing complete", true);
+        logMessage(LogMsg() << "======== END ========", true);
         logFile.reset();
     }
 }
 
-void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inputFilePath, const std::vector<const arg_char*>& args, DenigmaContext& denigmaContext)
+void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand, const std::filesystem::path inpFilePath, const std::vector<const arg_char*>& args)
 {
     try {
-        if (!std::filesystem::is_regular_file(inputFilePath) && !denigmaContext.forTestOutput()) {
-            throw std::runtime_error("Input file " + inputFilePath.u8string() + " does not exist or is not a file.");
+        if (!std::filesystem::is_regular_file(inpFilePath) && !forTestOutput()) {
+            throw std::runtime_error("Input file " + inpFilePath.u8string() + " does not exist or is not a file.");
         }
         constexpr char kProcessingMessage[] = "Processing File: ";
         constexpr size_t kProcessingMessageSize = sizeof(kProcessingMessage) - 1; // account for null terminator.
-        std::string delimiter(kProcessingMessageSize + inputFilePath.u32string().size(), '='); // use u32string().size to get actual number of characters displayed
+        std::string delimiter(kProcessingMessageSize + inpFilePath.u32string().size(), '='); // use u32string().size to get actual number of characters displayed
         // log header for each file
-        denigmaContext.logMessage(LogMsg());
-        denigmaContext.logMessage(LogMsg() << delimiter);
-        denigmaContext.logMessage(LogMsg() << kProcessingMessage << inputFilePath.u8string());
-        denigmaContext.logMessage(LogMsg() << delimiter);
-        denigmaContext.inputFilePath = inputFilePath; // assign after logging the header
+        logMessage(LogMsg(), true);
+        logMessage(LogMsg() << delimiter, true);
+        logMessage(LogMsg() << kProcessingMessage << inpFilePath.u8string(), true);
+        logMessage(LogMsg() << delimiter, true);
+        this->inputFilePath = inpFilePath; // assign after logging the header
 
-        const auto xmlBuffer = currentCommand->processInput(inputFilePath, denigmaContext);
+        const auto xmlBuffer = currentCommand->processInput(inputFilePath, *this);
 
         auto calcOutpuFilePath = [&](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
             std::filesystem::path retval = path;
@@ -281,12 +288,12 @@ void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
                 retval = std::filesystem::current_path();
             }
             if (createDirectoryIfNeeded(retval)) {
-                denigmaContext.outputIsFilename = false;
+                outputIsFilename = false;
                 std::filesystem::path outputFileName = inputFilePath.filename();
                 outputFileName.replace_extension(format);
                 retval = retval / outputFileName;
             } else {
-                denigmaContext.outputIsFilename = true;
+                outputIsFilename = true;
             }
             return retval;
         };
@@ -300,20 +307,20 @@ void processFile(const std::shared_ptr<ICommand>& currentCommand, const std::fil
                 std::filesystem::path outputFilePath = (i + 1 < args.size() && arg_string(args[i + 1]).rfind(_ARG("--"), 0) != 0)
                                                      ? std::filesystem::path(args[++i])
                                                      : inputFilePath.parent_path();
-                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(outputFilePath, outputFormat), inputFilePath, denigmaContext);
+                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(outputFilePath, outputFormat), inputFilePath, *this);
                 outputFormatSpecified = true;
             }
         }
         if (!outputFormatSpecified) {
             const auto& defaultFormat = currentCommand->defaultOutputFormat(inputFilePath);
             if (defaultFormat.has_value()) {
-                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), inputFilePath, denigmaContext);
+                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), inputFilePath, *this);
             }
         }
     } catch (const musx::xml::load_error& ex) {
-        denigmaContext.logMessage(LogMsg() << "Load XML failed: " << ex.what(), LogSeverity::Error);
+        logMessage(LogMsg() << "Load XML failed: " << ex.what(), true, LogSeverity::Error);
     } catch (const std::exception& e) {
-        denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
+        logMessage(LogMsg() << e.what(), true, LogSeverity::Error);
     }
 }
 
