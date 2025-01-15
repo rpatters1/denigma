@@ -133,7 +133,7 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(retval, "miscellaneous");
     retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(retval, "music spacing");
     auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
-    retval->pageFormat = forPartId ? pageFormatOptions->pageFormatParts : pageFormatOptions->pageFormatScore;
+    retval->pageFormat = pageFormatOptions->calcPageFormatForPart(forPartId);
     retval->braceOptions = getDocOptions<options::PianoBraceBracketOptions>(retval, "piano braces & brackets");
     retval->repeatOptions = getDocOptions<options::RepeatOptions>(retval, "repeat");
     retval->smartShapeOptions = getDocOptions<options::SmartShapeOptions>(retval, "smart shape");
@@ -292,7 +292,7 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "pageWidth", double(pagePrefs->pageWidth) / EVPU_PER_INCH);
     setElementValue(styleElement, "pageHeight", double(pagePrefs->pageHeight) / EVPU_PER_INCH);
     setElementValue(styleElement, "pagePrintableWidth",
-                    double(pagePrefs->pageWidth + pagePrefs->leftPageMarginRight + pagePrefs->leftPageMarginRight) / EVPU_PER_INCH);
+                    double(pagePrefs->pageWidth - pagePrefs->leftPageMarginLeft + pagePrefs->leftPageMarginRight) / EVPU_PER_INCH);
     setElementValue(styleElement, "pageEvenLeftMargin", pagePrefs->leftPageMarginLeft / EVPU_PER_INCH);
     setElementValue(styleElement, "pageOddLeftMargin",
                     double(pagePrefs->facingPages ? pagePrefs->rightPageMarginLeft : pagePrefs->leftPageMarginLeft) / EVPU_PER_INCH);

@@ -193,3 +193,19 @@ TEST(Export, Parts)
         compareFiles(referencePathPart, getOutputPath() / "-exports" / mssFilenamePart);
     }
 }
+
+TEST(Export, CalcPageFormat)
+{
+    setupTestDataPaths();
+    std::string inputFile = "pageDiffThanOpts";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mss" };
+    checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << inputPath.u8string();
+    });
+    std::filesystem::path mssFilename = utils::utf8ToPath(inputFile + ".mss");
+    std::filesystem::path referencePath = getInputPath() / "reference" / utils::utf8ToPath(inputFile + ".mss");
+    EXPECT_TRUE(std::filesystem::exists(getOutputPath() / mssFilename));
+    compareFiles(referencePath, getOutputPath() / mssFilename);
+}
