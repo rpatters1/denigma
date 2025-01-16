@@ -455,7 +455,7 @@ void writeSmartShapePrefs(XmlElement& styleElement, const FinalePreferencesPtr& 
     setElementValue(styleElement, "hairpinHeight", prefs->smartShapeOptions->shortHairpinOpeningWidth / EVPU_PER_SPACE);
     setElementValue(styleElement, "hairpinContHeight", 0.5); // Hardcoded to a half space
     writeCategoryTextFontPref(styleElement, prefs, "hairpin", others::MarkingCategory::CategoryType::Dynamics);
-    writeLinePrefs(styleElement, "hairpin", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff);
+    writeLinePrefs(styleElement, "hairpin", prefs->smartShapeOptions->crescLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff);
 
     // Slur-related settings
     setElementValue(styleElement, "slurEndWidth", prefs->smartShapeOptions->smartSlurTipWidth / EVPU_PER_SPACE);
@@ -707,7 +707,7 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     writeCategoryTextFontPref(styleElement, prefs, "metronome", CategoryType::TempoMarks);
     setElementValue(styleElement, "translatorFontFace", textBlockFont->getName());
     writeCategoryTextFontPref(styleElement, prefs, "systemText", CategoryType::ExpressiveText);
-    writeCategoryTextFontPref(styleElement, prefs, "staffText", CategoryType::ExpressiveText);
+    writeCategoryTextFontPref(styleElement, prefs, "staffText", CategoryType::TechniqueText);
     writeCategoryTextFontPref(styleElement, prefs, "rehearsalMark", CategoryType::RehearsalMarks);
     writeDefaultFontPref(styleElement, prefs, "repeatLeft", FontType::Repeat);
     writeDefaultFontPref(styleElement, prefs, "repeatRight", FontType::Repeat);

@@ -215,7 +215,7 @@
         <staffTextFontFace>Times New Roman</staffTextFontFace>
         <staffTextFontSize>10</staffTextFontSize>
         <staffTextFontSpatiumDependent>1</staffTextFontSpatiumDependent>
-        <staffTextFontStyle>2</staffTextFontStyle>
+        <staffTextFontStyle>0</staffTextFontStyle>
         <rehearsalMarkFontFace>Times New Roman</rehearsalMarkFontFace>
         <rehearsalMarkFontSize>11.667</rehearsalMarkFontSize>
         <rehearsalMarkFontSpatiumDependent>1</rehearsalMarkFontSpatiumDependent>

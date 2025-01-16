@@ -29,6 +29,20 @@
 
 using namespace denigma;
 
+TEST(Logging, SingleFileNoLog)
+{
+    setupTestDataPaths();
+    std::string inputFile = "notAscii-其れ";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string() };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "Output", inputFile + ".enigmaxml" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << inputPath.u8string();
+    });
+    auto logPath = inputPath.parent_path() / (std::string(DENIGMA_NAME) + "-logs");
+    EXPECT_FALSE(std::filesystem::exists(logPath)) << "no log file should have been created";
+}
+
 TEST(Logging, InPlace)
 {
     setupTestDataPaths();
@@ -74,4 +88,46 @@ TEST(Logging, SpecificFile)
         auto logPath = inputPath.parent_path() / "logs";
         assertStringsInFile({ "Processing", inputPath.filename().u8string(), "Output", inputFile + ".enigmaxml", inputFile + ".mss" }, logPath, ".log");
     }
+}
+
+TEST(Logging, NonExistentFile)
+{
+    setupTestDataPaths();
+    auto inputPath = getOutputPath() / "doesntExist.musx";
+    ArgList args1 = { DENIGMA_NAME, "export", inputPath.u8string() };
+    checkStderr({ "does not exist or is not a file or directory", inputPath.filename().u8string() }, [&]() {
+        EXPECT_NE(denigmaTestMain(args1.argc(), args1.argv()), 0) << "create from " << inputPath.u8string();
+    });
+    auto logPath = inputPath.parent_path() / (std::string(DENIGMA_NAME) + "-logs");
+    EXPECT_FALSE(std::filesystem::exists(logPath)) << "no log file should have been created";
+}
+
+TEST(Logging, PatternFile)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("notAscii-其れ.musx", inputPath);
+    inputPath = getOutputPath() / "*.musx";
+    ArgList args1 = { DENIGMA_NAME, "export", inputPath.u8string() };
+    checkStderr("", [&]() {
+        EXPECT_EQ(denigmaTestMain(args1.argc(), args1.argv()), 0) << "create from " << inputPath.u8string();
+    });
+    auto logPath = inputPath.parent_path() / (std::string(DENIGMA_NAME) + "-logs");
+    EXPECT_TRUE(std::filesystem::exists(logPath)) << "log file should have been created";
+    assertStringsInFile({ "Processing", "notAscii-其れ.musx", "Output", "notAscii-其れ.enigmaxml" }, logPath, ".log");
+}
+
+TEST(Logging, Directory)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("notAscii-其れ.musx", inputPath);
+    inputPath = getOutputPath();
+    ArgList args1 = { DENIGMA_NAME, "export", inputPath.u8string() };
+    checkStderr("", [&]() {
+        EXPECT_EQ(denigmaTestMain(args1.argc(), args1.argv()), 0) << "create from " << inputPath.u8string();
+    });
+    auto logPath = inputPath / (std::string(DENIGMA_NAME) + "-logs");
+    EXPECT_TRUE(std::filesystem::exists(logPath)) << "log file should have been created";
+    assertStringsInFile({ "Processing", "notAscii-其れ.musx", "Output", "notAscii-其れ.enigmaxml" }, logPath, ".log");
 }
