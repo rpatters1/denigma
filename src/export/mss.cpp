@@ -735,7 +735,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
         auto partName = part->getName(); // Utf8-encoded partname can contain non-ASCII characters 
         if (partName.empty()) {
             partName = "Part" + std::to_string(part->getCmper());
-            denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension");
         }
         auto currExtension = qualifiedOutputPath.extension();
         qualifiedOutputPath.replace_extension(utils::utf8ToPath(partName + currExtension.u8string()));
