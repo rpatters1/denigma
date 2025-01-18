@@ -73,7 +73,7 @@ if(denigma_BUILD_TESTING)
     gtest_discover_tests(denigma_tests
         DISCOVERY_TIMEOUT 60 # Set timeout to 60 seconds
         PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/data
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data
             ENVIRONMENT "GTEST_COLOR=1"
         EXTRA_ARGS --gtest_color=yes
     )
