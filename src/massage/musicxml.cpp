@@ -295,7 +295,8 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
     auto gfHold = context->musxDocument->getDetails()->get<details::GFrameHold>(context->musxPartId, staff->getCmper(), measure);
     if (gfHold) {
         pugi::xml_node nextNote;
-        gfHold->iterateEntries([&](const std::shared_ptr<const Entry>& entry) -> bool {
+        gfHold->iterateEntries([&](const std::shared_ptr<const EntryInfo>& entryInfo) -> bool {
+            auto entry = entryInfo->getEntry();
             if (entry->isHidden) { // Dolet does not create note elements for invisible entries
                 return true;
             }

@@ -163,7 +163,7 @@ int _MAIN(int argc, arg_char* argv[])
         }
         std::filesystem::path inputDir = inputFilePattern.parent_path();
         bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);        
-        if (!inputIsOneFile && !rawInputPattern.has_filename() && !denigmaContext.logFilePath.has_value()) {
+        if (!inputIsOneFile && !isSpecificFile && !denigmaContext.logFilePath.has_value()) {
             denigmaContext.logFilePath = "";
         }
         denigmaContext.startLogging(inputDir, argc, argv);
