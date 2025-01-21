@@ -226,8 +226,7 @@ int _MAIN(int argc, arg_char* argv[])
             denigmaContext.inputFilePath = "";
             denigmaContext.processFile(currentCommand, path, args);
         }
-    }
-    catch (const std::exception& e) {
+    } catch (const std::exception& e) {
         denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
     }
 
