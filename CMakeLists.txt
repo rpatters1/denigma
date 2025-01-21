@@ -1,7 +1,3 @@
-if(POLICY CMP0077)
-    cmake_policy(SET CMP0077 NEW) # Suppress pugixml warning
-endif()
-
 # Minimum version of CMake required
 cmake_minimum_required(VERSION 3.22)
 
@@ -105,7 +101,7 @@ set(PUGIXML_BUILD_TESTS OFF CACHE BOOL "Do not build tests for pugixml")
 # Fetch pugixml
 FetchContent_Declare(
     pugixml
-    URL https://github.com/zeux/pugixml/releases/download/v1.14/pugixml-1.14.tar.gz
+    URL https://github.com/zeux/pugixml/releases/download/v1.15/pugixml-1.15.tar.gz
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(pugixml)
