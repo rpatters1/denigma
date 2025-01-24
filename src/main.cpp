@@ -238,6 +238,9 @@ int _MAIN(int argc, arg_char* argv[])
                 pathsToProcess.emplace(inputFilePattern);
             }
         }
+        if (pathsToProcess.size() > 1 && !denigmaContext.logFilePath.has_value()) {
+            denigmaContext.logFilePath = "";
+        }
         denigmaContext.startLogging(defaultLogPath.value_or(std::filesystem::current_path()), argc, argv);
         // process files
         for (const auto& path : pathsToProcess) {
