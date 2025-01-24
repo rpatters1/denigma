@@ -209,3 +209,35 @@ TEST(Export, CalcPageFormat)
     EXPECT_TRUE(std::filesystem::exists(getOutputPath() / mssFilename));
     compareFiles(referencePath, getOutputPath() / mssFilename);
 }
+
+TEST(Export, CurrentDirectoryPattern)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("notAscii-其れ.musx", inputPath);
+    copyInputToOutput("pageDiffThanOpts.musx", inputPath);
+    copyInputToOutput("tremolos.musx", inputPath);
+    auto currentPath = std::filesystem::current_path();
+    std::filesystem::current_path(inputPath.parent_path());
+    ArgList args = { DENIGMA_NAME, "export", "*.musx", "--no-log" };
+    checkStderr({ "Processing", "pageDiffThanOpts.musx", "tremolos.musx", "notAscii-" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << "*.musx";
+    });
+    std::filesystem::current_path(currentPath);
+}
+
+TEST(Export, AutoGlobSimulation)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("notAscii-其れ.musx", inputPath);
+    copyInputToOutput("pageDiffThanOpts.musx", inputPath);
+    copyInputToOutput("tremolos.musx", inputPath);
+    auto currentPath = std::filesystem::current_path();
+    std::filesystem::current_path(inputPath.parent_path());
+    ArgList args = { DENIGMA_NAME, "export", "notAscii-其れ.musx", "pageDiffThanOpts.musx", "tremolos.musx", "--no-log" };
+    checkStderr({ "Processing", "pageDiffThanOpts.musx", "tremolos.musx", "notAscii-" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << "*.musx";
+    });
+    std::filesystem::current_path(currentPath);
+}
