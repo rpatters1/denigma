@@ -162,7 +162,10 @@ int _MAIN(int argc, arg_char* argv[])
             }
         }
         std::filesystem::path inputDir = inputFilePattern.parent_path();
-        bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);        
+        if (inputDir.is_relative()) {
+            inputDir = std::filesystem::current_path() / inputDir;
+        }
+        bool inputIsOneFile = std::filesystem::is_regular_file(inputFilePattern);
         if (!inputIsOneFile && !isSpecificFile && !denigmaContext.logFilePath.has_value()) {
             denigmaContext.logFilePath = "";
         }
