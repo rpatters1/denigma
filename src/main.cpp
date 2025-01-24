@@ -162,7 +162,7 @@ int _MAIN(int argc, arg_char* argv[])
 
     try {
         for (size_t x = 1; x < args.size(); x++) {
-            arg_string option = args[x];
+            arg_view option = args[x];
             if (option.rfind(_ARG("--"), 0) == 0) {  // Options start with "--"
                 break;
             }
