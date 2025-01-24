@@ -265,8 +265,12 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
 {
     try {
         if (!std::filesystem::is_regular_file(inpFilePath) && !forTestOutput()) {
-            throw std::runtime_error("Input file " + inpFilePath.u8string() + " does not exist or is not a file.");
+            throw std::runtime_error("Input path " + inpFilePath.u8string() + " does not exist or is not a file or directory.");
         }
+//        if (!currentCommand->canProcess(inpFilePath)) {
+//            logMessage(LogMsg() << "Invalid input format for command: " << inpFilePath.u8string(), LogSeverity::Error);
+//            return;
+//        }
         constexpr char kProcessingMessage[] = "Processing File: ";
         constexpr size_t kProcessingMessageSize = sizeof(kProcessingMessage) - 1; // account for null terminator.
         std::string delimiter(kProcessingMessageSize + inpFilePath.u32string().size(), '='); // use u32string().size to get actual number of characters displayed
