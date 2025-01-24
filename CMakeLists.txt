@@ -136,8 +136,8 @@ set(JSON_VALIDATOR_BUILD_TESTS OFF CACHE BOOL "Do not build tests for json_schem
 set(nlohmann_json_VERSION ${NLOHMANN_JSON_VERSION})
 FetchContent_Declare(
     json_schema_validator
-    GIT_REPOSITORY https://github.com/rpatters1/json-schema-validator.git # use my fork unless PR#338 is merged to upstream
-    GIT_TAG        010eba651fc2469f73ff132108747638e14f8cb0
+    GIT_REPOSITORY https://github.com/pboettch/json-schema-validator
+    GIT_TAG        40af3ec39670e768fc3f01f935140af311d71024
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(json_schema_validator)
