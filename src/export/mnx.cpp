@@ -32,48 +32,68 @@
 #include "musx/musx.h"
 #include "denigma.h"
 
+static constexpr int MNX_VERSION_NUMBER = 1;
+static const std::string_view MNX_SCHEMA(reinterpret_cast<const char *>(mnx_schema_json), mnx_schema_json_len);
+
+using namespace musx::dom;
+using json = nlohmann::ordered_json;
+//using json = nlohmann::json;
+
 namespace denigma {
 namespace mnx {
 
-// placeholder
-void convert(const std::filesystem::path& file, const Buffer&, const DenigmaContext& denigmaContext)
+json createMnx([[maybe_unused]]const DocumentPtr& musxDocument)
 {
-    denigmaContext.logMessage(LogMsg() << "converting to " << file.u8string());
+    auto musxObject = json::object();
+    musxObject["version"] = MNX_VERSION_NUMBER;
+    return musxObject;
 }
 
-// temp func
-[[maybe_unused]]static bool validateJsonAgainstSchema(const std::filesystem::path& jsonFilePath, const DenigmaContext& denigmaContext)
+json createGlobal([[maybe_unused]] const DocumentPtr& musxDocument)
 {
-    static const std::string_view kMnxSchema(reinterpret_cast<const char *>(mnx_schema_json), mnx_schema_json_len);
+    auto globalObject = json::object();
+    globalObject["measures"] = json::array();
+    return globalObject;
+}
 
-    denigmaContext.logMessage(LogMsg() << "validate JSON " << jsonFilePath.u8string());
+json createParts([[maybe_unused]] const DocumentPtr& musxDocument)
+{
+    auto partsObject = json::array();
+    return partsObject;
+}
+
+void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.testOutput) {
+        denigmaContext.logMessage(LogMsg() << "Converting to " << outputPath.u8string());
+        return;
+    }
+#endif
+    if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
+
+    auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
+    json mnxDocument;
+    mnxDocument["mnx"] = createMnx(document);
+    mnxDocument["global"] = createGlobal(document);
+    mnxDocument["parts"] = createParts(document);
+
+    // validate the result
     try {
         // Load JSON schema
-        nlohmann::json schemaJson = nlohmann::json::parse(kMnxSchema);
+        json schemaJson = json::parse(denigmaContext.mnxSchema.value_or(std::string(MNX_SCHEMA)));
         nlohmann::json_schema::json_validator validator;
         validator.set_root_schema(schemaJson);
-
-        // Load JSON file
-        std::ifstream jsonFile(jsonFilePath);
-        if (!jsonFile.is_open()) {
-            throw std::runtime_error("Unable to open JSON file: " + jsonFilePath.u8string());
-        }
-        nlohmann::json jsonData;
-        jsonFile >> jsonData;
-
-        // Validate JSON
-        validator.validate(jsonData);
-        denigmaContext.logMessage(LogMsg() << "JSON is valid against the MNX schema.");
-        return true;
-    } catch (const nlohmann::json::exception& e) {
-        denigmaContext.logMessage(LogMsg() << "JSON parsing error: " << e.what(), LogSeverity::Error);
+        validator.validate(mnxDocument);
     } catch (const std::invalid_argument& e) {
-        denigmaContext.logMessage(LogMsg() << "Invalid argument: " << e.what(), LogSeverity::Error);
-    } catch (const std::exception& e) {
-        denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "Invalid argument: " << e.what(), LogSeverity::Warning);
     }
-    denigmaContext.logMessage(LogMsg() << "JSON is not valid against the MNX schema.", LogSeverity::Error);
-    return false;
+
+    std::ofstream file;
+    file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+    file.open(outputPath, std::ios::out | std::ios::binary);
+    file << mnxDocument.dump(denigmaContext.indentSpaces.value_or(-1));
+    file.close();
 }
 
 } // namespace mnx

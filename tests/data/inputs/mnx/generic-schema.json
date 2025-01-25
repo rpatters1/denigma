@@ -1,0 +1,39 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+      "person": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the person."
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The age of the person in years."
+          },
+          "email": {
+            "type": "string",
+            "description": "The email address of the person."
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Indicates if the person is currently active."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A list of tags associated with the person."
+          }
+        },
+        "required": ["name", "email"],
+        "additionalProperties": false
+      }
+    },
+    "type": "object",
+    "$ref": "#/$defs/person"
+  }
+  

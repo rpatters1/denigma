@@ -767,7 +767,6 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     writeMarkingPrefs(styleElement, prefs);
     // output
     // open the file ourselves to avoid Windows ACP encoding issues for path strings
-    /// @todo encapsulate this into a callable function if/when we need to do it elsewhere
     std::ofstream file;
     file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     file.open(qualifiedOutputPath, std::ios::out | std::ios::binary);

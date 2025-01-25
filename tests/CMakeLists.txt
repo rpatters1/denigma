@@ -17,6 +17,7 @@ if(denigma_BUILD_TESTING)
         test_logging.cpp
         test_massage.cpp
         test_options.cpp
+        test_schema.cpp
         ${DENIGMA_SOURCES}
     )
 

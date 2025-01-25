@@ -89,6 +89,20 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             fermataWholeRests = true;
         } else if (next == _ARG("--no-fermata-whole-rests")) {
             fermataWholeRests = false;
+        } else if (next == _ARG("--pretty-print")) {
+            try {
+                int value = std::stoi(std::string(_ARG_CONV(getNextArg())));
+                indentSpaces = (value >= 0) ? value : JSON_INDENT_SPACES;
+            } catch (...) {
+                indentSpaces = JSON_INDENT_SPACES;
+            }
+        } else if (next == _ARG("--no-pretty-print")) {
+            indentSpaces = std::nullopt;
+        } else if (next == _ARG("--mnx-schema")) {
+            std::filesystem::path schemaPath = getNextArg();
+            if (!schemaPath.empty()) {
+                mnxSchemaPath = schemaPath;
+            }
 #ifdef DENIGMA_TEST // this is defined on the command line by the test program
         } else if (next == _ARG("--testing")) {
             testOutput = true;

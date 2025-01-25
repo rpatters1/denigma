@@ -117,6 +117,20 @@ inline std::string toLowerCase(const std::string& inp)
     return s;
 }
 
+inline std::string fileToString(const std::filesystem::path& pathToRead)
+{
+    std::ifstream file;
+    file.exceptions(std::ios::failbit | std::ios::badbit);
+    file.open(pathToRead, std::ios::binary | std::ios::ate);
+
+    // Preallocate retval based on file size
+    std::streamsize fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::string retval(static_cast<std::size_t>(fileSize), 0);
+    file.read(retval.data(), fileSize);
+    return retval;
+}
 
 #if defined(STRINGUTILS_DEFINED_CPS)
 #undef CP_UTF8

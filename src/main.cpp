@@ -242,6 +242,9 @@ int _MAIN(int argc, arg_char* argv[])
             denigmaContext.logFilePath = "";
         }
         denigmaContext.startLogging(defaultLogPath.value_or(std::filesystem::current_path()), argc, argv);
+        if (denigmaContext.mnxSchemaPath.has_value() && !denigmaContext.mnxSchema.has_value()) {
+            denigmaContext.mnxSchema = utils::fileToString(denigmaContext.mnxSchemaPath.value());
+        }
         // process files
         for (const auto& path : pathsToProcess) {
             denigmaContext.inputFilePath = "";

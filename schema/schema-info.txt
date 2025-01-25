@@ -1,0 +1,6 @@
+The latest version of this schema file is downloadable from:
+
+https://w3c.github.io/mnx/docs/mnx-schema.json
+
+It is maintained separately here so that we have control over which version is embedded in the utility.
+You can use a different version with the `--schema` option.
