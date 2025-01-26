@@ -47,31 +47,32 @@ namespace mnx {
 struct MnxMusxMapping
 {
     MnxMusxMapping(const DenigmaContext& context, const DocumentPtr& doc)
-        : denigmaContext(&context), document(doc) {}
+        : denigmaContext(&context), document(doc), mnxDocument() {}
 
     const DenigmaContext* denigmaContext;
     DocumentPtr document;
-    
+    json mnxDocument;
+
     std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
     std::unordered_map<InstCmper, std::string> inst2Part;
 };
 using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
 
-json createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
+void createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
-    auto musxObject = json::object();
-    musxObject["version"] = MNX_VERSION_NUMBER;
-    return musxObject;
+    auto mnxObject = json::object();
+    mnxObject["version"] = MNX_VERSION_NUMBER;
+    context->mnxDocument["mnx"] = mnxObject;
 }
 
-json createGlobal([[maybe_unused]] const MnxMusxMappingPtr& context)
+void createGlobal([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
     auto globalObject = json::object();
     globalObject["measures"] = json::array();
-    return globalObject;
+    context->mnxDocument["global"] = globalObject;
 }
 
-json createParts(const MnxMusxMappingPtr& context)
+void createParts(const MnxMusxMappingPtr& context)
 {
     /// @todo figure out mulitstaff instruments
     auto partsObject = json::array();
@@ -95,17 +96,16 @@ json createParts(const MnxMusxMappingPtr& context)
         context->inst2Part.emplace(staff->getCmper(), id);
         context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
     }
-    return partsObject;
+    context->mnxDocument["parts"] =  partsObject;
 }
 
-json createScores(const MnxMusxMappingPtr& context)
+void createScores(const MnxMusxMappingPtr& context)
 {
-    auto scoresObject = json();
+    auto& mnxDocument = context->mnxDocument;
     auto musxLinkedParts = context->document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
     for (const auto& linkedPart : musxLinkedParts) {
         auto mnxScore = json::object();
         /// @todo layout id
-        auto mnxMmRests = json();
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
             auto mnxMmRest = json::object();
@@ -114,13 +114,10 @@ json createScores(const MnxMusxMappingPtr& context)
                 mnxMmRest["label"] = "";
             }
             mnxMmRest["start"] = mmRest->getStartMeasure();
-            if (mnxMmRests.empty()) {
-                mnxMmRests = json::array();
+            if (mnxScore["multimeasureRests"].empty()) {
+                mnxScore["multimeasureRests"] = json::array();
             }
-            mnxMmRests.emplace_back(mnxMmRest);
-        }
-        if (!mnxMmRests.empty()) {
-            mnxScore["multimeasureRests"] = mnxMmRests;
+            mnxScore["multimeasureRests"].emplace_back(mnxMmRest);
         }
         mnxScore["name"] = linkedPart->getName(EnigmaString::AccidentalStyle::Unicode);
         if (mnxScore["name"] == "") {
@@ -129,12 +126,11 @@ json createScores(const MnxMusxMappingPtr& context)
                              : std::string("Part ") + std::to_string(linkedPart->getCmper());
         }
         /// @todo pages
-        if (scoresObject.empty()) {
-            scoresObject = json::array();
+        if (mnxDocument["scores"].empty()) {
+            mnxDocument["scores"] = json::array();
         }
-        scoresObject.emplace_back(mnxScore);
+        mnxDocument["scores"].emplace_back(mnxScore);
     }
-    return scoresObject;
 }
 
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
@@ -150,14 +146,10 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
 
-    json mnxDocument;
-    mnxDocument["mnx"] = createMnx(context);
-    mnxDocument["global"] = createGlobal(context);
-    mnxDocument["parts"] = createParts(context);
-    auto scores = createScores(context);
-    if (!scores.empty()) {
-        mnxDocument["scores"] = scores;
-    }
+    createMnx(context);
+    createGlobal(context);
+    createParts(context);
+    createScores(context);
     
     // validate the result
     try {
@@ -165,7 +157,7 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
         json schemaJson = json::parse(denigmaContext.mnxSchema.value_or(std::string(MNX_SCHEMA)));
         nlohmann::json_schema::json_validator validator;
         validator.set_root_schema(schemaJson);
-        validator.validate(mnxDocument);
+        validator.validate(context->mnxDocument);
     } catch (const std::invalid_argument& e) {
         denigmaContext.logMessage(LogMsg() << "Invalid argument: " << e.what(), LogSeverity::Warning);
     }
@@ -173,7 +165,7 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     std::ofstream file;
     file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     file.open(outputPath, std::ios::out | std::ios::binary);
-    file << mnxDocument.dump(denigmaContext.indentSpaces.value_or(-1));
+    file << context->mnxDocument.dump(denigmaContext.indentSpaces.value_or(-1));
     file.close();
 }
 
