@@ -76,13 +76,21 @@ void createParts(const MnxMusxMappingPtr& context)
 {
     /// @todo figure out mulitstaff instruments
     auto partsObject = json::array();
+    auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);
     auto scrollView = context->document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, SCROLLVIEW_IULIST);
+    int partNumber = 0;
     for (const auto& item : scrollView) {
         auto staff = item->getStaff();
-        std::string id = "P" + std::to_string(staff->getCmper());
+        auto multiStaffInst = others::MultiStaffInstrumentGroup::findStaffNum(multiStaffInsts, staff->getCmper());
+        if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
+            continue;
+        }
+        std::string id = "P" + std::to_string(++partNumber);
         auto part = json::object();
         part["id"] = id;
-        part["name"] = staff->getFullName(EnigmaString::AccidentalStyle::Unicode);
+        part["name"] = multiStaffInst
+                     ? std::string("multistaff inst ") + std::to_string(multiStaffInst->getCmper()) /// @todo get the actual name
+                     : staff->getFullName(EnigmaString::AccidentalStyle::Unicode);
         if (part["name"] == "") {
             part.erase("name");
         }
@@ -90,11 +98,17 @@ void createParts(const MnxMusxMappingPtr& context)
         if (part["shortName"] == "") {
             part.erase("shortName");
         }
-        /// @todo figure out the correct number of staves using groups and mulitstaff instruments
-        //part["staves"] = 1; (default)
+        if (multiStaffInst) {
+            part["staves"] = multiStaffInst->staffNums.size();
+            for (auto inst : multiStaffInst->staffNums) {
+                context->inst2Part.emplace(inst, id);
+            }
+            context->part2Inst.emplace(id, multiStaffInst->staffNums);
+        } else {
+            context->inst2Part.emplace(staff->getCmper(), id);
+            context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
+        }
         partsObject.emplace_back(part);
-        context->inst2Part.emplace(staff->getCmper(), id);
-        context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
     }
     context->mnxDocument["parts"] =  partsObject;
 }
