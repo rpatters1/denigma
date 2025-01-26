@@ -22,6 +22,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <unordered_map>
 
 #include "mnx.h"
 
@@ -36,29 +37,64 @@ static constexpr int MNX_VERSION_NUMBER = 1;
 static const std::string_view MNX_SCHEMA(reinterpret_cast<const char *>(mnx_schema_json), mnx_schema_json_len);
 
 using namespace musx::dom;
+using namespace musx::util;
 using json = nlohmann::ordered_json;
 //using json = nlohmann::json;
 
 namespace denigma {
 namespace mnx {
 
-json createMnx([[maybe_unused]]const DocumentPtr& musxDocument)
+struct MnxMusxMapping
+{
+    MnxMusxMapping(const DenigmaContext& context, const DocumentPtr& doc)
+        : denigmaContext(&context), document(doc) {}
+
+    const DenigmaContext* denigmaContext;
+    DocumentPtr document;
+    
+    std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
+    std::unordered_map<InstCmper, std::string> inst2Part;
+};
+using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
+
+json createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
     auto musxObject = json::object();
     musxObject["version"] = MNX_VERSION_NUMBER;
     return musxObject;
 }
 
-json createGlobal([[maybe_unused]] const DocumentPtr& musxDocument)
+json createGlobal([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
     auto globalObject = json::object();
     globalObject["measures"] = json::array();
     return globalObject;
 }
 
-json createParts([[maybe_unused]] const DocumentPtr& musxDocument)
+json createParts(const MnxMusxMappingPtr& context)
 {
+    /// @todo figure out mulitstaff instruments
     auto partsObject = json::array();
+    auto scrollView = context->document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, SCROLLVIEW_IULIST);
+    for (const auto& item : scrollView) {
+        auto staff = item->getStaff();
+        std::string id = "P" + std::to_string(staff->getCmper());
+        auto part = json::object();
+        part["id"] = id;
+        part["name"] = staff->getFullName(EnigmaString::AccidentalStyle::Unicode);
+        if (part["name"] == "") {
+            part.erase("name");
+        }
+        part["shortName"] = staff->getAbbreviatedName(EnigmaString::AccidentalStyle::Unicode);
+        if (part["shortName"] == "") {
+            part.erase("shortName");
+        }
+        /// @todo figure out the correct number of staves using groups and mulitstaff instruments
+        //part["staves"] = 1; (default)
+        partsObject.push_back(part);
+        context->inst2Part.emplace(staff->getCmper(), id);
+        context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
+    }
     return partsObject;
 }
 
@@ -73,10 +109,12 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
     auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
+    auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
+
     json mnxDocument;
-    mnxDocument["mnx"] = createMnx(document);
-    mnxDocument["global"] = createGlobal(document);
-    mnxDocument["parts"] = createParts(document);
+    mnxDocument["mnx"] = createMnx(context);
+    mnxDocument["global"] = createGlobal(context);
+    mnxDocument["parts"] = createParts(context);
 
     // validate the result
     try {

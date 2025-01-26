@@ -61,25 +61,3 @@ TEST(Schema, EmbeddedSchemaValid)
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "validate " << inputPath.u8string();
     });
 }
-
-/*
-TEST(Schema, EmbeddedSchemaValid)
-{
-    setupTestDataPaths();
-    std::filesystem::path inputPath = getInputPath() / "valid.mnx";
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string() };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "is valid" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "validate " << inputPath.u8string();
-    });
-}
-
-TEST(Schema, EmbeddedSchemaNotValid)
-{
-    setupTestDataPaths();
-    std::filesystem::path inputPath = getInputPath() / utils::utf8ToPath("generic_nonascii_其れ.json");
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string() };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "is not valid" }, [&]() {
-        EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "validate " << inputPath.u8string();
-    });
-}
-*/
