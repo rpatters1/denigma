@@ -91,11 +91,50 @@ json createParts(const MnxMusxMappingPtr& context)
         }
         /// @todo figure out the correct number of staves using groups and mulitstaff instruments
         //part["staves"] = 1; (default)
-        partsObject.push_back(part);
+        partsObject.emplace_back(part);
         context->inst2Part.emplace(staff->getCmper(), id);
         context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
     }
     return partsObject;
+}
+
+json createScores(const MnxMusxMappingPtr& context)
+{
+    auto scoresObject = json();
+    auto musxLinkedParts = context->document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
+    for (const auto& linkedPart : musxLinkedParts) {
+        auto mnxScore = json::object();
+        /// @todo layout id
+        auto mnxMmRests = json();
+        auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
+        for (const auto& mmRest : mmRests) {
+            auto mnxMmRest = json::object();
+            mnxMmRest["duration"] = mmRest->calcNumberOfMeasures();
+            if (!mmRest->calcIsNumberVisible()) {
+                mnxMmRest["label"] = "";
+            }
+            mnxMmRest["start"] = mmRest->getStartMeasure();
+            if (mnxMmRests.empty()) {
+                mnxMmRests = json::array();
+            }
+            mnxMmRests.emplace_back(mnxMmRest);
+        }
+        if (!mnxMmRests.empty()) {
+            mnxScore["multimeasureRests"] = mnxMmRests;
+        }
+        mnxScore["name"] = linkedPart->getName(EnigmaString::AccidentalStyle::Unicode);
+        if (mnxScore["name"] == "") {
+            mnxScore["name"] = linkedPart->isScore()
+                             ? std::string("Score")
+                             : std::string("Part ") + std::to_string(linkedPart->getCmper());
+        }
+        /// @todo pages
+        if (scoresObject.empty()) {
+            scoresObject = json::array();
+        }
+        scoresObject.emplace_back(mnxScore);
+    }
+    return scoresObject;
 }
 
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
@@ -115,7 +154,11 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     mnxDocument["mnx"] = createMnx(context);
     mnxDocument["global"] = createGlobal(context);
     mnxDocument["parts"] = createParts(context);
-
+    auto scores = createScores(context);
+    if (!scores.empty()) {
+        mnxDocument["scores"] = scores;
+    }
+    
     // validate the result
     try {
         // Load JSON schema
