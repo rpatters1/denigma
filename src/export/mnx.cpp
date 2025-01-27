@@ -81,20 +81,18 @@ void createParts(const MnxMusxMappingPtr& context)
     int partNumber = 0;
     for (const auto& item : scrollView) {
         auto staff = item->getStaff();
-        auto multiStaffInst = others::MultiStaffInstrumentGroup::findStaffNum(multiStaffInsts, staff->getCmper());
+        auto multiStaffInst = staff->getMultiStaffInstGroup();
         if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
             continue;
         }
         std::string id = "P" + std::to_string(++partNumber);
         auto part = json::object();
         part["id"] = id;
-        part["name"] = multiStaffInst
-                     ? std::string("multistaff inst ") + std::to_string(multiStaffInst->getCmper()) /// @todo get the actual name
-                     : staff->getFullName(EnigmaString::AccidentalStyle::Unicode);
+        part["name"] = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
         if (part["name"] == "") {
             part.erase("name");
         }
-        part["shortName"] = staff->getAbbreviatedName(EnigmaString::AccidentalStyle::Unicode);
+        part["shortName"] = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
         if (part["shortName"] == "") {
             part.erase("shortName");
         }
