@@ -102,6 +102,12 @@ static void createScores(const MnxMusxMappingPtr& context)
     for (const auto& linkedPart : musxLinkedParts) {
         auto mnxScore = json::object();
         mnxScore["layout"] = scrollViewLayoutId(linkedPart->getCmper());
+        mnxScore["name"] = linkedPart->getName(EnigmaString::AccidentalStyle::Unicode);
+        if (mnxScore["name"] == "") {
+            mnxScore["name"] = linkedPart->isScore()
+                             ? std::string("Score")
+                             : std::string("Part ") + std::to_string(linkedPart->getCmper());
+        }
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
             auto mnxMmRest = json::object();
@@ -114,12 +120,6 @@ static void createScores(const MnxMusxMappingPtr& context)
                 mnxScore["multimeasureRests"] = json::array();
             }
             mnxScore["multimeasureRests"].emplace_back(mnxMmRest);
-        }
-        mnxScore["name"] = linkedPart->getName(EnigmaString::AccidentalStyle::Unicode);
-        if (mnxScore["name"] == "") {
-            mnxScore["name"] = linkedPart->isScore()
-                             ? std::string("Score")
-                             : std::string("Part ") + std::to_string(linkedPart->getCmper());
         }
         /// @todo pages
         if (mnxDocument["scores"].empty()) {
