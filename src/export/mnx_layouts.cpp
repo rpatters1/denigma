@@ -19,47 +19,37 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#pragma once
-
+#include <iostream>
 #include <filesystem>
-#include <optional>
+#include <fstream>
+#include <unordered_map>
+
+#include "mnx.h"
 
 #include "nlohmann/json.hpp"
-#include "denigma.h"
-#include "musx/musx.h"
-
- //placeholder function
-
-using namespace musx::dom;
-using namespace musx::util;
 
 namespace denigma {
 namespace mnx {
 
-using json = nlohmann::ordered_json;
-//using json = nlohmann::json;
-
-struct MnxMusxMapping
+void createLayouts(const MnxMusxMappingPtr& context)
 {
-    MnxMusxMapping(const DenigmaContext& context, const DocumentPtr& doc)
-        : denigmaContext(&context), document(doc), mnxDocument() {}
-
-    const DenigmaContext* denigmaContext;
-    DocumentPtr document;
-    json mnxDocument;
-
-    std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
-    std::unordered_map<InstCmper, std::string> inst2Part;
-};
-using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
-
-inline std::string scrollViewLayoutId(Cmper partId)
-{ return "S" + std::to_string(partId) + "-ScrVw"; }
-
-inline constexpr int MNX_VERSION_NUMBER = 1;
-
-void createLayouts(const MnxMusxMappingPtr& context);
-void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
+    auto& mnxDocument = context->mnxDocument;
+    auto musxLinkedParts = context->document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
+    std::sort(musxLinkedParts.begin(), musxLinkedParts.end(), [](const auto& lhs, const auto& rhs) {
+        return lhs->partOrder < rhs->partOrder;
+    });
+    for (const auto& linkedPart : musxLinkedParts) {
+        auto layout = json::object();
+        layout["id"] = scrollViewLayoutId(linkedPart->getCmper());
+        auto groups = context->document->getDetails()->getArray<details::StaffGroup>(linkedPart->getCmper(), linkedPart->calcScrollViewIuList());
+        auto scrollViewStaves = context->document->getOthers()->getArray<others::InstrumentUsed>(linkedPart->getCmper(), linkedPart->calcScrollViewIuList());
+        layout["content"] = json::array();
+        if (mnxDocument["layouts"].empty()) {
+            mnxDocument["layouts"] = json::array();
+        }
+        mnxDocument["layouts"].emplace_back(layout);
+    }
+}
 
 } // namespace mnx
 } // namespace denigma

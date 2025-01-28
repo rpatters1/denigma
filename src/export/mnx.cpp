@@ -26,14 +26,9 @@
 
 #include "mnx.h"
 
-#include "nlohmann/json.hpp"
 #include "nlohmann/json-schema.hpp"
 #include "mnx_schema.xxd"
 
-#include "musx/musx.h"
-#include "denigma.h"
-
-static constexpr int MNX_VERSION_NUMBER = 1;
 static const std::string_view MNX_SCHEMA(reinterpret_cast<const char *>(mnx_schema_json), mnx_schema_json_len);
 
 using namespace musx::dom;
@@ -44,35 +39,21 @@ using json = nlohmann::ordered_json;
 namespace denigma {
 namespace mnx {
 
-struct MnxMusxMapping
-{
-    MnxMusxMapping(const DenigmaContext& context, const DocumentPtr& doc)
-        : denigmaContext(&context), document(doc), mnxDocument() {}
-
-    const DenigmaContext* denigmaContext;
-    DocumentPtr document;
-    json mnxDocument;
-
-    std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
-    std::unordered_map<InstCmper, std::string> inst2Part;
-};
-using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
-
-void createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
+static void createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
     auto mnxObject = json::object();
     mnxObject["version"] = MNX_VERSION_NUMBER;
     context->mnxDocument["mnx"] = mnxObject;
 }
 
-void createGlobal([[maybe_unused]] const MnxMusxMappingPtr& context)
+static void createGlobal([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
     auto globalObject = json::object();
     globalObject["measures"] = json::array();
     context->mnxDocument["global"] = globalObject;
 }
 
-void createParts(const MnxMusxMappingPtr& context)
+static void createParts(const MnxMusxMappingPtr& context)
 {
     /// @todo figure out mulitstaff instruments
     auto partsObject = json::array();
@@ -111,13 +92,16 @@ void createParts(const MnxMusxMappingPtr& context)
     context->mnxDocument["parts"] =  partsObject;
 }
 
-void createScores(const MnxMusxMappingPtr& context)
+static void createScores(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
     auto musxLinkedParts = context->document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
+    std::sort(musxLinkedParts.begin(), musxLinkedParts.end(), [](const auto& lhs, const auto& rhs) {
+        return lhs->partOrder < rhs->partOrder;
+    });
     for (const auto& linkedPart : musxLinkedParts) {
         auto mnxScore = json::object();
-        /// @todo layout id
+        mnxScore["layout"] = scrollViewLayoutId(linkedPart->getCmper());
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
             auto mnxMmRest = json::object();
@@ -161,7 +145,8 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     createMnx(context);
     createGlobal(context);
     createParts(context);
-    createScores(context);
+    createLayouts(context); // must come after createParts
+    createScores(context); // must come after createLayouts
     
     // validate the result
     try {
