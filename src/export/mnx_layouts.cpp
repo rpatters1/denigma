@@ -110,12 +110,18 @@ static json buildStaffJson(const MnxMusxMappingPtr& context,
             sourceJson["labelref"] = "shortName";
         }
     }
-
-    /** @todo
-     *
-    if (staffSlot->hasStemDirection()) {
-        sourceJson["stem"] = staffSlot->getStemDirection();
+    switch (staff->stemDirection) {
+    default:
+        break;
+    case others::Staff::StemDirection::AlwaysUp:
+        sourceJson["stem"] = "up";
+        break;
+    case others::Staff::StemDirection::AlwaysDown:
+        sourceJson["stem"] = "down";
+        break;
     }
+
+    /** @todo (not sure if this will ever be done)
     if (staffSlot->hasVoiceNumber()) {
         sourceJson["voice"] = staffSlot->getVoiceName();
     }
