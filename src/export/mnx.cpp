@@ -121,7 +121,35 @@ static void createScores(const MnxMusxMappingPtr& context)
             }
             mnxScore["multimeasureRests"].emplace_back(mnxMmRest);
         }
-        /// @todo pages
+        auto pages = context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper());
+        auto baseIuList = linkedPart->calcSystemIuList(BASE_SYSTEM_ID);
+        for (size_t x = 0; x < pages.size(); x++) {
+            auto mnxSystems = json::array();
+            auto page = pages[x];
+            if (!page->isBlank() && page->lastSystem.has_value()) {
+                for (SystemCmper sysId = page->firstSystem; sysId <= *page->lastSystem; sysId++) {
+                    auto mnxSystem = json::object();
+                    auto system = context->document->getOthers()->get<others::StaffSystem>(linkedPart->getCmper(), sysId);
+                    if (!system) {
+                        throw std::logic_error("System " + std::to_string(sysId) + " on page " + std::to_string(page->getCmper())
+                            + " in part " + linkedPart->getName() + " does not exist.");
+                    }
+                    mnxSystem["measure"] = system->startMeas;
+                    if (linkedPart->calcSystemIuList(sysId) == baseIuList) {
+                        mnxSystem["layout"] = calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID);
+                    } else {
+                        mnxSystem["layout"] = calcSystemLayoutId(linkedPart->getCmper(), sysId);
+                    }
+                    mnxSystems.emplace_back(mnxSystem);
+                }
+            }
+            auto mnxPage = json::object();
+            mnxPage["systems"] = mnxSystems;
+            if (mnxScore["pages"].empty()) {
+                mnxScore["pages"] = json::array();
+            }            
+            mnxScore["pages"].emplace_back(mnxPage);
+        }
         if (mnxDocument["scores"].empty()) {
             mnxDocument["scores"] = json::array();
         }
