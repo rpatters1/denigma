@@ -58,7 +58,7 @@ static void createParts(const MnxMusxMappingPtr& context)
     /// @todo figure out mulitstaff instruments
     auto partsObject = json::array();
     auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);
-    auto scrollView = context->document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, SCROLLVIEW_IULIST);
+    auto scrollView = context->document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
     int partNumber = 0;
     for (const auto& item : scrollView) {
         auto staff = item->getStaff();
@@ -101,7 +101,7 @@ static void createScores(const MnxMusxMappingPtr& context)
     });
     for (const auto& linkedPart : musxLinkedParts) {
         auto mnxScore = json::object();
-        mnxScore["layout"] = scrollViewLayoutId(linkedPart->getCmper());
+        mnxScore["layout"] = calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID);
         mnxScore["name"] = linkedPart->getName(EnigmaString::AccidentalStyle::Unicode);
         if (mnxScore["name"] == "") {
             mnxScore["name"] = linkedPart->isScore()

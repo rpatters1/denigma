@@ -38,22 +38,36 @@ struct StaffGroupInfo
     std::shared_ptr<details::StaffGroup> group;
 
     StaffGroupInfo(const std::shared_ptr<details::StaffGroup>& inp,
-        const std::vector<std::shared_ptr<others::InstrumentUsed>>& scrollViewStaves) : group(inp)
+        const std::vector<std::shared_ptr<others::InstrumentUsed>>& systemStaves) : group(inp)
     {
-        startSlot = others::InstrumentUsed::getIndexForStaff(scrollViewStaves, inp->startInst);
-        endSlot = others::InstrumentUsed::getIndexForStaff(scrollViewStaves, inp->endInst);
+        if (systemStaves.empty()) {
+            throw std::logic_error("Attempt to create StaffGroupInfo with no system staves (StaffGroup " + std::to_string(inp->getCmper2()) + ")");
+        }
+        for (size_t x = 0; x < systemStaves.size(); x++) {
+            if (inp->staves.find(systemStaves[x]->staffId) != inp->staves.end()) {
+                startSlot = x;
+                break;
+            }
+        }
+        if (startSlot) {
+            for (size_t x = systemStaves.size() - 1; x >= *startSlot; x--) {
+                if (inp->staves.find(systemStaves[x]->staffId) != inp->staves.end()) {
+                    endSlot = x;
+                    break;
+                }
+            }
+        }
     }
 
-    static std::vector<StaffGroupInfo> getGroupsAtMeasure(MeasCmper meas,
+    static std::vector<StaffGroupInfo> getGroupsAtMeasure(MeasCmper measureId,
         const std::shared_ptr<others::PartDefinition>& linkedPart,
-        const std::vector<std::shared_ptr<others::InstrumentUsed>>& scrollViewStaves)
+        const std::vector<std::shared_ptr<others::InstrumentUsed>>& systemStaves)
     {
-        auto rawGroups = linkedPart->getDocument()->getDetails()->getArray<details::StaffGroup>(
-            linkedPart->getCmper(), linkedPart->calcScrollViewIuList());
+        auto rawGroups = linkedPart->getDocument()->getDetails()->getArray<details::StaffGroup>(linkedPart->getCmper(), BASE_SYSTEM_ID);
         std::vector<StaffGroupInfo> retval;
         for (const auto& rawGroup : rawGroups) {
-            if (rawGroup->startMeas <= meas && rawGroup->endMeas >= meas) {
-                StaffGroupInfo group(rawGroup, scrollViewStaves);
+            if (rawGroup->startMeas <= measureId && rawGroup->endMeas >= measureId) {
+                StaffGroupInfo group(rawGroup, systemStaves);
                 if (group.startSlot && group.endSlot) {
                     retval.emplace_back(std::move(group));
                 }
@@ -64,7 +78,9 @@ struct StaffGroupInfo
 };
 
 // Helper function to create a JSON representation of a single staff
-static json buildStaffJson(const MnxMusxMappingPtr& context, const std::shared_ptr<others::InstrumentUsed>& staffSlot)
+static json buildStaffJson(const MnxMusxMappingPtr& context,
+    const std::shared_ptr<others::Measure>& meas,
+    const std::shared_ptr<others::InstrumentUsed>& staffSlot)
 {
     json staffJson = json::object();
     staffJson["type"] = "staff";
@@ -73,8 +89,9 @@ static json buildStaffJson(const MnxMusxMappingPtr& context, const std::shared_p
     json sourceJson = json::object();
     auto it = context->inst2Part.find(staffSlot->staffId);
     if (it == context->inst2Part.end()) {
-        throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " is not accounted for in the MNX part map.");
+        throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " was not assigned to any MNX part.");
     }
+    /// @todo Instead of the raw staff, use a composite of staff and staff styles for the measure here
     auto staff = context->document->getOthers()->get<others::Staff>(staffSlot->getPartId(), staffSlot->staffId);
     if (!staff) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " does not have a Staff instance.");
@@ -85,13 +102,19 @@ static json buildStaffJson(const MnxMusxMappingPtr& context, const std::shared_p
             sourceJson["staff"] = *index + 1;
         }
     }
-    /** @todo All the rest of this */
-    /*
+    if (staff->showNamesForPart(meas->getPartId())) {
+        /// @todo if the name has been overridden by a staff style, use "label" instead of "labelref"
+        if (meas->calcShouldShowFullNames()) {
+            sourceJson["labelref"] = "name";
+        } else {
+            sourceJson["labelref"] = "shortName";
+        }
+    }
+
+    /** @todo
+     *
     if (staffSlot->hasStemDirection()) {
         sourceJson["stem"] = staffSlot->getStemDirection();
-    }
-    if (staffSlot->hasLabelRef()) {
-        sourceJson["labelref"] = staffSlot->getLabelRef();
     }
     if (staffSlot->hasVoiceNumber()) {
         sourceJson["voice"] = staffSlot->getVoiceName();
@@ -99,20 +122,14 @@ static json buildStaffJson(const MnxMusxMappingPtr& context, const std::shared_p
     */
 
     staffJson["sources"].emplace_back(sourceJson);
-
-    /** @todo:
-    if (staffSlot->hasLabel()) {
-        staffJson["label"] = staffSlot->getLabel();
-    }
-    */
-    
+   
     return staffJson;
 }
 
 static json buildOrderedContent(
     const MnxMusxMappingPtr& context,
     const std::vector<StaffGroupInfo>& groups,
-    const std::vector<std::shared_ptr<others::InstrumentUsed>>& scrollViewStaves,
+    const std::vector<std::shared_ptr<others::InstrumentUsed>>& systemStaves,
     const std::shared_ptr<others::Measure> forMeas,
     size_t fromIndex = 0,
     size_t toIndex = std::numeric_limits<size_t>::max(),
@@ -120,7 +137,7 @@ static json buildOrderedContent(
 {
     json retval = json::array();
     size_t index = fromIndex;
-    while (index < scrollViewStaves.size()) {
+    while (index < systemStaves.size()) {
         // Skip groups that have already ended
         while (groupIndex < groups.size() && *groups[groupIndex].endSlot < index) {
             groupIndex++;
@@ -137,17 +154,24 @@ static json buildOrderedContent(
                     groupContent["label"] = name;
                 }
             }
-            if (group.group->bracket && group.group->bracket->style != details::StaffGroup::BracketStyle::None) {
-                groupContent["symbol"] = group.group->bracket->style == details::StaffGroup::BracketStyle::PianoBrace
-                                       ? "brace"
-                                       : "bracket";
+            if (group.startSlot != group.endSlot || group.group->bracket->showOnSingleStaff) {
+                switch (group.group->bracket->style) {
+                case details::StaffGroup::BracketStyle::None:
+                    break;
+                case details::StaffGroup::BracketStyle::PianoBrace:
+                    groupContent["symbol"] = "brace";
+                    break;
+                default:
+                    groupContent["symbol"] = "bracket";
+                    break;
+                }
             }
             // @todo add group properties to content
-            groupContent["content"] = buildOrderedContent(context, groups, scrollViewStaves, forMeas, index, *group.endSlot, groupIndex + 1);
+            groupContent["content"] = buildOrderedContent(context, groups, systemStaves, forMeas, index, *group.endSlot, groupIndex + 1);
             retval.emplace_back(groupContent);
             index = (std::max)(*group.endSlot + 1, index);
         } else {
-            retval.emplace_back(buildStaffJson(context, scrollViewStaves[index++]));
+            retval.emplace_back(buildStaffJson(context, forMeas, systemStaves[index++]));
         }
         if (index > toIndex) {
             break;
@@ -181,31 +205,40 @@ void createLayouts(const MnxMusxMappingPtr& context)
         return lhs->partOrder < rhs->partOrder;
     });
 
-    const MeasCmper forMeas = 1; // eventually we'll be cycling thru system first measures
-
     // Iterate over each linked part and generate layouts.
     for (const auto& linkedPart : musxLinkedParts) {
-        auto layout = json::object();
-        layout["id"] = scrollViewLayoutId(linkedPart->getCmper());
+        Cmper baseSystemIuList = linkedPart->calcSystemIuList(BASE_SYSTEM_ID);
+        auto staffSystems = context->document->getOthers()->getArray<others::StaffSystem>(linkedPart->getCmper());
+        const SystemCmper minSystem = BASE_SYSTEM_ID;
+        const SystemCmper maxSystem = staffSystems.size();
+        for (SystemCmper sysId = minSystem; sysId <= maxSystem; sysId++) { //NOTE: unusual loop limits are *on purpose*
+            Cmper systemIuList = sysId ? linkedPart->calcSystemIuList(staffSystems[sysId - 1]->getCmper()) : baseSystemIuList;
+            if (sysId != BASE_SYSTEM_ID && systemIuList == baseSystemIuList) {
+                continue;
+            }
+            auto layout = json::object();
+            layout["id"] = calcSystemLayoutId(linkedPart->getCmper(), sysId);
 
-        // Retrieve staff groups and staves in scroll view order.
-        auto scrollViewStaves = context->document->getOthers()->getArray<others::InstrumentUsed>(
-            linkedPart->getCmper(), linkedPart->calcScrollViewIuList());
-        std::vector<StaffGroupInfo> groups = StaffGroupInfo::getGroupsAtMeasure(forMeas, linkedPart, scrollViewStaves);
-        sortGroups(groups);
-        // Create a sequential content array.
-        auto meas = context->document->getOthers()->get<others::Measure>(linkedPart->getCmper(), forMeas);
-        if (!meas) {
-            throw std::logic_error("No Measure instance found for measure " + std::to_string(forMeas)
-                + " in linked part " + std::to_string(linkedPart->getCmper()));
-        }
-        layout["content"] = buildOrderedContent(context, groups, scrollViewStaves, meas);
+            // Retrieve staff groups and staves in scroll view order.
+            auto systemStaves = context->document->getOthers()->getArray<others::InstrumentUsed>(
+                linkedPart->getCmper(), systemIuList);
+            const MeasCmper forMeas = sysId ? staffSystems[sysId - 1]->startMeas : 1;
+            std::vector<StaffGroupInfo> groups = StaffGroupInfo::getGroupsAtMeasure(forMeas, linkedPart, systemStaves);
+            sortGroups(groups);
+            // Create a sequential content array.
+            auto meas = context->document->getOthers()->get<others::Measure>(linkedPart->getCmper(), forMeas);
+            if (!meas) {
+                throw std::logic_error("No Measure instance found for measure " + std::to_string(forMeas)
+                    + " in linked part " + std::to_string(linkedPart->getCmper()));
+            }
+            layout["content"] = buildOrderedContent(context, groups, systemStaves, meas);
 
-        // Add the layout to the MNX document.
-        if (mnxDocument["layouts"].empty()) {
-            mnxDocument["layouts"] = json::array();
+            // Add the layout to the MNX document.
+            if (mnxDocument["layouts"].empty()) {
+                mnxDocument["layouts"] = json::array();
+            }
+            mnxDocument["layouts"].emplace_back(layout);
         }
-        mnxDocument["layouts"].emplace_back(layout);
     }
 }
 

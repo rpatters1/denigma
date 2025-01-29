@@ -53,8 +53,13 @@ struct MnxMusxMapping
 };
 using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
 
-inline std::string scrollViewLayoutId(Cmper partId)
-{ return "S" + std::to_string(partId) + "-ScrVw"; }
+inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
+{
+    if (systemId == BASE_SYSTEM_ID) {
+        return "S" + std::to_string(partId) + "-ScrVw";
+    }
+    return "S" + std::to_string(partId) + "-Sys" + std::to_string(systemId);
+}
 
 inline constexpr int MNX_VERSION_NUMBER = 1;
 

@@ -129,8 +129,8 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     retval->graceOptions = getDocOptions<options::GraceNoteOptions>(retval, "grace note");
     retval->keyOptions = getDocOptions<options::KeySignatureOptions>(retval, "key signature");
     retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
-    retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "multimeasure rest");
-    retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(retval, "miscellaneous");
+    retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "miscellaneous");
+    retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(retval, "multimeasure rest");
     retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(retval, "music spacing");
     auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
     retval->pageFormat = pageFormatOptions->calcPageFormatForPart(forPartId);

@@ -80,7 +80,7 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
         auto staffNumber = Cmper(currentStaff + currentStaffOffset);
         std::string staffName = [&]() -> std::string {
             if (musxDocument) {
-                auto iuList = musxDocument->getOthers()->getArray<others::InstrumentUsed>(musxPartId, SCROLLVIEW_IULIST);
+                auto iuList = musxDocument->getOthers()->getArray<others::InstrumentUsed>(musxPartId, BASE_SYSTEM_ID);
                 if (!iuList.empty()) {
                     if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, staffNumber)) {
                         return staff->getFullName();
@@ -282,7 +282,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
     int staffSlot, MeasCmper measure, double /*durationUnit*/, InstCmper staffNum,
     const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    auto iuList = context->musxDocument->getOthers()->getArray<others::InstrumentUsed>(context->musxPartId, SCROLLVIEW_IULIST);
+    auto iuList = context->musxDocument->getOthers()->getArray<others::InstrumentUsed>(context->musxPartId, BASE_SYSTEM_ID);
     if (iuList.empty()) {
         context->logMessage(LogMsg() << "no staff list found for part", LogSeverity::Warning);
         return;
