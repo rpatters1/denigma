@@ -45,7 +45,7 @@ TEST(MnxLayouts, MultiInstrumentTest)
 
     auto layouts = mnx["layouts"];
     ASSERT_TRUE(layouts.is_array());
-    EXPECT_EQ(layouts.size(), 27);
+    EXPECT_EQ(layouts.size(), 41);
 
     // Validate first layout (S0-ScrVw)
     EXPECT_EQ(layouts[0]["id"], "S0-ScrVw");
