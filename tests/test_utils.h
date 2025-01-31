@@ -25,6 +25,8 @@
 #include <string>
 #include <functional>
 
+#include "nlohmann/json.hpp"
+
 #include "denigma.h"
 
 class ArgList {
@@ -100,3 +102,5 @@ void compareFiles(const std::filesystem::path& path1, const std::filesystem::pat
 void assertStringsInFile(const std::vector<std::string>& targets, const std::filesystem::path& filePath, const std::filesystem::path& extension = {});
 inline void assertStringInFile(const std::string& target, const std::filesystem::path& filePath, const std::filesystem::path& extension = {})
 { assertStringsInFile(std::vector<std::string>({ target }), filePath, extension); }
+
+void openJson(const std::filesystem::path& path, nlohmann::json& result);

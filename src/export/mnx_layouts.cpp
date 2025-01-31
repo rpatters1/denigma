@@ -91,8 +91,7 @@ static json buildStaffJson(const MnxMusxMappingPtr& context,
     if (it == context->inst2Part.end()) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " was not assigned to any MNX part.");
     }
-    /// @todo Instead of the raw staff, use a composite of staff and staff styles for the measure here
-    auto staff = context->document->getOthers()->get<others::Staff>(staffSlot->getPartId(), staffSlot->staffId);
+    auto staff = others::StaffComposite::createCurrent(context->document, staffSlot->getPartId(), staffSlot->staffId, meas->getCmper(), 0);
     if (!staff) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " does not have a Staff instance.");
     }
@@ -103,22 +102,42 @@ static json buildStaffJson(const MnxMusxMappingPtr& context,
         }
     }
     if (staff->showNamesForPart(meas->getPartId())) {
-        /// @todo if the name has been overridden by a staff style, use "label" instead of "labelref"
         if (meas->calcShouldShowFullNames()) {
-            sourceJson["labelref"] = "name";
+            if (staff->multiStaffInstId) {
+                sourceJson["label"] = staff->getFullName();
+            } else {
+                if (staff->masks->fullName) {
+                    sourceJson["label"] = staff->getFullInstrumentName();
+                } else {
+                    sourceJson["labelref"] = "name";
+                }
+            }
         } else {
-            sourceJson["labelref"] = "shortName";
+            if (staff->multiStaffInstId) {
+                sourceJson["label"] = staff->getAbbreviatedName();
+            } else {
+                if (staff->masks->abrvName) {
+                    sourceJson["label"] = staff->getAbbreviatedInstrumentName();
+                } else {
+                    sourceJson["labelref"] = "shortName";                    
+                }
+            }
+        }
+        if (sourceJson.contains("label") && (!sourceJson["label"].is_string() || sourceJson["label"] == "")) {
+            sourceJson.erase("label");
         }
     }
-    switch (staff->stemDirection) {
-    default:
-        break;
-    case others::Staff::StemDirection::AlwaysUp:
-        sourceJson["stem"] = "up";
-        break;
-    case others::Staff::StemDirection::AlwaysDown:
-        sourceJson["stem"] = "down";
-        break;
+    if (!staff->hideStems) {
+        switch (staff->stemDirection) {
+        default:
+            break;
+        case others::Staff::StemDirection::AlwaysUp:
+            sourceJson["stem"] = "up";
+            break;
+        case others::Staff::StemDirection::AlwaysDown:
+            sourceJson["stem"] = "down";
+            break;
+        }
     }
 
     /** @todo (not sure if this will ever be done)

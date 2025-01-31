@@ -21,6 +21,7 @@
  */
 #include <iterator>
 #include <filesystem>
+#include <fstream>
 
 #include "gtest/gtest.h"
 #include "test_utils.h"
@@ -168,6 +169,15 @@ void assertStringsInFile(const std::vector<std::string>& targets, const std::fil
         EXPECT_NE(fileContents.find(target), std::string::npos)
             << "String \"" << target << "\" not found in file: " << actualFilePath.u8string();
     }
+}
+
+void openJson(const std::filesystem::path& path, nlohmann::json& result)
+{
+    std::ifstream file(path);
+    ASSERT_TRUE(file) << "opening " << path.u8string();
+    nlohmann::json mnx;
+    ASSERT_NO_THROW(file >> mnx) << "parsing JSON file " << path.u8string();
+    result = mnx;
 }
 
 int main(int argc, char** argv)
