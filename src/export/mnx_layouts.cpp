@@ -235,7 +235,7 @@ void createLayouts(const MnxMusxMappingPtr& context)
         Cmper baseSystemIuList = linkedPart->calcSystemIuList(BASE_SYSTEM_ID);
         auto staffSystems = context->document->getOthers()->getArray<others::StaffSystem>(linkedPart->getCmper());
         const SystemCmper minSystem = BASE_SYSTEM_ID;
-        const SystemCmper maxSystem = staffSystems.size();
+        const SystemCmper maxSystem = SystemCmper(staffSystems.size());
         for (SystemCmper sysId = minSystem; sysId <= maxSystem; sysId++) { //NOTE: unusual loop limits are *on purpose*
             Cmper systemIuList = sysId ? linkedPart->calcSystemIuList(staffSystems[sysId - 1]->getCmper()) : baseSystemIuList;
             if (sysId != BASE_SYSTEM_ID && systemIuList == baseSystemIuList) {
