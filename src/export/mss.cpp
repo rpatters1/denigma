@@ -129,8 +129,8 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     retval->graceOptions = getDocOptions<options::GraceNoteOptions>(retval, "grace note");
     retval->keyOptions = getDocOptions<options::KeySignatureOptions>(retval, "key signature");
     retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
-    retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "multimeasure rest");
-    retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(retval, "miscellaneous");
+    retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "miscellaneous");
+    retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(retval, "multimeasure rest");
     retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(retval, "music spacing");
     auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
     retval->pageFormat = pageFormatOptions->calcPageFormatForPart(forPartId);
@@ -767,7 +767,6 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     writeMarkingPrefs(styleElement, prefs);
     // output
     // open the file ourselves to avoid Windows ACP encoding issues for path strings
-    /// @todo encapsulate this into a callable function if/when we need to do it elsewhere
     std::ofstream file;
     file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     file.open(qualifiedOutputPath, std::ios::out | std::ios::binary);

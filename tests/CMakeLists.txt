@@ -17,6 +17,9 @@ if(denigma_BUILD_TESTING)
         test_logging.cpp
         test_massage.cpp
         test_options.cpp
+        mnx/test_layouts.cpp
+        mnx/test_schema.cpp
+        mnx/test_scores.cpp
         ${DENIGMA_SOURCES}
     )
 
@@ -36,6 +39,7 @@ if(denigma_BUILD_TESTING)
     # Include the necessary directories
     target_include_directories(denigma_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/src       # Source files
+        ${CMAKE_CURRENT_SOURCE_DIR}   # base test directory
         ${FETCHCONTENT_BASE_DIR}/ezgz-src
         ${FETCHCONTENT_BASE_DIR}/miniz-cpp-src
         ${MUSX_OBJECT_MODEL_DIR}

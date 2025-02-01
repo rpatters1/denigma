@@ -24,14 +24,47 @@
 #include <filesystem>
 #include <optional>
 
+#include "nlohmann/json.hpp"
 #include "denigma.h"
+#include "musx/musx.h"
 
  //placeholder function
+
+using namespace musx::dom;
+using namespace musx::util;
 
 namespace denigma {
 namespace mnx {
 
-void convert(const std::filesystem::path& file, const Buffer&, const DenigmaContext& denigmaContext);
+using json = nlohmann::ordered_json;
+//using json = nlohmann::json;
+
+struct MnxMusxMapping
+{
+    MnxMusxMapping(const DenigmaContext& context, const DocumentPtr& doc)
+        : denigmaContext(&context), document(doc), mnxDocument() {}
+
+    const DenigmaContext* denigmaContext;
+    DocumentPtr document;
+    json mnxDocument;
+
+    std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
+    std::unordered_map<InstCmper, std::string> inst2Part;
+};
+using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
+
+inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
+{
+    if (systemId == BASE_SYSTEM_ID) {
+        return "S" + std::to_string(partId) + "-ScrVw";
+    }
+    return "S" + std::to_string(partId) + "-Sys" + std::to_string(systemId);
+}
+
+inline constexpr int MNX_VERSION_NUMBER = 1;
+
+void createLayouts(const MnxMusxMappingPtr& context);
+void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
 
 } // namespace mnx
 } // namespace denigma

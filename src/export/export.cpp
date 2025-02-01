@@ -58,7 +58,7 @@ constexpr auto outputProcessors = []() {
     return to_array<OutputProcessor>({
             { ENIGMAXML_EXTENSION, enigmaxml::write },
             { MSS_EXTENSION, mss::convert },
-            // { MNX_EXTENSION, mnx::convert },
+            { MNX_EXTENSION, mnx::convert },
         });
     }();
 
@@ -72,6 +72,10 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << std::endl;
     std::cout << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
     std::cout << std::endl;
+    std::cout << indentSpaces << "Specific options:" << std::endl;
+    std::cout << indentSpaces << "  --mnx-schema [file-path]        Validate against this json schema file rather than the embedded one." << std::endl;
+    std::cout << indentSpaces << "  --pretty-print [indent-spaces]  Print human readable format (default: on, " << JSON_INDENT_SPACES << " indent spaces)." << std::endl;
+    std::cout << indentSpaces << "  --no-pretty-print               Print compact json with no indentions or new lines." << std::endl;
 
     // Supported input formats
     std::cout << indentSpaces << "Supported input formats:" << std::endl;
@@ -101,7 +105,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml -mss" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mss --part" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive" << std::endl;
-    //std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mnx --mss" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mnx --mss" << std::endl;
 
     return 1;
 }

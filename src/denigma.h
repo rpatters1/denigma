@@ -39,6 +39,8 @@ inline constexpr char MSS_EXTENSION[]       = "mss";
 inline constexpr char MXL_EXTENSION[]       = "mxl";
 inline constexpr char MUSICXML_EXTENSION[]  = "musicxml";
 
+inline constexpr int JSON_INDENT_SPACES     = 4;
+
 #ifdef _WIN32
 #define _ARG(S) L##S
 #define _ARG_CONV(S) (utils::wstringToString(std::wstring(S)))
@@ -167,8 +169,13 @@ public:
     bool fermataWholeRests{true};
     std::optional<std::filesystem::path> finaleFilePath;
 
-#ifdef DENIGMA_TEST // this is defined on the command line by the test program
-    bool testOutput{};
+    // Specic options for `export --mnx` command
+    std::optional<int> indentSpaces{ JSON_INDENT_SPACES };
+    std::optional<std::filesystem::path> mnxSchemaPath;
+    std::optional<std::string> mnxSchema;
+
+#ifdef DENIGMA_TEST
+    bool testOutput{}; // this may be defined on the command line by the test program
 #endif
 
     void setMassageTarget(const std::string& opt)
