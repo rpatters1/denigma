@@ -42,7 +42,7 @@ if(denigma_BUILD_TESTING)
         ${CMAKE_CURRENT_SOURCE_DIR}   # base test directory
         ${FETCHCONTENT_BASE_DIR}/ezgz-src
         ${FETCHCONTENT_BASE_DIR}/miniz-cpp-src
-        ${MUSX_OBJECT_MODEL_DIR}
+        ${musx_SOURCE_DIR}/src
         ${GENERATED_DIR}              # Generated files
     )
 

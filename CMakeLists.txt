@@ -117,6 +117,27 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz-cpp)
 
+# Compile definitions
+#set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
+#set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
+set(MUSX_USE_PUGIXML ON CACHE BOOL "Enable pugixml parsing classes" FORCE)
+
+# temporary for reference and debugging
+set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
+#set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Enable throwing on unknown XML" FORCE)
+#set(MUSX_THROW_ON_INTEGRITY_CHECK_FAIL ON CACHE BOOL "Enable throwing integrity check failures" FORCE)
+
+# Disable building tests for musx
+set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for musx")
+# Fetch mnxdom
+FetchContent_Declare(
+    musx
+    GIT_REPOSITORY https://github.com/rpatters1/musxdom.git
+    GIT_TAG        main
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(musx)
+
 # Disable building tests for nlohmann_json
 set(JSON_BuildTests OFF CACHE BOOL "Do not build tests for nlohmann_json")
 # Define the version of nlohmann_json to use
@@ -174,28 +195,12 @@ if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
     )
 endif()
 
-# Compile definitions
-#set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
-#set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
-set(MUSX_USE_PUGIXML ON CACHE BOOL "Enable pugixml parsing classes" FORCE)
-
-# temporary for reference and debugging
-set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
-#set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Enable throwing on unknown XML" FORCE)
-#set(MUSX_THROW_ON_INTEGRITY_CHECK_FAIL ON CACHE BOOL "Enable throwing integrity check failures" FORCE)
-
-
-# Disable building tests for musx
-set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for pugixml")
-#Include directories for your source files
-add_subdirectory(submodules/musx_object_model)
-
 # Ensure the include directories are added
 add_dependencies(denigma GenerateMnxSchemaXxd GenerateLicenseXxd)
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
 target_include_directories(denigma SYSTEM PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
+target_include_directories(denigma SYSTEM PRIVATE  "${musx_SOURCE_DIR}/src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
-target_include_directories(denigma PRIVATE ${MUSX_OBJECT_MODEL_DIR})
 target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # Ensure the libraries are added
@@ -214,14 +219,11 @@ target_precompile_headers(denigma_pch INTERFACE
     <string>
     <memory>
     "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
-    "${MUSX_ROOT_DIR}/src/musx/musx.h"
+    "${musx_SOURCE_DIR}/src/musx/musx.h"
 )
 
 # Link the interface library to denigma
 target_link_libraries(denigma PUBLIC denigma_pch)
-
-# Link the interface library to musx
-target_link_libraries(musx PRIVATE denigma_pch)
 
 set(DEPLOY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/denigma)
 
@@ -253,3 +255,9 @@ if(denigma_BUILD_TESTING)
 else()
     message(STATUS "Testing not enabled for denigma_BUILD_TESTING.")
 endif()
+
+get_target_property(defs musx INTERFACE_COMPILE_DEFINITIONS)
+message(STATUS "musx INTERFACE definitions: ${defs}")
+
+get_target_property(defs denigma INTERFACE_COMPILE_DEFINITIONS)
+message(STATUS "denigma INTERFACE definitions: ${defs}")
