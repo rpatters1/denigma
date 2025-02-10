@@ -49,8 +49,7 @@ if(denigma_BUILD_TESTING)
     target_link_libraries(denigma_tests PRIVATE
         denigma_pch                   # Precompiled headers
         pugixml
-        nlohmann_json::nlohmann_json
-        nlohmann_json_schema_validator
+        mnxdom
         musx
     )
 

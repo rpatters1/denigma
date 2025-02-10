@@ -24,9 +24,9 @@
 #include <filesystem>
 #include <optional>
 
-#include "nlohmann/json.hpp"
 #include "denigma.h"
 #include "musx/musx.h"
+#include "mnxdom.h"
 
  //placeholder function
 

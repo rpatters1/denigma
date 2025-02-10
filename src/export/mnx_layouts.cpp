@@ -26,8 +26,6 @@
 
 #include "mnx.h"
 
-#include "nlohmann/json.hpp"
-
 namespace denigma {
 namespace mnx {
 

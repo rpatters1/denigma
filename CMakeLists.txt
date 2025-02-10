@@ -155,39 +155,43 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(musx)
 
-# Disable building tests for nlohmann_json
-set(JSON_BuildTests OFF CACHE BOOL "Do not build tests for nlohmann_json")
-# Define the version of nlohmann_json to use
-set(NLOHMANN_JSON_VERSION v3.11.3)
-# Fetch nlohmann_json
+FetchContent_GetProperties(musx)
+message(STATUS "Musx Source Directory: ${musx_SOURCE_DIR}")
+
+# Define a cache variable for the local MNX C++ DOM path relative to the source directory.
+set(MNXDOM_LOCAL_PATH "" CACHE STRING "Path to local MNX C++ DOM checkout relative to the source directory (if provided)")
+
+if(MNXDOM_LOCAL_PATH)
+    # Combine the source directory with the relative path to get an absolute path.
+    get_filename_component(MNXDOM_LOCAL_PATH_ABS "${CMAKE_SOURCE_DIR}/${MNXDOM_LOCAL_PATH}" ABSOLUTE)
+    if(EXISTS "${MNXDOM_LOCAL_PATH_ABS}/CMakeLists.txt")
+        message(STATUS "Local MNX C++ DOM found at ${MNXDOM_LOCAL_PATH_ABS}")
+        # Set the FetchContent source directory to the computed absolute path.
+        set(FETCHCONTENT_SOURCE_DIR_MNXDOM "${MNXDOM_LOCAL_PATH_ABS}" CACHE INTERNAL "")
+    else()
+        message(FATAL_ERROR "Local MNX C++ DOM not found at ${MNXDOM_LOCAL_PATH_ABS}")
+    endif()
+else()
+    message(STATUS "Using GitHub for MNX C++ DOM")
+endif()
+
+option(mnxdom_BUILD_TESTING "Enable testing mnxdom" OFF)
+# Fetch mnxdom
 FetchContent_Declare(
-    nlohmann_json
-    URL https://github.com/nlohmann/json/releases/download/${NLOHMANN_JSON_VERSION}/json.tar.xz
-    URL_HASH SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d  # Verify the hash matches the tarball
+    mnxdom
+    GIT_REPOSITORY https://github.com/rpatters1/mnxdom.git
+    GIT_TAG        main
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
-FetchContent_MakeAvailable(nlohmann_json)
+FetchContent_MakeAvailable(mnxdom)
 
-# Disable building tests for json_schema_validator
-set(JSON_VALIDATOR_BUILD_TESTS OFF CACHE BOOL "Do not build tests for json_schema_validator")
-# Fetch json_schema_validator from your fork
-set(nlohmann_json_VERSION ${NLOHMANN_JSON_VERSION})
-FetchContent_Declare(
-    json_schema_validator
-    GIT_REPOSITORY https://github.com/pboettch/json-schema-validator
-    GIT_TAG        40af3ec39670e768fc3f01f935140af311d71024
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(json_schema_validator)
-
-# Restore the original state
-set(CMAKE_WARN_DEPRECATED ${_original_WARN_DEPRECATED} CACHE BOOL "Restore original deprecation warnings setting" FORCE)
+FetchContent_GetProperties(mnxdom)
+message(STATUS "mnxdom Source Directory: ${mnxdom_SOURCE_DIR}")
 
 add_custom_target(PrintConfig ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Active build configuration: $<CONFIG>"
 )
 
-include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
 
 # Add executable target
@@ -220,10 +224,11 @@ target_include_directories(denigma PRIVATE ${GENERATED_DIR})
 target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # Ensure the libraries are added
-target_link_libraries(denigma PRIVATE pugixml)
-target_link_libraries(denigma PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(denigma PRIVATE nlohmann_json_schema_validator)
-target_link_libraries(denigma PRIVATE musx)
+target_link_libraries(denigma PRIVATE
+    pugixml
+    mnxdom
+    musx
+)
 
 # Define an interface library for precompiled headers
 add_library(denigma_pch INTERFACE)
@@ -236,6 +241,7 @@ target_precompile_headers(denigma_pch INTERFACE
     <memory>
     "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
     "${musx_SOURCE_DIR}/src/musx/musx.h"
+    "${mnxdom_SOURCE_DIR}/src/mnxdom.h"
 )
 
 # Link the interface library to denigma
