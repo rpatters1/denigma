@@ -27,7 +27,7 @@
 #include "mnx.h"
 
 namespace denigma {
-namespace mnx {
+namespace mnxexp {
 
 struct StaffGroupInfo
 {
@@ -76,15 +76,12 @@ struct StaffGroupInfo
 };
 
 // Helper function to create a JSON representation of a single staff
-static json buildStaffJson(const MnxMusxMappingPtr& context,
+static void buildMnxStaff(mnx::LayoutStaff&& mnxStaff,
+    const MnxMusxMappingPtr& context,
     const std::shared_ptr<others::Measure>& meas,
     const std::shared_ptr<others::InstrumentUsed>& staffSlot)
 {
-    json staffJson = json::object();
-    staffJson["type"] = "staff";
-    staffJson["sources"] = json::array();
-
-    json sourceJson = json::object();
+    auto mnxSource = mnxStaff.sources().append();
     auto it = context->inst2Part.find(staffSlot->staffId);
     if (it == context->inst2Part.end()) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " was not assigned to any MNX part.");
@@ -93,36 +90,36 @@ static json buildStaffJson(const MnxMusxMappingPtr& context,
     if (!staff) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " does not have a Staff instance.");
     }
-    sourceJson["part"] = it->second;
+    mnxSource.set_part(it->second);
     if (auto multiStaffInst = staff->getMultiStaffInstGroup()) {
         if (auto index = multiStaffInst->getIndexOf(staffSlot->staffId)) {
-            sourceJson["staff"] = *index + 1;
+            mnxSource.set_staff(*index + 1);
         }
     }
     if (staff->showNamesForPart(meas->getPartId())) {
         if (meas->calcShouldShowFullNames()) {
             if (staff->multiStaffInstId) {
-                sourceJson["label"] = staff->getFullName();
+                mnxSource.set_label(staff->getFullName());
             } else {
                 if (staff->masks->fullName) {
-                    sourceJson["label"] = staff->getFullInstrumentName();
+                    mnxSource.set_label(staff->getFullInstrumentName());
                 } else {
-                    sourceJson["labelref"] = "name";
+                    mnxSource.set_labelref(mnx::LabelRef::Name);
                 }
             }
         } else {
             if (staff->multiStaffInstId) {
-                sourceJson["label"] = staff->getAbbreviatedName();
+                mnxSource.set_label(staff->getAbbreviatedName());
             } else {
                 if (staff->masks->abrvName) {
-                    sourceJson["label"] = staff->getAbbreviatedInstrumentName();
+                    mnxSource.set_label(staff->getAbbreviatedInstrumentName());
                 } else {
-                    sourceJson["labelref"] = "shortName";                    
+                    mnxSource.set_labelref(mnx::LabelRef::ShortName);                    
                 }
             }
         }
-        if (sourceJson.contains("label") && (!sourceJson["label"].is_string() || sourceJson["label"] == "")) {
-            sourceJson.erase("label");
+        if (mnxSource.label() && mnxSource.label().value() == "") {
+            mnxSource.clear_label();
         }
     }
     if (!staff->hideStems) {
@@ -130,26 +127,23 @@ static json buildStaffJson(const MnxMusxMappingPtr& context,
         default:
             break;
         case others::Staff::StemDirection::AlwaysUp:
-            sourceJson["stem"] = "up";
+            mnxSource.set_stem(mnx::LayoutStemDirection::Up);
             break;
         case others::Staff::StemDirection::AlwaysDown:
-            sourceJson["stem"] = "down";
+            mnxSource.set_stem(mnx::LayoutStemDirection::Down);
             break;
         }
     }
 
     /** @todo (not sure if this will ever be done)
     if (staffSlot->hasVoiceNumber()) {
-        sourceJson["voice"] = staffSlot->getVoiceName();
+        mnxSource.set_voice(staffSlot->getVoiceName());
     }
     */
-
-    staffJson["sources"].emplace_back(sourceJson);
-   
-    return staffJson;
 }
 
-static json buildOrderedContent(
+static void buildOrderedContent(
+    mnx::ContentArray&& content,
     const MnxMusxMappingPtr& context,
     const std::vector<StaffGroupInfo>& groups,
     const std::vector<std::shared_ptr<others::InstrumentUsed>>& systemStaves,
@@ -167,14 +161,13 @@ static json buildOrderedContent(
         }
         if (groupIndex < groups.size() && index >= *groups[groupIndex].startSlot && index <= *groups[groupIndex].endSlot) {
             auto group = groups[groupIndex];
-            json groupContent = json::object();
-            groupContent["type"] = "group";
+            auto mnxGroup = content.append<mnx::LayoutGroup>();
             if (!group.group->hideName) {
                 auto name = forMeas->calcShouldShowFullNames()
                     ? group.group->getFullInstrumentName()
                     : group.group->getAbbreviatedInstrumentName();
                 if (!name.empty()) {
-                    groupContent["label"] = name;
+                    mnxGroup.set_label(name);
                 }
             }
             if (group.startSlot != group.endSlot || group.group->bracket->showOnSingleStaff) {
@@ -182,25 +175,24 @@ static json buildOrderedContent(
                 case details::StaffGroup::BracketStyle::None:
                     break;
                 case details::StaffGroup::BracketStyle::PianoBrace:
-                    groupContent["symbol"] = "brace";
+                    mnxGroup.set_symbol(mnx::LayoutSymbol::Brace);
                     break;
                 default:
-                    groupContent["symbol"] = "bracket";
+                    mnxGroup.set_symbol(mnx::LayoutSymbol::Bracket);
                     break;
                 }
             }
             // @todo add group properties to content
-            groupContent["content"] = buildOrderedContent(context, groups, systemStaves, forMeas, index, *group.endSlot, groupIndex + 1);
-            retval.emplace_back(groupContent);
+            buildOrderedContent(mnxGroup.content(), context, groups, systemStaves, forMeas, index, *group.endSlot, groupIndex + 1);
             index = (std::max)(*group.endSlot + 1, index);
         } else {
-            retval.emplace_back(buildStaffJson(context, forMeas, systemStaves[index++]));
+            auto mnxStaff = content.append<mnx::LayoutStaff>();
+            buildMnxStaff(std::move(mnxStaff), context, forMeas, systemStaves[index++]);
         }
         if (index > toIndex) {
             break;
         }
     }
-    return retval;
 }
 
 static void sortGroups(std::vector<StaffGroupInfo>& groups)
@@ -239,8 +231,11 @@ void createLayouts(const MnxMusxMappingPtr& context)
             if (sysId != BASE_SYSTEM_ID && systemIuList == baseSystemIuList) {
                 continue;
             }
-            auto layout = json::object();
-            layout["id"] = calcSystemLayoutId(linkedPart->getCmper(), sysId);
+            if (!mnxDocument->layouts()) {
+                mnxDocument->create_layouts();
+            }
+            auto layout = mnxDocument->layouts().value().append();
+            layout.set_id(calcSystemLayoutId(linkedPart->getCmper(), sysId));
 
             // Retrieve staff groups and staves in scroll view order.
             auto systemStaves = context->document->getOthers()->getArray<others::InstrumentUsed>(
@@ -254,16 +249,10 @@ void createLayouts(const MnxMusxMappingPtr& context)
                 throw std::logic_error("No Measure instance found for measure " + std::to_string(forMeas)
                     + " in linked part " + std::to_string(linkedPart->getCmper()));
             }
-            layout["content"] = buildOrderedContent(context, groups, systemStaves, meas);
-
-            // Add the layout to the MNX document.
-            if (mnxDocument["layouts"].empty()) {
-                mnxDocument["layouts"] = json::array();
-            }
-            mnxDocument["layouts"].emplace_back(layout);
+            buildOrderedContent(layout.content(), context, groups, systemStaves, meas);
         }
     }
 }
 
-} // namespace mnx
+} // namespace mnxexp
 } // namespace denigma

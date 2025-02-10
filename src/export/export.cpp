@@ -58,7 +58,7 @@ constexpr auto outputProcessors = []() {
     return to_array<OutputProcessor>({
             { ENIGMAXML_EXTENSION, enigmaxml::write },
             { MSS_EXTENSION, mss::convert },
-            { MNX_EXTENSION, mnx::convert },
+            { MNX_EXTENSION, mnxexp::convert },
         });
     }();
 

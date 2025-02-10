@@ -34,7 +34,7 @@ using namespace musx::dom;
 using namespace musx::util;
 
 namespace denigma {
-namespace mnx {
+namespace mnxexp {
 
 using json = nlohmann::ordered_json;
 //using json = nlohmann::json;
@@ -45,8 +45,8 @@ struct MnxMusxMapping
         : denigmaContext(&context), document(doc), mnxDocument() {}
 
     const DenigmaContext* denigmaContext;
-    DocumentPtr document;
-    json mnxDocument;
+    musx::dom::DocumentPtr document;
+    std::unique_ptr<mnx::Document> mnxDocument;
 
     std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
     std::unordered_map<InstCmper, std::string> inst2Part;
@@ -61,10 +61,8 @@ inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
     return "S" + std::to_string(partId) + "-Sys" + std::to_string(systemId);
 }
 
-inline constexpr int MNX_VERSION_NUMBER = 1;
-
 void createLayouts(const MnxMusxMappingPtr& context);
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
 
-} // namespace mnx
+} // namespace mnxexp
 } // namespace denigma
