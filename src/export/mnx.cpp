@@ -79,10 +79,7 @@ static void createParts(const MnxMusxMappingPtr& context)
 static void createScores(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-    auto musxLinkedParts = context->document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
-    std::sort(musxLinkedParts.begin(), musxLinkedParts.end(), [](const auto& lhs, const auto& rhs) {
-        return lhs->partOrder < rhs->partOrder;
-    });
+    auto musxLinkedParts = others::PartDefinition::getInUserOrder(context->document);
     for (const auto& linkedPart : musxLinkedParts) {
         if (!mnxDocument->scores()) {
             mnxDocument->create_scores();
@@ -100,12 +97,10 @@ static void createScores(const MnxMusxMappingPtr& context)
             if (!mnxScore.multimeasureRests()) {
                 mnxScore.create_multimeasureRests();
             }
-            auto mnxMmRest = mnxScore.multimeasureRests().value().append();
-            mnxMmRest.set_duration(mmRest->calcNumberOfMeasures());
+            auto mnxMmRest = mnxScore.multimeasureRests().value().append(mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
             if (!mmRest->calcIsNumberVisible()) {
                 mnxMmRest.set_label("");
             }
-            mnxMmRest.set_start(mmRest->getStartMeasure());
         }
         auto pages = context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper());
         auto baseIuList = linkedPart->calcSystemIuList(BASE_SYSTEM_ID);
@@ -118,13 +113,12 @@ static void createScores(const MnxMusxMappingPtr& context)
             auto page = pages[x];
             if (!page->isBlank() && page->lastSystem.has_value()) {
                 for (SystemCmper sysId = page->firstSystem; sysId <= *page->lastSystem; sysId++) {
-                    auto mnxSystem = mnxSystems.append();
                     auto system = context->document->getOthers()->get<others::StaffSystem>(linkedPart->getCmper(), sysId);
                     if (!system) {
                         throw std::logic_error("System " + std::to_string(sysId) + " on page " + std::to_string(page->getCmper())
                             + " in part " + linkedPart->getName() + " does not exist.");
                     }
-                    mnxSystem.set_measure(system->startMeas);
+                    auto mnxSystem = mnxSystems.append(system->startMeas);
                     if (linkedPart->calcSystemIuList(sysId) == baseIuList) {
                         mnxSystem.set_layout(calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID));
                     } else {

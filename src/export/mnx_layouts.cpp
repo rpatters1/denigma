@@ -81,7 +81,6 @@ static void buildMnxStaff(mnx::LayoutStaff&& mnxStaff,
     const std::shared_ptr<others::Measure>& meas,
     const std::shared_ptr<others::InstrumentUsed>& staffSlot)
 {
-    auto mnxSource = mnxStaff.sources().append();
     auto it = context->inst2Part.find(staffSlot->staffId);
     if (it == context->inst2Part.end()) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " was not assigned to any MNX part.");
@@ -90,7 +89,7 @@ static void buildMnxStaff(mnx::LayoutStaff&& mnxStaff,
     if (!staff) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " does not have a Staff instance.");
     }
-    mnxSource.set_part(it->second);
+    auto mnxSource = mnxStaff.sources().append(it->second);
     if (auto multiStaffInst = staff->getMultiStaffInstGroup()) {
         if (auto index = multiStaffInst->getIndexOf(staffSlot->staffId)) {
             mnxSource.set_staff(*index + 1);
@@ -135,7 +134,7 @@ static void buildMnxStaff(mnx::LayoutStaff&& mnxStaff,
         }
     }
 
-    /** @todo (not sure if this will ever be done)
+    /** @todo (not sure if this will ever be done: will source from voiced parts settings if so)
     if (staffSlot->hasVoiceNumber()) {
         mnxSource.set_voice(staffSlot->getVoiceName());
     }
@@ -214,11 +213,8 @@ void createLayouts(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
 
-    // Retrieve and sort the linked parts by order.
-    auto musxLinkedParts = context->document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
-    std::sort(musxLinkedParts.begin(), musxLinkedParts.end(), [](const auto& lhs, const auto& rhs) {
-        return lhs->partOrder < rhs->partOrder;
-    });
+    // Retrieve the linked parts in order.
+    auto musxLinkedParts = others::PartDefinition::getInUserOrder(context->document);
 
     // Iterate over each linked part and generate layouts.
     for (const auto& linkedPart : musxLinkedParts) {
