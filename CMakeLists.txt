@@ -117,6 +117,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz-cpp)
 
+# Define a cache variable for the local Musx C++ DOM path relative to the source directory.
+set(MUSX_LOCAL_PATH "" CACHE STRING "Path to local Musx C++ DOM checkout relative to the source directory (if provided)")
+
+if(MUSX_LOCAL_PATH)
+    # Combine the source directory with the relative path to get an absolute path.
+    get_filename_component(MUSX_LOCAL_PATH_ABS "${CMAKE_SOURCE_DIR}/${MUSX_LOCAL_PATH}" ABSOLUTE)
+    if(EXISTS "${MUSX_LOCAL_PATH_ABS}/CMakeLists.txt")
+        message(STATUS "Local Musx C++ DOM found at ${MUSX_LOCAL_PATH_ABS}")
+        # Set the FetchContent source directory to the computed absolute path.
+        set(FETCHCONTENT_SOURCE_DIR_MUSX "${MUSX_LOCAL_PATH_ABS}" CACHE INTERNAL "")
+    else()
+        message(FATAL_ERROR "Local Musx C++ DOM not found at ${MUSX_LOCAL_PATH_ABS}")
+    endif()
+else()
+    message(STATUS "Using GitHub for Musx C++ DOM")
+endif()
+
 # Compile definitions
 #set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
 #set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
@@ -129,7 +146,7 @@ set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they
 
 # Disable building tests for musx
 set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for musx")
-# Fetch mnxdom
+# Fetch musx
 FetchContent_Declare(
     musx
     GIT_REPOSITORY https://github.com/rpatters1/musxdom.git
