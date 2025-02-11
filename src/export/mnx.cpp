@@ -84,14 +84,13 @@ static void createScores(const MnxMusxMappingPtr& context)
         if (!mnxDocument->scores()) {
             mnxDocument->create_scores();
         }
-        auto mnxScore = mnxDocument->scores().value().append();
-        mnxScore.set_layout(calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID));
-        mnxScore.set_name(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
+        auto mnxScore = mnxDocument->scores().value().append(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
         if (mnxScore.name().empty()) {
             mnxScore.set_name(linkedPart->isScore()
                               ? std::string("Score")
                               : std::string("Part ") + std::to_string(linkedPart->getCmper()));
         }
+        mnxScore.set_layout(calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID));
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
             if (!mnxScore.multimeasureRests()) {

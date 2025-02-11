@@ -76,7 +76,7 @@ struct StaffGroupInfo
 };
 
 // Helper function to create a JSON representation of a single staff
-static void buildMnxStaff(mnx::LayoutStaff&& mnxStaff,
+static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
     const MnxMusxMappingPtr& context,
     const std::shared_ptr<others::Measure>& meas,
     const std::shared_ptr<others::InstrumentUsed>& staffSlot)
@@ -160,7 +160,7 @@ static void buildOrderedContent(
         }
         if (groupIndex < groups.size() && index >= *groups[groupIndex].startSlot && index <= *groups[groupIndex].endSlot) {
             auto group = groups[groupIndex];
-            auto mnxGroup = content.append<mnx::LayoutGroup>();
+            auto mnxGroup = content.append<mnx::layout::Group>();
             if (!group.group->hideName) {
                 auto name = forMeas->calcShouldShowFullNames()
                     ? group.group->getFullInstrumentName()
@@ -185,7 +185,7 @@ static void buildOrderedContent(
             buildOrderedContent(mnxGroup.content(), context, groups, systemStaves, forMeas, index, *group.endSlot, groupIndex + 1);
             index = (std::max)(*group.endSlot + 1, index);
         } else {
-            auto mnxStaff = content.append<mnx::LayoutStaff>();
+            auto mnxStaff = content.append<mnx::layout::Staff>();
             buildMnxStaff(std::move(mnxStaff), context, forMeas, systemStaves[index++]);
         }
         if (index > toIndex) {
