@@ -254,7 +254,7 @@ static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_pt
 // this table maps musicxml note types to enigma note types
 static const std::unordered_map<std::string, Entry::NoteType> durationTypeMap = {
     {"maxima", Entry::NoteType::Maxima},
-    {"long", Entry::NoteType::Long},
+    {"long", Entry::NoteType::Longa},
     {"breve", Entry::NoteType::Breve},
     {"whole", Entry::NoteType::Whole},
     {"half", Entry::NoteType::Half},
