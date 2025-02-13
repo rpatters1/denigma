@@ -37,35 +37,25 @@ static void assignBarline(
 {
     if (musxBarlineOptions->drawBarlines) {
         switch (musxMeasure->barlineType) {
-        default:
-            break;
-        case others::Measure::BarlineType::Normal:
-            if (isForFinalMeasure && !musxBarlineOptions->drawFinalBarlineOnLastMeas) {
-                // force normal on final bar
-                mnxMeasure.create_barline(mnx::BarlineType::Regular);
-            } else if (!isForFinalMeasure && musxBarlineOptions->drawDoubleBarlineBeforeKeyChanges) {
-                if (const auto& nextMeasure = musxMeasure->getDocument()->getOthers()->get<others::Measure>(SCORE_PARTID, musxMeasure->getCmper() + 1)) {
-                    if (!musxMeasure->keySignature->isSameKey(*nextMeasure->keySignature.get())) {
-                        mnxMeasure.create_barline(mnx::BarlineType::Double);
+            case others::Measure::BarlineType::OptionsDefault:
+            case others::Measure::BarlineType::Custom:
+                // unable to convert: use default MNX value
+                break;
+            case others::Measure::BarlineType::Normal:
+                if (isForFinalMeasure && !musxBarlineOptions->drawFinalBarlineOnLastMeas) {
+                    // force normal on final bar
+                    mnxMeasure.create_barline(mnx::BarlineType::Regular);
+                } else if (!isForFinalMeasure && musxBarlineOptions->drawDoubleBarlineBeforeKeyChanges) {
+                    if (const auto& nextMeasure = musxMeasure->getDocument()->getOthers()->get<others::Measure>(SCORE_PARTID, musxMeasure->getCmper() + 1)) {
+                        if (!musxMeasure->keySignature->isSameKey(*nextMeasure->keySignature.get())) {
+                            mnxMeasure.create_barline(mnx::BarlineType::Double);
+                        }
                     }
                 }
-            }
-            break;
-        case others::Measure::BarlineType::Double:
-            mnxMeasure.create_barline(mnx::BarlineType::Double);
-            break;
-        case others::Measure::BarlineType::Final:
-            mnxMeasure.create_barline(mnx::BarlineType::Final);
-            break;
-        case others::Measure::BarlineType::Solid:
-            mnxMeasure.create_barline(mnx::BarlineType::Heavy);
-            break;
-        case others::Measure::BarlineType::Dashed:
-            mnxMeasure.create_barline(mnx::BarlineType::Dashed);
-            break;
-        case others::Measure::BarlineType::Tick:
-            mnxMeasure.create_barline(mnx::BarlineType::Tick);
-            break;
+                break;
+            default:
+                mnxMeasure.create_barline(enumConvert<mnx::BarlineType>(musxMeasure->barlineType));
+                break;
         }
     } else {
         mnxMeasure.create_barline(mnx::BarlineType::NoBarline);
