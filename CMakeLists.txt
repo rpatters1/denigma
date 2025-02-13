@@ -218,7 +218,7 @@ if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
 endif()
 
 # Ensure the include directories are added
-add_dependencies(denigma GenerateMnxSchemaXxd GenerateLicenseXxd)
+add_dependencies(denigma GenerateLicenseXxd)
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
 target_include_directories(denigma SYSTEM PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
