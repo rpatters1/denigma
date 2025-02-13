@@ -97,6 +97,57 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         if (visibleNumber != musxMeasure->getCmper()) {
             mnxMeasure.set_number(visibleNumber);
         }
+        if (musxMeasure->hasExpression) {
+            const auto expAssigns = musxDocument->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
+            std::map<Edu, std::shared_ptr<others::MeasureExprAssign>> temposAtPositions;
+            for (const auto& expAssign : expAssigns) {
+                temposAtPositions.emplace(expAssign->eduPosition, expAssign);
+            }
+            for (const auto& it : temposAtPositions) {
+                auto expAssign = it.second;
+                if (const auto expr = expAssign->getTextExpression()) {
+                    if (expr->playbackType == others::PlaybackType::Tempo) {
+                        if (!mnxMeasure.tempos().has_value()) {
+                            mnxMeasure.create_tempos();
+                        }
+                        int bpm = expr->value;
+                        mnx::NoteValueBase base = [&]() {
+                            auto mnxNoteValue = calcNoteTypeFromEdu(expr->auxData1);
+                            switch (mnxNoteValue) {
+                            case NoteType::Note2048th: return mnx::NoteValueBase::Note2048th;
+                            case NoteType::Note1024th: return mnx::NoteValueBase::Note1024th;
+                            case NoteType::Note512th: return mnx::NoteValueBase::Note512th;
+                            case NoteType::Note128th: return mnx::NoteValueBase::Note128th;
+                            case NoteType::Note64th: return mnx::NoteValueBase::Note64th;
+                            case NoteType::Note32nd: return mnx::NoteValueBase::Note32nd;
+                            case NoteType::Note16th: return mnx::NoteValueBase::Note16th;
+                            case NoteType::Eighth: return mnx::NoteValueBase::Eighth;
+                            case NoteType::Quarter: return mnx::NoteValueBase::Quarter;
+                            case NoteType::Half: return mnx::NoteValueBase::Half;
+                            case NoteType::Whole: return mnx::NoteValueBase::Whole;
+                            case NoteType::Breve: return mnx::NoteValueBase::Breve;
+                            case NoteType::Longa: return mnx::NoteValueBase::Longa;
+                            case NoteType::Maxima: return mnx::NoteValueBase::Maxima;
+                            default:
+                                throw std::invalid_argument("Unknown note type: " + std::to_string(int(mnxNoteValue)));
+                            }
+                        }();
+                        auto dots = [&]() -> std::optional<int> {
+                            int val = calcAugmentationDotsFromEdu(expr->auxData1);
+                            if (val) {
+                                return val;
+                            }
+                            return std::nullopt;
+                        }();
+                        auto tempo = mnxMeasure.tempos().value().append(bpm, base, dots);
+                        if (expAssign->eduPosition) {
+                            auto pos = Fraction::fromEdu(expAssign->eduPosition);
+                            tempo.create_location(pos.getNumerator(), pos.getDenominator());
+                        }
+                    }
+                } /// @todo check for shape expression
+            }
+        }
     }
 }
 
