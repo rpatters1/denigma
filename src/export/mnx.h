@@ -62,6 +62,7 @@ inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
 }
 
 void createLayouts(const MnxMusxMappingPtr& context);
+void createGlobal(const MnxMusxMappingPtr& context);
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
 
 } // namespace mnxexp

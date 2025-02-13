@@ -36,10 +36,6 @@ static void createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
 }
 
-static void createGlobal([[maybe_unused]] const MnxMusxMappingPtr& context)
-{
-}
-
 static void createParts(const MnxMusxMappingPtr& context)
 {
     auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);

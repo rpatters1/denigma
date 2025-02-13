@@ -202,6 +202,7 @@ add_executable(denigma
     src/export/export.cpp
     src/export/enigmaxml.cpp
     src/export/mnx.cpp
+    src/export/mnx_global.cpp
     src/export/mnx_layouts.cpp
     src/export/mss.cpp
     src/massage/massage.cpp
