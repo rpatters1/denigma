@@ -60,7 +60,7 @@ static void createParts(const MnxMusxMappingPtr& context)
             part.set_shortName(abrvName);
         }
         if (multiStaffInst) {
-            part.set_staves(multiStaffInst->staffNums.size());
+            part.set_staves(int(multiStaffInst->staffNums.size()));
             for (auto inst : multiStaffInst->staffNums) {
                 context->inst2Part.emplace(inst, id);
             }

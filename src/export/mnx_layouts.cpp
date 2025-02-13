@@ -92,7 +92,7 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
     auto mnxSource = mnxStaff.sources().append(it->second);
     if (auto multiStaffInst = staff->getMultiStaffInstGroup()) {
         if (auto index = multiStaffInst->getIndexOf(staffSlot->staffId)) {
-            mnxSource.set_staff(*index + 1);
+            mnxSource.set_staff(int(*index) + 1);
         }
     }
     if (staff->showNamesForPart(meas->getPartId())) {
