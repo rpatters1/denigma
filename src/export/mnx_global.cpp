@@ -103,24 +103,24 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
     };
     if (musxMeasure->hasExpression) {
         std::map<Edu, std::shared_ptr<OthersBase>> temposAtPositions; // use OthersBase because it has to accept multiple types
-        // Search in order of increasing precedence: tempo changes, then shape exprs, then text exprs.
+        // Search in order of decreasing precedence: text exprs, then shape exprs, then tempo changes. Using emplace keeps the first one.
         // We want text exprs to be chosen over the others, if they coincide at a beat location.
+        const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
+        for (const auto& expAssign : expAssigns) {
+            if (const auto expr = expAssign->getTextExpression()) {
+                if (expr->playbackType == others::PlaybackType::Tempo) {
+                    temposAtPositions.emplace(expAssign->eduPosition, expr);
+                }
+            } else if (const auto expr = expAssign->getShapeExpression()) {
+                if (expr->playbackType == others::PlaybackType::Tempo) {
+                    temposAtPositions.emplace(expAssign->eduPosition, expr);
+                }
+            }
+        }
         const auto tempoChanges = musxMeasure->getDocument()->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, musxMeasure->getCmper());
         for (const auto& tempoChange : tempoChanges) {
             if (!tempoChange->isRelative) {
-                temposAtPositions.insert_or_assign(tempoChange->eduPosition, tempoChange);
-            }
-        }
-        const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
-        for (const auto& expAssign : expAssigns) {
-            if (const auto expr = expAssign->getShapeExpression()) {
-                if (expr->playbackType == others::PlaybackType::Tempo) {
-                    temposAtPositions.insert_or_assign(expAssign->eduPosition, expr);
-                }
-            } else if (const auto expr = expAssign->getTextExpression()) {
-                if (expr->playbackType == others::PlaybackType::Tempo) {
-                    temposAtPositions.insert_or_assign(expAssign->eduPosition, expr);
-                }
+                temposAtPositions.emplace(tempoChange->eduPosition, tempoChange);
             }
         }
         for (const auto& it : temposAtPositions) {
