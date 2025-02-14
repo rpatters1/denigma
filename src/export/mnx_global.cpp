@@ -62,6 +62,26 @@ static void assignBarline(
     }
 }
 
+static void assignKey(
+    mnx::global::Measure& mnxMeasure,
+    const std::shared_ptr<others::Measure>& musxMeasure,
+    std::optional<int>& prevKeyFifths)
+{
+    auto keyFifths = musxMeasure->keySignature->getAlteration();
+    if (keyFifths && keyFifths != prevKeyFifths) {
+        mnxMeasure.create_key(keyFifths.value());
+        prevKeyFifths = keyFifths;
+    }
+}
+
+static void assignDisplayNumber(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
+{
+    int displayNumber = musxMeasure->calcDisplayNumber();
+    if (displayNumber != musxMeasure->getCmper()) {
+        mnxMeasure.set_number(displayNumber);
+    }
+}
+
 static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
 {
     auto createTempo = [&mnxMeasure](int bpm, Edu noteValue, Edu eduPosition) {
@@ -82,16 +102,24 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
         }    
     };
     if (musxMeasure->hasExpression) {
-        const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
         std::map<Edu, std::shared_ptr<OthersBase>> temposAtPositions; // use OthersBase because it has to accept multiple types
+        // Search in order of increasing precedence: tempo changes, then shape exprs, then text exprs.
+        // We want text exprs to be chosen over the others, if they coincide at a beat location.
+        const auto tempoChanges = musxMeasure->getDocument()->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, musxMeasure->getCmper());
+        for (const auto& tempoChange : tempoChanges) {
+            if (!tempoChange->isRelative) {
+                temposAtPositions.insert_or_assign(tempoChange->eduPosition, tempoChange);
+            }
+        }
+        const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
         for (const auto& expAssign : expAssigns) {
-            if (const auto expr = expAssign->getTextExpression()) {
+            if (const auto expr = expAssign->getShapeExpression()) {
                 if (expr->playbackType == others::PlaybackType::Tempo) {
-                    temposAtPositions.emplace(expAssign->eduPosition, expr);
+                    temposAtPositions.insert_or_assign(expAssign->eduPosition, expr);
                 }
-            } else if (const auto expr = expAssign->getShapeExpression()) {
+            } else if (const auto expr = expAssign->getTextExpression()) {
                 if (expr->playbackType == others::PlaybackType::Tempo) {
-                    temposAtPositions.emplace(expAssign->eduPosition, expr);
+                    temposAtPositions.insert_or_assign(expAssign->eduPosition, expr);
                 }
             }
         }
@@ -100,6 +128,10 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
                 createTempo(expr->value, expr->auxData1, it.first);
             } else if (auto expr = std::dynamic_pointer_cast<others::ShapeExpressionDef>(it.second)) {
                 createTempo(expr->value, expr->auxData1, it.first);
+            } else if (auto tempoChange = std::dynamic_pointer_cast<others::TempoChange>(it.second)) {
+                const auto noteType = NoteType::Quarter; // eventually this could perhaps be deduced from other elements
+                createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);
+                /// @todo hide this tempo change if MNX ever adds visibility to the tempo object.
             }
         }
     }
@@ -118,20 +150,9 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         auto mnxMeasure = mnxDocument->global().measures().append();
         // MNX default indices match our cmper values, so there is no reason to include them.
         // mnxMeasure.set_index(musxMeasure->getCmper());
-        // Add barline if needed
         assignBarline(mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
-        // Add key if needed
-        auto keyFifths = musxMeasure->keySignature->getAlteration();
-        if (keyFifths && keyFifths != prevKeyFifths) {
-            mnxMeasure.create_key(keyFifths.value());
-            prevKeyFifths = keyFifths;
-        }
-        // add display number if needed
-        int visibleNumber = musxMeasure->calcDisplayNumber();
-        if (visibleNumber != musxMeasure->getCmper()) {
-            mnxMeasure.set_number(visibleNumber);
-        }
-        // add tempo(s) if needed
+        assignKey(mnxMeasure, musxMeasure, prevKeyFifths);
+        assignDisplayNumber(mnxMeasure, musxMeasure);
         createTempos(mnxMeasure, musxMeasure);
     }
 }
