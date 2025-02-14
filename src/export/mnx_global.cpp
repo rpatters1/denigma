@@ -62,22 +62,46 @@ static void assignBarline(
     }
 }
 
-static void createTempo( mnx::global::Measure& mnxMeasure, int bpm, Edu noteValue, Edu eduPosition )
+static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
 {
-    if (!mnxMeasure.tempos().has_value()) {
-        mnxMeasure.create_tempos();
-    }
-    auto base = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(noteValue));
-    auto dots = [&]() -> std::optional<int> {
-        if (int val = calcAugmentationDotsFromEdu(noteValue)) {
-            return val;
+    auto createTempo = [&mnxMeasure](int bpm, Edu noteValue, Edu eduPosition) {
+        if (!mnxMeasure.tempos().has_value()) {
+            mnxMeasure.create_tempos();
         }
-        return std::nullopt;
-    }();
-    auto tempo = mnxMeasure.tempos().value().append(bpm, base, dots);
-    if (eduPosition) {
-        auto pos = Fraction::fromEdu(eduPosition);
-        tempo.create_location(pos.getNumerator(), pos.getDenominator());
+        auto base = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(noteValue));
+        auto dots = [&]() -> std::optional<int> {
+            if (int val = calcAugmentationDotsFromEdu(noteValue)) {
+                return val;
+            }
+            return std::nullopt;
+        }();
+        auto tempo = mnxMeasure.tempos().value().append(bpm, base, dots);
+        if (eduPosition) {
+            auto pos = Fraction::fromEdu(eduPosition);
+            tempo.create_location(pos.getNumerator(), pos.getDenominator());
+        }    
+    };
+    if (musxMeasure->hasExpression) {
+        const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
+        std::map<Edu, std::shared_ptr<OthersBase>> temposAtPositions; // use OthersBase because it has to accept multiple types
+        for (const auto& expAssign : expAssigns) {
+            if (const auto expr = expAssign->getTextExpression()) {
+                if (expr->playbackType == others::PlaybackType::Tempo) {
+                    temposAtPositions.emplace(expAssign->eduPosition, expr);
+                }
+            } else if (const auto expr = expAssign->getTextExpression()) {
+                if (expr->playbackType == others::PlaybackType::Tempo) {
+                    temposAtPositions.emplace(expAssign->eduPosition, expr);
+                }
+            }
+        }
+        for (const auto& it : temposAtPositions) {
+            if (auto expr = std::dynamic_pointer_cast<others::TextExpressionDef>(it.second)) {
+                createTempo(expr->value, expr->auxData1, it.first);
+            } else if (auto expr = std::dynamic_pointer_cast<others::ShapeExpressionDef>(it.second)) {
+                createTempo(expr->value, expr->auxData1, it.first);
+            }
+        }
     }
 }
 
@@ -108,22 +132,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
             mnxMeasure.set_number(visibleNumber);
         }
         // add tempo(s) if needed
-        if (musxMeasure->hasExpression) {
-            const auto expAssigns = musxDocument->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
-            std::map<Edu, std::shared_ptr<OthersBase>> temposAtPositions; // use OthersBase because it has to accept both expr types
-            for (const auto& expAssign : expAssigns) {
-                if (const auto expr = expAssign->getTextExpression()) {
-                    if (expr->playbackType == others::PlaybackType::Tempo) {
-                        temposAtPositions.emplace(expAssign->eduPosition, expr);
-                    }
-                } /// @todo check for shape expression
-            }
-            for (const auto& it : temposAtPositions) {
-                if (auto expr = std::dynamic_pointer_cast<others::TextExpressionDef>(it.second)) {
-                    createTempo(mnxMeasure, expr->value, expr->auxData1, it.first);
-                } /// @todo do shape expression
-            }
-        }
+        createTempos(mnxMeasure, musxMeasure);
     }
 }
 
