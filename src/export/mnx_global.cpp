@@ -89,7 +89,7 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
                 if (expr->playbackType == others::PlaybackType::Tempo) {
                     temposAtPositions.emplace(expAssign->eduPosition, expr);
                 }
-            } else if (const auto expr = expAssign->getTextExpression()) {
+            } else if (const auto expr = expAssign->getShapeExpression()) {
                 if (expr->playbackType == others::PlaybackType::Tempo) {
                     temposAtPositions.emplace(expAssign->eduPosition, expr);
                 }
