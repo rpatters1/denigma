@@ -30,8 +30,8 @@ namespace denigma {
 namespace mnxexp {
 
 static void assignBarline(
-    const std::shared_ptr<others::Measure>& musxMeasure,
     mnx::global::Measure& mnxMeasure,
+    const std::shared_ptr<others::Measure>& musxMeasure,
     const std::shared_ptr<options::BarlineOptions>& musxBarlineOptions,
     bool isForFinalMeasure)
 {
@@ -62,6 +62,25 @@ static void assignBarline(
     }
 }
 
+static void createTempo( mnx::global::Measure& mnxMeasure, int bpm, Edu noteValue, Edu eduPosition )
+{
+    if (!mnxMeasure.tempos().has_value()) {
+        mnxMeasure.create_tempos();
+    }
+    auto base = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(noteValue));
+    auto dots = [&]() -> std::optional<int> {
+        if (int val = calcAugmentationDotsFromEdu(noteValue)) {
+            return val;
+        }
+        return std::nullopt;
+    }();
+    auto tempo = mnxMeasure.tempos().value().append(bpm, base, dots);
+    if (eduPosition) {
+        auto pos = Fraction::fromEdu(eduPosition);
+        tempo.create_location(pos.getNumerator(), pos.getDenominator());
+    }
+}
+
 static void createGlobalMeasures(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
@@ -76,46 +95,33 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         // MNX default indices match our cmper values, so there is no reason to include them.
         // mnxMeasure.set_index(musxMeasure->getCmper());
         // Add barline if needed
-        assignBarline(musxMeasure, mnxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
+        assignBarline(mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
         // Add key if needed
         auto keyFifths = musxMeasure->keySignature->getAlteration();
         if (keyFifths && keyFifths != prevKeyFifths) {
             mnxMeasure.create_key(keyFifths.value());
             prevKeyFifths = keyFifths;
         }
+        // add display number if needed
         int visibleNumber = musxMeasure->calcDisplayNumber();
         if (visibleNumber != musxMeasure->getCmper()) {
             mnxMeasure.set_number(visibleNumber);
         }
+        // add tempo(s) if needed
         if (musxMeasure->hasExpression) {
             const auto expAssigns = musxDocument->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
-            std::map<Edu, std::shared_ptr<others::MeasureExprAssign>> temposAtPositions;
+            std::map<Edu, std::shared_ptr<OthersBase>> temposAtPositions; // use OthersBase because it has to accept both expr types
             for (const auto& expAssign : expAssigns) {
-                temposAtPositions.emplace(expAssign->eduPosition, expAssign);
-            }
-            for (const auto& it : temposAtPositions) {
-                auto expAssign = it.second;
                 if (const auto expr = expAssign->getTextExpression()) {
                     if (expr->playbackType == others::PlaybackType::Tempo) {
-                        if (!mnxMeasure.tempos().has_value()) {
-                            mnxMeasure.create_tempos();
-                        }
-                        int bpm = expr->value;
-                        auto base = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(expr->auxData1));
-                        auto dots = [&]() -> std::optional<int> {
-                            int val = calcAugmentationDotsFromEdu(expr->auxData1);
-                            if (val) {
-                                return val;
-                            }
-                            return std::nullopt;
-                        }();
-                        auto tempo = mnxMeasure.tempos().value().append(bpm, base, dots);
-                        if (expAssign->eduPosition) {
-                            auto pos = Fraction::fromEdu(expAssign->eduPosition);
-                            tempo.create_location(pos.getNumerator(), pos.getDenominator());
-                        }
+                        temposAtPositions.emplace(expAssign->eduPosition, expr);
                     }
                 } /// @todo check for shape expression
+            }
+            for (const auto& it : temposAtPositions) {
+                if (auto expr = std::dynamic_pointer_cast<others::TextExpressionDef>(it.second)) {
+                    createTempo(mnxMeasure, expr->value, expr->auxData1, it.first);
+                } /// @todo do shape expression
             }
         }
     }
