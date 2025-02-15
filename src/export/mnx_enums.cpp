@@ -47,6 +47,17 @@ ToEnum enumConvert(FromEnum) {
     return {};
 }
 
+using BarlineType = musx::dom::others::Measure::BarlineType;
+BEGIN_ENUM_CONVERSION(BarlineType, mnx::BarlineType)
+    case BarlineType::None: return mnx::BarlineType::NoBarline;
+    case BarlineType::Normal: return mnx::BarlineType::Regular;
+    case BarlineType::Double: return mnx::BarlineType::Double;
+    case BarlineType::Final: return mnx::BarlineType::Final;
+    case BarlineType::Solid: return mnx::BarlineType::Heavy;
+    case BarlineType::Dashed: return mnx::BarlineType::Dashed;
+    case BarlineType::Tick: return mnx::BarlineType::Tick;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnx::NoteValueBase)
     case NoteType::Note2048th: return mnx::NoteValueBase::Note2048th;
     case NoteType::Note1024th: return mnx::NoteValueBase::Note1024th;
@@ -64,17 +75,17 @@ BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnx::NoteValueBase)
     case NoteType::Maxima: return mnx::NoteValueBase::Maxima;
 END_ENUM_CONVERSION
 
-using BarlineType = musx::dom::others::Measure::BarlineType;
-
-BEGIN_ENUM_CONVERSION(BarlineType, mnx::BarlineType)
-    case BarlineType::None: return mnx::BarlineType::NoBarline;
-    case BarlineType::Normal: return mnx::BarlineType::Regular;
-    case BarlineType::Double: return mnx::BarlineType::Double;
-    case BarlineType::Final: return mnx::BarlineType::Final;
-    case BarlineType::Solid: return mnx::BarlineType::Heavy;
-    case BarlineType::Dashed: return mnx::BarlineType::Dashed;
-    case BarlineType::Tick: return mnx::BarlineType::Tick;
+BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnx::TimeSignatureUnit)
+    case NoteType::Note128th: return mnx::TimeSignatureUnit::Value128th;
+    case NoteType::Note64th: return mnx::TimeSignatureUnit::Value64th;
+    case NoteType::Note32nd: return mnx::TimeSignatureUnit::Value32nd;
+    case NoteType::Note16th: return mnx::TimeSignatureUnit::Value16th;
+    case NoteType::Eighth: return mnx::TimeSignatureUnit::Eighth;
+    case NoteType::Quarter: return mnx::TimeSignatureUnit::Quarter;
+    case NoteType::Half: return mnx::TimeSignatureUnit::Half;
+    case NoteType::Whole: return mnx::TimeSignatureUnit::Whole;
 END_ENUM_CONVERSION
+
 
 } // namespace mnxexp
 } // namespace denigma

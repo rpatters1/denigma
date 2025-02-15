@@ -47,7 +47,7 @@ static void assignBarline(
                     mnxMeasure.create_barline(mnx::BarlineType::Regular);
                 } else if (!isForFinalMeasure && musxBarlineOptions->drawDoubleBarlineBeforeKeyChanges) {
                     if (const auto& nextMeasure = musxMeasure->getDocument()->getOthers()->get<others::Measure>(SCORE_PARTID, musxMeasure->getCmper() + 1)) {
-                        if (!musxMeasure->keySignature->isSameKey(*nextMeasure->keySignature.get())) {
+                        if (!musxMeasure->keySignature->isSame(*nextMeasure->keySignature.get())) {
                             mnxMeasure.create_barline(mnx::BarlineType::Double);
                         }
                     }
@@ -137,6 +137,22 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
     }
 }
 
+static void assignTimeSignature(
+    mnx::global::Measure& mnxMeasure,
+    const std::shared_ptr<others::Measure>& musxMeasure,
+    std::shared_ptr<TimeSignature>& prevTimeSig)
+{
+    if (!musxMeasure->compositeNumerator && !musxMeasure->compositeDenominator) /// @todo eliminate this if statement when we support composite timesigs
+    {
+        auto timeSig = musxMeasure->createTimeSignature();
+        if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get())) {
+            auto [count, noteType] = timeSig->calcSimplified();
+            mnxMeasure.create_time(count, enumConvert<mnx::TimeSignatureUnit>(noteType));
+            prevTimeSig = timeSig;
+        }
+    }
+}
+
 static void createGlobalMeasures(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
@@ -146,6 +162,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     auto musxMeasures = musxDocument->getOthers()->getArray<others::Measure>(SCORE_PARTID);
     auto musxBarlineOptions = musxDocument->getOptions()->get<options::BarlineOptions>();
     std::optional<int> prevKeyFifths;
+    std::shared_ptr<TimeSignature> prevTimeSig;
     for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxDocument->global().measures().append();
         // MNX default indices match our cmper values, so there is no reason to include them.
@@ -154,6 +171,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         assignKey(mnxMeasure, musxMeasure, prevKeyFifths);
         assignDisplayNumber(mnxMeasure, musxMeasure);
         createTempos(mnxMeasure, musxMeasure);
+        assignTimeSignature(mnxMeasure, musxMeasure, prevTimeSig);
     }
 }
 
