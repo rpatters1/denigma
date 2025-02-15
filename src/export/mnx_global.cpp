@@ -142,14 +142,11 @@ static void assignTimeSignature(
     const std::shared_ptr<others::Measure>& musxMeasure,
     std::shared_ptr<TimeSignature>& prevTimeSig)
 {
-    if (!musxMeasure->compositeNumerator && !musxMeasure->compositeDenominator) /// @todo eliminate this if statement when we support composite timesigs
-    {
-        auto timeSig = musxMeasure->createTimeSignature();
-        if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get())) {
-            auto [count, noteType] = timeSig->calcSimplified();
-            mnxMeasure.create_time(count, enumConvert<mnx::TimeSignatureUnit>(noteType));
-            prevTimeSig = timeSig;
-        }
+    auto timeSig = musxMeasure->createTimeSignature();
+    if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get())) {
+        auto [count, noteType] = timeSig->calcSimplified();
+        mnxMeasure.create_time(count, enumConvert<mnx::TimeSignatureUnit>(noteType));
+        prevTimeSig = timeSig;
     }
 }
 
