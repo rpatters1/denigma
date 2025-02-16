@@ -151,6 +151,7 @@ static void assignTimeSignature(
     auto timeSig = musxMeasure->createTimeSignature();
     if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get())) {
         auto [count, noteType] = timeSig->calcSimplified();
+        /// @todo if MNX adds fractional meter, support that here instead of error message or further reduction
         if (count.remainder()) {
             if ((Edu(noteType) % count.denominator()) == 0) {
                 noteType = musx::dom::NoteType(Edu(noteType) / count.denominator());
