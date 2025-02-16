@@ -98,7 +98,7 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
         auto tempo = mnxMeasure.tempos().value().append(bpm, base, dots);
         if (eduPosition) {
             auto pos = Fraction::fromEdu(eduPosition);
-            tempo.create_location(pos.getNumerator(), pos.getDenominator());
+            tempo.create_location(pos.numerator(), pos.denominator());
         }    
     };
     if (musxMeasure->hasExpression) {
@@ -118,8 +118,13 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
             }
         }
         const auto tempoChanges = musxMeasure->getDocument()->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, musxMeasure->getCmper());
+        std::optional<NoteType> tempoUnit;
         for (const auto& tempoChange : tempoChanges) {
             if (!tempoChange->isRelative) {
+                if (!tempoUnit) {
+                    auto [count, unit] = musxMeasure->createTimeSignature()->calcSimplified();
+                    tempoUnit = std::min(unit, NoteType::Quarter);
+                }
                 temposAtPositions.emplace(tempoChange->eduPosition, tempoChange);
             }
         }
@@ -129,7 +134,7 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
             } else if (auto expr = std::dynamic_pointer_cast<others::ShapeExpressionDef>(it.second)) {
                 createTempo(expr->value, expr->auxData1, it.first);
             } else if (auto tempoChange = std::dynamic_pointer_cast<others::TempoChange>(it.second)) {
-                const auto noteType = NoteType::Quarter; // eventually this could perhaps be deduced from other elements
+                const auto noteType = tempoUnit.value_or(NoteType::Quarter);
                 createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);
                 /// @todo hide this tempo change if MNX ever adds visibility to the tempo object.
             }
@@ -138,6 +143,7 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
 }
 
 static void assignTimeSignature(
+    const MnxMusxMappingPtr& context,
     mnx::global::Measure& mnxMeasure,
     const std::shared_ptr<others::Measure>& musxMeasure,
     std::shared_ptr<TimeSignature>& prevTimeSig)
@@ -145,7 +151,16 @@ static void assignTimeSignature(
     auto timeSig = musxMeasure->createTimeSignature();
     if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get())) {
         auto [count, noteType] = timeSig->calcSimplified();
-        mnxMeasure.create_time(count, enumConvert<mnx::TimeSignatureUnit>(noteType));
+        if (count.remainder()) {
+            if ((uint32_t(noteType) % count.denominator()) == 0) {
+                count *= count.denominator();
+                noteType = musx::dom::NoteType(uint32_t(noteType) / count.denominator());
+            } else {
+                context->denigmaContext->logMessage(LogMsg() << "Time signature in measure " << musxMeasure->getCmper()
+                    << " has fractional portion that could not be reduced.", LogSeverity::Warning);
+            }
+        }
+        mnxMeasure.create_time(count.quotient(), enumConvert<mnx::TimeSignatureUnit>(noteType));
         prevTimeSig = timeSig;
     }
 }
@@ -168,7 +183,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         assignKey(mnxMeasure, musxMeasure, prevKeyFifths);
         assignDisplayNumber(mnxMeasure, musxMeasure);
         createTempos(mnxMeasure, musxMeasure);
-        assignTimeSignature(mnxMeasure, musxMeasure, prevTimeSig);
+        assignTimeSignature(context, mnxMeasure, musxMeasure, prevTimeSig);
     }
 }
 
