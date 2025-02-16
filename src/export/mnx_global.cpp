@@ -153,8 +153,8 @@ static void assignTimeSignature(
         auto [count, noteType] = timeSig->calcSimplified();
         if (count.remainder()) {
             if ((uint32_t(noteType) % count.denominator()) == 0) {
-                count *= count.denominator();
                 noteType = musx::dom::NoteType(uint32_t(noteType) / count.denominator());
+                count *= count.denominator();
             } else {
                 context->denigmaContext->logMessage(LogMsg() << "Time signature in measure " << musxMeasure->getCmper()
                     << " has fractional portion that could not be reduced.", LogSeverity::Warning);
