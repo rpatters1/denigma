@@ -68,3 +68,23 @@ TEST(MnxGlobal, Tempos)
         testTempo(tempo, 71, 1, 2);
     }
 }
+
+TEST(MnxGlobal, CompositeTime)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("timesigs_composite.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+        });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "timesigs_composite.mnx");
+    auto measures = doc.global().measures();
+    ASSERT_GE(measures.size(), 1) << "should be at least one measure";
+
+    auto time = measures[0].time();
+    ASSERT_TRUE(time);
+    EXPECT_EQ(time.value().count(), 133);
+    EXPECT_EQ(time.value().unit(), mnx::TimeSignatureUnit::Value32nd);
+}

@@ -152,8 +152,8 @@ static void assignTimeSignature(
     if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get())) {
         auto [count, noteType] = timeSig->calcSimplified();
         if (count.remainder()) {
-            if ((uint32_t(noteType) % count.denominator()) == 0) {
-                noteType = musx::dom::NoteType(uint32_t(noteType) / count.denominator());
+            if ((Edu(noteType) % count.denominator()) == 0) {
+                noteType = musx::dom::NoteType(Edu(noteType) / count.denominator());
                 count *= count.denominator();
             } else {
                 context->denigmaContext->logMessage(LogMsg() << "Time signature in measure " << musxMeasure->getCmper()
