@@ -82,6 +82,17 @@ static void assignDisplayNumber(mnx::global::Measure& mnxMeasure, const std::sha
     }
 }
 
+static void assignRepeats(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
+{
+    if (musxMeasure->forwardRepeatBar) {
+        mnxMeasure.create_repeatStart();
+    }
+    if (musxMeasure->backwardsRepeatBar) {
+        mnxMeasure.create_repeatEnd();
+        /// @todo add `times` if appropriate.
+    }
+}
+
 static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
 {
     auto createTempo = [&mnxMeasure](int bpm, Edu noteValue, Edu eduPosition) {
@@ -183,6 +194,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         assignBarline(mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
         assignKey(mnxMeasure, musxMeasure, prevKeyFifths);
         assignDisplayNumber(mnxMeasure, musxMeasure);
+        assignRepeats(mnxMeasure, musxMeasure);
         createTempos(mnxMeasure, musxMeasure);
         assignTimeSignature(context, mnxMeasure, musxMeasure, prevTimeSig);
     }
