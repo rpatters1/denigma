@@ -62,6 +62,24 @@ static void assignBarline(
     }
 }
 
+static void createEnding(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
+{
+    if (musxMeasure->hasEnding) {
+        if (auto musxEnding = musxMeasure->getDocument()->getOthers()->get<others::RepeatEndingStart>(SCORE_PARTID, musxMeasure->getCmper())) {
+            auto mnxEnding = mnxMeasure.create_ending(musxEnding->calcEndingLength());
+            mnxEnding.set_open(musxEnding->calcIsOpen());
+            if (auto musxNumbers = musxMeasure->getDocument()->getOthers()->get<others::RepeatPassList>(SCORE_PARTID, musxMeasure->getCmper())) {
+                for (int value : musxNumbers->m_endingNumbers) {
+                    if (!mnxEnding.numbers().has_value()) {
+                        mnxEnding.create_numbers();
+                    }
+                    mnxEnding.numbers().value().push_back(value);
+                }
+            }
+        }
+    }
+}
+
 static void assignKey(
     mnx::global::Measure& mnxMeasure,
     const std::shared_ptr<others::Measure>& musxMeasure,
@@ -192,6 +210,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         // MNX default indices match our cmper values, so there is no reason to include them.
         // mnxMeasure.set_index(musxMeasure->getCmper());
         assignBarline(mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
+        createEnding(mnxMeasure, musxMeasure);
         assignKey(mnxMeasure, musxMeasure, prevKeyFifths);
         assignDisplayNumber(mnxMeasure, musxMeasure);
         assignRepeats(mnxMeasure, musxMeasure);
