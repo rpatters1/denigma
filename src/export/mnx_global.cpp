@@ -136,13 +136,13 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
         // We want text exprs to be chosen over the others, if they coincide at a beat location.
         const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
         for (const auto& expAssign : expAssigns) {
-            if (const auto expr = expAssign->getTextExpression()) {
-                if (expr->playbackType == others::PlaybackType::Tempo) {
-                    temposAtPositions.emplace(expAssign->eduPosition, expr);
+            if (const auto textExpr = expAssign->getTextExpression()) {
+                if (textExpr->playbackType == others::PlaybackType::Tempo) {
+                    temposAtPositions.emplace(expAssign->eduPosition, textExpr);
                 }
-            } else if (const auto expr = expAssign->getShapeExpression()) {
-                if (expr->playbackType == others::PlaybackType::Tempo) {
-                    temposAtPositions.emplace(expAssign->eduPosition, expr);
+            } else if (const auto shapeExpr = expAssign->getShapeExpression()) {
+                if (shapeExpr->playbackType == others::PlaybackType::Tempo) {
+                    temposAtPositions.emplace(expAssign->eduPosition, shapeExpr);
                 }
             }
         }
@@ -158,10 +158,10 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
             }
         }
         for (const auto& it : temposAtPositions) {
-            if (auto expr = std::dynamic_pointer_cast<others::TextExpressionDef>(it.second)) {
-                createTempo(expr->value, expr->auxData1, it.first);
-            } else if (auto expr = std::dynamic_pointer_cast<others::ShapeExpressionDef>(it.second)) {
-                createTempo(expr->value, expr->auxData1, it.first);
+            if (auto textExpr = std::dynamic_pointer_cast<others::TextExpressionDef>(it.second)) {
+                createTempo(textExpr->value, textExpr->auxData1, it.first);
+            } else if (auto shapeExpr = std::dynamic_pointer_cast<others::ShapeExpressionDef>(it.second)) {
+                createTempo(shapeExpr->value, shapeExpr->auxData1, it.first);
             } else if (auto tempoChange = std::dynamic_pointer_cast<others::TempoChange>(it.second)) {
                 const auto noteType = tempoUnit.value_or(NoteType::Quarter);
                 createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);
