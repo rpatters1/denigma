@@ -150,7 +150,7 @@ set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for musx")
 FetchContent_Declare(
     musx
     GIT_REPOSITORY https://github.com/rpatters1/musxdom.git
-    GIT_TAG        dev/mnx-sequence-support
+    GIT_TAG        main
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(musx)
@@ -180,7 +180,7 @@ option(mnxdom_BUILD_TESTING "Enable testing mnxdom" OFF)
 FetchContent_Declare(
     mnxdom
     GIT_REPOSITORY https://github.com/rpatters1/mnxdom.git
-    GIT_TAG        dev/denigma-support
+    GIT_TAG        main
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(mnxdom)
