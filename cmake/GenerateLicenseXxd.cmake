@@ -4,7 +4,7 @@
 # Define parallel lists for file paths and their corresponding prefixes
 set(LICENSE_FILES
     "${CMAKE_SOURCE_DIR}/LICENSE"
-    "${CMAKE_SOURCE_DIR}/submodules/musx_object_model/LICENSE"
+    "${musx_SOURCE_DIR}/LICENSE"
     "${ezgz_SOURCE_DIR}/LICENSE"
     "${pugixml_SOURCE_DIR}/LICENSE.md"
     "${miniz-cpp_SOURCE_DIR}/LICENSE.md"

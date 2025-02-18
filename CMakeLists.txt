@@ -117,39 +117,81 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz-cpp)
 
-# Disable building tests for nlohmann_json
-set(JSON_BuildTests OFF CACHE BOOL "Do not build tests for nlohmann_json")
-# Define the version of nlohmann_json to use
-set(NLOHMANN_JSON_VERSION v3.11.3)
-# Fetch nlohmann_json
+# Define a cache variable for the local Musx C++ DOM path relative to the source directory.
+set(MUSX_LOCAL_PATH "" CACHE STRING "Path to local Musx C++ DOM checkout relative to the source directory (if provided)")
+
+if(MUSX_LOCAL_PATH)
+    # Combine the source directory with the relative path to get an absolute path.
+    get_filename_component(MUSX_LOCAL_PATH_ABS "${CMAKE_SOURCE_DIR}/${MUSX_LOCAL_PATH}" ABSOLUTE)
+    if(EXISTS "${MUSX_LOCAL_PATH_ABS}/CMakeLists.txt")
+        message(STATUS "Local Musx C++ DOM found at ${MUSX_LOCAL_PATH_ABS}")
+        # Set the FetchContent source directory to the computed absolute path.
+        set(FETCHCONTENT_SOURCE_DIR_MUSX "${MUSX_LOCAL_PATH_ABS}" CACHE INTERNAL "")
+    else()
+        message(FATAL_ERROR "Local Musx C++ DOM not found at ${MUSX_LOCAL_PATH_ABS}")
+    endif()
+else()
+    message(STATUS "Using GitHub for Musx C++ DOM")
+endif()
+
+# Compile definitions
+#set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
+#set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
+set(MUSX_USE_PUGIXML ON CACHE BOOL "Enable pugixml parsing classes" FORCE)
+
+# temporary for reference and debugging
+set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
+#set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Enable throwing on unknown XML" FORCE)
+#set(MUSX_THROW_ON_INTEGRITY_CHECK_FAIL ON CACHE BOOL "Enable throwing integrity check failures" FORCE)
+
+# Disable building tests for musx
+set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for musx")
+# Fetch musx
 FetchContent_Declare(
-    nlohmann_json
-    URL https://github.com/nlohmann/json/releases/download/${NLOHMANN_JSON_VERSION}/json.tar.xz
-    URL_HASH SHA256=d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d  # Verify the hash matches the tarball
+    musx
+    GIT_REPOSITORY https://github.com/rpatters1/musxdom.git
+    GIT_TAG        main
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
-FetchContent_MakeAvailable(nlohmann_json)
+FetchContent_MakeAvailable(musx)
 
-# Disable building tests for json_schema_validator
-set(JSON_VALIDATOR_BUILD_TESTS OFF CACHE BOOL "Do not build tests for json_schema_validator")
-# Fetch json_schema_validator from your fork
-set(nlohmann_json_VERSION ${NLOHMANN_JSON_VERSION})
+FetchContent_GetProperties(musx)
+message(STATUS "Musx Source Directory: ${musx_SOURCE_DIR}")
+
+# Define a cache variable for the local MNX C++ DOM path relative to the source directory.
+set(MNXDOM_LOCAL_PATH "" CACHE STRING "Path to local MNX C++ DOM checkout relative to the source directory (if provided)")
+
+if(MNXDOM_LOCAL_PATH)
+    # Combine the source directory with the relative path to get an absolute path.
+    get_filename_component(MNXDOM_LOCAL_PATH_ABS "${CMAKE_SOURCE_DIR}/${MNXDOM_LOCAL_PATH}" ABSOLUTE)
+    if(EXISTS "${MNXDOM_LOCAL_PATH_ABS}/CMakeLists.txt")
+        message(STATUS "Local MNX C++ DOM found at ${MNXDOM_LOCAL_PATH_ABS}")
+        # Set the FetchContent source directory to the computed absolute path.
+        set(FETCHCONTENT_SOURCE_DIR_MNXDOM "${MNXDOM_LOCAL_PATH_ABS}" CACHE INTERNAL "")
+    else()
+        message(FATAL_ERROR "Local MNX C++ DOM not found at ${MNXDOM_LOCAL_PATH_ABS}")
+    endif()
+else()
+    message(STATUS "Using GitHub for MNX C++ DOM")
+endif()
+
+option(mnxdom_BUILD_TESTING "Enable testing mnxdom" OFF)
+# Fetch mnxdom
 FetchContent_Declare(
-    json_schema_validator
-    GIT_REPOSITORY https://github.com/pboettch/json-schema-validator
-    GIT_TAG        40af3ec39670e768fc3f01f935140af311d71024
+    mnxdom
+    GIT_REPOSITORY https://github.com/rpatters1/mnxdom.git
+    GIT_TAG        main
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
-FetchContent_MakeAvailable(json_schema_validator)
+FetchContent_MakeAvailable(mnxdom)
 
-# Restore the original state
-set(CMAKE_WARN_DEPRECATED ${_original_WARN_DEPRECATED} CACHE BOOL "Restore original deprecation warnings setting" FORCE)
+FetchContent_GetProperties(mnxdom)
+message(STATUS "mnxdom Source Directory: ${mnxdom_SOURCE_DIR}")
 
 add_custom_target(PrintConfig ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Active build configuration: $<CONFIG>"
 )
 
-include("${CMAKE_SOURCE_DIR}/cmake/GenerateMnxSchemaXxd.cmake")
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
 
 # Add executable target
@@ -160,6 +202,8 @@ add_executable(denigma
     src/export/export.cpp
     src/export/enigmaxml.cpp
     src/export/mnx.cpp
+    src/export/mnx_enums.cpp
+    src/export/mnx_global.cpp
     src/export/mnx_layouts.cpp
     src/export/mss.cpp
     src/massage/massage.cpp
@@ -174,35 +218,19 @@ if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
     )
 endif()
 
-# Compile definitions
-#set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
-#set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
-set(MUSX_USE_PUGIXML ON CACHE BOOL "Enable pugixml parsing classes" FORCE)
-
-# temporary for reference and debugging
-set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
-#set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Enable throwing on unknown XML" FORCE)
-#set(MUSX_THROW_ON_INTEGRITY_CHECK_FAIL ON CACHE BOOL "Enable throwing integrity check failures" FORCE)
-
-
-# Disable building tests for musx
-set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for pugixml")
-#Include directories for your source files
-add_subdirectory(submodules/musx_object_model)
-
 # Ensure the include directories are added
-add_dependencies(denigma GenerateMnxSchemaXxd GenerateLicenseXxd)
+add_dependencies(denigma GenerateLicenseXxd)
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
 target_include_directories(denigma SYSTEM PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
-target_include_directories(denigma PRIVATE ${MUSX_OBJECT_MODEL_DIR})
 target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # Ensure the libraries are added
-target_link_libraries(denigma PRIVATE pugixml)
-target_link_libraries(denigma PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(denigma PRIVATE nlohmann_json_schema_validator)
-target_link_libraries(denigma PRIVATE musx)
+target_link_libraries(denigma PRIVATE
+    pugixml
+    mnxdom
+    musx
+)
 
 # Define an interface library for precompiled headers
 add_library(denigma_pch INTERFACE)
@@ -214,14 +242,12 @@ target_precompile_headers(denigma_pch INTERFACE
     <string>
     <memory>
     "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
-    "${MUSX_ROOT_DIR}/src/musx/musx.h"
+    "${musx_SOURCE_DIR}/src/musx/musx.h"
+    "${mnxdom_SOURCE_DIR}/src/mnxdom.h"
 )
 
 # Link the interface library to denigma
 target_link_libraries(denigma PUBLIC denigma_pch)
-
-# Link the interface library to musx
-target_link_libraries(musx PRIVATE denigma_pch)
 
 set(DEPLOY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/denigma)
 
@@ -253,3 +279,9 @@ if(denigma_BUILD_TESTING)
 else()
     message(STATUS "Testing not enabled for denigma_BUILD_TESTING.")
 endif()
+
+get_target_property(defs musx INTERFACE_COMPILE_DEFINITIONS)
+message(STATUS "musx INTERFACE definitions: ${defs}")
+
+get_target_property(defs denigma INTERFACE_COMPILE_DEFINITIONS)
+message(STATUS "denigma INTERFACE definitions: ${defs}")

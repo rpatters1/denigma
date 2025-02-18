@@ -17,6 +17,7 @@ if(denigma_BUILD_TESTING)
         test_logging.cpp
         test_massage.cpp
         test_options.cpp
+        mnx/test_global.cpp
         mnx/test_layouts.cpp
         mnx/test_schema.cpp
         mnx/test_scores.cpp
@@ -42,7 +43,6 @@ if(denigma_BUILD_TESTING)
         ${CMAKE_CURRENT_SOURCE_DIR}   # base test directory
         ${FETCHCONTENT_BASE_DIR}/ezgz-src
         ${FETCHCONTENT_BASE_DIR}/miniz-cpp-src
-        ${MUSX_OBJECT_MODEL_DIR}
         ${GENERATED_DIR}              # Generated files
     )
 
@@ -50,8 +50,7 @@ if(denigma_BUILD_TESTING)
     target_link_libraries(denigma_tests PRIVATE
         denigma_pch                   # Precompiled headers
         pugixml
-        nlohmann_json::nlohmann_json
-        nlohmann_json_schema_validator
+        mnxdom
         musx
     )
 

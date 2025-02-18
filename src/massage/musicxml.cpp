@@ -252,21 +252,21 @@ static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_pt
 }
 
 // this table maps musicxml note types to enigma note types
-static const std::unordered_map<std::string, Entry::NoteType> durationTypeMap = {
-    {"maxima", Entry::NoteType::Maxima},
-    {"long", Entry::NoteType::Long},
-    {"breve", Entry::NoteType::Breve},
-    {"whole", Entry::NoteType::Whole},
-    {"half", Entry::NoteType::Half},
-    {"quarter", Entry::NoteType::Quarter},
-    {"eighth", Entry::NoteType::Eighth},
-    {"16th", Entry::NoteType::Note16th},
-    {"32nd", Entry::NoteType::Note32nd},
-    {"64th", Entry::NoteType::Note64th},
-    {"128th", Entry::NoteType::Note128th},
-    {"256th", Entry::NoteType::Note256th},
-    {"512th", Entry::NoteType::Note512th},
-    {"1024th", Entry::NoteType::Note1024th}
+static const std::unordered_map<std::string, NoteType> durationTypeMap = {
+    {"maxima", NoteType::Maxima},
+    {"long", NoteType::Longa},
+    {"breve", NoteType::Breve},
+    {"whole", NoteType::Whole},
+    {"half", NoteType::Half},
+    {"quarter", NoteType::Quarter},
+    {"eighth", NoteType::Eighth},
+    {"16th", NoteType::Note16th},
+    {"32nd", NoteType::Note32nd},
+    {"64th", NoteType::Note64th},
+    {"128th", NoteType::Note128th},
+    {"256th", NoteType::Note256th},
+    {"512th", NoteType::Note512th},
+    {"1024th", NoteType::Note1024th}
 };
 
 static int log2_exact(uint32_t value)
@@ -334,7 +334,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                     // but Dolet apparently detects them and reports them as written value tremolos in musicxml
                     // We compensate by shifting the note type in enigma back by the number of beams and the written note type
                     // Then subtract out quarter note log (if it's >= quaerter), because that's the first non-beamed value.
-                    musxNoteType <<= tremolo.text().as_int() + log2_exact(xmlNoteType) - std::min(10, log2_exact(xmlNoteType)); // 10 is log2(Entry::NoteType::Quarter)
+                    musxNoteType <<= tremolo.text().as_int() + log2_exact(xmlNoteType) - std::min(10, log2_exact(xmlNoteType)); // 10 is log2(NoteType::Quarter)
                 }
             }
             if (xmlNoteType != musxNoteType) {

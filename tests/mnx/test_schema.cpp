@@ -35,7 +35,7 @@ TEST(Schema, InputSchemaValid)
     std::filesystem::path inputPath;
     copyInputToOutput("notAscii-其れ.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx", "--mnx-schema", (getInputPath() / "mnx" / "mnx-schema.json").u8string() };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Invalid argument" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "validate " << inputPath.u8string();
     });
 }
@@ -46,7 +46,7 @@ TEST(Schema, InputSchemaNotValid)
     std::filesystem::path inputPath;
     copyInputToOutput("notAscii-其れ.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx", "--mnx-schema", (getInputPath() / "mnx" / "generic-schema.json").u8string() };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "Invalid argument" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "Validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "wrong schema validate " << inputPath.u8string();
     });
 }
@@ -57,7 +57,7 @@ TEST(Schema, EmbeddedSchemaValid)
     std::filesystem::path inputPath;
     copyInputToOutput("notAscii-其れ.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Invalid argument" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "validate " << inputPath.u8string();
     });
 }

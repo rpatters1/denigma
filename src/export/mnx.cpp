@@ -26,40 +26,22 @@
 
 #include "mnx.h"
 
-#include "nlohmann/json-schema.hpp"
-#include "mnx_schema.xxd"
-
-static const std::string_view MNX_SCHEMA(reinterpret_cast<const char *>(mnx_schema_json), mnx_schema_json_len);
-
 using namespace musx::dom;
 using namespace musx::util;
-using json = nlohmann::ordered_json;
-//using json = nlohmann::json;
 
 namespace denigma {
-namespace mnx {
+namespace mnxexp {
 
 static void createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
-    auto mnxObject = json::object();
-    mnxObject["version"] = MNX_VERSION_NUMBER;
-    context->mnxDocument["mnx"] = mnxObject;
-}
-
-static void createGlobal([[maybe_unused]] const MnxMusxMappingPtr& context)
-{
-    auto globalObject = json::object();
-    globalObject["measures"] = json::array();
-    context->mnxDocument["global"] = globalObject;
 }
 
 static void createParts(const MnxMusxMappingPtr& context)
 {
-    /// @todo figure out mulitstaff instruments
-    auto partsObject = json::array();
     auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);
     auto scrollView = context->document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
     int partNumber = 0;
+    auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {
         auto staff = item->getStaff();
         auto multiStaffInst = staff->getMultiStaffInstGroup();
@@ -67,18 +49,18 @@ static void createParts(const MnxMusxMappingPtr& context)
             continue;
         }
         std::string id = "P" + std::to_string(++partNumber);
-        auto part = json::object();
-        part["id"] = id;
-        part["name"] = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
-        if (part["name"] == "") {
-            part.erase("name");
+        auto part = parts.append();
+        part.set_id(id);
+        auto fullName = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
+        if (!fullName.empty()) {
+            part.set_name(fullName);
         }
-        part["shortName"] = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
-        if (part["shortName"] == "") {
-            part.erase("shortName");
+        auto abrvName = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
+        if (!abrvName.empty()) {
+            part.set_shortName(abrvName);
         }
         if (multiStaffInst) {
-            part["staves"] = multiStaffInst->staffNums.size();
+            part.set_staves(int(multiStaffInst->staffNums.size()));
             for (auto inst : multiStaffInst->staffNums) {
                 context->inst2Part.emplace(inst, id);
             }
@@ -87,73 +69,59 @@ static void createParts(const MnxMusxMappingPtr& context)
             context->inst2Part.emplace(staff->getCmper(), id);
             context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
         }
-        partsObject.emplace_back(part);
     }
-    context->mnxDocument["parts"] =  partsObject;
 }
 
 static void createScores(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-    auto musxLinkedParts = context->document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
-    std::sort(musxLinkedParts.begin(), musxLinkedParts.end(), [](const auto& lhs, const auto& rhs) {
-        return lhs->partOrder < rhs->partOrder;
-    });
+    auto musxLinkedParts = others::PartDefinition::getInUserOrder(context->document);
     for (const auto& linkedPart : musxLinkedParts) {
-        auto mnxScore = json::object();
-        mnxScore["layout"] = calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID);
-        mnxScore["name"] = linkedPart->getName(EnigmaString::AccidentalStyle::Unicode);
-        if (mnxScore["name"] == "") {
-            mnxScore["name"] = linkedPart->isScore()
-                             ? std::string("Score")
-                             : std::string("Part ") + std::to_string(linkedPart->getCmper());
+        if (!mnxDocument->scores()) {
+            mnxDocument->create_scores();
         }
+        auto mnxScore = mnxDocument->scores().value().append(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
+        if (mnxScore.name().empty()) {
+            mnxScore.set_name(linkedPart->isScore()
+                              ? std::string("Score")
+                              : std::string("Part ") + std::to_string(linkedPart->getCmper()));
+        }
+        mnxScore.set_layout(calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID));
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
-            auto mnxMmRest = json::object();
-            mnxMmRest["duration"] = mmRest->calcNumberOfMeasures();
+            if (!mnxScore.multimeasureRests()) {
+                mnxScore.create_multimeasureRests();
+            }
+            auto mnxMmRest = mnxScore.multimeasureRests().value().append(mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
             if (!mmRest->calcIsNumberVisible()) {
-                mnxMmRest["label"] = "";
+                mnxMmRest.set_label("");
             }
-            mnxMmRest["start"] = mmRest->getStartMeasure();
-            if (mnxScore["multimeasureRests"].empty()) {
-                mnxScore["multimeasureRests"] = json::array();
-            }
-            mnxScore["multimeasureRests"].emplace_back(mnxMmRest);
         }
         auto pages = context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper());
         auto baseIuList = linkedPart->calcSystemIuList(BASE_SYSTEM_ID);
         for (size_t x = 0; x < pages.size(); x++) {
-            auto mnxSystems = json::array();
+            if (!mnxScore.pages()) {
+                mnxScore.create_pages();
+            }
+            auto mnxPage = mnxScore.pages().value().append();
+            auto mnxSystems = mnxPage.systems();
             auto page = pages[x];
             if (!page->isBlank() && page->lastSystem.has_value()) {
                 for (SystemCmper sysId = page->firstSystem; sysId <= *page->lastSystem; sysId++) {
-                    auto mnxSystem = json::object();
                     auto system = context->document->getOthers()->get<others::StaffSystem>(linkedPart->getCmper(), sysId);
                     if (!system) {
                         throw std::logic_error("System " + std::to_string(sysId) + " on page " + std::to_string(page->getCmper())
                             + " in part " + linkedPart->getName() + " does not exist.");
                     }
-                    mnxSystem["measure"] = system->startMeas;
+                    auto mnxSystem = mnxSystems.append(system->startMeas);
                     if (linkedPart->calcSystemIuList(sysId) == baseIuList) {
-                        mnxSystem["layout"] = calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID);
+                        mnxSystem.set_layout(calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID));
                     } else {
-                        mnxSystem["layout"] = calcSystemLayoutId(linkedPart->getCmper(), sysId);
+                        mnxSystem.set_layout(calcSystemLayoutId(linkedPart->getCmper(), sysId));
                     }
-                    mnxSystems.emplace_back(mnxSystem);
                 }
             }
-            auto mnxPage = json::object();
-            mnxPage["systems"] = mnxSystems;
-            if (mnxScore["pages"].empty()) {
-                mnxScore["pages"] = json::array();
-            }            
-            mnxScore["pages"].emplace_back(mnxPage);
         }
-        if (mnxDocument["scores"].empty()) {
-            mnxDocument["scores"] = json::array();
-        }
-        mnxDocument["scores"].emplace_back(mnxScore);
     }
 }
 
@@ -169,6 +137,7 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
 
     auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
+    context->mnxDocument = std::make_unique<mnx::Document>();
 
     createMnx(context);
     createGlobal(context);
@@ -176,23 +145,11 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     createLayouts(context); // must come after createParts
     createScores(context); // must come after createLayouts
     
-    // validate the result
-    try {
-        // Load JSON schema
-        json schemaJson = json::parse(denigmaContext.mnxSchema.value_or(std::string(MNX_SCHEMA)));
-        nlohmann::json_schema::json_validator validator;
-        validator.set_root_schema(schemaJson);
-        validator.validate(context->mnxDocument);
-    } catch (const std::invalid_argument& e) {
-        denigmaContext.logMessage(LogMsg() << "Invalid argument: " << e.what(), LogSeverity::Warning);
+    if (auto validationErr = context->mnxDocument->validate(denigmaContext.mnxSchema)) {
+        denigmaContext.logMessage(LogMsg() << "Validation error: " << validationErr.value(), LogSeverity::Warning);
     }
-
-    std::ofstream file;
-    file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
-    file.open(outputPath, std::ios::out | std::ios::binary);
-    file << context->mnxDocument.dump(denigmaContext.indentSpaces.value_or(-1));
-    file.close();
+    context->mnxDocument->save(outputPath, denigmaContext.indentSpaces.value_or(-1));
 }
 
-} // namespace mnx
+} // namespace mnxexp
 } // namespace denigma
