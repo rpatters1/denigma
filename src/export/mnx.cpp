@@ -36,42 +36,6 @@ static void createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
 }
 
-static void createParts(const MnxMusxMappingPtr& context)
-{
-    auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);
-    auto scrollView = context->document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
-    int partNumber = 0;
-    auto parts = context->mnxDocument->parts();
-    for (const auto& item : scrollView) {
-        auto staff = item->getStaff();
-        auto multiStaffInst = staff->getMultiStaffInstGroup();
-        if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
-            continue;
-        }
-        std::string id = "P" + std::to_string(++partNumber);
-        auto part = parts.append();
-        part.set_id(id);
-        auto fullName = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
-        if (!fullName.empty()) {
-            part.set_name(fullName);
-        }
-        auto abrvName = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
-        if (!abrvName.empty()) {
-            part.set_shortName(abrvName);
-        }
-        if (multiStaffInst) {
-            part.set_staves(int(multiStaffInst->staffNums.size()));
-            for (auto inst : multiStaffInst->staffNums) {
-                context->inst2Part.emplace(inst, id);
-            }
-            context->part2Inst.emplace(id, multiStaffInst->staffNums);
-        } else {
-            context->inst2Part.emplace(staff->getCmper(), id);
-            context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
-        }
-    }
-}
-
 static void createScores(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;

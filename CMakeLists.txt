@@ -205,6 +205,7 @@ add_executable(denigma
     src/export/mnx_enums.cpp
     src/export/mnx_global.cpp
     src/export/mnx_layouts.cpp
+    src/export/mnx_parts.cpp
     src/export/mss.cpp
     src/export/mnx_mapping.cpp
     src/massage/massage.cpp
