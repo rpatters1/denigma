@@ -38,19 +38,21 @@ namespace mnxexp {
 
 enum class FontType
 {
-    Unicode,           // Standard text
-    LegacyMusic,    // Non-SMuFL music fonts based on Adobe Sonata (e.g., Maestro, Petrucci, Sonata)
+    Unicode,        // Standard text
+    Symbol,         // Non-SMuFL music fonts based on Adobe Sonata (e.g., Maestro, Petrucci, Sonata)
     SMuFL           // Modern music fonts following SMuFL
 };
 
 enum class JumpType
 {
+    None,
     Segno,
     DalSegno,
+    DsAlFine,
     DaCapo,
+    DCAlFine,
     Coda,
-    Fine,
-    None
+    Fine
 };
 
 JumpType convertTextToJump(const std::string& text, FontType fontType);

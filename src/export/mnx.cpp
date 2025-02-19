@@ -134,7 +134,7 @@ static void createMappings(const MnxMusxMappingPtr& context)
                 if (def->font->calcIsSMuFL()) {
                     return FontType::SMuFL;
                 } else if (def->font->calcIsDefaultMusic() || def->font->calcIsSymbolFont()) {
-                    return FontType::LegacyMusic;
+                    return FontType::Symbol;
                 }
                 return FontType::Unicode;
             }();

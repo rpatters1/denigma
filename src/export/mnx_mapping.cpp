@@ -29,64 +29,74 @@
 
 namespace denigma {
 namespace mnxexp {
-    
+
+/**
+ * @brief Provides a default mapping from TextRepeatDef text to a jump type
+ *
+ * This function only maps strings from the Finale 27 Maestro Default file
+ * plus a few other obvious symbols (standard Unicode and SMuFL symbols).
+ * Anything else returns JumpType::None. It does a case-insensitive comparison.
+ */
+/// @param text The text to map. (Usuallu from TextRepeatText)
+/// @param fontType The font type (Unicode/Ascii, SMuFL, or Symbol)
+/// @return 
 JumpType convertTextToJump(const std::string& text, FontType fontType)
 {
-    static const std::unordered_map<std::string, JumpType> utf8Lookup = {
-        {"segno", JumpType::Segno}, {"§", JumpType::Segno}, {"𝄋", JumpType::Segno},
-        {"d.s.", JumpType::DalSegno}, {"dal segno", JumpType::DalSegno},
-        {"d.c.", JumpType::DaCapo}, {"da capo", JumpType::DaCapo},
-        {"coda", JumpType::Coda}, {"𝄌", JumpType::Coda}, {"fine", JumpType::Fine}
-    };
-    
-    static const std::unordered_map<std::string, JumpType> maestroLookup = {
-        {"%", JumpType::Segno},
-        {"U+00DE", JumpType::Coda},
-        {"U+009F", JumpType::Segno}
-    };
-    
-    static const std::unordered_map<std::string, JumpType> smuflLookup = {
-        {"U+E047", JumpType::Segno}, {"U+E04A", JumpType::Segno}, {"U+E04B", JumpType::Segno}, {"U+F404", JumpType::Segno},
-        {"U+E045", JumpType::DalSegno}, {"U+E046", JumpType::DaCapo},
-        {"U+E048", JumpType::Coda}, {"U+E049", JumpType::Coda}, {"U+F405", JumpType::Coda}
-    };
-
     std::string lowerText = utils::toLowerCase(text); // Convert input text to lowercase    
 
-    auto checkTable = [lowerText](const std::unordered_map<std::string, JumpType>& table) -> std::optional<JumpType> {
-        for (const auto& [key, value] : table) {
-            if (lowerText.find(utils::toLowerCase(key)) != std::string::npos) { // Check if key is in text
-                return value;
-            }
-        }
-        return std::nullopt;
-    };
-    
-    std::optional<JumpType> result;
-    switch (fontType) {
-        case FontType::SMuFL:
-            if ((result = checkTable(smuflLookup)) != std::nullopt) {
-                return result.value();
-            }
-            // fall thru on purpose
-        default:
-        case FontType::Unicode:
-            result = checkTable(utf8Lookup);
-            if (!result) {
-                if (lowerText == "ds" || lowerText.rfind("ds ", 0) == 0) {
-                    return JumpType::DalSegno;
-                }
-                if (lowerText == "dc" || lowerText.rfind("dc ", 0) == 0) {
-                    return JumpType::DaCapo;
-                }
-            }
-            break;
-        case FontType::LegacyMusic:
-            result = checkTable(maestroLookup);
-            break;
+    if (lowerText == "d.c. al fine") {
+        return JumpType::DCAlFine;
+    }
+    if (lowerText == "d.c. al coda") {
+        return JumpType::DaCapo;
+    }
+    if (lowerText == "d.s. al fine") {
+        return JumpType::DsAlFine;
+    }
+    if (lowerText == "d.s. al coda") {
+        return JumpType::DalSegno;
+    }
+    if (lowerText == "to coda #" || lowerText == "coda" || lowerText == "to coda") {
+        return JumpType::Coda;
+    }
+    if (lowerText == "fine") {
+        return JumpType::Fine;
     }
 
-    return result.value_or(JumpType::None);
+    if (fontType == FontType::Unicode) {
+        if (lowerText == "§" || lowerText == "𝄋") {
+            return JumpType::Segno;
+        }
+        if (lowerText == "𝄌") {
+            return JumpType::Coda;
+        }
+    }
+
+    if (fontType == FontType::Symbol) {
+        if (lowerText == "%" || lowerText == u8"\u009F") {
+            return JumpType::Segno;
+        }
+        if (lowerText == u8"\u00DE") {
+            return JumpType::Coda;
+        }
+    }
+
+    if (fontType == FontType::SMuFL) {
+        if (lowerText == u8"\uE047" || lowerText == u8"\uE04A" || lowerText == u8"\uE04B" || lowerText == u8"\uF404") {
+            return JumpType::Segno;
+        }
+        if (lowerText == u8"\uE045") {
+            return JumpType::DalSegno;
+        }
+        if (lowerText == u8"\uE046") {
+            return JumpType::DaCapo;
+        }
+        if (lowerText == u8"\uE048" || lowerText == u8"\uE049" || lowerText == u8"\uF405") {
+            return JumpType::Coda;
+        }
+    }
+
+    return JumpType::None;
 }
 
 } // namespace mnxexp

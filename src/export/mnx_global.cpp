@@ -80,6 +80,61 @@ static void createEnding(mnx::global::Measure& mnxMeasure, const std::shared_ptr
     }
 }
 
+static musx::util::Fraction calcJumpLocation(const std::shared_ptr<others::TextRepeatAssign> repeatAssign, const std::shared_ptr<others::Measure>& musxMeasure)
+{
+    musx::util::Fraction result{};
+    if (const auto def = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, repeatAssign->textRepeatId)) {
+        if (def->justification != others::HorizontalTextJustification::Left) {
+            const auto timeSig = musxMeasure->createTimeSignature();
+            result = timeSig->calcTotalDuration();
+        }
+    }
+    return result;
+}
+
+static std::optional<std::shared_ptr<others::TextRepeatAssign>> searchForJump(const MnxMusxMappingPtr& context, JumpType jumpType, const std::shared_ptr<others::Measure>& musxMeasure)
+{
+    if (musxMeasure->hasTextRepeat) {
+        auto textRepeatAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::TextRepeatAssign>(SCORE_PARTID, musxMeasure->getCmper());
+        for (const auto& next : textRepeatAssigns) {
+            const auto it = context->textRepeat2Jump.find(next->textRepeatId);
+            if (it != context->textRepeat2Jump.end() && it->second == jumpType) {
+                return next;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+static void createFine(
+    const MnxMusxMappingPtr& context,
+    mnx::global::Measure& mnxMeasure,
+    const std::shared_ptr<others::Measure>& musxMeasure)
+{
+    if (auto repeatAssign = searchForJump(context, JumpType::Fine, musxMeasure)) {
+        auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
+        mnxMeasure.create_fine(location.numerator(), location.denominator());        
+    }
+}
+
+static void createJump(
+    const MnxMusxMappingPtr& context,
+    mnx::global::Measure& mnxMeasure,
+    const std::shared_ptr<others::Measure>& musxMeasure)
+{
+    static const std::unordered_map<JumpType, mnx::JumpType> jumpMapping = {
+        {JumpType::DalSegno, mnx::JumpType::Segno},
+        {JumpType::DsAlFine, mnx::JumpType::DsAlFine},
+    };
+
+    for (const auto mapping : jumpMapping) {
+        if (auto repeatAssign = searchForJump(context, mapping.first, musxMeasure)) {
+            auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
+            mnxMeasure.create_jump(mapping.second, location.numerator(), location.denominator());        
+        }            
+    }
+}
+
 static void assignKey(
     mnx::global::Measure& mnxMeasure,
     const std::shared_ptr<others::Measure>& musxMeasure,
@@ -108,6 +163,34 @@ static void assignRepeats(mnx::global::Measure& mnxMeasure, const std::shared_pt
     if (musxMeasure->backwardsRepeatBar) {
         mnxMeasure.create_repeatEnd();
         /// @todo add `times` if appropriate.
+    }
+}
+
+static void createSegno(
+    const MnxMusxMappingPtr& context,
+    mnx::global::Measure& mnxMeasure,
+    const std::shared_ptr<others::Measure>& musxMeasure)
+{
+    if (auto repeatAssign = searchForJump(context, JumpType::Segno, musxMeasure)) {
+        auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
+        auto segno = mnxMeasure.create_segno(location.numerator(), location.denominator());
+        if (auto repeatText = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
+            if (auto repeatDef = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
+                if (repeatDef->font->calcIsSMuFL()) {
+                    if (repeatText->text == u8"\uE047") {
+                        segno.set_glyph("segno");
+                    } else if (repeatText->text == u8"\uE04A") {
+                        segno.set_glyph("segnoSerpent1");
+                    } else if (repeatText->text == u8"\uE04B") {
+                        segno.set_glyph("segnoSerpent2");
+                    } else if (repeatText->text == u8"\uE04B") {
+                        segno.set_glyph("segnoSerpent2");
+                    } else if (repeatText->text == u8"\uF404") {
+                        segno.set_glyph("segnoJapanese");
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -211,9 +294,12 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         // mnxMeasure.set_index(musxMeasure->getCmper());
         assignBarline(mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
         createEnding(mnxMeasure, musxMeasure);
+        createFine(context, mnxMeasure, musxMeasure);
+        createJump(context, mnxMeasure, musxMeasure);
         assignKey(mnxMeasure, musxMeasure, prevKeyFifths);
         assignDisplayNumber(mnxMeasure, musxMeasure);
         assignRepeats(mnxMeasure, musxMeasure);
+        createSegno(context, mnxMeasure, musxMeasure);
         createTempos(mnxMeasure, musxMeasure);
         assignTimeSignature(context, mnxMeasure, musxMeasure, prevTimeSig);
     }
