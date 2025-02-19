@@ -86,6 +86,5 @@ BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnx::TimeSignatureUnit)
     case NoteType::Whole: return mnx::TimeSignatureUnit::Whole;
 END_ENUM_CONVERSION
 
-
 } // namespace mnxexp
 } // namespace denigma

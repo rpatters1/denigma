@@ -732,7 +732,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     // calculate actual output path
     std::filesystem::path qualifiedOutputPath = outputPath;
     if (part) {
-        auto partName = part->getName(); // Utf8-encoded partname can contain non-ASCII characters 
+        auto partName = part->getName(); // Unicode-encoded partname can contain non-ASCII characters 
         if (partName.empty()) {
             partName = "Part" + std::to_string(part->getCmper());
             denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension");

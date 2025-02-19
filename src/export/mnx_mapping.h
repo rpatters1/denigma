@@ -28,8 +28,6 @@
 #include "musx/musx.h"
 #include "mnxdom.h"
 
-#include "mnx_mapping.h"
-
  //placeholder function
 
 using namespace musx::dom;
@@ -38,40 +36,24 @@ using namespace musx::util;
 namespace denigma {
 namespace mnxexp {
 
-using json = nlohmann::ordered_json;
-//using json = nlohmann::json;
-
-struct MnxMusxMapping
+enum class FontType
 {
-    MnxMusxMapping(const DenigmaContext& context, const DocumentPtr& doc)
-        : denigmaContext(&context), document(doc), mnxDocument() {}
-
-    const DenigmaContext* denigmaContext;
-    musx::dom::DocumentPtr document;
-    std::unique_ptr<mnx::Document> mnxDocument;
-
-    std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
-    std::unordered_map<InstCmper, std::string> inst2Part;
-
-    // musx mappings
-    std::unordered_map<Cmper, JumpType> textRepeat2Jump;
+    Unicode,           // Standard text
+    LegacyMusic,    // Non-SMuFL music fonts based on Adobe Sonata (e.g., Maestro, Petrucci, Sonata)
+    SMuFL           // Modern music fonts following SMuFL
 };
-using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
 
-inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
+enum class JumpType
 {
-    if (systemId == BASE_SYSTEM_ID) {
-        return "S" + std::to_string(partId) + "-ScrVw";
-    }
-    return "S" + std::to_string(partId) + "-Sys" + std::to_string(systemId);
-}
+    Segno,
+    DalSegno,
+    DaCapo,
+    Coda,
+    Fine,
+    None
+};
 
-void createLayouts(const MnxMusxMappingPtr& context);
-void createGlobal(const MnxMusxMappingPtr& context);
-void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
-
-template <typename ToEnum, typename FromEnum>
-ToEnum enumConvert(FromEnum value);
+JumpType convertTextToJump(const std::string& text, FontType fontType);
 
 } // namespace mnxexp
 } // namespace denigma
