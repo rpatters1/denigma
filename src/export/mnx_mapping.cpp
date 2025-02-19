@@ -99,5 +99,25 @@ JumpType convertTextToJump(const std::string& text, FontType fontType)
     return JumpType::None;
 }
 
+std::pair<ClefType, int> convertCharToClef(const char32_t sym, FontType fontType)
+{
+    if (fontType != FontType::SMuFL) {
+        switch (sym) {
+            case '?': return std::make_pair(ClefType::FClef, 0);
+            case 't': return std::make_pair(ClefType::FClef, -1);
+            case 0xe6: return std::make_pair(ClefType::FClef, 1);            
+            case 'B': return std::make_pair(ClefType::CClef, 0);
+            case '&': return std::make_pair(ClefType::GClef, 0);
+            case 'V': return std::make_pair(ClefType::GClef, -1);
+            case 0xa0 :return std::make_pair(ClefType::GClef, 1);
+            default: return std::make_pair(ClefType::None, 0);
+        }
+    }
+    switch (sym) {
+        /// @todo all the applicable SMuFL values
+        default: return std::make_pair(ClefType::None, 0);
+    }
+}
+
 } // namespace mnxexp
 } // namespace denigma
