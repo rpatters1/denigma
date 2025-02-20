@@ -94,14 +94,7 @@ static void createMappings(const MnxMusxMappingPtr& context)
     auto textRepeatDefs = context->document->getOthers()->getArray<others::TextRepeatDef>(SCORE_PARTID);
     for (const auto& def : textRepeatDefs) {
         if (auto repeatText = context->document->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, def->getCmper())) {
-            FontType fontType = [&]() {
-                if (def->font->calcIsSMuFL()) {
-                    return FontType::SMuFL;
-                } else if (def->font->calcIsDefaultMusic() || def->font->calcIsSymbolFont()) {
-                    return FontType::Symbol;
-                }
-                return FontType::Unicode;
-            }();
+            FontType fontType = convertFontToType(def->font);
             context->textRepeat2Jump.emplace(def->getCmper(), convertTextToJump(repeatText->text, fontType));
         }
     }
@@ -120,6 +113,11 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
+    if (auto fontOptions = document->getOptions()->get<options::FontOptions>()) {
+        context->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
+    } else {
+        throw std::invalid_argument("Musx document contains no font options.");
+    }
 
     createMappings(context);   // map repeat text, text exprs, articulations, etc. to semantic values
 

@@ -30,6 +30,16 @@
 namespace denigma {
 namespace mnxexp {
 
+FontType convertFontToType(const std::shared_ptr<FontInfo>& fontInfo)
+{
+    if (fontInfo->calcIsSMuFL()) {
+        return FontType::SMuFL;
+    } else if (fontInfo->calcIsDefaultMusic() || fontInfo->calcIsSymbolFont()) {
+        return FontType::Symbol;
+    }
+    return FontType::Unicode;
+}
+
 /**
  * @brief Provides a default mapping from TextRepeatDef text to a jump type
  *
@@ -99,24 +109,78 @@ JumpType convertTextToJump(const std::string& text, FontType fontType)
     return JumpType::None;
 }
 
-std::pair<ClefType, int> convertCharToClef(const char32_t sym, FontType fontType)
+std::optional<std::pair<mnx::ClefSign, int>> convertCharToClef(const char32_t sym, FontType fontType)
 {
-    if (fontType != FontType::SMuFL) {
+    // Standard Unicode musical symbols:
+    switch (sym) {
+        case 0x1D11E: return std::make_pair(mnx::ClefSign::GClef, 0); // MUSICAL SYMBOL G CLEF
+        case 0x1D122: return std::make_pair(mnx::ClefSign::FClef, 0); // MUSICAL SYMBOL F CLEF
+        case 0x1D121: return std::make_pair(mnx::ClefSign::CClef, 0); // MUSICAL SYMBOL C CLEF
+    }
+    if (fontType == FontType::Symbol) {
         switch (sym) {
-            case '?': return std::make_pair(ClefType::FClef, 0);
-            case 't': return std::make_pair(ClefType::FClef, -1);
-            case 0xe6: return std::make_pair(ClefType::FClef, 1);            
-            case 'B': return std::make_pair(ClefType::CClef, 0);
-            case '&': return std::make_pair(ClefType::GClef, 0);
-            case 'V': return std::make_pair(ClefType::GClef, -1);
-            case 0xa0 :return std::make_pair(ClefType::GClef, 1);
-            default: return std::make_pair(ClefType::None, 0);
+            case '?': return std::make_pair(mnx::ClefSign::FClef, 0);
+            case 't': return std::make_pair(mnx::ClefSign::FClef, -1);
+            case 0xe6: return std::make_pair(mnx::ClefSign::FClef, 1);
+            case 'B': return std::make_pair(mnx::ClefSign::CClef, 0);
+            case '&': return std::make_pair(mnx::ClefSign::GClef, 0);
+            case 'V': return std::make_pair(mnx::ClefSign::GClef, -1);
+            case 0xa0:return std::make_pair(mnx::ClefSign::GClef, 1);
+            default: return std::nullopt;
         }
     }
-    switch (sym) {
-        /// @todo all the applicable SMuFL values
-        default: return std::make_pair(ClefType::None, 0);
+    // SMuFL branch: only include clefs with unison or octave multiples
+    if (fontType == FontType::Symbol) {
+        switch (sym) {
+                // G Clef:
+            case 0xE050: // Standard G clef (unison)
+            case 0xF472: // Alternate G clef (unison)
+                return std::make_pair(mnx::ClefSign::GClef, 0);
+            case 0xE052: // G clef 8vb (one octave down)
+            case 0xE055: // G clef 8vb (one octave down)
+            case 0xE056: // G clef 8vb (one octave down)
+            case 0xE057: // G clef 8vb (one octave down)
+            case 0xE05B: // G clef 8vb (one octave down)
+                return std::make_pair(mnx::ClefSign::GClef, -1);
+            case 0xE053: // G clef 8va (one octave up)
+            case 0xE05A: // G clef 8va (one octave up)
+                return std::make_pair(mnx::ClefSign::GClef, 1);
+            case 0xE051: // G clef 15mb (two octaves down)
+                return std::make_pair(mnx::ClefSign::GClef, -2);
+            case 0xE054: // G clef 15ma (two octaves up)
+                return std::make_pair(mnx::ClefSign::GClef, 2);
+
+                // F Clef:
+            case 0xE062: // Standard F clef (unison)
+            case 0xF406: // Alternate F clef (unison)
+            case 0xF407: // Alternate F clef (unison)
+            case 0xF474: // Alternate F clef (unison)
+                return std::make_pair(mnx::ClefSign::FClef, 0);
+            case 0xE064: // F clef 8vb (one octave down)
+            case 0xE068: // F clef 8vb (one octave down)
+                return std::make_pair(mnx::ClefSign::FClef, -1);
+            case 0xE065: // F clef 8va (one octave up)
+            case 0xE067: // F clef 8va (one octave up)
+                return std::make_pair(mnx::ClefSign::FClef, 1);
+            case 0xE063: // F clef 15mb (two octaves down)
+                return std::make_pair(mnx::ClefSign::FClef, -2);
+            case 0xE066: // F clef 15ma (two octaves up)
+                return std::make_pair(mnx::ClefSign::FClef, 2);
+
+                // C Clef:
+            case 0xE05C: // Standard C clef (unison)
+            case 0xE060: // Alternate C clef (unison)
+            case 0xF408: // Alternate C clef (unison)
+            case 0xF473: // Alternate C clef (unison)
+                return std::make_pair(mnx::ClefSign::CClef, 0);
+            case 0xE05D: // C clef 8vb (one octave down)
+            case 0xE05F: // C clef 8vb (one octave down)
+                return std::make_pair(mnx::ClefSign::CClef, -1);
+            case 0xE05E: // C clef 8va (one octave up)
+                return std::make_pair(mnx::ClefSign::CClef, 1);
+        }
     }
+    return std::nullopt;
 }
 
 } // namespace mnxexp

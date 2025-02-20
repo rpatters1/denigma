@@ -48,6 +48,7 @@ struct MnxMusxMapping
 
     const DenigmaContext* denigmaContext;
     musx::dom::DocumentPtr document;
+    std::shared_ptr<FontInfo> defaultMusicFont;
     std::unique_ptr<mnx::Document> mnxDocument;
 
     std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;

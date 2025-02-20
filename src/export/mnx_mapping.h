@@ -55,16 +55,9 @@ enum class JumpType
     Fine
 };
 
-enum class ClefType
-{
-    None,
-    FClef,
-    CClef,
-    GClef
-};
-
+FontType convertFontToType(const std::shared_ptr<FontInfo>& fontInfo);
 JumpType convertTextToJump(const std::string& text, FontType fontType);
-std::pair<ClefType, int> convertCharToClef(const char32_t sym, FontType fontType);
+std::optional<std::pair<mnx::ClefSign, int>> convertCharToClef(const char32_t sym, FontType fontType);
 
 } // namespace mnxexp
 } // namespace denigma
