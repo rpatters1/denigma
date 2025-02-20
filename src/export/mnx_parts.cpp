@@ -32,10 +32,11 @@ namespace mnxexp {
 
 static void createClefs(
     const MnxMusxMappingPtr& context,
+    const mnx::Part& mnxPart,
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
     const std::shared_ptr<others::Measure>& musxMeasure,
-    const std::shared_ptr<others::StaffComposite>& musxStaff,
+    InstCmper staffCmper,
     std::optional<ClefIndex>& prevClefIndex)
 {
     const auto& musxDocument = musxMeasure->getDocument();
@@ -58,18 +59,18 @@ static void createClefs(
         }
         FontType fontType = convertFontToType(clefFont);
         if (auto clefInfo = convertCharToClef(musxClef->clefChar, fontType)) {
+            auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
+                musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), Edu(std::lround(location.calcEduDuration())));
+            if (!musxStaff) {
+                context->denigmaContext->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
+                    << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
+                return;
+            }
             if (!mnxMeasure.clefs().has_value()) {
                 mnxMeasure.create_clefs();
             }
-            /// @todo get staff position smarter
-            int staffPosition = [&]() {
-                switch (clefInfo->first) {
-                    case mnx::ClefSign::CClef: return 0;
-                    case mnx::ClefSign::FClef: return 2;
-                    case mnx::ClefSign::GClef: return -2;
-                }
-                return 0;
-            }();
+            int middleStaffPosition = musxStaff->calcMiddleStaffPosition();
+            int staffPosition = musxClef->staffPositon - middleStaffPosition;
             std::optional<int> octave = clefInfo->second ? std::optional<int>(clefInfo->second) : std::nullopt;
             auto mnxClef = mnxMeasure.clefs().value().append(staffPosition, clefInfo->first, octave);
             if (location) {
@@ -87,7 +88,7 @@ static void createClefs(
         }
     };
     
-    if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), musxStaff->getCmper(), musxMeasure->getCmper())) {
+    if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
         if (gfhold->clefId.has_value()) {
             addClef(gfhold->clefId.value(), 0);
         } else {
@@ -97,7 +98,8 @@ static void createClefs(
             }
         }
     } else if (musxMeasure->getCmper() == 1) {
-        addClef(musxStaff->calcFirstClefIndex(), 0);
+        int firstIndex = others::Staff::calcFirstClefIndex(musxDocument, musxMeasure->getPartId(), staffCmper);
+        addClef(firstIndex, 0);
     }
 }
 
@@ -123,14 +125,8 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
     for ([[maybe_unused]] const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxMeasures.append();
         for (size_t x = 0; x < staves.size(); x++) {
-            auto musxStaff = musx::dom::others::StaffComposite::createCurrent(musxDocument, SCORE_PARTID, staves[x], musxMeasure->getCmper(), 0);
-            if (!musxStaff) {
-                context->denigmaContext->logMessage(LogMsg() << "Part Id " << part.id().value_or(std::to_string(part.calcArrayIndex()))
-                    << " has no staff information for staff " << staves[x], LogSeverity::Warning);
-                continue;
-            }
             std::optional<int> staffNumber = (staves.size() > 1) ? std::optional<int>(x + 1) : std::nullopt;
-            createClefs(context, mnxMeasure, staffNumber, musxMeasure, musxStaff, prevClefs[x]);
+            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, staves[x], prevClefs[x]);
         }
     }
 }
