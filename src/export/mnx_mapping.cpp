@@ -130,7 +130,7 @@ std::optional<std::pair<mnx::ClefSign, int>> convertCharToClef(const char32_t sy
         }
     }
     // SMuFL branch: only include clefs with unison or octave multiples
-    if (fontType == FontType::Symbol) {
+    if (fontType == FontType::SMuFL) {
         switch (sym) {
                 // G Clef:
             case 0xE050: // Standard G clef (unison)

@@ -68,3 +68,6 @@ tests/data/*
 # Explicitly exclude unwanted files in tests/data/inputs
 tests/data/inputs/**/.DS_Store
 
+# Do not ignore .zip files in the smufl directory
+!smufl/*.zip
+

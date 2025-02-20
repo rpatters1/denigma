@@ -25,6 +25,7 @@
 #include <unordered_map>
 
 #include "mnx.h"
+#include "utils/smufl_support.h"
 
 namespace denigma {
 namespace mnxexp {
@@ -77,7 +78,11 @@ static void createClefs(
             if (mnxStaffNumber) {
                 mnxClef.set_staff(mnxStaffNumber.value());
             }
-            /// @todo set glyph
+            if (auto metaDataPath = clefFont->calcSMuFLMetaDataPath()) {
+                if (auto glyphName = utils::smuflGlyphNameForFont(metaDataPath.value(), musxClef->clefChar, *context->denigmaContext)) {
+                    mnxClef.clef().set_glyph(glyphName.value());
+                }
+            }
             prevClefIndex = clefIndex;
         }
     };

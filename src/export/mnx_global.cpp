@@ -25,6 +25,7 @@
 #include <unordered_map>
 
 #include "mnx.h"
+#include "utils/smufl_support.h"
 
 namespace denigma {
 namespace mnxexp {
@@ -176,18 +177,8 @@ static void createSegno(
         auto segno = mnxMeasure.create_segno(location.numerator(), location.denominator());
         if (auto repeatText = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
             if (auto repeatDef = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
-                if (repeatDef->font->calcIsSMuFL()) {
-                    if (repeatText->text == u8"\uE047") {
-                        segno.set_glyph("segno");
-                    } else if (repeatText->text == u8"\uE04A") {
-                        segno.set_glyph("segnoSerpent1");
-                    } else if (repeatText->text == u8"\uE04B") {
-                        segno.set_glyph("segnoSerpent2");
-                    } else if (repeatText->text == u8"\uE04B") {
-                        segno.set_glyph("segnoSerpent2");
-                    } else if (repeatText->text == u8"\uF404") {
-                        segno.set_glyph("segnoJapanese");
-                    }
+                if (auto glyphName = utils::smuflGlyphNameForFont(repeatDef->font, repeatText->text, *context->denigmaContext)) {
+                    segno.set_glyph(glyphName.value());
                 }
             }
         }
