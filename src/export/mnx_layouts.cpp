@@ -126,10 +126,10 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
         default:
             break;
         case others::Staff::StemDirection::AlwaysUp:
-            mnxSource.set_stem(mnx::LayoutStemDirection::Up);
+            mnxSource.set_stem(mnx::StemDirection::Up);
             break;
         case others::Staff::StemDirection::AlwaysDown:
-            mnxSource.set_stem(mnx::LayoutStemDirection::Down);
+            mnxSource.set_stem(mnx::StemDirection::Down);
             break;
         }
     }

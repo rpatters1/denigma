@@ -192,13 +192,7 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
             mnxMeasure.create_tempos();
         }
         auto base = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(noteValue));
-        auto dots = [&]() -> std::optional<int> {
-            if (int val = calcAugmentationDotsFromEdu(noteValue)) {
-                return val;
-            }
-            return std::nullopt;
-        }();
-        auto tempo = mnxMeasure.tempos().value().append(bpm, base, dots);
+        auto tempo = mnxMeasure.tempos().value().append(bpm, base, calcAugmentationDotsFromEdu(noteValue));
         if (eduPosition) {
             auto pos = Fraction::fromEdu(eduPosition);
             tempo.create_location(pos.numerator(), pos.denominator());
