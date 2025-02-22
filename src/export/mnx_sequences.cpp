@@ -32,12 +32,9 @@ namespace mnxexp {
 
 [[maybe_unused]] static mnx::sequence::Tuplet createTuplet(mnx::ContentArray& content, const std::shared_ptr<const details::TupletDef>& musxTuplet)
 {
-    auto innerBase = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(musxTuplet->displayDuration));
-    auto innerDots = calcAugmentationDotsFromEdu(musxTuplet->displayDuration);
-    auto outerBase = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(musxTuplet->referenceDuration));
-    auto outerDots = calcAugmentationDotsFromEdu(musxTuplet->referenceDuration);
     auto mnxTuplet = content.append<mnx::sequence::Tuplet>(
-        musxTuplet->displayNumber, innerBase, innerDots, musxTuplet->referenceNumber, outerBase, outerDots);
+        musxTuplet->displayNumber, mnxNoteValueFromEdu(musxTuplet->displayDuration),
+        musxTuplet->referenceNumber, mnxNoteValueFromEdu(musxTuplet->referenceDuration));
 
     mnxTuplet.set_or_clear_bracket([&]() {
         if (musxTuplet->brackStyle == details::TupletDef::BracketStyle::Nothing) {
@@ -74,10 +71,7 @@ namespace mnxexp {
 [[maybe_unused]] static mnx::sequence::Event createEvent(mnx::ContentArray& content, const std::shared_ptr<const EntryInfo>& musxEntryInfo)
 {
     const auto& musxEntry = musxEntryInfo->getEntry();
-
-    auto base = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(musxEntry->duration));
-    auto dots = calcAugmentationDotsFromEdu(musxEntry->duration);
-    auto mnxEvent = content.append<mnx::sequence::Event>(base, dots);
+    auto mnxEvent = content.append<mnx::sequence::Event>(mnxNoteValueFromEdu(musxEntry->duration));
 
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
     /// @todo markings

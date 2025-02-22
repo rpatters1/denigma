@@ -77,6 +77,9 @@ inline std::string calcNoteId(int noteId)
     return "n" + std::to_string(noteId);
 }
 
+mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
+mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction);
+
 void createLayouts(const MnxMusxMappingPtr& context);
 void createGlobal(const MnxMusxMappingPtr& context);
 void createParts(const MnxMusxMappingPtr& context);

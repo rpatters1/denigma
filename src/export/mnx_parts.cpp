@@ -74,7 +74,7 @@ static void createClefs(
             std::optional<int> octave = clefInfo->second ? std::optional<int>(clefInfo->second) : std::nullopt;
             auto mnxClef = mnxMeasure.clefs().value().append(staffPosition, clefInfo->first, octave);
             if (location) {
-                mnxClef.create_position(location.numerator(), location.denominator());
+                mnxClef.create_position(mnxFractionFromFraction(location));
             }
             if (mnxStaffNumber) {
                 mnxClef.set_staff(mnxStaffNumber.value());

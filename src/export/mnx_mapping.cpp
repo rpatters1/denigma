@@ -183,5 +183,16 @@ std::optional<std::pair<mnx::ClefSign, int>> convertCharToClef(const char32_t sy
     return std::nullopt;
 }
 
+mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration)
+{
+    auto [base, dots] = calcNoteInfoFromEdu(duration);
+    return mnx::NoteValue::Initializer(enumConvert<mnx::NoteValueBase>(base), dots);
+}
+
+mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction)
+{
+    return mnx::Fraction::Initializer(fraction.numerator(), fraction.denominator());
+}
+
 } // namespace mnxexp
 } // namespace denigma

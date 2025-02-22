@@ -114,7 +114,7 @@ static void createFine(
 {
     if (auto repeatAssign = searchForJump(context, JumpType::Fine, musxMeasure)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
-        mnxMeasure.create_fine(location.numerator(), location.denominator());        
+        mnxMeasure.create_fine(mnxFractionFromFraction(location));        
     }
 }
 
@@ -131,7 +131,7 @@ static void createJump(
     for (const auto mapping : jumpMapping) {
         if (auto repeatAssign = searchForJump(context, mapping.first, musxMeasure)) {
             auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
-            mnxMeasure.create_jump(mapping.second, location.numerator(), location.denominator());        
+            mnxMeasure.create_jump(mapping.second, mnxFractionFromFraction(location));        
         }            
     }
 }
@@ -174,7 +174,7 @@ static void createSegno(
 {
     if (auto repeatAssign = searchForJump(context, JumpType::Segno, musxMeasure)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
-        auto segno = mnxMeasure.create_segno(location.numerator(), location.denominator());
+        auto segno = mnxMeasure.create_segno(mnxFractionFromFraction(location));
         if (auto repeatText = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
             if (auto repeatDef = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
                 if (auto glyphName = utils::smuflGlyphNameForFont(repeatDef->font, repeatText->text, *context->denigmaContext)) {
@@ -191,11 +191,10 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
         if (!mnxMeasure.tempos().has_value()) {
             mnxMeasure.create_tempos();
         }
-        auto base = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(noteValue));
-        auto tempo = mnxMeasure.tempos().value().append(bpm, base, calcAugmentationDotsFromEdu(noteValue));
+        auto tempo = mnxMeasure.tempos().value().append(bpm, mnxNoteValueFromEdu(noteValue));
         if (eduPosition) {
             auto pos = Fraction::fromEdu(eduPosition);
-            tempo.create_location(pos.numerator(), pos.denominator());
+            tempo.create_location(mnxFractionFromFraction(pos));
         }    
     };
     if (musxMeasure->hasExpression) {
