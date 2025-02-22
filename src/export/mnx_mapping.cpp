@@ -194,5 +194,10 @@ mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction
     return mnx::Fraction::Initializer(fraction.numerator(), fraction.denominator());
 }
 
+int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition)
+{
+    return musxStaffPosition - staff->calcMiddleStaffPosition();
+}
+
 } // namespace mnxexp
 } // namespace denigma

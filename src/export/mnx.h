@@ -79,10 +79,17 @@ inline std::string calcNoteId(int noteId)
 
 mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
 mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction);
+int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
 
 void createLayouts(const MnxMusxMappingPtr& context);
 void createGlobal(const MnxMusxMappingPtr& context);
 void createParts(const MnxMusxMappingPtr& context);
+void createSequences(const MnxMusxMappingPtr& context,
+    mnx::part::Measure& mnxMeasure,
+    std::optional<int> mnxStaffNumber,
+    const std::shared_ptr<others::Measure>& musxMeasure,
+    InstCmper staffCmper);
+
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
 
 template <typename ToEnum, typename FromEnum>

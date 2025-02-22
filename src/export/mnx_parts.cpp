@@ -69,8 +69,7 @@ static void createClefs(
             if (!mnxMeasure.clefs().has_value()) {
                 mnxMeasure.create_clefs();
             }
-            int middleStaffPosition = musxStaff->calcMiddleStaffPosition();
-            int staffPosition = musxClef->staffPositon - middleStaffPosition;
+            int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPositon);
             std::optional<int> octave = clefInfo->second ? std::optional<int>(clefInfo->second) : std::nullopt;
             auto mnxClef = mnxMeasure.clefs().value().append(staffPosition, clefInfo->first, octave);
             if (location) {
@@ -122,11 +121,12 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
     for (size_t x = 0; x < staves.size(); x++) {
         prevClefs.push_back(std::nullopt);
     }
-    for ([[maybe_unused]] const auto& musxMeasure : musxMeasures) {
+    for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxMeasures.append();
         for (size_t x = 0; x < staves.size(); x++) {
             std::optional<int> staffNumber = (staves.size() > 1) ? std::optional<int>(x + 1) : std::nullopt;
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, staves[x], prevClefs[x]);
+            createSequences(context, mnxMeasure, staffNumber, musxMeasure, staves[x]);
         }
     }
 }
