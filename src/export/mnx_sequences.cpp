@@ -30,7 +30,7 @@
 namespace denigma {
 namespace mnxexp {
 
-mnx::sequence::Tuplet createTuplet(mnx::ContentArray& content, const std::shared_ptr<const details::TupletDef>& musxTuplet)
+[[maybe_unused]] static mnx::sequence::Tuplet createTuplet(mnx::ContentArray& content, const std::shared_ptr<const details::TupletDef>& musxTuplet)
 {
     auto innerBase = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(musxTuplet->displayDuration));
     auto innerDots = calcAugmentationDotsFromEdu(musxTuplet->displayDuration);
@@ -69,6 +69,41 @@ mnx::sequence::Tuplet createTuplet(mnx::ContentArray& content, const std::shared
     }());
 
     return mnxTuplet;
+}
+
+[[maybe_unused]] static mnx::sequence::Event createEvent(mnx::ContentArray& content, const std::shared_ptr<const EntryInfo>& musxEntryInfo)
+{
+    const auto& musxEntry = musxEntryInfo->getEntry();
+
+    auto base = enumConvert<mnx::NoteValueBase>(calcNoteTypeFromEdu(musxEntry->duration));
+    auto dots = calcAugmentationDotsFromEdu(musxEntry->duration);
+    auto mnxEvent = content.append<mnx::sequence::Event>(base, dots);
+
+    mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
+    /// @todo markings
+    /// @todo orient
+    /// @todo slurs
+    if (musxEntry->freezeStem) {
+        mnxEvent.set_stemDirection(musxEntry->upStem ? mnx::StemDirection::Up : mnx::StemDirection::Down);
+    }
+
+    if (musxEntry->isNote) {
+        for (const auto& musxNote : musxEntry->notes) {
+            if (!mnxEvent.notes()) {
+                mnxEvent.create_notes();
+            }
+            auto [noteName, octave, alteration] = musxNote->calcNoteProperties(musxEntryInfo->keySignature->getAlteration().value_or(0));
+            auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, alteration);
+            /// @todo accidental display
+            mnxNote.set_id(calcNoteId(musxNote->getNoteId()));
+            /// @todo tie
+        }
+    } else {
+        [[maybe_unused]] auto mnxRest = mnxEvent.create_rest();
+        /// @ todo: set the staff line if musx rest is not floating
+    }
+
+    return mnxEvent;
 }
 
 } // namespace mnxexp

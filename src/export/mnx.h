@@ -67,6 +67,16 @@ inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
     return "S" + std::to_string(partId) + "-Sys" + std::to_string(systemId);
 }
 
+inline std::string calcEventId(EntryNumber entryNum)
+{
+    return "ev" + std::to_string(entryNum);
+}
+
+inline std::string calcNoteId(int noteId)
+{
+    return "n" + std::to_string(noteId);
+}
+
 void createLayouts(const MnxMusxMappingPtr& context);
 void createGlobal(const MnxMusxMappingPtr& context);
 void createParts(const MnxMusxMappingPtr& context);
