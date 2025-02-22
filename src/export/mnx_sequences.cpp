@@ -97,7 +97,9 @@ static mnx::sequence::Event createEvent(mnx::ContentArray content, const std::sh
                 mnxEvent.create_notes();
             }
             auto [noteName, octave, alteration, _] = musxNote->calcNoteProperties(musxEntryInfo->getKeySignature(), musxEntryInfo->clefIndex);
-            auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && !musxNote->showAcci) ? std::nullopt : std::optional<int>(alteration);
+            auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && (!musxNote->showAcci || !musxNote->freezeAcci))
+                          ? std::nullopt
+                          : std::optional<int>(alteration);
             auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
             /// @todo accidental display
             mnxNote.set_id(calcNoteId(musxNote->getNoteId()));
