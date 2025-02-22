@@ -86,5 +86,11 @@ BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnx::TimeSignatureUnit)
     case NoteType::Whole: return mnx::TimeSignatureUnit::Whole;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(details::TupletDef::AutoBracketStyle, mnx::AutoYesNo)
+    case details::TupletDef::AutoBracketStyle::Always: return mnx::AutoYesNo::Yes;
+    case details::TupletDef::AutoBracketStyle::NeverBeamSide: return mnx::AutoYesNo::Yes; // currently there is no exact analog for this Finale option in Mnx.
+    case details::TupletDef::AutoBracketStyle::UnbeamedOnly: return mnx::AutoYesNo::Auto;
+END_ENUM_CONVERSION
+
 } // namespace mnxexp
 } // namespace denigma
