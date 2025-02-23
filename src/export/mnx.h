@@ -77,6 +77,11 @@ inline std::string calcNoteId(int noteId)
     return "n" + std::to_string(noteId);
 }
 
+inline std::string calcVoice(LayerIndex idx, int voice)
+{
+    return "layer" + std::to_string(idx + 1) + "v" + std::to_string(voice);
+}
+
 mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
 mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction);
 int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);

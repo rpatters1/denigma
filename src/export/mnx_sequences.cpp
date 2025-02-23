@@ -118,47 +118,57 @@ static mnx::sequence::Event createEvent(mnx::ContentArray content, const std::sh
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
 static std::shared_ptr<const EntryInfo> addEntryToContent(mnx::ContentArray content, const std::shared_ptr<const EntryInfo>& firstEntryInfo,
-    std::optional<int> mnxStaffNumber,
+    std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt)
 {
     auto next = firstEntryInfo;
+    int voice = next->getEntry()->voice2 ? 2 : 1;
     while (next) {
         const auto& entry = next->getEntry();
         if (inGrace && !entry->graceNote) {
             return next;
         } else if (!inGrace && entry->graceNote) {
             auto grace = content.append<mnx::sequence::Grace>();
-            next = addEntryToContent(grace.content(), next, mnxStaffNumber, true);
-            if (grace.content().size() > 1) {
-                return next;
+            next = addEntryToContent(grace.content(), next, mnxStaffNumber, elapsedInSequence, true);
+            if (grace.content().size() == 1) {
+                auto musxGraceOptions = entry->getDocument()->getOptions()->get<options::GraceNoteOptions>();
+                if (!musxGraceOptions) {
+                    throw std::invalid_argument("Document contains no grace note options!");
+                }
+                grace.set_slash(musxGraceOptions->slashFlaggedGraceNotes);
             }
-            auto musxGraceOptions = entry->getDocument()->getOptions()->get<options::GraceNoteOptions>();
-            if (!musxGraceOptions) {
-                throw std::invalid_argument("Document contains no grace note options!");
-            }
-            grace.set_slash(musxGraceOptions->slashFlaggedGraceNotes);
-            return next;
+            continue;
         }
-        
+
+        ASSERT_IF(next->elapsedDuration < elapsedInSequence) {
+            throw std::logic_error("Next entry's elapsed duration value is smaller than tracked duration for sequence.");
+        }
+        if (next->elapsedDuration > elapsedInSequence) {
+            content.append<mnx::sequence::Space>(mnxNoteValueFromEdu((next->elapsedDuration - elapsedInSequence).calcEduDuration()));
+        }
+
         if (tupletIndex) {
             auto tuplInfo = next->getFrame()->tupletInfo[tupletIndex.value()];
             if (tuplInfo.endIndex == next->indexInFrame) {
                 createEvent(content, next, mnxStaffNumber);
-                return next->getNextSameV();
+                elapsedInSequence = next->elapsedDuration + next->actualDuration;
+                return next->getNextInVoice(voice);
             }
         }
 
         if (!inGrace) {
             auto thisTupletIndex = next->calcNextTupletIndex(tupletIndex);
-            if (thisTupletIndex != tupletIndex) {
-                auto tuplInfo = next->getFrame()->tupletInfo[tupletIndex.value()];
+            if (thisTupletIndex != tupletIndex && thisTupletIndex) {
+                auto tuplInfo = next->getFrame()->tupletInfo[thisTupletIndex.value()];
                 auto tuplet = createTuplet(content, tuplInfo.tuplet);
-                return addEntryToContent(tuplet.content(), next, mnxStaffNumber, inGrace, thisTupletIndex);
+                next = addEntryToContent(tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                continue;
             }
         }
 
         createEvent(content, next, mnxStaffNumber);
-        next = next->getNextSameV();
+        elapsedInSequence = next->elapsedDuration + next->actualDuration;
+        next = next->getNextInVoice(voice);
     }
     return next;
 }
@@ -177,11 +187,15 @@ void createSequences(const MnxMusxMappingPtr&,
     for (LayerIndex layer = 0; layer < MAX_LAYERS; layer++) {
         if (auto entryFrame = gfhold->createEntryFrame(layer)) {
             auto entries = entryFrame->getEntries();
-            if (entries.size()) {
-                auto sequence = mnxMeasure.sequences().append();
-                /// @todo V2
-                /// @todo spacer if needed
-                addEntryToContent(sequence.content(), entries[0], mnxStaffNumber, false);
+            if (!entries.empty()) {
+                for (int voice = 1; voice <= 2; voice++) {
+                    if (auto firstEntry = entryFrame->getFirstInVoice(voice)) {
+                        auto sequence = mnxMeasure.sequences().append();
+                        sequence.set_voice(calcVoice(layer, voice));
+                        musx::util::Fraction elapsedInVoice = 0;
+                        addEntryToContent(sequence.content(), firstEntry, mnxStaffNumber, elapsedInVoice, false);
+                    }
+                }
             }
         }
     }
