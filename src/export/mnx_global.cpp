@@ -70,7 +70,7 @@ static void createEnding(mnx::global::Measure& mnxMeasure, const std::shared_ptr
             auto mnxEnding = mnxMeasure.create_ending(musxEnding->calcEndingLength());
             mnxEnding.set_open(musxEnding->calcIsOpen());
             if (auto musxNumbers = musxMeasure->getDocument()->getOthers()->get<others::RepeatPassList>(SCORE_PARTID, musxMeasure->getCmper())) {
-                for (int value : musxNumbers->endingNumbers) {
+                for (int value : musxNumbers->values) {
                     if (!mnxEnding.numbers().has_value()) {
                         mnxEnding.create_numbers();
                     }
