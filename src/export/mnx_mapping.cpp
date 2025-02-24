@@ -189,6 +189,18 @@ mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration)
     return mnx::NoteValue::Initializer(enumConvert<mnx::NoteValueBase>(base), dots);
 }
 
+std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration)
+{
+    if (duration <= 0 || (duration.denominator() & (duration.denominator() - 1)) != 0) {
+        auto newValue = musx::util::Fraction(duration.calcEduDuration(), Edu(musx::dom::NoteType::Whole));
+        context->logMessage(LogMsg() << "Value " << duration << " cannot be exactly converted to a note value quantity. Using closest approximation. ("
+            << newValue << ")", LogSeverity::Warning);
+        duration = newValue;
+    }
+
+    return std::make_pair(duration.numerator(), mnxNoteValueFromEdu(musx::util::Fraction(1, duration.denominator()).calcEduDuration()));
+}
+
 mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction)
 {
     return mnx::Fraction::Initializer(fraction.numerator(), fraction.denominator());

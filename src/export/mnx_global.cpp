@@ -253,7 +253,7 @@ static void assignTimeSignature(
                 noteType = musx::dom::NoteType(Edu(noteType) / count.denominator());
                 count *= count.denominator();
             } else {
-                context->denigmaContext->logMessage(LogMsg() << "Time signature in measure " << musxMeasure->getCmper()
+                context->logMessage(LogMsg() << "Time signature in measure " << musxMeasure->getCmper()
                     << " has fractional portion that could not be reduced.", LogSeverity::Warning);
             }
         }

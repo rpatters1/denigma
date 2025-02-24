@@ -56,7 +56,20 @@ struct MnxMusxMapping
 
     // musx mappings
     std::unordered_map<Cmper, JumpType> textRepeat2Jump;
+
+    mutable MeasCmper currMeas{};
+    mutable InstCmper currStaff{};
+    mutable std::string voice;
+
+    void clearCounts() const
+    {
+        currMeas = currStaff = 0;
+        voice.clear();
+    }
+
+    void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
 };
+
 using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
 
 inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
@@ -83,6 +96,8 @@ inline std::string calcVoice(LayerIndex idx, int voice)
 }
 
 mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
+std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration);
+
 mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction);
 int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
 

@@ -68,10 +68,14 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
     return mnxTuplet;
 }
 
-static mnx::sequence::Event createEvent(mnx::ContentArray content, const std::shared_ptr<const EntryInfo>& musxEntryInfo, std::optional<int> mnxStaffNumber)
+static void createEvent(mnx::ContentArray content, const std::shared_ptr<const EntryInfo>& musxEntryInfo, std::optional<int> mnxStaffNumber)
 {
     const auto& musxEntry = musxEntryInfo->getEntry();
-    auto mnxEvent = content.append<mnx::sequence::Event>(mnxNoteValueFromEdu(musxEntry->duration));
+    if (musxEntry->isHidden) {
+        content.append<mnx::sequence::Space>(1, mnxNoteValueFromEdu(musxEntry->duration));
+        return;
+    }
+
     auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
         musxEntry->getDocument(), musxEntry->getPartId(), musxEntryInfo->getStaff(),
         musxEntryInfo->getMeasure(), Edu(std::lround(musxEntryInfo->elapsedDuration.calcEduDuration())));
@@ -79,7 +83,8 @@ static mnx::sequence::Event createEvent(mnx::ContentArray content, const std::sh
         throw std::invalid_argument("Entry " + std::to_string(musxEntry->getEntryNumber())
             + " has no staff information for staff " + std::to_string(musxEntryInfo->getStaff()));
     }
-
+    
+    auto mnxEvent = content.append<mnx::sequence::Event>(mnxNoteValueFromEdu(musxEntry->duration));
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
     /// @todo markings
     /// @todo orient
@@ -112,12 +117,11 @@ static mnx::sequence::Event createEvent(mnx::ContentArray content, const std::sh
             mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
         }
     }
-
-    return mnxEvent;
 }
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
-static std::shared_ptr<const EntryInfo> addEntryToContent(mnx::ContentArray content, const std::shared_ptr<const EntryInfo>& firstEntryInfo,
+static std::shared_ptr<const EntryInfo> addEntryToContent(const MnxMusxMappingPtr& context,
+    mnx::ContentArray content, const std::shared_ptr<const EntryInfo>& firstEntryInfo,
     std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt)
 {
@@ -129,7 +133,7 @@ static std::shared_ptr<const EntryInfo> addEntryToContent(mnx::ContentArray cont
             return next;
         } else if (!inGrace && entry->graceNote) {
             auto grace = content.append<mnx::sequence::Grace>();
-            next = addEntryToContent(grace.content(), next, mnxStaffNumber, elapsedInSequence, true);
+            next = addEntryToContent(context, grace.content(), next, mnxStaffNumber, elapsedInSequence, true);
             if (grace.content().size() == 1) {
                 auto musxGraceOptions = entry->getDocument()->getOptions()->get<options::GraceNoteOptions>();
                 if (!musxGraceOptions) {
@@ -144,7 +148,8 @@ static std::shared_ptr<const EntryInfo> addEntryToContent(mnx::ContentArray cont
             throw std::logic_error("Next entry's elapsed duration value is smaller than tracked duration for sequence.");
         }
         if (next->elapsedDuration > elapsedInSequence) {
-            content.append<mnx::sequence::Space>(mnxNoteValueFromEdu((next->elapsedDuration - elapsedInSequence).calcEduDuration()));
+            auto [count, value] = mnxNoteValueQuantityFromFraction(context, next->elapsedDuration - elapsedInSequence);
+            content.append<mnx::sequence::Space>(count, value);
         }
 
         if (tupletIndex) {
@@ -161,7 +166,7 @@ static std::shared_ptr<const EntryInfo> addEntryToContent(mnx::ContentArray cont
             if (thisTupletIndex != tupletIndex && thisTupletIndex) {
                 auto tuplInfo = next->getFrame()->tupletInfo[thisTupletIndex.value()];
                 auto tuplet = createTuplet(content, tuplInfo.tuplet);
-                next = addEntryToContent(tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
                 continue;
             }
         }
@@ -173,7 +178,7 @@ static std::shared_ptr<const EntryInfo> addEntryToContent(mnx::ContentArray cont
     return next;
 }
 
-void createSequences(const MnxMusxMappingPtr&,
+void createSequences(const MnxMusxMappingPtr& context,
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
     const std::shared_ptr<others::Measure>& musxMeasure,
@@ -191,9 +196,11 @@ void createSequences(const MnxMusxMappingPtr&,
                 for (int voice = 1; voice <= 2; voice++) {
                     if (auto firstEntry = entryFrame->getFirstInVoice(voice)) {
                         auto sequence = mnxMeasure.sequences().append();
-                        sequence.set_voice(calcVoice(layer, voice));
+                        context->voice = calcVoice(layer, voice);
+                        sequence.set_voice(context->voice);
                         musx::util::Fraction elapsedInVoice = 0;
-                        addEntryToContent(sequence.content(), firstEntry, mnxStaffNumber, elapsedInVoice, false);
+                        addEntryToContent(context, sequence.content(), firstEntry, mnxStaffNumber, elapsedInVoice, false);
+                        context->voice.clear();
                     }
                 }
             }

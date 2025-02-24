@@ -62,7 +62,7 @@ static void createClefs(
             auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
                 musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), Edu(std::lround(location.calcEduDuration())));
             if (!musxStaff) {
-                context->denigmaContext->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
+                context->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
                     << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
                 return;
             }
@@ -112,7 +112,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
     const auto it = context->part2Inst.find(part.id().value_or(""));
     std::vector<InstCmper> staves;
     if (it == context->part2Inst.end() || it->second.empty()) {
-        context->denigmaContext->logMessage(LogMsg() << "Part Id " << part.id().value_or(std::to_string(part.calcArrayIndex()))
+        context->logMessage(LogMsg() << "Part Id " << part.id().value_or(std::to_string(part.calcArrayIndex()))
             << " is not mapped", LogSeverity::Warning);
     } else {
         staves = it->second;
@@ -121,14 +121,18 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
     for (size_t x = 0; x < staves.size(); x++) {
         prevClefs.push_back(std::nullopt);
     }
+    context->clearCounts();
     for (const auto& musxMeasure : musxMeasures) {
+        context->currMeas++;
         auto mnxMeasure = mnxMeasures.append();
         for (size_t x = 0; x < staves.size(); x++) {
+            context->currStaff = staves[x];
             std::optional<int> staffNumber = (staves.size() > 1) ? std::optional<int>(x + 1) : std::nullopt;
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, staves[x], prevClefs[x]);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, staves[x]);
         }
     }
+    context->clearCounts();
 }
 
 void createParts(const MnxMusxMappingPtr& context)

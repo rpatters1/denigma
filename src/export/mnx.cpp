@@ -32,6 +32,31 @@ using namespace musx::util;
 namespace denigma {
 namespace mnxexp {
 
+void MnxMusxMapping::logMessage(LogMsg&& msg, LogSeverity severity)
+{
+    std::string logEntry;
+    if (currStaff > 0 && currMeas > 0) {
+        std::string staffName = [&]() -> std::string {
+            if (document) {
+                auto iuList = document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
+                if (!iuList.empty()) {
+                    if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, currStaff)) {
+                        return staff->getFullName();
+                    }
+                }
+            }
+            return "Staff " + std::to_string(currStaff);
+        }();
+
+        std::string v;
+        if (!voice.empty()) {
+            v = " " + voice;
+        }
+        logEntry += "[" + staffName + " m" + std::to_string(currMeas) + v + "] ";
+    }
+    denigmaContext->logMessage(LogMsg() << logEntry << msg.str(), severity);
+}
+
 static void createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
 }
