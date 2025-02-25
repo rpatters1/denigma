@@ -68,7 +68,7 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
     return mnxTuplet;
 }
 
-static void createEvent(mnx::ContentArray content, const std::shared_ptr<const EntryInfo>& musxEntryInfo, std::optional<int> mnxStaffNumber)
+static void createEvent(mnx::ContentArray content, const EntryInfoPtr& musxEntryInfo, std::optional<int> mnxStaffNumber)
 {
     const auto& musxEntry = musxEntryInfo->getEntry();
     if (musxEntry->isHidden) {
@@ -77,11 +77,11 @@ static void createEvent(mnx::ContentArray content, const std::shared_ptr<const E
     }
 
     auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
-        musxEntry->getDocument(), musxEntry->getPartId(), musxEntryInfo->getStaff(),
-        musxEntryInfo->getMeasure(), Edu(std::lround(musxEntryInfo->elapsedDuration.calcEduDuration())));
+        musxEntry->getDocument(), musxEntry->getPartId(), musxEntryInfo.getStaff(),
+        musxEntryInfo.getMeasure(), Edu(std::lround(musxEntryInfo->elapsedDuration.calcEduDuration())));
     if (!musxStaff) {
         throw std::invalid_argument("Entry " + std::to_string(musxEntry->getEntryNumber())
-            + " has no staff information for staff " + std::to_string(musxEntryInfo->getStaff()));
+            + " has no staff information for staff " + std::to_string(musxEntryInfo.getStaff()));
     }
     
     auto mnxEvent = content.append<mnx::sequence::Event>(mnxNoteValueFromEdu(musxEntry->duration));
@@ -101,7 +101,7 @@ static void createEvent(mnx::ContentArray content, const std::shared_ptr<const E
             if (!mnxEvent.notes()) {
                 mnxEvent.create_notes();
             }
-            auto [noteName, octave, alteration, _] = musxNote->calcNoteProperties(musxEntryInfo->getKeySignature(), musxEntryInfo->clefIndex);
+            auto [noteName, octave, alteration, _] = musxNote->calcNoteProperties(musxEntryInfo.getKeySignature(), musxEntryInfo->clefIndex);
             auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && (!musxNote->showAcci || !musxNote->freezeAcci))
                           ? std::nullopt
                           : std::optional<int>(alteration);
@@ -113,15 +113,15 @@ static void createEvent(mnx::ContentArray content, const std::shared_ptr<const E
     } else {
         auto mnxRest = mnxEvent.create_rest();
         if (!musxEntry->floatRest && !musxEntry->notes.empty()) {
-            auto staffPosition = std::get<3>(musxEntry->notes[0]->calcNoteProperties(musxEntryInfo->getKeySignature(), musxEntryInfo->clefIndex));
+            auto staffPosition = std::get<3>(musxEntry->notes[0]->calcNoteProperties(musxEntryInfo.getKeySignature(), musxEntryInfo->clefIndex));
             mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
         }
     }
 }
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
-static std::shared_ptr<const EntryInfo> addEntryToContent(const MnxMusxMappingPtr& context,
-    mnx::ContentArray content, const std::shared_ptr<const EntryInfo>& firstEntryInfo,
+static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
+    mnx::ContentArray content, const EntryInfoPtr& firstEntryInfo,
     std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt)
 {
@@ -153,18 +153,18 @@ static std::shared_ptr<const EntryInfo> addEntryToContent(const MnxMusxMappingPt
         }
 
         if (tupletIndex) {
-            auto tuplInfo = next->getFrame()->tupletInfo[tupletIndex.value()];
-            if (tuplInfo.endIndex == next->indexInFrame) {
+            auto tuplInfo = next.getFrame()->tupletInfo[tupletIndex.value()];
+            if (tuplInfo.endIndex == next.getIndexInFrame()) {
                 createEvent(content, next, mnxStaffNumber);
                 elapsedInSequence = next->elapsedDuration + next->actualDuration;
-                return next->getNextInVoice(voice);
+                return next.getNextInVoice(voice);
             }
         }
 
         if (!inGrace) {
-            auto thisTupletIndex = next->calcNextTupletIndex(tupletIndex);
+            auto thisTupletIndex = next.calcNextTupletIndex(tupletIndex);
             if (thisTupletIndex != tupletIndex && thisTupletIndex) {
-                auto tuplInfo = next->getFrame()->tupletInfo[thisTupletIndex.value()];
+                auto tuplInfo = next.getFrame()->tupletInfo[thisTupletIndex.value()];
                 auto tuplet = createTuplet(content, tuplInfo.tuplet);
                 next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
                 continue;
@@ -173,7 +173,7 @@ static std::shared_ptr<const EntryInfo> addEntryToContent(const MnxMusxMappingPt
 
         createEvent(content, next, mnxStaffNumber);
         elapsedInSequence = next->elapsedDuration + next->actualDuration;
-        next = next->getNextInVoice(voice);
+        next = next.getNextInVoice(voice);
     }
     return next;
 }
