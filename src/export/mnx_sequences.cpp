@@ -97,23 +97,38 @@ static void createEvent(mnx::ContentArray content, const EntryInfoPtr& musxEntry
     }
 
     if (musxEntry->isNote) {
-        for (const auto& musxNote : musxEntry->notes) {
+        for (size_t x = 0; x < musxEntryInfo->getEntry()->notes.size(); x++) {
+            auto musxNote = NoteInfoPtr(musxEntryInfo, x);
             if (!mnxEvent.notes()) {
                 mnxEvent.create_notes();
             }
-            auto [noteName, octave, alteration, _] = musxNote->calcNoteProperties(musxEntryInfo.getKeySignature(), musxEntryInfo->clefIndex);
+            auto [noteName, octave, alteration, _] = musxNote.calcNoteProperties();
             auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && (!musxNote->showAcci || !musxNote->freezeAcci))
                           ? std::nullopt
                           : std::optional<int>(alteration);
             auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
             /// @todo accidental display
-            mnxNote.set_id(calcNoteId(musxNote->getNoteId()));
-            /// @todo tie
+            mnxNote.set_id(calcNoteId(musxNote));
+            if (musxNote->tieStart) {
+                auto mnxTie = mnxNote.create_tie();
+                auto tiedTo = musxNote.calcTieTo();
+                if (tiedTo && tiedTo->tieEnd) {
+                    mnxTie.set_target(calcNoteId(tiedTo));
+                } else {
+                    mnxTie.set_location(mnx::SlurTieEndLocation::Outgoing);
+                }
+                if (auto tieAlter = musxEntry->getDocument()->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {
+                    if (tieAlter->freezeDirection) {
+                        mnxTie.set_side(tieAlter->down ? mnx::SlurTieSide::Down : mnx::SlurTieSide::Up);
+                    }
+                }
+            }
         }
     } else {
         auto mnxRest = mnxEvent.create_rest();
         if (!musxEntry->floatRest && !musxEntry->notes.empty()) {
-            auto staffPosition = std::get<3>(musxEntry->notes[0]->calcNoteProperties(musxEntryInfo.getKeySignature(), musxEntryInfo->clefIndex));
+            auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
+            auto staffPosition = std::get<3>(musxRest.calcNoteProperties());
             mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
         }
     }
