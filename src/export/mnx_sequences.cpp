@@ -71,6 +71,7 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
 static void createEvent(mnx::ContentArray content, const EntryInfoPtr& musxEntryInfo, std::optional<int> mnxStaffNumber)
 {
     const auto& musxEntry = musxEntryInfo->getEntry();
+    /// @todo handle special case when hidden notes are for beam over barline from previous measure.
     if (musxEntry->isHidden) {
         content.append<mnx::sequence::Space>(1, mnxNoteValueFromEdu(musxEntry->duration));
         return;
