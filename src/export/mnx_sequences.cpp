@@ -59,7 +59,7 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
             case details::TupletDef::NumberStyle::Number: return mnx::TupletDisplaySetting::NoNumber;
             case details::TupletDef::NumberStyle::Nothing: return mnx::TupletDisplaySetting::NoNumber;
             case details::TupletDef::NumberStyle::UseRatio: return mnx::TupletDisplaySetting::NoNumber;
-            case details::TupletDef::NumberStyle::RatioPlusDenominatorNote: return mnx::TupletDisplaySetting::NoNumber; // should be Outer, but this is not currently an option
+            case details::TupletDef::NumberStyle::RatioPlusDenominatorNote: return mnx::TupletDisplaySetting::Inner; // should be Outer, but this is not currently an option
             case details::TupletDef::NumberStyle::RatioPlusBothNotes: return mnx::TupletDisplaySetting::Both;
         }
         return mnx::TupletDisplaySetting::NoNumber;
@@ -77,9 +77,7 @@ static void createEvent(mnx::ContentArray content, const EntryInfoPtr& musxEntry
         return;
     }
 
-    auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
-        musxEntry->getDocument(), musxEntry->getPartId(), musxEntryInfo.getStaff(),
-        musxEntryInfo.getMeasure(), Edu(std::lround(musxEntryInfo->elapsedDuration.calcEduDuration())));
+    auto musxStaff = musxEntryInfo.createCurrentStaff();
     if (!musxStaff) {
         throw std::invalid_argument("Entry " + std::to_string(musxEntry->getEntryNumber())
             + " has no staff information for staff " + std::to_string(musxEntryInfo.getStaff()));
