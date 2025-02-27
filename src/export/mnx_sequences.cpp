@@ -107,7 +107,9 @@ static void createEvent(mnx::ContentArray content, const EntryInfoPtr& musxEntry
                           ? std::nullopt
                           : std::optional<int>(alteration);
             auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
-            /// @todo accidental display
+            if (musxNote->freezeAcci) {
+                mnxNote.create_accidentalDisplay(musxNote->showAcci);
+            }
             mnxNote.set_id(calcNoteId(musxNote));
             if (musxNote->tieStart) {
                 auto mnxTie = mnxNote.create_tie();
