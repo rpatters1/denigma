@@ -98,7 +98,7 @@ static void createClefs(
         }
     } else if (musxMeasure->getCmper() == 1) {
         int firstIndex = others::Staff::calcFirstClefIndex(musxDocument, musxMeasure->getPartId(), staffCmper);
-        addClef(firstIndex, 0);
+        addClef(ClefIndex(firstIndex), 0);
     }
 }
 
@@ -127,7 +127,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
         auto mnxMeasure = mnxMeasures.append();
         for (size_t x = 0; x < staves.size(); x++) {
             context->currStaff = staves[x];
-            std::optional<int> staffNumber = (staves.size() > 1) ? std::optional<int>(x + 1) : std::nullopt;
+            std::optional<int> staffNumber = (staves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, staves[x], prevClefs[x]);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, staves[x]);
         }
