@@ -25,6 +25,7 @@
 #include <exception>
 #include <filesystem>
 #include <algorithm>
+#include <optional>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -107,6 +108,63 @@ inline std::filesystem::path utf8ToPath(const std::string& str)
     }
 #endif
     return str;
+}
+
+inline std::optional<char32_t> utf8ToCodepoint(const std::string& utf8) {
+    size_t len = utf8.size();
+    if (len == 0 || len > 4) {
+        return std::nullopt; // Invalid UTF-8 (must be 1-4 bytes)
+    }
+
+    const unsigned char* data = reinterpret_cast<const unsigned char*>(utf8.data());
+    char32_t codepoint = 0;
+
+    if (len == 1) { 
+        // ASCII (0x00 - 0x7F)
+        if (data[0] <= 0x7F) {
+            codepoint = data[0];
+        } else {
+            return std::nullopt; // Invalid single-byte character
+        }
+    } else if (len == 2) { 
+        // 2-byte sequence (U+0080 - U+07FF)
+        if ((data[0] & 0xE0) == 0xC0 && (data[1] & 0xC0) == 0x80) {
+            codepoint = ((data[0] & 0x1F) << 6) | (data[1] & 0x3F);
+            if (codepoint < 0x80) return std::nullopt; // Overlong encoding
+        } else {
+            return std::nullopt;
+        }
+    } else if (len == 3) { 
+        // 3-byte sequence (U+0800 - U+FFFF)
+        if ((data[0] & 0xF0) == 0xE0 &&
+            (data[1] & 0xC0) == 0x80 &&
+            (data[2] & 0xC0) == 0x80) {
+            codepoint = ((data[0] & 0x0F) << 12) |
+                        ((data[1] & 0x3F) << 6) |
+                        (data[2] & 0x3F);
+            if (codepoint < 0x800) return std::nullopt; // Overlong encoding
+        } else {
+            return std::nullopt;
+        }
+    } else if (len == 4) { 
+        // 4-byte sequence (U+10000 - U+10FFFF)
+        if ((data[0] & 0xF8) == 0xF0 &&
+            (data[1] & 0xC0) == 0x80 &&
+            (data[2] & 0xC0) == 0x80 &&
+            (data[3] & 0xC0) == 0x80) {
+            codepoint = ((data[0] & 0x07) << 18) |
+                        ((data[1] & 0x3F) << 12) |
+                        ((data[2] & 0x3F) << 6) |
+                        (data[3] & 0x3F);
+            if (codepoint < 0x10000 || codepoint > 0x10FFFF) return std::nullopt; // Overlong encoding or out of range
+        } else {
+            return std::nullopt;
+        }
+    } else {
+        return std::nullopt; // Invalid size
+    }
+
+    return codepoint;
 }
 
 inline std::string toLowerCase(const std::string& inp)

@@ -28,6 +28,7 @@
 #include <optional>
 #include <fstream>
 #include <functional>
+#include <cassert>
 
 
 #include "utils/stringutils.h"
@@ -72,7 +73,7 @@ struct arg_string : public std::wstring
     using std::wstring::wstring;
     arg_string(const std::wstring& wstr) : std::wstring(wstr) {}
     arg_string(const std::string& str) : std::wstring(utils::stringToWstring(str)) {}
-    arg_string(const char * str) : std::wstring(utils::stringToWstring(str)) {}
+    arg_string(const char* str) : std::wstring(utils::stringToWstring(str)) {}
 
     operator std::string() const
     {
@@ -80,7 +81,8 @@ struct arg_string : public std::wstring
     }
 };
 
-inline std::string operator+(const std::string& lhs, const arg_string& rhs) {
+inline std::string operator+(const std::string& lhs, const arg_string& rhs)
+{
     return lhs + static_cast<std::string>(rhs);
 }
 #else
@@ -141,7 +143,9 @@ struct DenigmaContext
 {
 public:
     DenigmaContext(const arg_string& progName)
-        : programName(std::string(progName)) {}
+        : programName(std::string(progName))
+    {
+    }
 
     mutable bool errorOccurred{};
     bool outputIsFilename;
@@ -163,10 +167,10 @@ public:
     std::filesystem::path inputFilePath;
 
     // Specific options for `massage` command
-    bool refloatRests{true};
-    bool extendOttavasLeft{true};
-    bool extendOttavasRight{true};
-    bool fermataWholeRests{true};
+    bool refloatRests{ true };
+    bool extendOttavasLeft{ true };
+    bool extendOttavasRight{ true };
+    bool fermataWholeRests{ true };
     std::optional<std::filesystem::path> finaleFilePath;
 
     // Specic options for `export --mnx` command
@@ -188,7 +192,7 @@ public:
 
     // Parse general options and return remaining options
     std::vector<const arg_char*> parseOptions(int argc, arg_char* argv[]);
-    
+
     // validate paths
     bool validatePathsAndOptions(const std::filesystem::path& outputFilePath) const;
 
@@ -203,7 +207,9 @@ public:
      * @param severity the message severity
     */
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info) const
-    { logMessage(std::move(msg), false, severity); }
+    {
+        logMessage(std::move(msg), false, severity);
+    }
 
     void endLogging(); ///< Ends logging if logging was requested
 
@@ -233,7 +239,7 @@ public:
     virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
     virtual std::optional<std::string_view> defaultInputFormat() const { return std::nullopt; }
     virtual std::optional<std::string> defaultOutputFormat(const std::filesystem::path&) const { return std::nullopt; }
-    
+
     virtual const std::string_view commandName() const = 0;
 };
 
@@ -243,6 +249,10 @@ bool createDirectoryIfNeeded(const std::filesystem::path& path);
 void showAboutPage();
 
 } // namespace denigma
+
+#define ASSERT_IF(TEST) \
+assert(!(TEST)); \
+if (TEST)
 
 #ifdef DENIGMA_TEST // this is defined on the command line by the test program
 #undef _MAIN

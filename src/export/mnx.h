@@ -28,6 +28,8 @@
 #include "musx/musx.h"
 #include "mnxdom.h"
 
+#include "mnx_mapping.h"
+
  //placeholder function
 
 using namespace musx::dom;
@@ -46,11 +48,28 @@ struct MnxMusxMapping
 
     const DenigmaContext* denigmaContext;
     musx::dom::DocumentPtr document;
+    std::shared_ptr<FontInfo> defaultMusicFont;
     std::unique_ptr<mnx::Document> mnxDocument;
 
     std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
     std::unordered_map<InstCmper, std::string> inst2Part;
+
+    // musx mappings
+    std::unordered_map<Cmper, JumpType> textRepeat2Jump;
+
+    mutable MeasCmper currMeas{};
+    mutable InstCmper currStaff{};
+    mutable std::string voice;
+
+    void clearCounts() const
+    {
+        currMeas = currStaff = 0;
+        voice.clear();
+    }
+
+    void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
 };
+
 using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
 
 inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
@@ -61,8 +80,36 @@ inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
     return "S" + std::to_string(partId) + "-Sys" + std::to_string(systemId);
 }
 
+inline std::string calcEventId(EntryNumber entryNum)
+{
+    return "ev" + std::to_string(entryNum);
+}
+
+inline std::string calcNoteId(const NoteInfoPtr& noteInfo)
+{
+    return calcEventId(noteInfo.getEntryInfo()->getEntry()->getEntryNumber()) + "n" + std::to_string(noteInfo->getNoteId());
+}
+
+inline std::string calcVoice(LayerIndex idx, int voice)
+{
+    return "layer" + std::to_string(idx + 1) + "v" + std::to_string(voice);
+}
+
+mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
+std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration);
+
+mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction);
+int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
+
 void createLayouts(const MnxMusxMappingPtr& context);
 void createGlobal(const MnxMusxMappingPtr& context);
+void createParts(const MnxMusxMappingPtr& context);
+void createSequences(const MnxMusxMappingPtr& context,
+    mnx::part::Measure& mnxMeasure,
+    std::optional<int> mnxStaffNumber,
+    const std::shared_ptr<others::Measure>& musxMeasure,
+    InstCmper staffCmper);
+
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
 
 template <typename ToEnum, typename FromEnum>

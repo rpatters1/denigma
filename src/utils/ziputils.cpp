@@ -67,6 +67,12 @@ std::string readFile(const std::filesystem::path& zipFilePath, const std::string
     return zip.read(fileName);
 }
 
+std::string readFile(const std::vector<unsigned char>& buffer, const std::string& fileName, const denigma::DenigmaContext&)
+{
+    miniz_cpp::zip_file zip(buffer);
+    return zip.read(fileName);
+}
+
 static bool iterateFiles(miniz_cpp::zip_file& zip, std::optional<std::string> searchForFile,
     std::function<bool(const miniz_cpp::zip_info&)> iterator)
 {

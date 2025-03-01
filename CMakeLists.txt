@@ -77,6 +77,7 @@ set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/build")
 
 #define other directories
 set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
+set(SMUFL_METADATA_DIR "${CMAKE_CURRENT_LIST_DIR}/smufl")
 
 # Set output directory for compiled executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
@@ -193,6 +194,7 @@ add_custom_target(PrintConfig ALL
 )
 
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
+include("${CMAKE_SOURCE_DIR}/cmake/GenerateSMuFLXxd.cmake")
 
 # Add executable target
 add_executable(denigma
@@ -205,9 +207,13 @@ add_executable(denigma
     src/export/mnx_enums.cpp
     src/export/mnx_global.cpp
     src/export/mnx_layouts.cpp
+    src/export/mnx_parts.cpp
+    src/export/mnx_sequences.cpp
     src/export/mss.cpp
+    src/export/mnx_mapping.cpp
     src/massage/massage.cpp
     src/massage/musicxml.cpp
+    src/utils/smufl_support.cpp
     src/utils/ziputils.cpp
 )
 
@@ -219,7 +225,7 @@ if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
 endif()
 
 # Ensure the include directories are added
-add_dependencies(denigma GenerateLicenseXxd)
+add_dependencies(denigma GenerateLicenseXxd GenerateSMuFLXxd)
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
 target_include_directories(denigma SYSTEM PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})

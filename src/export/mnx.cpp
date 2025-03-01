@@ -32,44 +32,33 @@ using namespace musx::util;
 namespace denigma {
 namespace mnxexp {
 
-static void createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
+void MnxMusxMapping::logMessage(LogMsg&& msg, LogSeverity severity)
 {
+    std::string logEntry;
+    if (currStaff > 0 && currMeas > 0) {
+        std::string staffName = [&]() -> std::string {
+            if (document) {
+                auto iuList = document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
+                if (!iuList.empty()) {
+                    if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, currStaff)) {
+                        return staff->getFullName();
+                    }
+                }
+            }
+            return "Staff " + std::to_string(currStaff);
+        }();
+
+        std::string v;
+        if (!voice.empty()) {
+            v = " " + voice;
+        }
+        logEntry += "[" + staffName + " m" + std::to_string(currMeas) + v + "] ";
+    }
+    denigmaContext->logMessage(LogMsg() << logEntry << msg.str(), severity);
 }
 
-static void createParts(const MnxMusxMappingPtr& context)
+static void createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
 {
-    auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);
-    auto scrollView = context->document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
-    int partNumber = 0;
-    auto parts = context->mnxDocument->parts();
-    for (const auto& item : scrollView) {
-        auto staff = item->getStaff();
-        auto multiStaffInst = staff->getMultiStaffInstGroup();
-        if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
-            continue;
-        }
-        std::string id = "P" + std::to_string(++partNumber);
-        auto part = parts.append();
-        part.set_id(id);
-        auto fullName = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
-        if (!fullName.empty()) {
-            part.set_name(fullName);
-        }
-        auto abrvName = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
-        if (!abrvName.empty()) {
-            part.set_shortName(abrvName);
-        }
-        if (multiStaffInst) {
-            part.set_staves(int(multiStaffInst->staffNums.size()));
-            for (auto inst : multiStaffInst->staffNums) {
-                context->inst2Part.emplace(inst, id);
-            }
-            context->part2Inst.emplace(id, multiStaffInst->staffNums);
-        } else {
-            context->inst2Part.emplace(staff->getCmper(), id);
-            context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
-        }
-    }
 }
 
 static void createScores(const MnxMusxMappingPtr& context)
@@ -125,6 +114,17 @@ static void createScores(const MnxMusxMappingPtr& context)
     }
 }
 
+static void createMappings(const MnxMusxMappingPtr& context)
+{
+    auto textRepeatDefs = context->document->getOthers()->getArray<others::TextRepeatDef>(SCORE_PARTID);
+    for (const auto& def : textRepeatDefs) {
+        if (auto repeatText = context->document->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, def->getCmper())) {
+            FontType fontType = convertFontToType(def->font);
+            context->textRepeat2Jump.emplace(def->getCmper(), convertTextToJump(repeatText->text, fontType));
+        }
+    }
+}
+
 void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
@@ -138,6 +138,13 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
+    if (auto fontOptions = document->getOptions()->get<options::FontOptions>()) {
+        context->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
+    } else {
+        throw std::invalid_argument("Musx document contains no font options.");
+    }
+
+    createMappings(context);   // map repeat text, text exprs, articulations, etc. to semantic values
 
     createMnx(context);
     createGlobal(context);

@@ -295,7 +295,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
     auto gfHold = context->musxDocument->getDetails()->get<details::GFrameHold>(context->musxPartId, staff->getCmper(), measure);
     if (gfHold) {
         pugi::xml_node nextNote;
-        gfHold->iterateEntries([&](const std::shared_ptr<const EntryInfo>& entryInfo) -> bool {
+        gfHold->iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
             auto entry = entryInfo->getEntry();
             if (entry->isHidden) { // Dolet does not create note elements for invisible entries
                 return true;
@@ -325,7 +325,8 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 }
                 return false;
             }
-            auto musxNoteType = Edu(entry->calcNoteType());
+            auto [entryNoteType, entryNumDots] = entry->calcNoteInfo();
+            auto musxNoteType = Edu(entryNoteType);
             auto xmlNoteType = Edu(it->second);
             if (xmlNoteType != musxNoteType) {
                 // correct for tremolos
@@ -338,7 +339,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 }
             }
             if (xmlNoteType != musxNoteType) {
-                context->logMessage(LogMsg() << "xml durations do not match Finale file: [" << Edu(entry->calcNoteType()) << ", " << it->first << "]", LogSeverity::Warning);
+                context->logMessage(LogMsg() << "xml durations do not match Finale file: [" << Edu(entryNoteType) << ", " << it->first << "]", LogSeverity::Warning);
                 context->logXmlNode(nextNote);
                 return false;
             }
@@ -347,8 +348,8 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
             for (pugi::xml_node dot = nextNote.child("dot"); dot; dot = dot.next_sibling("dot")) {
                 ++numDots;
             }
-            if (numDots != entry->calcAugmentationDots()) {
-                context->logMessage(LogMsg() << "xml number of dots does not match Finale file: [" << entry->calcAugmentationDots() << ", " << numDots << "]", LogSeverity::Warning);
+            if (numDots != entryNumDots) {
+                context->logMessage(LogMsg() << "xml number of dots does not match Finale file: [" << entryNumDots << ", " << numDots << "]", LogSeverity::Warning);
                 context->logXmlNode(nextNote);
                 return false;
             }
