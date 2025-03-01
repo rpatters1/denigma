@@ -60,7 +60,7 @@ static void createClefs(
         FontType fontType = convertFontToType(clefFont);
         if (auto clefInfo = convertCharToClef(musxClef->clefChar, fontType)) {
             auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
-                musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), Edu(std::lround(location.calcEduDuration())));
+                musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
             if (!musxStaff) {
                 context->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
                     << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
