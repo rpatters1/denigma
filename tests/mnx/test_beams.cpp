@@ -23,12 +23,39 @@
 #include <filesystem>
 #include <iterator>
 #include <fstream>
+#include <memory>
 
 #include "gtest/gtest.h"
 #include "denigma.h"
 #include "test_utils.h"
 
 using namespace denigma;
+
+static void getNote(std::shared_ptr<mnx::sequence::Note>& note, const std::optional<mnx::Array<mnx::part::Measure>>& measures,
+    size_t measureIndex, size_t contentIndex, size_t expectedContentSize)
+{
+    ASSERT_TRUE(measures.has_value()) << "no measure array in first part";
+    ASSERT_GT(measures.value().size(), measureIndex) << "fewer than " << measureIndex + 1 << " measures in measure array of part";
+
+    auto sequences = measures.value()[measureIndex].sequences();
+    ASSERT_FALSE(sequences.empty());
+    auto content = sequences[0].content();
+    ASSERT_EQ(content.size(), expectedContentSize);
+
+    auto contentItem = content[contentIndex];
+    ASSERT_EQ(contentItem.type(), mnx::sequence::Event::ContentTypeValue);
+    auto event = contentItem.get<mnx::sequence::Event>();
+    ASSERT_TRUE(event.notes().has_value()) << "event at m1 index 3 has no notes array";
+    ASSERT_FALSE(event.notes().value().empty()) << "event at m1 index 3 has no notes";
+    note = std::make_shared<mnx::sequence::Note>(event.notes().value()[0]); // no chords are in the test file.
+}
+
+static void testNote(const mnx::sequence::Note& note, mnx::NoteStep step, int octave, int alter)
+{
+    EXPECT_EQ(note.pitch().step(), step);
+    EXPECT_EQ(note.pitch().octave(), octave);
+    EXPECT_EQ(note.pitch().alter().value_or(0), alter);
+}
 
 TEST(MnxBeams, MultiMeasureBeams)
 {
@@ -44,7 +71,25 @@ TEST(MnxBeams, MultiMeasureBeams)
     auto parts = doc.parts();
     ASSERT_FALSE(parts.empty()) << "no parts in document";
     auto measures = parts[0].measures();
-    ASSERT_TRUE(measures.has_value()) << "no measure array in first part";
-    ASSERT_GE(measures.value().size(), 3) << "fewer than 3 measures in measure array of first part";
 
+    {
+        std::shared_ptr<mnx::sequence::Note> note;
+        getNote(note, measures, 0, 3, 4);
+        ASSERT_TRUE(note);
+        testNote(*note.get(), mnx::NoteStep::G, 4, 0);
+    }
+
+    {
+        std::shared_ptr<mnx::sequence::Note> note;
+        getNote(note, measures, 1, 1, 8);
+        ASSERT_TRUE(note);
+        testNote(*note.get(), mnx::NoteStep::E, 4, 0);
+    }
+
+    {
+        std::shared_ptr<mnx::sequence::Note> note;
+        getNote(note, measures, 2, 1, 4);
+        ASSERT_TRUE(note);
+        testNote(*note.get(), mnx::NoteStep::G, 4, 0);
+    }
 }
