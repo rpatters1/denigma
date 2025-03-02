@@ -105,31 +105,30 @@ static void createClefs(
 static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
 {
     auto& musxDocument = context->document;
+    context->clearCounts();
 
     // Retrieve the linked parts in order.
     auto musxMeasures = musxDocument->getOthers()->getArray<others::Measure>(SCORE_PARTID);
     auto mnxMeasures = part.create_measures();
     const auto it = context->part2Inst.find(part.id().value_or(""));
-    std::vector<InstCmper> staves;
     if (it == context->part2Inst.end() || it->second.empty()) {
         context->logMessage(LogMsg() << "Part Id " << part.id().value_or(std::to_string(part.calcArrayIndex()))
             << " is not mapped", LogSeverity::Warning);
     } else {
-        staves = it->second;
+        context->partStaves = it->second;
     }
     std::vector<std::optional<ClefIndex>> prevClefs;
-    for (size_t x = 0; x < staves.size(); x++) {
+    for (size_t x = 0; x < context->partStaves.size(); x++) {
         prevClefs.push_back(std::nullopt);
     }
-    context->clearCounts();
     for (const auto& musxMeasure : musxMeasures) {
         context->currMeas++;
         auto mnxMeasure = mnxMeasures.append();
-        for (size_t x = 0; x < staves.size(); x++) {
-            context->currStaff = staves[x];
-            std::optional<int> staffNumber = (staves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
-            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, staves[x], prevClefs[x]);
-            createSequences(context, mnxMeasure, staffNumber, musxMeasure, staves[x]);
+        for (size_t x = 0; x < context->partStaves.size(); x++) {
+            context->currStaff = context->partStaves[x];
+            std::optional<int> staffNumber = (context->partStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
+            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
+            createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
         }
     }
     context->clearCounts();

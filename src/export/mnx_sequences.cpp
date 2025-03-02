@@ -68,7 +68,7 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
     return mnxTuplet;
 }
 
-static void createEvent(mnx::ContentArray content, const EntryInfoPtr& musxEntryInfo, std::optional<int> mnxStaffNumber)
+static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, const EntryInfoPtr& musxEntryInfo, std::optional<int> mnxStaffNumber)
 {
     const auto& musxEntry = musxEntryInfo->getEntry();
     /// @todo handle special case when hidden notes are for beam over barline from previous measure.
@@ -91,9 +91,7 @@ static void createEvent(mnx::ContentArray content, const EntryInfoPtr& musxEntry
     if (musxEntry->freezeStem) {
         mnxEvent.set_stemDirection(musxEntry->upStem ? mnx::StemDirection::Up : mnx::StemDirection::Down);
     }
-    if (mnxStaffNumber) {
-        mnxEvent.set_staff(mnxStaffNumber.value());
-    }
+    // since the staff number was set in the sequence, we don't set mnxStaffNumber here.
 
     if (musxEntry->isNote) {
         for (size_t x = 0; x < musxEntryInfo->getEntry()->notes.size(); x++) {
@@ -110,6 +108,24 @@ static void createEvent(mnx::ContentArray content, const EntryInfoPtr& musxEntry
                 mnxNote.create_accidentalDisplay(musxNote->showAcci);
             }
             mnxNote.set_id(calcNoteId(musxNote));
+            if (musxNote->crossStaff) {
+                InstCmper noteStaff = musxNote.calcStaff();
+                std::optional<int> mnxNoteStaff;
+                for (size_t y = 0; y < context->partStaves.size(); y++) {
+                    if (context->partStaves[y] == noteStaff) {
+                        mnxNoteStaff = y + 1;
+                        break;
+                    }
+                }
+                if (mnxNoteStaff) {
+                    if (*mnxNoteStaff != mnxStaffNumber.value_or(1)) {
+                        mnxNote.set_staff(*mnxNoteStaff);
+                    }
+                } else {
+                    context->logMessage(LogMsg() << " note has cross-staffing to a staff (" << noteStaff
+                        << ") that is not included in the MNX part.", LogSeverity::Warning);
+                }
+            }
             if (musxNote->tieStart) {
                 auto mnxTie = mnxNote.create_tie();
                 auto tiedTo = musxNote.calcTieTo();
@@ -171,7 +187,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
         if (tupletIndex) {
             auto tuplInfo = next.getFrame()->tupletInfo[tupletIndex.value()];
             if (tuplInfo.endIndex == next.getIndexInFrame()) {
-                createEvent(content, next, mnxStaffNumber);
+                createEvent(context, content, next, mnxStaffNumber);
                 elapsedInSequence = next->elapsedDuration + next->actualDuration;
                 return next.getNextInVoice(voice);
             }
@@ -187,7 +203,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             }
         }
 
-        createEvent(content, next, mnxStaffNumber);
+        createEvent(context, content, next, mnxStaffNumber);
         elapsedInSequence = next->elapsedDuration + next->actualDuration;
         next = next.getNextInVoice(voice);
     }
@@ -212,6 +228,9 @@ void createSequences(const MnxMusxMappingPtr& context,
                 for (int voice = 1; voice <= 2; voice++) {
                     if (auto firstEntry = entryFrame->getFirstInVoice(voice)) {
                         auto sequence = mnxMeasure.sequences().append();
+                        if (mnxStaffNumber) {
+                            sequence.set_staff(mnxStaffNumber.value());
+                        }
                         context->voice = calcVoice(layer, voice);
                         sequence.set_voice(context->voice);
                         musx::util::Fraction elapsedInVoice = 0;

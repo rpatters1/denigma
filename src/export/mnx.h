@@ -60,11 +60,13 @@ struct MnxMusxMapping
     mutable MeasCmper currMeas{};
     mutable InstCmper currStaff{};
     mutable std::string voice;
+    mutable std::vector<InstCmper> partStaves{};
 
     void clearCounts() const
     {
         currMeas = currStaff = 0;
         voice.clear();
+        partStaves.clear();
     }
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
