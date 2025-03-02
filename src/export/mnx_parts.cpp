@@ -126,6 +126,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
         auto mnxMeasure = mnxMeasures.append();
         for (size_t x = 0; x < context->partStaves.size(); x++) {
             context->currStaff = context->partStaves[x];
+            context->currMeasDura = musxMeasure->createTimeSignature(context->partStaves[x])->calcTotalDuration();
             std::optional<int> staffNumber = (context->partStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);

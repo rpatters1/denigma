@@ -48,7 +48,7 @@ static void assignBarline(
                     mnxMeasure.create_barline(mnx::BarlineType::Regular);
                 } else if (!isForFinalMeasure && musxBarlineOptions->drawDoubleBarlineBeforeKeyChanges) {
                     if (const auto& nextMeasure = musxMeasure->getDocument()->getOthers()->get<others::Measure>(SCORE_PARTID, musxMeasure->getCmper() + 1)) {
-                        if (!musxMeasure->keySignature->isSame(*nextMeasure->keySignature.get())) {
+                        if (!musxMeasure->calcKeySignature()->isSame(*nextMeasure->calcKeySignature().get())) {
                             mnxMeasure.create_barline(mnx::BarlineType::Double);
                         }
                     }
@@ -141,7 +141,7 @@ static void assignKey(
     const std::shared_ptr<others::Measure>& musxMeasure,
     std::optional<int>& prevKeyFifths)
 {
-    auto keyFifths = musxMeasure->keySignature->getAlteration();
+    auto keyFifths = musxMeasure->calcKeySignature()->getAlteration();
     if (keyFifths && keyFifths != prevKeyFifths) {
         mnxMeasure.create_key(keyFifths.value());
         prevKeyFifths = keyFifths;

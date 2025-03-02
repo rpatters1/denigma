@@ -23,6 +23,7 @@
 
 #include <filesystem>
 #include <optional>
+#include <unordered_map>
 
 #include "denigma.h"
 #include "musx/musx.h"
@@ -30,13 +31,22 @@
 
 #include "mnx_mapping.h"
 
- //placeholder function
-
 using namespace musx::dom;
 using namespace musx::util;
 
 namespace denigma {
 namespace mnxexp {
+
+// stoopid c++17 standard does not include a hash for tuple
+struct SequenceHash {
+    std::size_t operator()(const std::tuple<InstCmper, LayerIndex, int>& t) const {
+        auto [x, y, z] = t;
+        std::size_t h1 = std::hash<int>{}(x);
+        std::size_t h2 = std::hash<int>{}(y);
+        std::size_t h3 = std::hash<int>{}(z);
+        return h1 ^ (h2 << 1) ^ (h3 << 2); // XOR-shift for better hash distribution
+    }
+};
 
 using json = nlohmann::ordered_json;
 //using json = nlohmann::json;
@@ -57,16 +67,23 @@ struct MnxMusxMapping
     // musx mappings
     std::unordered_map<Cmper, JumpType> textRepeat2Jump;
 
-    mutable MeasCmper currMeas{};
-    mutable InstCmper currStaff{};
-    mutable std::string voice;
-    mutable std::vector<InstCmper> partStaves{};
+    MeasCmper currMeas{};
+    InstCmper currStaff{};
+    musx::util::Fraction currMeasDura{};    ///< duration of current measure
+    musx::util::Fraction duraOffset{};      ///< offset to apply to leftOverEntries
+    std::string voice;
+    std::vector<InstCmper> partStaves;
+    std::unordered_map<std::tuple<InstCmper, LayerIndex, int>, std::vector<EntryInfoPtr>, SequenceHash> leftOverEntries; // left over entries per layer/voice combo
+    std::unordered_map<std::tuple<InstCmper, LayerIndex, int>, musx::util::Fraction, SequenceHash> duraOffsets; // dura offsets for leftovers per layer/voice combo
 
-    void clearCounts() const
+    void clearCounts()
     {
         currMeas = currStaff = 0;
+        currMeasDura = duraOffset = 0;
         voice.clear();
         partStaves.clear();
+        leftOverEntries.clear();
+        duraOffsets.clear();
     }
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
