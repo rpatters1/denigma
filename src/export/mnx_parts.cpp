@@ -152,11 +152,11 @@ void createParts(const MnxMusxMappingPtr& context)
         part.set_id(id);
         auto fullName = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
         if (!fullName.empty()) {
-            part.set_name(fullName);
+            part.set_name(trimNewLineFromString(fullName));
         }
         auto abrvName = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
         if (!abrvName.empty()) {
-            part.set_shortName(abrvName);
+            part.set_shortName(trimNewLineFromString(abrvName));
         }
         if (multiStaffInst) {
             part.set_staves(int(multiStaffInst->staffNums.size()));

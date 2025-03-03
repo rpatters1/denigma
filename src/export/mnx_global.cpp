@@ -289,8 +289,38 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     }
 }
 
+static void createLyricsGlobal(const MnxMusxMappingPtr& context)
+{
+    auto& mnxDocument = context->mnxDocument;
+    auto& musxDocument = context->document;
+
+    auto addLyrics = [&](const auto& lyricsTexts) {
+        using PtrType = typename std::decay_t<decltype(lyricsTexts)>::value_type;
+        using T = typename PtrType::element_type;
+        static_assert(std::is_base_of_v<texts::LyricsTextBase, T>, "lyricsTexts must be a subtype of LyricsTextBase");
+        for (const auto& musxLyric : lyricsTexts) {
+            if (!mnxDocument->global().lyrics().has_value()) {
+                mnxDocument->global().create_lyrics();
+            }
+            auto mnxLyrics = mnxDocument->global().lyrics().value();
+            if (!mnxLyrics.lineMetadata().has_value()) {
+                mnxLyrics.create_lineMetadata();
+            }
+            auto mnxLineMetadata = mnxLyrics.lineMetadata().value();
+            mnx::global::LyricLineMetadata metaData = mnxLineMetadata.append(std::string(T::XmlNodeName) + std::to_string(musxLyric->getTextNumber()));
+            std::string mnxLabel = std::string(T::XmlNodeName) + " " + std::to_string(musxLyric->getTextNumber());
+            mnxLabel[0] = std::toupper(mnxLabel[0]);
+            metaData.set_label(mnxLabel);
+        }
+    };
+    addLyrics(musxDocument->getTexts()->getArray<texts::LyricsVerse>());
+    addLyrics(musxDocument->getTexts()->getArray<texts::LyricsChorus>());
+    addLyrics(musxDocument->getTexts()->getArray<texts::LyricsSection>());
+}
+
 void createGlobal(const MnxMusxMappingPtr& context)
 {
+    createLyricsGlobal(context);
     createGlobalMeasures(context);
 }
 

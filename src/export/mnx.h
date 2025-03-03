@@ -114,6 +114,15 @@ inline std::string calcVoice(LayerIndex idx, int voice)
     return "layer" + std::to_string(idx + 1) + "v" + std::to_string(voice);
 }
 
+inline std::string trimNewLineFromString(const std::string& src)
+{
+    size_t pos = src.find('\n');
+    if (pos != std::string::npos) {
+        return src.substr(0, pos);  // Truncate at the newline, excluding it
+    }
+    return src;
+}
+
 mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
 std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration);
 
