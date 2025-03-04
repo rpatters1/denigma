@@ -85,6 +85,26 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     
     auto mnxEvent = content.append<mnx::sequence::Event>(mnxNoteValueFromEdu(musxEntry->duration));
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
+
+    auto musxLyrics = musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignVerse>(musxEntry->getPartId(), musxEntry->getEntryNumber());
+    for (const auto& lyr : musxLyrics) {
+        if (auto lyrText = musxEntry->getDocument()->getTexts()->get<texts::LyricsVerse>(lyr->lyricNumber)) {
+            if (lyr->syllable > lyrText->syllables.size()) {
+                /// @todo log it
+            } else {
+                if (!mnxEvent.lyrics().has_value()) {
+                    auto mnxLyrics = mnxEvent.create_lyrics();
+                    mnxLyrics.create_lines();
+                }
+                [[maybe_unused]]auto mnxLyricLine = mnxEvent.lyrics().value().lines().value().append(
+                    calcLyricLineId(std::string(texts::LyricsVerse::XmlNodeName), lyr->lyricNumber),
+                    lyrText->syllables[lyr->syllable - 1]->syllable // Finale syllable numbers are 1-based.
+                );
+                /// @todo "type"
+            }
+        }
+    }
+
     /// @todo markings
     /// @todo orient
     /// @todo slurs
