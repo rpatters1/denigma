@@ -299,6 +299,9 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
         using T = typename PtrType::element_type;
         static_assert(std::is_base_of_v<texts::LyricsTextBase, T>, "lyricsTexts must be a subtype of LyricsTextBase");
         for (const auto& musxLyric : lyricsTexts) {
+            if (musxLyric->syllables.empty()) {
+                continue;
+            }
             if (!mnxDocument->global().lyrics().has_value()) {
                 mnxDocument->global().create_lyrics();
             }
