@@ -63,6 +63,7 @@ struct MnxMusxMapping
 
     std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
     std::unordered_map<InstCmper, std::string> inst2Part;
+    std::unordered_set<std::string> lyricLineIds;
 
     // musx mappings
     std::unordered_map<Cmper, JumpType> textRepeat2Jump;
@@ -112,6 +113,11 @@ inline std::string calcNoteId(const NoteInfoPtr& noteInfo)
 inline std::string calcVoice(LayerIndex idx, int voice)
 {
     return "layer" + std::to_string(idx + 1) + "v" + std::to_string(voice);
+}
+
+inline std::string calcLyricLineId(const std::string& type, Cmper textNumber)
+{
+    return type + std::to_string(textNumber);
 }
 
 inline std::string trimNewLineFromString(const std::string& src)
