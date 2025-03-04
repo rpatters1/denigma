@@ -90,17 +90,20 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     for (const auto& lyr : musxLyrics) {
         if (auto lyrText = musxEntry->getDocument()->getTexts()->get<texts::LyricsVerse>(lyr->lyricNumber)) {
             if (lyr->syllable > lyrText->syllables.size()) {
-                /// @todo log it
+                context->logMessage(LogMsg() << " Layer " << musxEntryInfo.getLayerIndex() + 1
+                    << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
+                    << lyr->syllable << ").", LogSeverity::Warning);
             } else {
                 if (!mnxEvent.lyrics().has_value()) {
                     auto mnxLyrics = mnxEvent.create_lyrics();
                     mnxLyrics.create_lines();
                 }
-                [[maybe_unused]]auto mnxLyricLine = mnxEvent.lyrics().value().lines().value().append(
+                const size_t sylIndex = size_t(lyr->syllable - 1);
+                auto mnxLyricLine = mnxEvent.lyrics().value().lines().value().append(
                     calcLyricLineId(std::string(texts::LyricsVerse::XmlNodeName), lyr->lyricNumber),
-                    lyrText->syllables[lyr->syllable - 1]->syllable // Finale syllable numbers are 1-based.
+                    lyrText->syllables[sylIndex]->syllable // Finale syllable numbers are 1-based.
                 );
-                /// @todo "type"
+                mnxLyricLine.set_type(mnxLineTypeFromLyric(lyrText->syllables[sylIndex]));
             }
         }
     }

@@ -211,6 +211,17 @@ int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musx
 {
     return musxStaffPosition - staff->calcMiddleStaffPosition();
 }
+mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl)
+{
+    if (syl->hasHyphenBefore && syl->hasHyphenAfter) {
+        return mnx::LyricLineType::Middle;
+    } else if (syl->hasHyphenBefore && !syl->hasHyphenAfter) {
+        return mnx::LyricLineType::End;
+    } else if (!syl->hasHyphenBefore && syl->hasHyphenAfter) {
+        return mnx::LyricLineType::Start;
+    }
+    return mnx::LyricLineType::Whole;
+}
 
 } // namespace mnxexp
 } // namespace denigma
