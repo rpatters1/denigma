@@ -117,7 +117,7 @@ inline std::string calcVoice(LayerIndex idx, int voice)
 
 inline std::string calcLyricLineId(const std::string& type, Cmper textNumber)
 {
-    return type + std::to_string(textNumber);
+    return type.substr(0, 1) + std::to_string(textNumber);
 }
 
 inline std::string trimNewLineFromString(const std::string& src)

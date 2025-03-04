@@ -86,27 +86,34 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     auto mnxEvent = content.append<mnx::sequence::Event>(mnxNoteValueFromEdu(musxEntry->duration));
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
 
-    auto musxLyrics = musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignVerse>(musxEntry->getPartId(), musxEntry->getEntryNumber());
-    for (const auto& lyr : musxLyrics) {
-        if (auto lyrText = musxEntry->getDocument()->getTexts()->get<texts::LyricsVerse>(lyr->lyricNumber)) {
-            if (lyr->syllable > lyrText->syllables.size()) {
-                context->logMessage(LogMsg() << " Layer " << musxEntryInfo.getLayerIndex() + 1
-                    << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
-                    << lyr->syllable << ").", LogSeverity::Warning);
-            } else {
-                if (!mnxEvent.lyrics().has_value()) {
-                    auto mnxLyrics = mnxEvent.create_lyrics();
-                    mnxLyrics.create_lines();
+    auto createLyrics = [&](const auto& musxLyrics) {
+        using PtrType = typename std::decay_t<decltype(musxLyrics)>::value_type;
+        using T = typename PtrType::element_type;
+        static_assert(std::is_base_of_v<details::LyricAssign, T>, "musxLyrics must be a subtype of LyricAssign");
+        for (const auto& lyr : musxLyrics) {
+            if (auto lyrText = musxEntry->getDocument()->getTexts()->get<typename T::TextType>(lyr->lyricNumber)) {
+                if (lyr->syllable > lyrText->syllables.size()) {
+                    context->logMessage(LogMsg() << " Layer " << musxEntryInfo.getLayerIndex() + 1
+                        << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
+                        << lyr->syllable << ").", LogSeverity::Warning);
+                } else {
+                    if (!mnxEvent.lyrics().has_value()) {
+                        auto mnxLyrics = mnxEvent.create_lyrics();
+                        mnxLyrics.create_lines();
+                    }
+                    const size_t sylIndex = size_t(lyr->syllable - 1); // Finale syllable numbers are 1-based.
+                    auto mnxLyricLine = mnxEvent.lyrics().value().lines().value().append(
+                        calcLyricLineId(std::string(T::TextType::XmlNodeName), lyr->lyricNumber),
+                        lyrText->syllables[sylIndex]->syllable 
+                    );
+                    mnxLyricLine.set_type(mnxLineTypeFromLyric(lyrText->syllables[sylIndex]));
                 }
-                const size_t sylIndex = size_t(lyr->syllable - 1);
-                auto mnxLyricLine = mnxEvent.lyrics().value().lines().value().append(
-                    calcLyricLineId(std::string(texts::LyricsVerse::XmlNodeName), lyr->lyricNumber),
-                    lyrText->syllables[sylIndex]->syllable // Finale syllable numbers are 1-based.
-                );
-                mnxLyricLine.set_type(mnxLineTypeFromLyric(lyrText->syllables[sylIndex]));
             }
         }
-    }
+    };
+    createLyrics(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignVerse>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
+    createLyrics(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignChorus>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
+    createLyrics(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
 
     /// @todo markings
     /// @todo orient

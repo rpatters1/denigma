@@ -327,20 +327,21 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
     }
 
     std::vector<std::pair<std::string, std::shared_ptr<const details::Baseline>>> baselines;
-    auto addBaselines = [&](const auto& lyricsBaselines, const std::string_view& type) {
+    auto addBaselines = [&](const auto& lyricsBaselines) {
         using PtrType = typename std::decay_t<decltype(lyricsBaselines)>::value_type;
         using T = typename PtrType::element_type;
         static_assert(std::is_base_of_v<details::Baseline, T>, "lyricsBaselines must be a subtype of Baseline");
         for (const auto& baseline : lyricsBaselines) {
-            const auto it = context->lyricLineIds.find(calcLyricLineId(std::string(type), baseline->lyricNumber));
+            std::string type = std::string(T::TextType::XmlNodeName);
+            const auto it = context->lyricLineIds.find(calcLyricLineId(type, baseline->lyricNumber));
             if (it != context->lyricLineIds.end()) { // only process baselines for lyrics that actually exist
-                baselines.emplace_back(std::make_pair(std::string(type), baseline));
+                baselines.emplace_back(std::make_pair(type, baseline));
             }
         }
     };
-    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsVerse>(SCORE_PARTID, 0, 0), texts::LyricsVerse::XmlNodeName);
-    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsChorus>(SCORE_PARTID, 0, 0), texts::LyricsChorus::XmlNodeName);
-    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsSection>(SCORE_PARTID, 0, 0), texts::LyricsSection::XmlNodeName);
+    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsVerse>(SCORE_PARTID, 0, 0));
+    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsChorus>(SCORE_PARTID, 0, 0));
+    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsSection>(SCORE_PARTID, 0, 0));
     std::sort(baselines.begin(), baselines.end(), [](const auto& a, const auto& b) {
         if (a.second->baselineDisplacement != b.second->baselineDisplacement) {
             return a.second->baselineDisplacement > b.second->baselineDisplacement;
