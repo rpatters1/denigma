@@ -193,13 +193,13 @@ mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration)
 std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration)
 {
     if (duration <= 0 || (duration.denominator() & (duration.denominator() - 1)) != 0) {
-        auto newValue = musx::util::Fraction(std::lround(duration.calcEduDuration()), Edu(musx::dom::NoteType::Whole));
+        auto newValue = musx::util::Fraction(duration.calcEduDuration(), Edu(musx::dom::NoteType::Whole));
         context->logMessage(LogMsg() << "Value " << duration << " cannot be exactly converted to a note value quantity. Using closest approximation. ("
             << newValue << ")", LogSeverity::Warning);
         duration = newValue;
     }
 
-    return std::make_pair(duration.numerator(), mnxNoteValueFromEdu(std::lround(musx::util::Fraction(1, duration.denominator()).calcEduDuration())));
+    return std::make_pair(duration.numerator(), mnxNoteValueFromEdu(musx::util::Fraction(1, duration.denominator()).calcEduDuration()));
 }
 
 mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction)
@@ -210,6 +210,17 @@ mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction
 int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition)
 {
     return musxStaffPosition - staff->calcMiddleStaffPosition();
+}
+mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl)
+{
+    if (syl->hasHyphenBefore && syl->hasHyphenAfter) {
+        return mnx::LyricLineType::Middle;
+    } else if (syl->hasHyphenBefore && !syl->hasHyphenAfter) {
+        return mnx::LyricLineType::End;
+    } else if (!syl->hasHyphenBefore && syl->hasHyphenAfter) {
+        return mnx::LyricLineType::Start;
+    }
+    return mnx::LyricLineType::Whole;
 }
 
 } // namespace mnxexp

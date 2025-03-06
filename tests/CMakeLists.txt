@@ -17,6 +17,7 @@ if(denigma_BUILD_TESTING)
         test_logging.cpp
         test_massage.cpp
         test_options.cpp
+        mnx/test_beams.cpp
         mnx/test_global.cpp
         mnx/test_layouts.cpp
         mnx/test_schema.cpp

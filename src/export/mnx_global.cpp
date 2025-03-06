@@ -48,7 +48,7 @@ static void assignBarline(
                     mnxMeasure.create_barline(mnx::BarlineType::Regular);
                 } else if (!isForFinalMeasure && musxBarlineOptions->drawDoubleBarlineBeforeKeyChanges) {
                     if (const auto& nextMeasure = musxMeasure->getDocument()->getOthers()->get<others::Measure>(SCORE_PARTID, musxMeasure->getCmper() + 1)) {
-                        if (!musxMeasure->keySignature->isSame(*nextMeasure->keySignature.get())) {
+                        if (!musxMeasure->calcKeySignature()->isSame(*nextMeasure->calcKeySignature().get())) {
                             mnxMeasure.create_barline(mnx::BarlineType::Double);
                         }
                     }
@@ -141,7 +141,7 @@ static void assignKey(
     const std::shared_ptr<others::Measure>& musxMeasure,
     std::optional<int>& prevKeyFifths)
 {
-    auto keyFifths = musxMeasure->keySignature->getAlteration();
+    auto keyFifths = musxMeasure->calcKeySignature()->getAlteration();
     if (keyFifths && keyFifths != prevKeyFifths) {
         mnxMeasure.create_key(keyFifths.value());
         prevKeyFifths = keyFifths;
@@ -289,8 +289,93 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     }
 }
 
+static void createLyricsGlobal(const MnxMusxMappingPtr& context)
+{
+    auto& mnxDocument = context->mnxDocument;
+    auto& musxDocument = context->document;
+    
+    auto addLyrics = [&](const auto& lyricsTexts) {
+        using PtrType = typename std::decay_t<decltype(lyricsTexts)>::value_type;
+        using T = typename PtrType::element_type;
+        static_assert(std::is_base_of_v<texts::LyricsTextBase, T>, "lyricsTexts must be a subtype of LyricsTextBase");
+        for (const auto& musxLyric : lyricsTexts) {
+            if (musxLyric->syllables.empty()) {
+                continue;
+            }
+            if (!mnxDocument->global().lyrics().has_value()) {
+                mnxDocument->global().create_lyrics();
+            }
+            auto mnxLyrics = mnxDocument->global().lyrics().value();
+            if (!mnxLyrics.lineMetadata().has_value()) {
+                mnxLyrics.create_lineMetadata();
+            }
+            auto mnxLineMetadata = mnxLyrics.lineMetadata().value();
+            std::string lineId = calcLyricLineId(std::string(T::XmlNodeName), musxLyric->getTextNumber());
+            context->lyricLineIds.emplace(lineId);
+            mnx::global::LyricLineMetadata metaData = mnxLineMetadata.append(lineId);
+            std::string mnxLabel = std::string(T::XmlNodeName) + " " + std::to_string(musxLyric->getTextNumber());
+            mnxLabel[0] = char(std::toupper(mnxLabel[0]));
+            metaData.set_label(mnxLabel);
+        }
+    };
+    addLyrics(musxDocument->getTexts()->getArray<texts::LyricsVerse>());
+    addLyrics(musxDocument->getTexts()->getArray<texts::LyricsChorus>());
+    addLyrics(musxDocument->getTexts()->getArray<texts::LyricsSection>());
+
+    if (!mnxDocument->global().lyrics().has_value()) {
+        return;
+    }
+
+    std::vector<std::pair<std::string, std::shared_ptr<const details::Baseline>>> baselines;
+    auto addBaselines = [&](const auto& lyricsBaselines) {
+        using PtrType = typename std::decay_t<decltype(lyricsBaselines)>::value_type;
+        using T = typename PtrType::element_type;
+        static_assert(std::is_base_of_v<details::Baseline, T>, "lyricsBaselines must be a subtype of Baseline");
+        for (const auto& baseline : lyricsBaselines) {
+            std::string type = std::string(T::TextType::XmlNodeName);
+            const auto it = context->lyricLineIds.find(calcLyricLineId(type, baseline->lyricNumber));
+            if (it != context->lyricLineIds.end()) { // only process baselines for lyrics that actually exist
+                baselines.emplace_back(std::make_pair(type, baseline));
+            }
+        }
+    };
+    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsVerse>(SCORE_PARTID, 0, 0));
+    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsChorus>(SCORE_PARTID, 0, 0));
+    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsSection>(SCORE_PARTID, 0, 0));
+    std::sort(baselines.begin(), baselines.end(), [](const auto& a, const auto& b) {
+        if (a.second->baselineDisplacement != b.second->baselineDisplacement) {
+            return a.second->baselineDisplacement > b.second->baselineDisplacement;
+        }
+
+        auto rank = [](const std::string& s) -> int {
+            if (s == texts::LyricsVerse::XmlNodeName) return 0;
+            if (s == texts::LyricsChorus::XmlNodeName) return 1;
+            if (s == texts::LyricsSection::XmlNodeName) return 2;
+            return 3; // All others come after.
+        };
+
+        int rankA = rank(a.first);
+        int rankB = rank(b.first);
+        if (rankA != rankB)
+            return rankA < rankB;
+
+        return a.second->lyricNumber < b.second->lyricNumber;
+    });
+
+    for (const auto& baseline : baselines) {
+        assert(mnxDocument->global().lyrics().has_value()); // bug if false. see early return statement above.
+        auto mnxLyrics = mnxDocument->global().lyrics().value();
+        if (!mnxLyrics.lineOrder().has_value()) {
+            mnxLyrics.create_lineOrder();
+        }
+        auto mnxLineOrder = mnxLyrics.lineOrder().value();
+        mnxLineOrder.push_back(calcLyricLineId(baseline.first, baseline.second->lyricNumber));
+    }
+}
+
 void createGlobal(const MnxMusxMappingPtr& context)
 {
+    createLyricsGlobal(context);
     createGlobalMeasures(context);
 }
 
