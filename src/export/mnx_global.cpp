@@ -314,7 +314,7 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
             context->lyricLineIds.emplace(lineId);
             mnx::global::LyricLineMetadata metaData = mnxLineMetadata.append(lineId);
             std::string mnxLabel = std::string(T::XmlNodeName) + " " + std::to_string(musxLyric->getTextNumber());
-            mnxLabel[0] = std::toupper(mnxLabel[0]);
+            mnxLabel[0] = char(std::toupper(mnxLabel[0]));
             metaData.set_label(mnxLabel);
         }
     };

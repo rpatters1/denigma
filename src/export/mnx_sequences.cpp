@@ -196,7 +196,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
                 std::optional<int> mnxNoteStaff;
                 for (size_t y = 0; y < context->partStaves.size(); y++) {
                     if (context->partStaves[y] == noteStaff) {
-                        mnxNoteStaff = y + 1;
+                        mnxNoteStaff = int(y + 1);
                         break;
                     }
                 }
