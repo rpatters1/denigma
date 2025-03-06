@@ -68,6 +68,59 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
     return mnxTuplet;
 }
 
+static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
+{
+    auto createOneSlur = [&](const EntryNumber targetEntry, Evpu horzOffset) -> mnx::sequence::Slur {
+        if (!mnxEvent.slurs().has_value()) {
+            mnxEvent.create_slurs();
+        }
+        auto result = mnxEvent.slurs().value().append();
+        if (targetEntry == musxEntry->getEntryNumber()) {
+            result.set_location(horzOffset < 0
+                ? mnx::SlurTieEndLocation::Incoming
+                : mnx::SlurTieEndLocation::Outgoing
+            );
+        } else {
+            result.set_target(calcEventId(targetEntry));
+        }
+        return result;
+    };
+    if (musxEntry->smartShapeDetail) {
+        auto shapeAssigns = musxEntry->getDocument()->getDetails()->getArray<details::SmartShapeEntryAssign>(musxEntry->getPartId(), musxEntry->getEntryNumber());
+        for (const auto& assign : shapeAssigns) {
+            if (auto shape = musxEntry->getDocument()->getOthers()->get<others::SmartShape>(musxEntry->getPartId(), assign->shapeNum)) {
+                if (shape->startTermSeg->endPoint->entryNumber != musxEntry->getEntryNumber()) {
+                    continue;
+                }
+                std::optional<mnx::SlurTieSide> side;
+                switch (shape->shapeType) {
+                    default:
+                        continue;
+                    case others::SmartShape::ShapeType::SlurAuto:
+                    case others::SmartShape::ShapeType::DashSlurAuto:
+                    case others::SmartShape::ShapeType::DashContouSlurAuto:
+                        break;
+                    case others::SmartShape::ShapeType::SlurUp:
+                    case others::SmartShape::ShapeType::DashSlurUp:
+                    case others::SmartShape::ShapeType::DashContourSlurUp:
+                        side = mnx::SlurTieSide::Up;
+                        break;
+                    case others::SmartShape::ShapeType::SlurDown:
+                    case others::SmartShape::ShapeType::DashSlurDown:
+                    case others::SmartShape::ShapeType::DashContourSlurDown:
+                        side = mnx::SlurTieSide::Down;
+                        break;
+                }
+                Evpu offset = std::min(shape->startTermSeg->endPointAdj->horzOffset, shape->endTermSeg->endPointAdj->horzOffset);
+                auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber, offset);
+                if (side) {
+                    mnxSlur.set_side(side.value());
+                }
+            }
+        }
+    }
+}
+
 static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, const EntryInfoPtr& musxEntryInfo, std::optional<int> mnxStaffNumber)
 {
     const auto& musxEntry = musxEntryInfo->getEntry();
@@ -117,7 +170,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 
     /// @todo markings
     /// @todo orient
-    /// @todo slurs
+    createSlurs(context, mnxEvent, musxEntry);
     if (musxEntry->freezeStem) {
         mnxEvent.set_stemDirection(musxEntry->upStem ? mnx::StemDirection::Up : mnx::StemDirection::Down);
     }
