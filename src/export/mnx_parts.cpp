@@ -44,9 +44,8 @@ static void createBeams(
                     mnxMeasure.create_beams();
                 }
                 auto beam = mnxMeasure.beams().value().append();
-                while (auto next = entryInfo) {
+                for (auto next = entryInfo; next; next = next.getNextInBeamGroup()) {
                     beam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
-                    next = next.getNextInBeamGroup();
                 }
                 /// @todo hooks
                 /// @todo inner beams
