@@ -30,6 +30,32 @@
 namespace denigma {
 namespace mnxexp {
 
+static void createBeams(
+    [[maybe_unused]] const MnxMusxMappingPtr& context,
+    mnx::part::Measure& mnxMeasure,
+    const std::shared_ptr<others::Measure>& musxMeasure,
+    InstCmper staffCmper)
+{
+    const auto& musxDocument = musxMeasure->getDocument();
+    if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
+        gfhold->iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
+            if (entryInfo.calcIsBeamStart()) {
+                if (!mnxMeasure.beams().has_value()) {
+                    mnxMeasure.create_beams();
+                }
+                auto beam = mnxMeasure.beams().value().append();
+                while (auto next = entryInfo) {
+                    beam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
+                    next = next.getNextInBeamGroup();
+                }
+                /// @todo hooks
+                /// @todo inner beams
+            }
+            return true;
+        });
+    }
+}
+
 static void createClefs(
     const MnxMusxMappingPtr& context,
     const mnx::Part& mnxPart,
@@ -128,6 +154,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             context->currStaff = context->partStaves[x];
             context->currMeasDura = musxMeasure->createTimeSignature(context->partStaves[x])->calcTotalDuration();
             std::optional<int> staffNumber = (context->partStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
+            createBeams(context, mnxMeasure, musxMeasure, context->partStaves[x]);
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
         }
