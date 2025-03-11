@@ -210,13 +210,11 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
                 }
             }
             if (musxNote->tieStart) {
-                auto mnxTie = mnxNote.create_tie();
+                auto mnxTies = mnxNote.create_ties();
                 auto tiedTo = musxNote.calcTieTo();
-                if (tiedTo && tiedTo->tieEnd) {
-                    mnxTie.set_target(calcNoteId(tiedTo));
-                } else {
-                    mnxTie.set_location(mnx::SlurTieEndLocation::Outgoing);
-                }
+                auto mnxTie = (tiedTo && tiedTo->tieEnd)
+                            ? mnxTies.append(calcNoteId(tiedTo))
+                            : mnxTies.append();
                 if (auto tieAlter = musxEntry->getDocument()->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {
                     if (tieAlter->freezeDirection) {
                         mnxTie.set_side(tieAlter->down ? mnx::SlurTieSide::Down : mnx::SlurTieSide::Up);

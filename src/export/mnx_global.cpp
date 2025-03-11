@@ -204,11 +204,11 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
         const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
         for (const auto& expAssign : expAssigns) {
             if (const auto textExpr = expAssign->getTextExpression()) {
-                if (textExpr->playbackType == others::PlaybackType::Tempo) {
+                if (textExpr->playbackType == others::PlaybackType::Tempo && textExpr->auxData1 > 0) {
                     temposAtPositions.emplace(expAssign->eduPosition, textExpr);
                 }
             } else if (const auto shapeExpr = expAssign->getShapeExpression()) {
-                if (shapeExpr->playbackType == others::PlaybackType::Tempo) {
+                if (shapeExpr->playbackType == others::PlaybackType::Tempo && shapeExpr->auxData1 > 0) {
                     temposAtPositions.emplace(expAssign->eduPosition, shapeExpr);
                 }
             }
