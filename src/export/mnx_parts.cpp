@@ -45,11 +45,12 @@ static void createBeams(
                 for (auto next = firstInBeam; next; next = next.getNextInBeamGroup()) {
                     beam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
                     if (unsigned lowestBeamStart = next.calcLowestBeamStart()) {
-                        if (lowestBeamStart <= beamNumber + 1 && next.calcNumberOfBeams() > beamNumber) {
+                        unsigned nextBeamNumber = beamNumber + 1;
+                        if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
                             if (!beam.inner().has_value()) {
                                 beam.create_inner();
                             }
-                            self(beam.inner().value(), beamNumber + 1, next, self);
+                            self(beam.inner().value(), nextBeamNumber, next, self);
                         }
                     }
                     if (unsigned lowestBeamEnd = next.calcLowestBeamEnd()) {
