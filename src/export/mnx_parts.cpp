@@ -46,7 +46,15 @@ static void createBeams(
                     beam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
                     if (unsigned lowestBeamStart = next.calcLowestBeamStart()) {
                         unsigned nextBeamNumber = beamNumber + 1;
-                        if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
+                        if (unsigned lowestBeamStub = next.calcLowestBeamStub()) {
+                            if (lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
+                                if (!beam.hooks().has_value()) {
+                                    beam.create_hooks();
+                                }
+                                /// @todo calc correct hook direction
+                                beam.hooks().value().append(mnx::part::BeamHook::Initializer(calcEventId(next->getEntry()->getEntryNumber()), mnx::BeamHookDirection::Left));
+                            }
+                        } else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
                             if (!beam.inner().has_value()) {
                                 beam.create_inner();
                             }
@@ -59,7 +67,6 @@ static void createBeams(
                         }
                     }
                 }
-                /// @todo hooks
             };
             if (entryInfo.calcIsBeamStart()) {
                 if (!mnxMeasure.beams().has_value()) {
