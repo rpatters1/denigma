@@ -39,16 +39,32 @@ static void createBeams(
     const auto& musxDocument = musxMeasure->getDocument();
     if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
         gfhold->iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
+            auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
+                assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
+                auto beam = mnxBeams.append();
+                for (auto next = firstInBeam; next; next = next.getNextInBeamGroup()) {
+                    beam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
+                    if (unsigned lowestBeamStart = next.calcLowestBeamStart()) {
+                        if (lowestBeamStart <= beamNumber + 1 && next.calcNumberOfBeams() > beamNumber) {
+                            if (!beam.inner().has_value()) {
+                                beam.create_inner();
+                            }
+                            self(beam.inner().value(), beamNumber + 1, next, self);
+                        }
+                    }
+                    if (unsigned lowestBeamEnd = next.calcLowestBeamEnd()) {
+                        if (lowestBeamEnd <= beamNumber) {
+                            break;
+                        }
+                    }
+                }
+                /// @todo hooks
+            };
             if (entryInfo.calcIsBeamStart()) {
                 if (!mnxMeasure.beams().has_value()) {
                     mnxMeasure.create_beams();
                 }
-                auto beam = mnxMeasure.beams().value().append();
-                for (auto next = entryInfo; next; next = next.getNextInBeamGroup()) {
-                    beam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
-                }
-                /// @todo hooks
-                /// @todo inner beams
+                processBeam(mnxMeasure.beams().value(), 1, entryInfo, processBeam);
             }
             return true;
         });
