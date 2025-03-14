@@ -57,7 +57,7 @@ static void testNote(const mnx::sequence::Note& note, mnx::NoteStep step, int oc
     EXPECT_EQ(note.pitch().alter().value_or(0), alter);
 }
 
-TEST(MnxBeams, MultiMeasureBeams)
+TEST(MnxBeams, MultiMeasureBeamsToMnxMeasures)
 {
     setupTestDataPaths();
     std::filesystem::path inputPath;
@@ -91,5 +91,97 @@ TEST(MnxBeams, MultiMeasureBeams)
         getNote(note, measures, 2, 1, 4);
         ASSERT_TRUE(note);
         testNote(*note.get(), mnx::NoteStep::G, 4, 0);
+    }
+}
+
+TEST(MnxBeams, MultiMeasureBeams)
+{
+    std::filesystem::path inputPath;
+    copyInputToOutput("multimeas_beam.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+        });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "multimeas_beam.mnx");
+    auto parts = doc.parts();
+    ASSERT_FALSE(parts.empty()) << "no parts in document";
+    ASSERT_TRUE(parts[0].measures().has_value());
+    auto measures = parts[0].measures().value();
+    ASSERT_GE(measures.size(), 7);
+
+    // meas 1 (index 0)
+    {
+        auto meas = measures[0];
+        ASSERT_TRUE(meas.beams().has_value());
+        ASSERT_EQ(meas.beams().value().size(), 1);
+        auto beam = meas.beams().value()[0];
+        ASSERT_EQ(beam.events().size(), 11);
+    }
+
+    // meas 5 (index 4)
+    {
+        auto meas = measures[4];
+        ASSERT_TRUE(meas.beams().has_value());
+        ASSERT_EQ(meas.beams().value().size(), 1);
+        auto beam = meas.beams().value()[0];
+        ASSERT_EQ(beam.events().size(), 21);
+    }
+}
+
+TEST(MnxBeams, BeamHooksAndInner)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("secbeams.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "secbeams.mnx");
+    auto parts = doc.parts();
+    ASSERT_FALSE(parts.empty()) << "no parts in document";
+    auto measures = parts[0].measures();
+    ASSERT_TRUE(measures);
+    ASSERT_GE(measures.value().size(), 1);
+    auto measure = measures.value()[0];
+
+    // top level
+    ASSERT_TRUE(measure.beams().has_value());
+    ASSERT_EQ(measure.beams().value().size(), 2);
+    // beam0
+    {
+        auto beam = measure.beams().value()[0];
+        ASSERT_EQ(beam.events().size(), 2);
+        EXPECT_EQ(beam.events()[0], "ev3");
+        EXPECT_EQ(beam.events()[1], "ev4");
+        ASSERT_TRUE(beam.hooks().has_value());
+        ASSERT_EQ(beam.hooks().value().size(), 1);
+        EXPECT_EQ(beam.hooks().value()[0].event(), "ev4");
+        EXPECT_FALSE(beam.inner().has_value());
+    }
+    // beam1
+    {
+        auto beam = measure.beams().value()[1];
+        ASSERT_EQ(beam.events().size(), 4);
+        EXPECT_EQ(beam.events()[0], "ev5");
+        EXPECT_EQ(beam.events()[1], "ev6");
+        EXPECT_EQ(beam.events()[2], "ev7");
+        EXPECT_EQ(beam.events()[3], "ev8");
+        ASSERT_TRUE(beam.hooks().has_value());
+        ASSERT_EQ(beam.hooks().value().size(), 2);
+        EXPECT_EQ(beam.hooks().value()[0].event(), "ev5");
+        EXPECT_EQ(beam.hooks().value()[1].event(), "ev6");
+        ASSERT_TRUE(beam.inner().has_value());
+        ASSERT_EQ(beam.inner().value().size(), 1);
+        auto inner = beam.inner().value()[0];
+        ASSERT_EQ(inner.events().size(), 2);
+        EXPECT_EQ(inner.events()[0], "ev7");
+        EXPECT_EQ(inner.events()[1], "ev8");
+        ASSERT_TRUE(inner.hooks().has_value());
+        ASSERT_EQ(inner.hooks().value().size(), 1);
+        EXPECT_EQ(inner.hooks().value()[0].event(), "ev7");
+        EXPECT_FALSE(inner.inner().has_value());
     }
 }
