@@ -202,9 +202,14 @@ std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(con
     return std::make_pair(duration.numerator(), mnxNoteValueFromEdu(musx::util::Fraction(1, duration.denominator()).calcEduDuration()));
 }
 
-mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction)
+mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction)
 {
     return mnx::Fraction::Initializer(fraction.numerator(), fraction.denominator());
+}
+
+mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue)
+{
+    return mnxFractionFromFraction(musx::util::Fraction::fromEdu(eduValue));
 }
 
 int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition)

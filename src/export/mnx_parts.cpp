@@ -152,6 +152,33 @@ static void createClefs(
     }
 }
 
+static void collectOttavas(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper)
+{
+    context->ottavasApplicableInMeasure.clear();
+    context->insertedOttavas.clear();
+    if (musxMeasure->hasSmartShape) {
+        auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getPartId(), musxMeasure->getCmper());
+        for (const auto& asgn : shapeAssigns) {
+            if (auto shape = context->document->getOthers()->get<others::SmartShape>(asgn->getPartId(), asgn->shapeNum)) {
+                if (shape->startTermSeg->endPoint->staffId == staffCmper || shape->endTermSeg->endPoint->staffId == staffCmper) {
+                    switch (shape->shapeType) {
+                        default: continue;
+                        case others::SmartShape::ShapeType::OctaveDown:
+                        case others::SmartShape::ShapeType::OctaveUp:
+                        case others::SmartShape::ShapeType::TwoOctaveDown:
+                        case others::SmartShape::ShapeType::TwoOctaveUp:
+                            break;
+                    }
+                    context->ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
+                    if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
+                        context->insertedOttavas.emplace(shape->getCmper(), false);
+                    }
+                }
+            }
+        }
+    }
+}
+
 static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
 {
     auto& musxDocument = context->document;
@@ -180,6 +207,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             std::optional<int> staffNumber = (context->partStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
             createBeams(context, mnxMeasure, musxMeasure, context->partStaves[x]);
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
+            collectOttavas(context, musxMeasure, context->partStaves[x]);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
         }
     }

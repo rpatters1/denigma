@@ -68,6 +68,19 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
     return mnxTuplet;
 }
 
+static void createOttava(mnx::ContentArray content, const std::shared_ptr<const others::SmartShape>& ottavaShape, std::optional<int> mnxStaffNumber)
+{
+    auto mnxOttava = content.append<mnx::sequence::Ottava>(
+        enumConvert<mnx::OttavaAmount>(ottavaShape->shapeType),
+        ottavaShape->endTermSeg->endPoint->measId,
+        mnxFractionFromEdu(ottavaShape->endTermSeg->endPoint->calcEduPosition())
+    );
+    if (mnxStaffNumber) {
+        mnxOttava.set_staff(mnxStaffNumber.value());
+    }
+    /// @todo: orient (if applicable)
+}
+
 static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
 {
     auto createOneSlur = [&](const EntryNumber targetEntry, Evpu horzOffset) -> mnx::sequence::Slur {
@@ -241,7 +254,18 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
     auto next = firstEntryInfo;
     int voice = next && next->getEntry()->voice2 ? 2 : 1; // firstEntryInfo can be null
     while (next) {
-        const auto& entry = next->getEntry();
+        for (auto& ottava : context->insertedOttavas) {
+            if (!ottava.second) { // if the ottava has not been inserted
+                const auto it = context->ottavasApplicableInMeasure.find(ottava.first);
+                MUSX_ASSERT_IF(it == context->ottavasApplicableInMeasure.end()) {
+                    throw std::logic_error("Unable to find ottava " + std::to_string(ottava.first) + " in applicable list for measure "
+                        + std::to_string(next.getMeasure()) + " and staff " + std::to_string(next.getStaff()));
+                }
+                createOttava(content, it->second, mnxStaffNumber);
+                ottava.second = true;
+            }
+        }
+        auto entry = next->getEntry();
         if (inGrace && !entry->graceNote) {
             return next;
         } else if (!inGrace && entry->graceNote) {
