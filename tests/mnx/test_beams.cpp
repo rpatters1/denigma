@@ -101,7 +101,7 @@ TEST(MnxBeams, MultiMeasureBeams)
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
     checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
-        });
+    });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "multimeas_beam.mnx");
     auto parts = doc.parts();

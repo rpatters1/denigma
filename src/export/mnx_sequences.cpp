@@ -199,6 +199,12 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
             auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && (!musxNote->showAcci || !musxNote->freezeAcci))
                           ? std::nullopt
                           : std::optional<int>(alteration);
+            for (const auto& it : context->ottavasApplicableInMeasure) {
+                auto shape = it.second;
+                if (shape->calcAppliesTo(musxEntryInfo)) {
+                    octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
+                }
+            }
             auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
             if (musxNote->freezeAcci) {
                 mnxNote.create_accidentalDisplay(musxNote->showAcci);
@@ -257,12 +263,15 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
         for (auto& ottava : context->insertedOttavas) {
             if (!ottava.second) { // if the ottava has not been inserted
                 const auto it = context->ottavasApplicableInMeasure.find(ottava.first);
-                MUSX_ASSERT_IF(it == context->ottavasApplicableInMeasure.end()) {
+                MUSX_ASSERT_IF(it == context->ottavasApplicableInMeasure.end())
+                {
                     throw std::logic_error("Unable to find ottava " + std::to_string(ottava.first) + " in applicable list for measure "
                         + std::to_string(next.getMeasure()) + " and staff " + std::to_string(next.getStaff()));
                 }
-                createOttava(content, it->second, mnxStaffNumber);
-                ottava.second = true;
+                if (next->elapsedDuration.calcEduDuration() >= it->second->startTermSeg->endPoint->calcEduPosition()) {
+                    createOttava(content, it->second, mnxStaffNumber);
+                    ottava.second = true;
+                }
             }
         }
         auto entry = next->getEntry();

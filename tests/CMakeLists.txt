@@ -20,6 +20,7 @@ if(denigma_BUILD_TESTING)
         mnx/test_beams.cpp
         mnx/test_global.cpp
         mnx/test_layouts.cpp
+        mnx/test_ottavas.cpp
         mnx/test_schema.cpp
         mnx/test_scores.cpp
         ${DENIGMA_SOURCES}

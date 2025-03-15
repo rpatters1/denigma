@@ -209,6 +209,11 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
             collectOttavas(context, musxMeasure, context->partStaves[x]);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
+            for (auto& ottava : context->insertedOttavas) {
+                if (!ottava.second) {
+                    context->logMessage(LogMsg() << " ottava " << ottava.first << " was not inserted into MNX document", LogSeverity::Warning);
+                }
+            }
         }
     }
     context->clearCounts();
