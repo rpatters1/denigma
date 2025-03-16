@@ -30,6 +30,56 @@
 namespace denigma {
 namespace mnxexp {
 
+static void createBeams(
+    [[maybe_unused]] const MnxMusxMappingPtr& context,
+    mnx::part::Measure& mnxMeasure,
+    const std::shared_ptr<others::Measure>& musxMeasure,
+    InstCmper staffCmper)
+{
+    const auto& musxDocument = musxMeasure->getDocument();
+    if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
+        gfhold->iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
+            auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
+                assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
+                auto beam = mnxBeams.append();
+                for (auto next = firstInBeam; next; next = next.getNextInBeamGroup()) {
+                    beam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
+                    if (unsigned lowestBeamStart = next.calcLowestBeamStart()) {
+                        unsigned nextBeamNumber = beamNumber + 1;
+                        unsigned lowestBeamStub = next.calcLowestBeamStub();
+                        if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
+                            if (!beam.hooks().has_value()) {
+                                beam.create_hooks();
+                            }
+                            mnx::BeamHookDirection hookDir = next.calcBeamStubIsLeft()
+                                                            ? mnx::BeamHookDirection::Left
+                                                            : mnx::BeamHookDirection::Right;
+                            beam.hooks().value().append(mnx::part::BeamHook::Initializer(calcEventId(next->getEntry()->getEntryNumber()), hookDir));
+                        } else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
+                            if (!beam.inner().has_value()) {
+                                beam.create_inner();
+                            }
+                            self(beam.inner().value(), nextBeamNumber, next, self);
+                        }
+                    }
+                    if (unsigned lowestBeamEnd = next.calcLowestBeamEnd()) {
+                        if (lowestBeamEnd <= beamNumber) {
+                            break;
+                        }
+                    }
+                }
+            };
+            if (entryInfo.calcIsBeamStart()) {
+                if (!mnxMeasure.beams().has_value()) {
+                    mnxMeasure.create_beams();
+                }
+                processBeam(mnxMeasure.beams().value(), 1, entryInfo, processBeam);
+            }
+            return true;
+        });
+    }
+}
+
 static void createClefs(
     const MnxMusxMappingPtr& context,
     const mnx::Part& mnxPart,
@@ -102,6 +152,33 @@ static void createClefs(
     }
 }
 
+static void collectOttavas(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper)
+{
+    context->ottavasApplicableInMeasure.clear();
+    context->insertedOttavas.clear();
+    if (musxMeasure->hasSmartShape) {
+        auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getPartId(), musxMeasure->getCmper());
+        for (const auto& asgn : shapeAssigns) {
+            if (auto shape = context->document->getOthers()->get<others::SmartShape>(asgn->getPartId(), asgn->shapeNum)) {
+                if (shape->startTermSeg->endPoint->staffId == staffCmper || shape->endTermSeg->endPoint->staffId == staffCmper) {
+                    switch (shape->shapeType) {
+                        default: continue;
+                        case others::SmartShape::ShapeType::OctaveDown:
+                        case others::SmartShape::ShapeType::OctaveUp:
+                        case others::SmartShape::ShapeType::TwoOctaveDown:
+                        case others::SmartShape::ShapeType::TwoOctaveUp:
+                            break;
+                    }
+                    context->ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
+                    if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
+                        context->insertedOttavas.emplace(shape->getCmper(), false);
+                    }
+                }
+            }
+        }
+    }
+}
+
 static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
 {
     auto& musxDocument = context->document;
@@ -128,8 +205,15 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             context->currStaff = context->partStaves[x];
             context->currMeasDura = musxMeasure->createTimeSignature(context->partStaves[x])->calcTotalDuration();
             std::optional<int> staffNumber = (context->partStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
+            createBeams(context, mnxMeasure, musxMeasure, context->partStaves[x]);
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
+            collectOttavas(context, musxMeasure, context->partStaves[x]);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
+            for (auto& ottava : context->insertedOttavas) {
+                if (!ottava.second) {
+                    context->logMessage(LogMsg() << " ottava " << ottava.first << " was not inserted into MNX document", LogSeverity::Warning);
+                }
+            }
         }
     }
     context->clearCounts();

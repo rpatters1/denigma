@@ -102,5 +102,12 @@ BEGIN_ENUM_CONVERSION(Note::NoteName, mnx::NoteStep)
     case Note::NoteName::B: return mnx::NoteStep::B;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mnx::OttavaAmount)
+    case others::SmartShape::ShapeType::OctaveDown: return mnx::OttavaAmount::OctaveDown;
+    case others::SmartShape::ShapeType::OctaveUp: return mnx::OttavaAmount::OctaveUp;
+    case others::SmartShape::ShapeType::TwoOctaveDown: return mnx::OttavaAmount::TwoOctaveDown;
+    case others::SmartShape::ShapeType::TwoOctaveUp: return mnx::OttavaAmount::TwoOctaveUp;
+END_ENUM_CONVERSION
+
 } // namespace mnxexp
 } // namespace denigma

@@ -68,6 +68,19 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
     return mnxTuplet;
 }
 
+static void createOttava(mnx::ContentArray content, const std::shared_ptr<const others::SmartShape>& ottavaShape, std::optional<int> mnxStaffNumber)
+{
+    auto mnxOttava = content.append<mnx::sequence::Ottava>(
+        enumConvert<mnx::OttavaAmount>(ottavaShape->shapeType),
+        ottavaShape->endTermSeg->endPoint->measId,
+        mnxFractionFromEdu(ottavaShape->endTermSeg->endPoint->calcEduPosition())
+    );
+    if (mnxStaffNumber) {
+        mnxOttava.set_staff(mnxStaffNumber.value());
+    }
+    /// @todo: orient (if applicable)
+}
+
 static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
 {
     auto createOneSlur = [&](const EntryNumber targetEntry, Evpu horzOffset) -> mnx::sequence::Slur {
@@ -186,6 +199,12 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
             auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && (!musxNote->showAcci || !musxNote->freezeAcci))
                           ? std::nullopt
                           : std::optional<int>(alteration);
+            for (const auto& it : context->ottavasApplicableInMeasure) {
+                auto shape = it.second;
+                if (shape->calcAppliesTo(musxEntryInfo)) {
+                    octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
+                }
+            }
             auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
             if (musxNote->freezeAcci) {
                 mnxNote.create_accidentalDisplay(musxNote->showAcci);
@@ -210,13 +229,11 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
                 }
             }
             if (musxNote->tieStart) {
-                auto mnxTie = mnxNote.create_tie();
+                auto mnxTies = mnxNote.create_ties();
                 auto tiedTo = musxNote.calcTieTo();
-                if (tiedTo && tiedTo->tieEnd) {
-                    mnxTie.set_target(calcNoteId(tiedTo));
-                } else {
-                    mnxTie.set_location(mnx::SlurTieEndLocation::Outgoing);
-                }
+                auto mnxTie = (tiedTo && tiedTo->tieEnd)
+                            ? mnxTies.append(calcNoteId(tiedTo))
+                            : mnxTies.append();
                 if (auto tieAlter = musxEntry->getDocument()->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {
                     if (tieAlter->freezeDirection) {
                         mnxTie.set_side(tieAlter->down ? mnx::SlurTieSide::Down : mnx::SlurTieSide::Up);
@@ -243,7 +260,21 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
     auto next = firstEntryInfo;
     int voice = next && next->getEntry()->voice2 ? 2 : 1; // firstEntryInfo can be null
     while (next) {
-        const auto& entry = next->getEntry();
+        for (auto& ottava : context->insertedOttavas) {
+            if (!ottava.second) { // if the ottava has not been inserted
+                const auto it = context->ottavasApplicableInMeasure.find(ottava.first);
+                MUSX_ASSERT_IF(it == context->ottavasApplicableInMeasure.end())
+                {
+                    throw std::logic_error("Unable to find ottava " + std::to_string(ottava.first) + " in applicable list for measure "
+                        + std::to_string(next.getMeasure()) + " and staff " + std::to_string(next.getStaff()));
+                }
+                if (next->elapsedDuration.calcEduDuration() >= it->second->startTermSeg->endPoint->calcEduPosition()) {
+                    createOttava(content, it->second, mnxStaffNumber);
+                    ottava.second = true;
+                }
+            }
+        }
+        auto entry = next->getEntry();
         if (inGrace && !entry->graceNote) {
             return next;
         } else if (!inGrace && entry->graceNote) {

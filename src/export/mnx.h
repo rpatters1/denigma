@@ -76,6 +76,8 @@ struct MnxMusxMapping
     std::vector<InstCmper> partStaves;
     std::unordered_map<std::tuple<InstCmper, LayerIndex, int>, std::vector<EntryInfoPtr>, SequenceHash> leftOverEntries; // left over entries per layer/voice combo
     std::unordered_map<std::tuple<InstCmper, LayerIndex, int>, musx::util::Fraction, SequenceHash> duraOffsets; // dura offsets for leftovers per layer/voice combo
+    std::unordered_map<Cmper, std::shared_ptr<const others::SmartShape>> ottavasApplicableInMeasure;
+    std::unordered_map<Cmper, bool> insertedOttavas; ///< tracks (for each measure) whether we inserted ottavas that started in the measure.
 
     void clearCounts()
     {
@@ -85,6 +87,8 @@ struct MnxMusxMapping
         partStaves.clear();
         leftOverEntries.clear();
         duraOffsets.clear();
+        ottavasApplicableInMeasure.clear();
+        insertedOttavas.clear();
     }
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
@@ -112,7 +116,11 @@ inline std::string calcNoteId(const NoteInfoPtr& noteInfo)
 
 inline std::string calcVoice(LayerIndex idx, int voice)
 {
-    return "layer" + std::to_string(idx + 1) + "v" + std::to_string(voice);
+    std::string result = "layer" + std::to_string(idx + 1);
+    if (voice > 1) {
+        result += "v" + std::to_string(voice);
+    }
+    return result;
 }
 
 inline std::string calcLyricLineId(const std::string& type, Cmper textNumber)
@@ -133,7 +141,8 @@ mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
 std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration);
 mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl);
 
-mnx::Fraction::Initializer mnxFractionFromFraction(musx::util::Fraction fraction);
+mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction);
+mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue);
 int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
 
 void createLayouts(const MnxMusxMappingPtr& context);

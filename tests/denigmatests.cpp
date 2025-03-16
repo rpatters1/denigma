@@ -61,7 +61,7 @@ void checkStderr(const std::vector<std::string>& expectedMessages, std::function
             EXPECT_TRUE(capturedErrors.empty()) << "No message expected but got " << capturedErrors;
         } else if (expectedMessage[0] == '!') {
             EXPECT_EQ(capturedErrors.find(expectedMessage.substr(1)), std::string::npos)
-                << "Message \"" << expectedMessage.substr(1) << "\" found but not expected";
+                << "Message \"" << expectedMessage.substr(1) << "\" found but not expected" << capturedErrors;;
         } else {
             EXPECT_NE(capturedErrors.find(expectedMessage), std::string::npos)
                 << "Message \"" << expectedMessage << "\" not found. Actual: " << capturedErrors;
@@ -87,16 +87,16 @@ void checkStdout(const std::vector<std::string>& expectedMessages, std::function
     EXPECT_TRUE(nullStream.str().empty()) << "Error occurred: " << nullStream.str();
 
     // check for coutStream for error
-    std::string capturesMessages = coutStream.str();
+    std::string capturedMessages = coutStream.str();
     for (const auto& expectedMessage : expectedMessages) {
         if (expectedMessage.empty()) {
-            EXPECT_TRUE(capturesMessages.empty()) << "No message expected but got " << capturesMessages;
+            EXPECT_TRUE(capturedMessages.empty()) << "No message expected but got " << capturedMessages;
         } else if (expectedMessage[0] == '!') {
-            EXPECT_EQ(capturesMessages.find(expectedMessage.substr(1)), std::string::npos)
+            EXPECT_EQ(capturedMessages.find(expectedMessage.substr(1)), std::string::npos)
                 << "Message \"" << expectedMessage.substr(1) << "\" found but not expected";
         } else {
-            EXPECT_NE(capturesMessages.find(expectedMessage), std::string::npos)
-                << "Message \"" << expectedMessage << "\" not found. Actual: " << capturesMessages;
+            EXPECT_NE(capturedMessages.find(expectedMessage), std::string::npos)
+                << "Message \"" << expectedMessage << "\" not found. Actual: " << capturedMessages;
         }
     }
 }
