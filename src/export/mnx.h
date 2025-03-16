@@ -116,7 +116,11 @@ inline std::string calcNoteId(const NoteInfoPtr& noteInfo)
 
 inline std::string calcVoice(LayerIndex idx, int voice)
 {
-    return "layer" + std::to_string(idx + 1) + "v" + std::to_string(voice);
+    std::string result = "layer" + std::to_string(idx + 1);
+    if (voice > 1) {
+        result += "v" + std::to_string(voice);
+    }
+    return result;
 }
 
 inline std::string calcLyricLineId(const std::string& type, Cmper textNumber)

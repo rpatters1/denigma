@@ -31,7 +31,7 @@
 
 using namespace denigma;
 
-TEST(OttavasTest, OverlappingOttavas)
+TEST(MnxOttavasTest, OverlappingOttavas)
 {
     std::filesystem::path inputPath;
     copyInputToOutput("ottavas.musx", inputPath);
