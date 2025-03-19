@@ -152,6 +152,26 @@ static void createClefs(
     }
 }
 
+/// @note This function is a placeholder until the mnx::Dynamic object is better defined.
+static void collectDynamics(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper)
+{
+    context->dynamicsInMeasure.clear();
+    if (musxMeasure->hasExpression) {
+        auto shapeAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getPartId(), musxMeasure->getCmper());
+        for (const auto& asgn : shapeAssigns) {
+            if (asgn->staffAssign == staffCmper && asgn->textExprId) {
+                if (auto expr = asgn->getTextExpression()) {
+                    if (auto cat = context->document->getOthers()->get<others::MarkingCategory>(expr->getPartId(), expr->categoryId)) {
+                        if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) {
+                            context->dynamicsInMeasure.emplace(asgn, false);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 static void collectOttavas(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper)
 {
     context->ottavasApplicableInMeasure.clear();
@@ -208,6 +228,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             createBeams(context, mnxMeasure, musxMeasure, context->partStaves[x]);
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
             collectOttavas(context, musxMeasure, context->partStaves[x]);
+            collectDynamics(context, musxMeasure, context->partStaves[x]);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
             for (auto& ottava : context->insertedOttavas) {
                 if (!ottava.second) {

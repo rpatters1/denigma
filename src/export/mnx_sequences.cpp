@@ -81,6 +81,28 @@ static void createOttava(mnx::ContentArray content, const std::shared_ptr<const 
     /// @todo: orient (if applicable)
 }
 
+/// @note This is a placeholder function until the mnx::Dynamic object is better defined
+static void createDynamic(const MnxMusxMappingPtr& context, mnx::ContentArray content, const std::shared_ptr<const others::TextExpressionDef>& expressionDef, std::optional<int> mnxStaffNumber)
+{
+    if (auto text = expressionDef->getTextBlock()) {
+        if (auto rawText = text->getRawTextBlock()) {
+            auto fontInfo = rawText->parseFirstFontInfo();
+            std::string dynamicText = text->getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
+            auto mnxDynamic = content.append<mnx::sequence::Dynamic>(dynamicText);
+            if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText, *context->denigmaContext)) {
+                mnxDynamic.set_glyph(smuflGlyph.value());
+            }
+            if (mnxStaffNumber) {
+                mnxDynamic.set_staff(mnxStaffNumber.value());
+            }
+        } else {
+            MUSX_INTEGRITY_ERROR("Text block " + std::to_string(text->getCmper()) + " has non-existent raw text block " + std::to_string(text->textId));
+        }
+    }  else {
+        MUSX_INTEGRITY_ERROR("Text expression " + std::to_string(expressionDef->getCmper()) + " has non-existent text block " + std::to_string(expressionDef->textIdKey));
+    }
+}
+
 static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
 {
     auto createOneSlur = [&](const EntryNumber targetEntry, Evpu horzOffset) -> mnx::sequence::Slur {
@@ -271,6 +293,18 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                 if (next->elapsedDuration.calcEduDuration() >= it->second->startTermSeg->endPoint->calcEduPosition()) {
                     createOttava(content, it->second, mnxStaffNumber);
                     ottava.second = true;
+                }
+            }
+        }
+        for (auto& dynamic : context->dynamicsInMeasure) {
+            if (!dynamic.second) {
+                if (next->elapsedDuration.calcEduDuration() >= dynamic.first->eduPosition) {
+                    auto expDef = dynamic.first->getTextExpression();
+                    ASSERT_IF(!expDef) {
+                        throw std::logic_error("Expression found with non-existent text expression, but it should have been checked earlier.");
+                    }
+                    createDynamic(context, content, expDef, mnxStaffNumber);
+                    dynamic.second = true;
                 }
             }
         }
