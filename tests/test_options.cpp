@@ -51,8 +51,8 @@ TEST(Options, IncorrectOptions)
     }
     {
         ArgList args = { DENIGMA_NAME, "not-a-command", "input" };
-        checkStderr("Unknown command:", [&]() {
-            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid command";
+        checkStderr("Input path input does not exist or is not a file or directory", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "default command";
         });
     }
     {
@@ -84,7 +84,7 @@ TEST(Options, ParseOptions)
         EXPECT_EQ(newArgs.size(), 0);
         EXPECT_TRUE(ctx.showHelp);
         EXPECT_FALSE(ctx.logFilePath.has_value());
-        checkStdout(std::string("Usage: ") + ctx.programName + " <command> <input-pattern> [--options]", [&]() {
+        checkStdout(std::string("Usage: ") + ctx.programName + " [<command>] <input-pattern> [--options]", [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "show help";
         });
     }

@@ -46,7 +46,7 @@ static const auto registeredCommands = []()
 
 static int showHelpPage(const std::string_view& programName)
 {
-    std::cout << "Usage: " << programName << " <command> <input-pattern> [--options]" << std::endl;
+    std::cout << "Usage: " << programName << " [<command>] <input-pattern> [--options]" << std::endl;
     std::cout << std::endl;
 
     // General options
@@ -121,15 +121,19 @@ int _MAIN(int argc, arg_char* argv[])
         return showHelpPage(denigmaContext.programName);
     }
 
-    const auto currentCommand = [args]() -> std::shared_ptr<ICommand> {
-            auto it = registeredCommands.find(arg_string(args[0]));
-            if (it != registeredCommands.end()) {
-                return it->second;
-            } else {
-                std::cerr << "Unknown command: " << args[0] << std::endl;
-                return nullptr;
-            }
-        }();
+    const auto currentCommand = [&]() -> std::shared_ptr<ICommand> {
+        auto it = registeredCommands.find(arg_string(args[0]));
+        if (it != registeredCommands.end()) {
+            args.erase(args.begin());
+            return it->second;
+        }
+        it = registeredCommands.find(arg_string(denigma::ExportCommand().commandName()));
+        ASSERT_IF(it == registeredCommands.end()) {
+            std::cerr << "Export command is missing!" << std::endl;
+            return nullptr;
+        }
+        return it->second;
+    }();
     if (!currentCommand) {
         return showHelpPage(denigmaContext.programName);
     }
@@ -161,7 +165,7 @@ int _MAIN(int argc, arg_char* argv[])
     std::optional<std::filesystem::path> defaultLogPath;
 
     try {
-        for (size_t x = 1; x < args.size(); x++) {
+        for (size_t x = 0; x < args.size(); x++) {
             arg_view option = args[x];
             if (option.rfind(_ARG("--"), 0) == 0) {  // Options start with "--"
                 break;
