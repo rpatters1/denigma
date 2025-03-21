@@ -52,6 +52,12 @@ inline constexpr int JSON_INDENT_SPACES     = 4;
 #define _MAIN main
 #endif
 
+constexpr static double EVPU_PER_INCH = 288.0;
+constexpr static double EVPU_PER_MM = 288.0 / 25.4;
+constexpr static double EVPU_PER_SPACE = 24.0;
+constexpr static double EFIX_PER_EVPU = 64.0;
+constexpr static double EFIX_PER_SPACE = EVPU_PER_SPACE * EFIX_PER_EVPU;
+
 namespace denigma {
 
 // This function exists as std::to_array in C++20

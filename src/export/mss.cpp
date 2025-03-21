@@ -41,12 +41,6 @@ using XmlElement = ::pugi::xml_node;
 using XmlAttribute = ::pugi::xml_attribute;
 
 constexpr static char MSS_VERSION[] = "4.50";
-
-constexpr static double EVPU_PER_INCH = 288.0;
-constexpr static double EVPU_PER_MM = 288.0 / 25.4;
-constexpr static double EVPU_PER_SPACE = 24.0;
-constexpr static double EFIX_PER_EVPU = 64.0;
-constexpr static double EFIX_PER_SPACE = EVPU_PER_SPACE * EFIX_PER_EVPU;
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 
 static const std::set<std::string_view> museScoreSMuFLFonts{

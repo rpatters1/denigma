@@ -156,6 +156,90 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
     }
 }
 
+static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
+{
+    auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(musxEntry->getPartId(), musxEntry->getEntryNumber());
+    for (const auto& asgn : articAssigns) {
+        if (!asgn->hide) {
+            if (auto artic = context->document->getOthers()->get<others::ArticulationDef>(asgn->getPartId(), asgn->articDef)) {
+                std::optional<int> numMarks;
+                std::optional<mnx::BreathMarkSymbol> breathMark;
+                auto marks = calcMarkingType(artic, numMarks, breathMark);
+                for (auto mark : marks) {
+                    if (!mnxEvent.markings().has_value()) {
+                        mnxEvent.create_markings();
+                    }
+                    auto mnxMarkings = mnxEvent.markings().value();
+                    switch (mark) {
+                        case EventMarkingType::Accent:
+                            if (!mnxMarkings.accent().has_value()) {
+                                mnxMarkings.create_accent();
+                            }
+                            break;
+                        case EventMarkingType::Breath:
+                            if (!mnxMarkings.breath().has_value()) {
+                                mnxMarkings.create_breath();
+                            }
+                            if (breathMark.has_value()) {
+                                mnxMarkings.breath().value().set_symbol(breathMark.value());
+                            }
+                            break;
+                        case EventMarkingType::SoftAccent:
+                            if (!mnxMarkings.softAccent().has_value()) {
+                                mnxMarkings.create_softAccent();
+                            }
+                            break;
+                        case EventMarkingType::Spiccato:
+                            if (!mnxMarkings.spiccato().has_value()) {
+                                mnxMarkings.create_spiccato();
+                            }
+                            break;
+                        case EventMarkingType::Staccatissimo:
+                            if (!mnxMarkings.staccatissimo().has_value()) {
+                                mnxMarkings.create_staccatissimo();
+                            }
+                            break;
+                        case EventMarkingType::Staccato:
+                            if (!mnxMarkings.staccato().has_value()) {
+                                mnxMarkings.create_staccato();
+                            }
+                            break;
+                        case EventMarkingType::Stress:
+                            if (!mnxMarkings.stress().has_value()) {
+                                mnxMarkings.create_stress();
+                            }
+                            break;
+                        case EventMarkingType::StrongAccent:
+                            if (!mnxMarkings.strongAccent().has_value()) {
+                                mnxMarkings.create_strongAccent();
+                            }
+                            break;
+                        case EventMarkingType::Tenuto:
+                            if (!mnxMarkings.tenuto().has_value()) {
+                                mnxMarkings.create_tenuto();
+                            }
+                            break;
+                        case EventMarkingType::Tremolo:
+                            if (!mnxMarkings.tremolo().has_value()) {
+                                mnxMarkings.create_tremolo(numMarks.value_or(0));
+                            }
+                            break;
+                        case EventMarkingType::Unstress:
+                            if (!mnxMarkings.unstress().has_value()) {
+                                mnxMarkings.create_unstress();
+                            }
+                            break;
+                        default:
+                            ASSERT_IF(true) {
+                                throw std::logic_error("Encountered unknown event marking type " + std::to_string(int(mark)));
+                            }
+                    }
+                }
+            }
+        }
+    }
+}
+
 static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, const EntryInfoPtr& musxEntryInfo, std::optional<int> mnxStaffNumber)
 {
     const auto& musxEntry = musxEntryInfo->getEntry();
@@ -203,7 +287,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     createLyrics(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignChorus>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
     createLyrics(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
 
-    /// @todo markings
+    createMarkings(context, mnxEvent, musxEntry);
     /// @todo orient
     createSlurs(context, mnxEvent, musxEntry);
     if (musxEntry->freezeStem) {
@@ -285,7 +369,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
         for (auto& ottava : context->insertedOttavas) {
             if (!ottava.second) { // if the ottava has not been inserted
                 const auto it = context->ottavasApplicableInMeasure.find(ottava.first);
-                MUSX_ASSERT_IF(it == context->ottavasApplicableInMeasure.end())
+                ASSERT_IF(it == context->ottavasApplicableInMeasure.end())
                 {
                     throw std::logic_error("Unable to find ottava " + std::to_string(ottava.first) + " in applicable list for measure "
                         + std::to_string(next.getMeasure()) + " and staff " + std::to_string(next.getStaff()));
