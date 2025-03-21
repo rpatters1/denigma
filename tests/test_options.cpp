@@ -36,7 +36,6 @@ TEST(Options, IncorrectOptions)
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "No arguments returns error";
         });
     }
-
     {
         ArgList args = { DENIGMA_NAME };
         checkStderr("", [&]() {
