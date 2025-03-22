@@ -127,7 +127,7 @@ int _MAIN(int argc, arg_char* argv[])
             args.erase(args.begin());
             return it->second;
         }
-        it = registeredCommands.find(arg_string(denigma::ExportCommand().commandName()));
+        it = registeredCommands.find(arg_string(std::string(denigma::ExportCommand().commandName())));
         ASSERT_IF(it == registeredCommands.end()) {
             std::cerr << "Export command is missing!" << std::endl;
             return nullptr;
