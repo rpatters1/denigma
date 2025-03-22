@@ -66,9 +66,11 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
 {
     std::string fullCommand = std::string(programName) + " " + std::string(commandName());
     // Print usage
-    std::cout << indentSpaces << "Exports other formats from Finale files. Currently it can export" << std::endl;
+    std::cout << indentSpaces << "Exports other formats from Finale files. This is the default command." << std::endl;
+    std::cout << indentSpaces << "Currently it can export" << std::endl;
     std::cout << indentSpaces << "  enigmaxml:  the internal xml representation of musx" << std::endl;
     std::cout << indentSpaces << "  mss:        the Styles format for MuseScore" << std::endl;
+    std::cout << indentSpaces << "  mnx:        MNX open standard files (currently in development)" << std::endl;
     std::cout << std::endl;
     std::cout << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
     std::cout << std::endl;

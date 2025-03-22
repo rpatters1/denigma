@@ -71,7 +71,7 @@ if(denigma_BUILD_TESTING)
     FetchContent_MakeAvailable(googletest)
 
     # Link Google Test libraries
-    target_link_libraries(denigma_tests PRIVATE gtest gmock gtest_main)
+    target_link_libraries(denigma_tests PRIVATE gmock gtest_main)
 
     # Discover tests
     include(GoogleTest)

@@ -33,7 +33,9 @@ namespace mnxexp {
 
 FontType convertFontToType(const std::shared_ptr<FontInfo>& fontInfo)
 {
-    if (fontInfo->calcIsSMuFL()) {
+    if (fontInfo->getName() == "GraceNotes") {
+        return FontType::GraceNotes;
+    } else if (fontInfo->calcIsSMuFL()) {
         return FontType::SMuFL;
     } else if (fontInfo->calcIsDefaultMusic() || fontInfo->calcIsSymbolFont()) {
         return FontType::Symbol;
@@ -118,17 +120,21 @@ std::optional<std::pair<mnx::ClefSign, int>> convertCharToClef(const char32_t sy
         case 0x1D122: return std::make_pair(mnx::ClefSign::FClef, 0); // MUSICAL SYMBOL F CLEF
         case 0x1D121: return std::make_pair(mnx::ClefSign::CClef, 0); // MUSICAL SYMBOL C CLEF
     }
-    if (fontType == FontType::Symbol) {
+    if (fontType == FontType::Symbol || fontType == FontType::GraceNotes) {
         switch (sym) {
             case '?': return std::make_pair(mnx::ClefSign::FClef, 0);
             case 't': return std::make_pair(mnx::ClefSign::FClef, -1);
-            case 0xe6: return std::make_pair(mnx::ClefSign::FClef, 1);
             case 'B': return std::make_pair(mnx::ClefSign::CClef, 0);
             case '&': return std::make_pair(mnx::ClefSign::GClef, 0);
             case 'V': return std::make_pair(mnx::ClefSign::GClef, -1);
-            case 0xa0:return std::make_pair(mnx::ClefSign::GClef, 1);
-            default: return std::nullopt;
         }
+        if (fontType == FontType::Symbol) {
+            switch (sym) {
+                case 0xe6: return std::make_pair(mnx::ClefSign::FClef, 1);
+                case 0xa0:return std::make_pair(mnx::ClefSign::GClef, 1);
+            }
+        }
+        return std::nullopt;
     }
     // SMuFL branch: only include clefs with unison or octave multiples
     if (fontType == FontType::SMuFL) {
@@ -182,6 +188,271 @@ std::optional<std::pair<mnx::ClefSign, int>> convertCharToClef(const char32_t sy
         }
     }
     return std::nullopt;
+}
+
+std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others::ArticulationDef>& artic,
+    std::optional<int>& numMarks,
+    std::optional<mnx::BreathMarkSymbol>& breathMark)
+{
+    auto checkSymbol = [&](char32_t sym, FontType fontType) -> std::vector<EventMarkingType> {
+        // First, check for standard Unicode chars
+        switch (sym) {
+            case 0x1D167:
+            case 0x1D16A:
+                numMarks = 1;
+                return { EventMarkingType::Tremolo };
+            case 0x1D168:
+            case 0x1D16B:
+                numMarks = 2;
+                return { EventMarkingType::Tremolo };
+            case 0x1D169:
+            case 0x1D16C:
+                numMarks = 3;
+                return { EventMarkingType::Tremolo };
+            case 0x1D17B: return { EventMarkingType::Accent };
+            case 0x1D17C: return { EventMarkingType::Staccato };
+            case 0x1D17D: return { EventMarkingType::Tenuto };
+            case 0x1D17E: return { EventMarkingType::Staccatissimo };
+            case 0x1D17F: return { EventMarkingType::StrongAccent };
+        }
+        switch (fontType) {
+            case FontType::Unicode: // this also includes ASCII
+                switch (sym) {
+                    case ',':
+                        breathMark = mnx::BreathMarkSymbol::Comma;
+                        return { EventMarkingType::Breath };
+                    case '>': return { EventMarkingType::Accent };
+                    case '.': return { EventMarkingType::Staccato };
+                    case '-':
+                    case 0x2013: // en-dash
+                    case 0x2014: // em-dash
+                        return { EventMarkingType::Tenuto };
+                }
+                break;
+            case FontType::GraceNotes:
+                // GraceNotes currently only supported for tremolo symbols
+                switch (sym) {
+                    case 124:
+                        numMarks = 1;
+                        return { EventMarkingType::Tremolo };
+                    case 199:
+                        numMarks = 2;
+                        return { EventMarkingType::Tremolo };
+                    case 200:
+                        numMarks = 3;
+                        return { EventMarkingType::Tremolo };
+                    case 230:
+                        numMarks = 3;
+                        return { EventMarkingType::Tremolo };
+                }
+                break;
+            case FontType::Symbol:
+                switch (sym) {
+                    case 33:
+                        numMarks = 1;
+                        return { EventMarkingType::Tremolo };
+                    case 39: return { EventMarkingType::Spiccato };
+                    case 44:
+                        breathMark = mnx::BreathMarkSymbol::Comma;
+                        return { EventMarkingType::Breath };
+                    case 45: return { EventMarkingType::Tenuto };
+                    case 46: return { EventMarkingType::Staccato };
+                    case 60: return { EventMarkingType::Staccato, EventMarkingType::Tenuto };
+                    case 62: return { EventMarkingType::Accent };
+                    case 64:
+                        numMarks = 2;
+                        return { EventMarkingType::Tremolo };
+                    case 94: return { EventMarkingType::StrongAccent };
+                    case 107: return { EventMarkingType::Staccato };
+                    case 118: return { EventMarkingType::StrongAccent };
+                    case 133:
+                        breathMark = mnx::BreathMarkSymbol::Tick;
+                        return { EventMarkingType::Breath }; // v-slash breath
+                    case 137:
+                    case 138:
+                        return { EventMarkingType::Accent, EventMarkingType::Tenuto };
+                    case 171: return { EventMarkingType::Staccatissimo };
+                    case 172: return { EventMarkingType::StrongAccent, EventMarkingType::Staccato };
+                    case 174: return { EventMarkingType::Spiccato };
+                    case 190:
+                        numMarks = 3;
+                        return { EventMarkingType::Tremolo };
+                    case 216: return { EventMarkingType::Staccatissimo };
+                    case 223: return { EventMarkingType::Accent, EventMarkingType::Staccato };
+                    case 232: return { EventMarkingType::StrongAccent, EventMarkingType::Staccato };
+                    case 248: return { EventMarkingType::Staccato, EventMarkingType::Tenuto };
+                    case 249: return { EventMarkingType::Accent, EventMarkingType::Staccato };
+                }
+                break;
+            case FontType::SMuFL:
+                switch (sym) {
+                    // accents
+                    case 0xE4A0:
+                    case 0xE4A1:
+                    case 0xF632:
+                        return { EventMarkingType::Accent };
+                    case 0xE4B0:
+                    case 0xE4B1:
+                    case 0xF62B:
+                    case 0xF62C:
+                        return { EventMarkingType::Accent, EventMarkingType::Staccato };
+                    case 0xE4B4:
+                    case 0xE4B5:
+                    case 0xF630:
+                    case 0xF631:
+                        return { EventMarkingType::Accent, EventMarkingType::Tenuto };
+                    // breaths
+                    case 0xE4CE:
+                    case 0xF635:
+                        breathMark = mnx::BreathMarkSymbol::Comma;
+                        return { EventMarkingType::Breath };
+                    case 0xE4CF:
+                        breathMark = mnx::BreathMarkSymbol::Tick;
+                        return { EventMarkingType::Breath };
+                    case 0xE4D0:
+                        breathMark = mnx::BreathMarkSymbol::Upbow;
+                        return { EventMarkingType::Breath };
+                    case 0xE4D5:
+                        breathMark = mnx::BreathMarkSymbol::Salzedo;
+                        return { EventMarkingType::Breath };
+                    // soft accents
+                    // spiccato, staccatissimo, staccato
+                    case 0xE486:
+                    case 0xE487:
+                    case 0xE4AA:
+                    case 0xE4AB:
+                        return { EventMarkingType::Spiccato };
+                    case 0xE4A8:
+                    case 0xE4A9:
+                        return { EventMarkingType::Staccatissimo };
+                    case 0xE4A2:
+                    case 0xE4A3:
+                        return { EventMarkingType::Staccato };
+                    case 0xE4AE:
+                    case 0xE4AF:
+                    case 0xF62D:
+                    case 0xF62E:
+                        return { EventMarkingType::Staccato, EventMarkingType::StrongAccent };
+                    case 0xE4B2:
+                    case 0xE4B3:
+                    case 0xF62F:
+                    case 0xF636:
+                        return { EventMarkingType::Staccato, EventMarkingType::Tenuto };
+                    // stress/unstress
+                    case 0xE4B6:
+                    case 0xE4B7:
+                        return { EventMarkingType::Stress };
+                    case 0xE4B8:
+                    case 0xE4B9:
+                        return { EventMarkingType::Unstress };
+                    // strong accents (marcato)
+                    case 0xE4AC:
+                    case 0xE4AD:
+                        return { EventMarkingType::StrongAccent };
+                    case 0xE4BC:
+                    case 0xE4BD:
+                        return { EventMarkingType::StrongAccent, EventMarkingType::Tenuto };
+                    // tenuto
+                    case 0xE4A4:
+                    case 0xE4A5:
+                        return { EventMarkingType::Tenuto };
+                    // tremolo
+                    case 0xE213:
+                    case 0xE22A:
+                    case 0xE22B:
+                    case 0xE22C:
+                    case 0xE22D:
+                    case 0xE232:
+                        numMarks = 0;
+                        return { EventMarkingType::Tremolo };
+                    case 0xE220:
+                    case 0xE225:
+                    case 0xF680:
+                        numMarks = 1;
+                        return { EventMarkingType::Tremolo };
+                    case 0xE221:
+                    case 0xE226:
+                    case 0xF681:
+                        numMarks = 2;
+                        return { EventMarkingType::Tremolo };
+                    case 0xE222:
+                    case 0xE227:
+                    case 0xF682:
+                        numMarks = 3;
+                        return { EventMarkingType::Tremolo };
+                    case 0xE223:
+                    case 0xE228:
+                    case 0xF683:
+                        numMarks = 4;
+                        return { EventMarkingType::Tremolo };
+                    case 0xE224:
+                    case 0xE229:
+                    case 0xF684:
+                        numMarks = 5;
+                        return { EventMarkingType::Tremolo };
+                }
+                break;
+        }
+        return {};
+    };
+    auto checkShape = [&](Cmper shapeId) -> std::vector<EventMarkingType> {
+        if (auto shape = artic->getDocument()->getOthers()->get<others::ShapeDef>(artic->getPartId(), shapeId)) {
+            // very specific support for Robert Patterson's tenuto mark.
+            static const std::vector<others::ShapeDef::InstructionType> expectedInsts = {
+                others::ShapeDef::InstructionType::StartObject,
+                others::ShapeDef::InstructionType::RMoveTo,
+                others::ShapeDef::InstructionType::LineWidth,
+                others::ShapeDef::InstructionType::RLineTo,
+                others::ShapeDef::InstructionType::Stroke,
+            };
+            size_t nextIndex = 0;
+            shape->iterateInstructions([&](others::ShapeDef::InstructionType inst, [[maybe_unused]] std::vector<int> data) {
+                if (inst == others::ShapeDef::InstructionType::SetDash) {
+                    return true; // skip SetDash
+                }
+                if (nextIndex >= expectedInsts.size()) {
+                    nextIndex++; // assure no tenuto is returned
+                    return false;
+                }
+                if (inst != expectedInsts[nextIndex]) {
+                    return false;
+                }
+                switch (inst) {
+                    case others::ShapeDef::InstructionType::LineWidth:
+                        if (data[0] < 4 * EFIX_PER_EVPU || data[0] > 6 * EFIX_PER_EVPU) {
+                            return false;
+                        }
+                        break;
+                    case others::ShapeDef::InstructionType::RLineTo:
+                        if (data[0] < EVPU_PER_SPACE || data[0] > 1.5 * EVPU_PER_SPACE || data[1] != 0) {
+                            return false;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                nextIndex++;
+                return true;
+            });
+            if (nextIndex == expectedInsts.size()) {
+                return { EventMarkingType::Tenuto };
+            }
+        }
+        return {};
+    };
+
+    auto main = artic->mainIsShape
+        ? checkShape(artic->mainShape)
+        : checkSymbol(artic->charMain, convertFontToType(artic->fontMain));
+    if (!main.empty()) {
+        return main;
+    }
+
+    auto alt = artic->altIsShape
+        ? checkShape(artic->altShape)
+        : checkSymbol(artic->charAlt, convertFontToType(artic->fontAlt));
+
+    return alt;
 }
 
 mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration)

@@ -40,6 +40,7 @@ enum class FontType
 {
     Unicode,        // Standard text
     Symbol,         // Non-SMuFL music fonts based on Adobe Sonata (e.g., Maestro, Petrucci, Sonata)
+    GraceNotes,     // GraceNotes (mainly used for tremolos before SMuFL)
     SMuFL           // Modern music fonts following SMuFL
 };
 
@@ -55,9 +56,27 @@ enum class JumpType
     Fine
 };
 
+enum class EventMarkingType
+{
+    Accent,
+    Breath,
+    SoftAccent,
+    Spiccato,
+    Staccatissimo,
+    Staccato,
+    Stress,
+    StrongAccent,
+    Tenuto,
+    Tremolo,
+    Unstress
+};
+
 FontType convertFontToType(const std::shared_ptr<FontInfo>& fontInfo);
 JumpType convertTextToJump(const std::string& text, FontType fontType);
 std::optional<std::pair<mnx::ClefSign, int>> convertCharToClef(const char32_t sym, FontType fontType);
+std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others::ArticulationDef>& artic,
+    std::optional<int>& numMarks,
+    std::optional<mnx::BreathMarkSymbol>& breathMark);
 
 } // namespace mnxexp
 } // namespace denigma
