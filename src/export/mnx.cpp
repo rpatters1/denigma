@@ -152,8 +152,11 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     createLayouts(context); // must come after createParts
     createScores(context); // must come after createLayouts
     
-    if (auto validationErr = context->mnxDocument->validate(denigmaContext.mnxSchema)) {
-        denigmaContext.logMessage(LogMsg() << "Validation error: " << validationErr.value(), LogSeverity::Warning);
+    if (auto validateResult = mnx::validation::schemaValidate(*context->mnxDocument, denigmaContext.mnxSchema); !validateResult) {
+        denigmaContext.logMessage(LogMsg() << "Validation errors:", LogSeverity::Warning);
+        for (const auto& error : validateResult.errors) {
+            denigmaContext.logMessage(LogMsg() << "    "  << error, LogSeverity::Warning);
+        }
     }
     context->mnxDocument->save(outputPath, denigmaContext.indentSpaces.value_or(-1));
 }
