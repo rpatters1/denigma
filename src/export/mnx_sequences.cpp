@@ -82,7 +82,7 @@ static void createOttava(mnx::ContentArray content, const std::shared_ptr<const 
 }
 
 /// @note This is a placeholder function until the mnx::Dynamic object is better defined
-static void createDynamic(const MnxMusxMappingPtr& context, mnx::ContentArray content, const std::shared_ptr<const others::TextExpressionDef>& expressionDef, std::optional<int> mnxStaffNumber)
+static void createDynamic(const MnxMusxMappingPtr& context, mnx::ContentArray content, const std::shared_ptr<const others::TextExpressionDef>& expressionDef)
 {
     if (auto text = expressionDef->getTextBlock()) {
         if (auto rawText = text->getRawTextBlock()) {
@@ -91,9 +91,6 @@ static void createDynamic(const MnxMusxMappingPtr& context, mnx::ContentArray co
             auto mnxDynamic = content.append<mnx::sequence::Dynamic>(dynamicText);
             if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText, *context->denigmaContext)) {
                 mnxDynamic.set_glyph(smuflGlyph.value());
-            }
-            if (mnxStaffNumber) {
-                mnxDynamic.set_staff(mnxStaffNumber.value());
             }
         } else {
             MUSX_INTEGRITY_ERROR("Text block " + std::to_string(text->getCmper()) + " has non-existent raw text block " + std::to_string(text->textId));
@@ -387,7 +384,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                     ASSERT_IF(!expDef) {
                         throw std::logic_error("Expression found with non-existent text expression, but it should have been checked earlier.");
                     }
-                    createDynamic(context, content, expDef, mnxStaffNumber);
+                    createDynamic(context, content, expDef);
                     dynamic.second = true;
                 }
             }

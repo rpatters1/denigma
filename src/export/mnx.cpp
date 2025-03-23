@@ -153,9 +153,17 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     createScores(context); // must come after createLayouts
     
     if (auto validateResult = mnx::validation::schemaValidate(*context->mnxDocument, denigmaContext.mnxSchema); !validateResult) {
-        denigmaContext.logMessage(LogMsg() << "Validation errors:", LogSeverity::Warning);
+        bool printedHeader = false;
         for (const auto& error : validateResult.errors) {
-            denigmaContext.logMessage(LogMsg() << "    "  << error, LogSeverity::Warning);
+            if (error.instance.contains("type") && error.instance["type"] == "tuplet" && error.message.rfind("no subschema has succeeded", 0) == 0) {
+                // for now, suppress validation errors on tuplets, because the current schema does not allow non-events in tuplet content
+                continue;
+            }
+            if (!printedHeader) {
+                denigmaContext.logMessage(LogMsg() << "Validation errors:", LogSeverity::Warning);
+                printedHeader = true;
+            }
+            denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), LogSeverity::Warning);
         }
     }
     context->mnxDocument->save(outputPath, denigmaContext.indentSpaces.value_or(-1));

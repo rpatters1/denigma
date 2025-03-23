@@ -159,7 +159,7 @@ static void collectDynamics(const MnxMusxMappingPtr& context, const std::shared_
     if (musxMeasure->hasExpression) {
         auto shapeAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getPartId(), musxMeasure->getCmper());
         for (const auto& asgn : shapeAssigns) {
-            if (asgn->staffAssign == staffCmper && asgn->textExprId) {
+            if (asgn->staffAssign == staffCmper && asgn->textExprId && !asgn->hidden) {
                 if (auto expr = asgn->getTextExpression()) {
                     if (auto cat = context->document->getOthers()->get<others::MarkingCategory>(expr->getPartId(), expr->categoryId)) {
                         if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) {
