@@ -78,6 +78,7 @@ struct MnxMusxMapping
     std::unordered_map<std::tuple<InstCmper, LayerIndex, int>, musx::util::Fraction, SequenceHash> duraOffsets; // dura offsets for leftovers per layer/voice combo
     std::unordered_map<Cmper, std::shared_ptr<const others::SmartShape>> ottavasApplicableInMeasure;
     std::unordered_map<Cmper, bool> insertedOttavas; ///< tracks (for each measure) whether we inserted ottavas that started in the measure.
+    std::unordered_map<InstCmper, std::vector<Cmper>> leftOverOttavas; ///< tracks ottavas that start after all entries have been processed for that inst/measure.
     std::unordered_map<std::shared_ptr<const others::MeasureExprAssign>, bool> dynamicsInMeasure;
 
     void clearCounts()
@@ -90,6 +91,7 @@ struct MnxMusxMapping
         duraOffsets.clear();
         ottavasApplicableInMeasure.clear();
         insertedOttavas.clear();
+        leftOverOttavas.clear();
         dynamicsInMeasure.clear();
     }
 

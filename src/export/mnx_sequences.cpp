@@ -371,7 +371,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                     throw std::logic_error("Unable to find ottava " + std::to_string(ottava.first) + " in applicable list for measure "
                         + std::to_string(next.getMeasure()) + " and staff " + std::to_string(next.getStaff()));
                 }
-                if (next->elapsedDuration.calcEduDuration() >= it->second->startTermSeg->endPoint->calcEduPosition()) {
+                if (it->second->calcAppliesTo(next)) {
                     createOttava(content, it->second, mnxStaffNumber);
                     ottava.second = true;
                 }

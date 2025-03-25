@@ -106,3 +106,30 @@ TEST(MnxOttavasTest, OverlappingOttavas)
         }
     }
 }
+
+TEST(MnxOttavasTest, EndOfBar)
+{
+    std::filesystem::path inputPath;
+    copyInputToOutput("ottava_end_of_bar.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!was not inserted into MNX document" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "ottava_end_of_bar.mnx");
+    auto parts = doc.parts();
+    ASSERT_FALSE(parts.empty()) << "no parts in document";
+    ASSERT_TRUE(parts[0].measures().has_value());
+    auto measures = parts[0].measures().value();
+
+    // check to see that ottava at the end of m1 in musx is now the beginning of m2 in mnx.
+    ASSERT_GE(measures.size(), 2u);
+    ASSERT_FALSE(measures[1].sequences().empty());
+    auto sequence = measures[1].sequences()[0];
+    ASSERT_FALSE(sequence.content().empty());
+    auto content = sequence.content()[0];
+    ASSERT_EQ(content.type(), "ottava");
+    auto ottava = content.get<mnx::sequence::Ottava>();
+    EXPECT_EQ(ottava.end().measure(), 2);
+    EXPECT_EQ(ottava.end().position().fraction().numerator(), 0);
+}

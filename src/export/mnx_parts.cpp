@@ -197,6 +197,20 @@ static void collectOttavas(const MnxMusxMappingPtr& context, const std::shared_p
             }
         }
     }
+    auto it = context->leftOverOttavas.find(staffCmper);
+    if (it != context->leftOverOttavas.end()) {
+        for (Cmper leftOverId : it->second) {
+            if (context->ottavasApplicableInMeasure.find(leftOverId) != context->ottavasApplicableInMeasure.end()) {
+                // only add leftovers from previous measure if they continue in this measure.
+                context->insertedOttavas.emplace(leftOverId, false);
+            }
+        }
+        it->second.erase(std::remove_if(it->second.begin(), it->second.end(),
+            [context](const auto& item) {
+                return context->insertedOttavas.find(item) != context->insertedOttavas.end();
+            }),
+            it->second.end());
+    }
 }
 
 static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
@@ -232,9 +246,26 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
             for (auto& ottava : context->insertedOttavas) {
                 if (!ottava.second) {
-                    context->logMessage(LogMsg() << " ottava " << ottava.first << " was not inserted into MNX document", LogSeverity::Warning);
+                    auto it = context->leftOverOttavas.find(context->partStaves[x]);
+                    if (it == context->leftOverOttavas.end()) {
+                        context->leftOverOttavas.emplace(context->partStaves[x], std::vector<Cmper>({ ottava.first }));
+                    } else {
+                        it->second.emplace_back(ottava.first);
+                    }
                 }
             }
+        }
+    }
+    for (const auto& leftOverOttava : context->leftOverOttavas) {
+        context->currStaff = leftOverOttava.first;
+        for (Cmper shapeId : leftOverOttava.second) {
+            auto shape = context->document->getOthers()->get<others::SmartShape>(SCORE_PARTID, shapeId);
+            ASSERT_IF(!shape) {
+                throw std::logic_error("ottava shape " + std::to_string(shapeId) + " does not exist.");
+            }
+            context->currMeas = shape->startTermSeg->endPoint->measId;
+            context->currMeasDura = shape->startTermSeg->endPoint->calcEduPosition();
+            context->logMessage(LogMsg() << "ottava " << shapeId << " was not inserted into MNX document", LogSeverity::Warning);
         }
     }
     context->clearCounts();

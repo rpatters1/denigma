@@ -38,11 +38,9 @@ void MnxMusxMapping::logMessage(LogMsg&& msg, LogSeverity severity)
     if (currStaff > 0 && currMeas > 0) {
         std::string staffName = [&]() -> std::string {
             if (document) {
-                auto iuList = document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
-                if (!iuList.empty()) {
-                    if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, currStaff)) {
-                        return staff->getFullName();
-                    }
+                if (auto staff = others::StaffComposite::createCurrent(document, SCORE_PARTID, currStaff, currMeas, 0)) {
+                    auto instName = staff->getFullInstrumentName();
+                    if (!instName.empty()) return instName;
                 }
             }
             return "Staff " + std::to_string(currStaff);
