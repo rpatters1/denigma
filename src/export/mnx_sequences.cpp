@@ -304,7 +304,12 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
                           : std::optional<int>(alteration);
             for (const auto& it : context->ottavasApplicableInMeasure) {
                 auto shape = it.second;
-                if (shape->calcAppliesTo(musxEntryInfo)) {
+                // if the note is a tie continuation, the ottava has to apply to the original note
+                auto tiedFromNoteInfo = musxNote;
+                while (tiedFromNoteInfo && tiedFromNoteInfo->tieEnd) {
+                    tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
+                }
+                if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
                     octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
                 }
             }
@@ -334,7 +339,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
             if (musxNote->tieStart) {
                 auto mnxTies = mnxNote.create_ties();
                 auto tiedTo = musxNote.calcTieTo();
-                auto mnxTie = (tiedTo && tiedTo->tieEnd)
+                auto mnxTie = (tiedTo && tiedTo->tieEnd && !tiedTo.getEntryInfo()->getEntry()->isHidden)
                             ? mnxTies.append(calcNoteId(tiedTo))
                             : mnxTies.append();
                 if (auto tieAlter = musxEntry->getDocument()->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {

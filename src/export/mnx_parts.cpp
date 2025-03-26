@@ -43,6 +43,9 @@ static void createBeams(
                 assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
                 auto beam = mnxBeams.append();
                 for (auto next = firstInBeam; next; next = next.getNextInBeamGroup()) {
+                    if (next->getEntry()->isHidden) {
+                        continue;
+                    }
                     beam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
                     if (unsigned lowestBeamStart = next.calcLowestBeamStart()) {
                         unsigned nextBeamNumber = beamNumber + 1;
