@@ -150,25 +150,27 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     createLayouts(context); // must come after createParts
     createScores(context); // must come after createLayouts
 
-    denigmaContext.logMessage(LogMsg() << "Validation starting.", LogSeverity::Verbose);
-    if (auto validateResult = mnx::validation::schemaValidate(*context->mnxDocument, denigmaContext.mnxSchema); !validateResult) {
-        denigmaContext.logMessage(LogMsg() << "Schema validation errors:", LogSeverity::Warning);
-        for (const auto& error : validateResult.errors) {
-            denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), LogSeverity::Warning);
-        }
-    } else {
-        denigmaContext.logMessage(LogMsg() << "Schema validation succeeded.");
-        if (auto semanticResult = mnx::validation::semanticValidate(*context->mnxDocument); !semanticResult) {
-            denigmaContext.logMessage(LogMsg() << "Semantic validation errors:", LogSeverity::Warning);
-            for (const auto& error : semanticResult.errors) {
+    if (!denigmaContext.noValidate) {
+        denigmaContext.logMessage(LogMsg() << "Validation starting.", LogSeverity::Verbose);
+        if (auto validateResult = mnx::validation::schemaValidate(*context->mnxDocument, denigmaContext.mnxSchema); !validateResult) {
+            denigmaContext.logMessage(LogMsg() << "Schema validation errors:", LogSeverity::Warning);
+            for (const auto& error : validateResult.errors) {
                 denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), LogSeverity::Warning);
             }
         } else {
-            denigmaContext.logMessage(LogMsg() << "Semantic validation complete (" << semanticResult.measureCount << " measures, "
-                << semanticResult.partList.size() << " parts, " << semanticResult.layoutList.size() << " layouts).");
+            denigmaContext.logMessage(LogMsg() << "Schema validation succeeded.");
+            if (auto semanticResult = mnx::validation::semanticValidate(*context->mnxDocument); !semanticResult) {
+                denigmaContext.logMessage(LogMsg() << "Semantic validation errors:", LogSeverity::Warning);
+                for (const auto& error : semanticResult.errors) {
+                    denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), LogSeverity::Warning);
+                }
+            } else {
+                denigmaContext.logMessage(LogMsg() << "Semantic validation complete (" << semanticResult.measureCount << " measures, "
+                    << semanticResult.partList.size() << " parts, " << semanticResult.layoutList.size() << " layouts).");
+            }
         }
+        context->mnxDocument->save(outputPath, denigmaContext.indentSpaces.value_or(-1));
     }
-    context->mnxDocument->save(outputPath, denigmaContext.indentSpaces.value_or(-1));
 }
 
 } // namespace mnxexp

@@ -65,6 +65,8 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             quiet = true;
         } else if (next == _ARG("--verbose")) {
             verbose = true;
+        } else if (next == _ARG("--no-validate")) {
+            noValidate = true;
         // Specific options for `massage` command
         } else if (next == _ARG("--finale-file")) {
             auto option = getNextArg();

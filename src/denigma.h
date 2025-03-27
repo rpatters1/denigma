@@ -166,6 +166,7 @@ public:
     bool noLog{};
     bool verbose{};
     bool quiet{};
+    bool noValidate{};
     std::optional<std::filesystem::path> excludeFolder;
     std::optional<std::string> partName;
     std::optional<std::filesystem::path> logFilePath;
