@@ -315,7 +315,8 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
             }
             auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
             if (musxNote->freezeAcci) {
-                mnxNote.create_accidentalDisplay(musxNote->showAcci);
+                auto acciDisp = mnxNote.create_accidentalDisplay(musxNote->showAcci);
+                acciDisp.set_force(true);
             }
             mnxNote.set_id(calcNoteId(musxNote));
             if (musxNote->crossStaff) {
