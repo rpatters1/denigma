@@ -249,11 +249,11 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
             for (auto& ottava : context->insertedOttavas) {
                 if (!ottava.second) {
-                    auto it = context->leftOverOttavas.find(context->partStaves[x]);
-                    if (it == context->leftOverOttavas.end()) {
+                    auto ottavaIt = context->leftOverOttavas.find(context->partStaves[x]);
+                    if (ottavaIt == context->leftOverOttavas.end()) {
                         context->leftOverOttavas.emplace(context->partStaves[x], std::vector<Cmper>({ ottava.first }));
                     } else {
-                        it->second.emplace_back(ottava.first);
+                        ottavaIt->second.emplace_back(ottava.first);
                     }
                 }
             }
