@@ -82,7 +82,7 @@ static void createOttava(mnx::ContentArray content, const std::shared_ptr<const 
 }
 
 /// @note This is a placeholder function until the mnx::Dynamic object is better defined
-static void createDynamic(const MnxMusxMappingPtr& context, mnx::ContentArray content, const std::shared_ptr<const others::TextExpressionDef>& expressionDef, std::optional<int> mnxStaffNumber)
+static void createDynamic(const MnxMusxMappingPtr& context, mnx::ContentArray content, const std::shared_ptr<const others::TextExpressionDef>& expressionDef)
 {
     if (auto text = expressionDef->getTextBlock()) {
         if (auto rawText = text->getRawTextBlock()) {
@@ -91,9 +91,6 @@ static void createDynamic(const MnxMusxMappingPtr& context, mnx::ContentArray co
             auto mnxDynamic = content.append<mnx::sequence::Dynamic>(dynamicText);
             if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText, *context->denigmaContext)) {
                 mnxDynamic.set_glyph(smuflGlyph.value());
-            }
-            if (mnxStaffNumber) {
-                mnxDynamic.set_staff(mnxStaffNumber.value());
             }
         } else {
             MUSX_INTEGRITY_ERROR("Text block " + std::to_string(text->getCmper()) + " has non-existent raw text block " + std::to_string(text->textId));
@@ -307,13 +304,19 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
                           : std::optional<int>(alteration);
             for (const auto& it : context->ottavasApplicableInMeasure) {
                 auto shape = it.second;
-                if (shape->calcAppliesTo(musxEntryInfo)) {
+                // if the note is a tie continuation, the ottava has to apply to the original note
+                auto tiedFromNoteInfo = musxNote;
+                while (tiedFromNoteInfo && tiedFromNoteInfo->tieEnd) {
+                    tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
+                }
+                if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
                     octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
                 }
             }
             auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
             if (musxNote->freezeAcci) {
-                mnxNote.create_accidentalDisplay(musxNote->showAcci);
+                auto acciDisp = mnxNote.create_accidentalDisplay(musxNote->showAcci);
+                acciDisp.set_force(true);
             }
             mnxNote.set_id(calcNoteId(musxNote));
             if (musxNote->crossStaff) {
@@ -337,7 +340,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
             if (musxNote->tieStart) {
                 auto mnxTies = mnxNote.create_ties();
                 auto tiedTo = musxNote.calcTieTo();
-                auto mnxTie = (tiedTo && tiedTo->tieEnd)
+                auto mnxTie = (tiedTo && tiedTo->tieEnd && !tiedTo.getEntryInfo()->getEntry()->isHidden)
                             ? mnxTies.append(calcNoteId(tiedTo))
                             : mnxTies.append();
                 if (auto tieAlter = musxEntry->getDocument()->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {
@@ -374,7 +377,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                     throw std::logic_error("Unable to find ottava " + std::to_string(ottava.first) + " in applicable list for measure "
                         + std::to_string(next.getMeasure()) + " and staff " + std::to_string(next.getStaff()));
                 }
-                if (next->elapsedDuration.calcEduDuration() >= it->second->startTermSeg->endPoint->calcEduPosition()) {
+                if (it->second->calcAppliesTo(next)) {
                     createOttava(content, it->second, mnxStaffNumber);
                     ottava.second = true;
                 }
@@ -387,7 +390,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                     ASSERT_IF(!expDef) {
                         throw std::logic_error("Expression found with non-existent text expression, but it should have been checked earlier.");
                     }
-                    createDynamic(context, content, expDef, mnxStaffNumber);
+                    createDynamic(context, content, expDef);
                     dynamic.second = true;
                 }
             }
