@@ -165,8 +165,9 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
                     denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), LogSeverity::Warning);
                 }
             } else {
-                denigmaContext.logMessage(LogMsg() << "Semantic validation complete (" << semanticResult.measureCount << " measures, "
-                    << semanticResult.partList.size() << " parts, " << semanticResult.layoutList.size() << " layouts).");
+                size_t layoutSize = context->mnxDocument->layouts() ? context->mnxDocument->layouts().value().size() : 0;
+                denigmaContext.logMessage(LogMsg() << "Semantic validation complete (" << context->mnxDocument->global().measures().size() << " measures, "
+                    << context->mnxDocument->parts().size() << " parts, " << layoutSize << " layouts).");
             }
         }
         context->mnxDocument->save(outputPath, denigmaContext.indentSpaces.value_or(-1));
