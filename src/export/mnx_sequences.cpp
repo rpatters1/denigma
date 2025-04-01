@@ -415,7 +415,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
         if (currElapsedDuration >= context->currMeasDura && next->actualDuration > 0) { // zero-length tuplets have 0 actual dura
             if (currElapsedDuration > context->currMeasDura) {
                 if (auto prev = next.getPreviousInFrame()) {
-                    context->logMessage(LogMsg() << "Entry " << prev->getEntry()->getEntryNumber() << " at index << " << prev.getIndexInFrame()
+                    context->logMessage(LogMsg() << "Entry " << prev->getEntry()->getEntryNumber() << " at index " << prev.getIndexInFrame()
                         << " exceeds the measure length.", LogSeverity::Warning);
                 } else {
                     context->logMessage(LogMsg() << "Encountered entry that exceeds the measure length.", LogSeverity::Warning);
