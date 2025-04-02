@@ -237,13 +237,52 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
     }
 }
 
+static bool isBeamedRestWorkaround(const EntryInfoPtr& entryInfo)
+{
+    auto entry = entryInfo->getEntry();
+    if (entry->isNote || entryInfo.calcNumberOfBeams() < 2) { // must be at least a 16th note
+        return false;
+    }
+    if (entry->isHidden && entryInfo->v2Launch) {
+        // if this is a hidden v2 launch rest, check to see if there is an equivalent visible stand-alone v2 rest of the same type
+        if (auto next = entryInfo.getNextInFrame()) {
+            auto nextEntry = next->getEntry();
+            if (!nextEntry->isNote && nextEntry->duration == entry->duration && !nextEntry->isHidden) {
+                if (next = next.getNextInFrame(); !next || !next->getEntry()->voice2) {
+                    return true;
+                }
+            }
+        }
+    } else if (!entry->isHidden && entry->voice2) {
+        // if this is a visible stand-alone v2 rest, check to see if there is an equivalent invisible v2 launch rest preceding it
+        if (auto next = entryInfo.getNextInFrame(); !next || !next->getEntry()->voice2) {
+            if (auto prev = entryInfo.getPreviousInFrame(); prev && prev->v2Launch) {
+                auto prevEntry = prev->getEntry();
+                if (!prevEntry->isNote && prevEntry->isHidden && prevEntry->duration == entry->duration) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, const EntryInfoPtr& musxEntryInfo, std::optional<int> mnxStaffNumber)
 {
     const auto& musxEntry = musxEntryInfo->getEntry();
-    /// @todo handle special case when hidden notes are for beam over barline from previous measure.
-    if (musxEntry->isHidden) {
+
+    const bool isRestWorkaround = isBeamedRestWorkaround(musxEntryInfo);
+    if (musxEntry->isHidden && !isRestWorkaround) {
         content.append<mnx::sequence::Space>(1, mnxNoteValueFromEdu(musxEntry->duration));
         return;
+    }
+    MUSX_ASSERT_IF(musxEntry->voice2 && isRestWorkaround) {
+        throw std::logic_error("cannot create an MNX event for a voice2 entry that is part of a beaming workaround");
+    }
+    if (isRestWorkaround) {
+        context->visifiedEntries.emplace(musxEntry->getEntryNumber());
+        context->logMessage(LogMsg() << "recognized hidden rest " << musxEntry->getEntryNumber()
+            << " as beaming workaround and converted it to visible.", LogSeverity::Verbose);
     }
 
     auto musxStaff = musxEntryInfo.createCurrentStaff();
@@ -411,6 +450,9 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             continue;
         }
 
+        if (entry->voice2 && isBeamedRestWorkaround(next)) {
+            continue; // skip any v2 that is part of a beaming workaround
+        }
         const auto currElapsedDuration = next->elapsedDuration - context->duraOffset;
         if (currElapsedDuration >= context->currMeasDura && next->actualDuration > 0) { // zero-length tuplets have 0 actual dura
             if (currElapsedDuration > context->currMeasDura) {
@@ -480,6 +522,12 @@ void createSequences(const MnxMusxMappingPtr& context,
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
                     if (auto firstEntry = entryFrame->getFirstInVoice(voice)) {
+                        while (voice == 2 && firstEntry && isBeamedRestWorkaround(firstEntry)) {
+                            firstEntry = firstEntry.getNextInVoice(voice);
+                        }
+                        if (!firstEntry) {
+                            continue;
+                        }
                         auto sequence = mnxMeasure.sequences().append();
                         if (mnxStaffNumber) {
                             sequence.set_staff(mnxStaffNumber.value());
