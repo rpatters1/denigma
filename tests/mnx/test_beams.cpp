@@ -244,4 +244,21 @@ TEST(MnxBeams, BeamRestWorkarounds)
         EXPECT_EQ(beam.hooks().value()[0].event(), "ev21");
         EXPECT_FALSE(beam.inner().has_value());
     }
+
+    doc.buildIdMapping();
+
+    auto ev6 = doc.getIdMapping().get<mnx::sequence::Event>("ev6");
+    ASSERT_TRUE(ev6.rest().has_value());
+    EXPECT_FALSE(ev6.rest().value().staffPosition().has_value());
+    EXPECT_FALSE(ev6.stemDirection().has_value());
+
+    auto ev20 = doc.getIdMapping().get<mnx::sequence::Event>("ev20");
+    ASSERT_TRUE(ev20.rest().has_value());
+    EXPECT_FALSE(ev20.rest().value().staffPosition().has_value());
+    EXPECT_FALSE(ev20.stemDirection().has_value());
+
+    EXPECT_THROW(
+        auto evNonExist = doc.getIdMapping().get<mnx::sequence::Event>("badId"),
+        mnx::util::mapping_error
+    );
 }

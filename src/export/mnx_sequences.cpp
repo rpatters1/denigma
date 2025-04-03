@@ -326,7 +326,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     createMarkings(context, mnxEvent, musxEntry);
     /// @todo orient
     createSlurs(context, mnxEvent, musxEntry);
-    if (musxEntry->freezeStem) {
+    if (musxEntry->freezeStem && musxEntry->isNote && musxEntry->hasStem()) {
         mnxEvent.set_stemDirection(musxEntry->upStem ? mnx::StemDirection::Up : mnx::StemDirection::Down);
     }
     // since the staff number was set in the sequence, we don't set mnxStaffNumber here.
@@ -391,7 +391,8 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
         }
     } else {
         auto mnxRest = mnxEvent.create_rest();
-        if (!musxEntry->floatRest && !musxEntry->notes.empty()) {
+        // If a rest is hidden, it has been detected as a beam workaround, so its staff position is meaningless
+        if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
             auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
             auto staffPosition = std::get<3>(musxRest.calcNoteProperties());
             mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
