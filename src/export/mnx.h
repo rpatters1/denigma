@@ -80,6 +80,7 @@ struct MnxMusxMapping
     std::unordered_map<Cmper, bool> insertedOttavas; ///< tracks (for each measure) whether we inserted ottavas that started in the measure.
     std::unordered_map<InstCmper, std::vector<Cmper>> leftOverOttavas; ///< tracks ottavas that start after all entries have been processed for that inst/measure.
     std::unordered_map<std::shared_ptr<const others::MeasureExprAssign>, bool> dynamicsInMeasure;
+    std::unordered_set<musx::dom::EntryNumber> visifiedEntries;
 
     void clearCounts()
     {

@@ -185,3 +185,80 @@ TEST(MnxBeams, BeamHooksAndInner)
         EXPECT_FALSE(inner.inner().has_value());
     }
 }
+
+TEST(MnxBeams, BeamRestWorkarounds)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("beam_workaround.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "beam_workaround.mnx");
+    auto parts = doc.parts();
+    ASSERT_FALSE(parts.empty()) << "no parts in document";
+    auto measures = parts[0].measures();
+    ASSERT_TRUE(measures);
+    ASSERT_GE(measures.value().size(), 2);
+    auto measure = measures.value()[0];
+
+    // top level
+    ASSERT_TRUE(measure.beams().has_value());
+    ASSERT_EQ(measure.beams().value().size(), 2);
+    // beam0
+    {
+        auto beam = measure.beams().value()[0];
+        ASSERT_EQ(beam.events().size(), 3);
+        EXPECT_EQ(beam.events()[0], "ev5");
+        EXPECT_EQ(beam.events()[1], "ev6");
+        EXPECT_EQ(beam.events()[2], "ev7");
+        ASSERT_TRUE(beam.hooks().has_value());
+        ASSERT_EQ(beam.hooks().value().size(), 1);
+        EXPECT_EQ(beam.hooks().value()[0].event(), "ev7");
+        EXPECT_FALSE(beam.inner().has_value());
+    }
+    // beam1
+    {
+        auto beam = measure.beams().value()[1];
+        ASSERT_EQ(beam.events().size(), 2);
+        EXPECT_EQ(beam.events()[0], "ev12");
+        EXPECT_EQ(beam.events()[1], "ev13");
+        EXPECT_FALSE(beam.hooks().has_value());
+    }
+
+    auto measure2 = measures.value()[1];
+
+    // top level
+    ASSERT_TRUE(measure2.beams().has_value());
+    ASSERT_EQ(measure2.beams().value().size(), 1);
+    {
+        auto beam = measure2.beams().value()[0];
+        ASSERT_EQ(beam.events().size(), 3);
+        EXPECT_EQ(beam.events()[0], "ev19");
+        EXPECT_EQ(beam.events()[1], "ev20");
+        EXPECT_EQ(beam.events()[2], "ev21");
+        ASSERT_TRUE(beam.hooks().has_value());
+        ASSERT_EQ(beam.hooks().value().size(), 1);
+        EXPECT_EQ(beam.hooks().value()[0].event(), "ev21");
+        EXPECT_FALSE(beam.inner().has_value());
+    }
+
+    doc.buildIdMapping();
+
+    auto ev6 = doc.getIdMapping().get<mnx::sequence::Event>("ev6");
+    ASSERT_TRUE(ev6.rest().has_value());
+    EXPECT_FALSE(ev6.rest().value().staffPosition().has_value());
+    EXPECT_FALSE(ev6.stemDirection().has_value());
+
+    auto ev20 = doc.getIdMapping().get<mnx::sequence::Event>("ev20");
+    ASSERT_TRUE(ev20.rest().has_value());
+    EXPECT_FALSE(ev20.rest().value().staffPosition().has_value());
+    EXPECT_FALSE(ev20.stemDirection().has_value());
+
+    EXPECT_THROW(
+        auto evNonExist = doc.getIdMapping().get<mnx::sequence::Event>("badId"),
+        mnx::util::mapping_error
+    );
+}
