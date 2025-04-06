@@ -159,7 +159,8 @@ void createSequences(const MnxMusxMappingPtr& context,
     const std::shared_ptr<others::Measure>& musxMeasure,
     InstCmper staffCmper);
 
-void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
+void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
+void exportMnx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
 
 template <typename ToEnum, typename FromEnum>
 ToEnum enumConvert(FromEnum value);
