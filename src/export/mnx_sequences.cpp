@@ -70,10 +70,16 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
 
 static void createOttava(mnx::ContentArray content, const std::shared_ptr<const others::SmartShape>& ottavaShape, std::optional<int> mnxStaffNumber)
 {
+    mnx::Fraction::Initializer position = [&]() {
+        if (auto entryInfo = ottavaShape->endTermSeg->endPoint->calcAssociatedEntry()) {
+            return mnxFractionFromFraction(entryInfo->elapsedDuration);
+        }
+        return mnxFractionFromEdu(ottavaShape->endTermSeg->endPoint->calcEduPosition());
+    }();
     auto mnxOttava = content.append<mnx::sequence::Ottava>(
         enumConvert<mnx::OttavaAmount>(ottavaShape->shapeType),
         ottavaShape->endTermSeg->endPoint->measId,
-        mnxFractionFromEdu(ottavaShape->endTermSeg->endPoint->calcEduPosition())
+        position
     );
     if (mnxStaffNumber) {
         mnxOttava.set_staff(mnxStaffNumber.value());
