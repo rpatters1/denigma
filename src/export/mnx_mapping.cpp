@@ -483,6 +483,14 @@ mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue)
     return mnxFractionFromFraction(musx::util::Fraction::fromEdu(eduValue));
 }
 
+mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const others::SmartShape>& smartShape)
+{
+    if (auto entryInfo = smartShape->endTermSeg->endPoint->calcAssociatedEntry()) {
+        return mnxFractionFromFraction(entryInfo->elapsedDuration);
+    }
+    return mnxFractionFromEdu(smartShape->endTermSeg->endPoint->calcEduPosition()); 
+}
+
 int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition)
 {
     return musxStaffPosition - staff->calcMiddleStaffPosition();

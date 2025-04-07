@@ -148,6 +148,8 @@ mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllab
 
 mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction);
 mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue);
+mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const others::SmartShape>& smartShape);
+
 int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
 
 void createLayouts(const MnxMusxMappingPtr& context);
