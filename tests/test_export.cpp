@@ -241,3 +241,15 @@ TEST(Export, AutoGlobSimulation)
     });
     std::filesystem::current_path(currentPath);
 }
+
+TEST(Export, NoCommandSimplestForm)
+{
+    setupTestDataPaths();
+    std::string inputFile = "secbeams";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".musx", inputPath);
+    ArgList args = { DENIGMA_NAME, inputPath.u8string() };
+    checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
+    });
+}
