@@ -185,7 +185,7 @@ static void collectOttavas(const MnxMusxMappingPtr& context, const std::shared_p
         auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getPartId(), musxMeasure->getCmper());
         for (const auto& asgn : shapeAssigns) {
             if (auto shape = context->document->getOthers()->get<others::SmartShape>(asgn->getPartId(), asgn->shapeNum)) {
-                if (shape->startTermSeg->endPoint->staffId == staffCmper || shape->endTermSeg->endPoint->staffId == staffCmper) {
+                if (!shape->hidden && (shape->startTermSeg->endPoint->staffId == staffCmper || shape->endTermSeg->endPoint->staffId == staffCmper)) {
                     switch (shape->shapeType) {
                         default: continue;
                         case others::SmartShape::ShapeType::OctaveDown:
