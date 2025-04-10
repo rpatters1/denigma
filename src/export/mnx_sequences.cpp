@@ -303,13 +303,17 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
                           : std::optional<int>(alteration);
             for (const auto& it : context->ottavasApplicableInMeasure) {
                 auto shape = it.second;
-                // if the note is a tie continuation, the ottava has to apply to the original note
-                auto tiedFromNoteInfo = musxNote;
-                while (tiedFromNoteInfo && tiedFromNoteInfo->tieEnd) {
-                    tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
-                }
-                if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
-                    octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
+                if (shape->calcAppliesTo(musxNote.getEntryInfo())) {
+                    // if the note is a tie continuation, the ottava has to apply to the original note
+                    auto tiedFromNoteInfo = musxNote;
+                    while (tiedFromNoteInfo && tiedFromNoteInfo->tieEnd) {
+                        tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
+                    }
+                    if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
+                        octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
+                    } else if (!musxNote.isSameNote(tiedFromNoteInfo)) {
+                        context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", LogSeverity::Verbose);
+                    }
                 }
             }
             auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);

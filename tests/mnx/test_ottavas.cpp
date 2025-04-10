@@ -57,17 +57,20 @@ TEST(MnxOttavasTest, OverlappingOttavas)
         size_t ottavaIndex = 0;
         size_t eventIndex = 0;
         ASSERT_GE(measure.sequences().size(), 1);
+        ASSERT_TRUE(measure.ottavas().has_value());
+        ASSERT_GE(measure.ottavas().value().size(), 2);
+        auto ottavas = measure.ottavas().value();
+        for (const auto& ottava : ottavas) {
+            ASSERT_LT(ottavaIndex, expectOttavaType.size());
+            EXPECT_EQ(ottava.value(), expectOttavaType[ottavaIndex]);
+            EXPECT_EQ(ottava.end().measure(), expectOttavaEndMeasure[ottavaIndex]);
+            EXPECT_EQ(ottava.end().position().fraction().numerator(), expectOttaveEndPosition[ottavaIndex].numerator());
+            EXPECT_EQ(ottava.end().position().fraction().denominator(), expectOttaveEndPosition[ottavaIndex].denominator());
+            ottavaIndex++;
+        }
         for (const auto& content : measure.sequences()[0].content()) {
-            if (content.type() == mnx::sequence::Ottava::ContentTypeValue) {
-                ASSERT_LT(ottavaIndex, expectOttavaType.size());
-                auto ottava = content.get<mnx::sequence::Ottava>();
-                EXPECT_EQ(ottava.value(), expectOttavaType[ottavaIndex]);
-                EXPECT_EQ(ottava.end().measure(), expectOttavaEndMeasure[ottavaIndex]);
-                EXPECT_EQ(ottava.end().position().fraction().numerator(), expectOttaveEndPosition[ottavaIndex].numerator());
-                EXPECT_EQ(ottava.end().position().fraction().denominator(), expectOttaveEndPosition[ottavaIndex].denominator());
-                ottavaIndex++;
-            } else if (content.type() == mnx::sequence::Event::ContentTypeValue) {
-                ASSERT_LT(ottavaIndex, expectedNoteOctaves.size());
+            if (content.type() == mnx::sequence::Event::ContentTypeValue) {
+                ASSERT_LT(eventIndex, expectedNoteOctaves.size());
                 auto event = content.get<mnx::sequence::Event>();
                 ASSERT_TRUE(event.notes().has_value());
                 ASSERT_GE(event.notes().value().size(), 1);
@@ -83,20 +86,12 @@ TEST(MnxOttavasTest, OverlappingOttavas)
         std::vector<musx::util::Fraction> expectOttaveEndPosition = { };
         std::vector<int> expectedNoteOctaves = { 6, 6, 5 };
         auto measure = measures[1];
-        size_t ottavaIndex = 0;
         size_t eventIndex = 0;
         ASSERT_GE(measure.sequences().size(), 1);
+        EXPECT_FALSE(measure.ottavas());
         for (const auto& content : measure.sequences()[0].content()) {
-            if (content.type() == mnx::sequence::Ottava::ContentTypeValue) {
-                ASSERT_LT(ottavaIndex, expectOttavaType.size());
-                auto ottava = content.get<mnx::sequence::Ottava>();
-                EXPECT_EQ(ottava.value(), expectOttavaType[ottavaIndex]);
-                EXPECT_EQ(ottava.end().measure(), expectOttavaEndMeasure[ottavaIndex]);
-                EXPECT_EQ(ottava.end().position().fraction().numerator(), expectOttaveEndPosition[ottavaIndex].numerator());
-                EXPECT_EQ(ottava.end().position().fraction().denominator(), expectOttaveEndPosition[ottavaIndex].denominator());
-                ottavaIndex++;
-            } else if (content.type() == mnx::sequence::Event::ContentTypeValue) {
-                ASSERT_LT(ottavaIndex, expectedNoteOctaves.size());
+            if (content.type() == mnx::sequence::Event::ContentTypeValue) {
+                ASSERT_LT(eventIndex, expectedNoteOctaves.size());
                 auto event = content.get<mnx::sequence::Event>();
                 ASSERT_TRUE(event.notes().has_value());
                 ASSERT_GE(event.notes().value().size(), 1);
@@ -122,14 +117,14 @@ TEST(MnxOttavasTest, EndOfBar)
     ASSERT_TRUE(parts[0].measures().has_value());
     auto measures = parts[0].measures().value();
 
-    // check to see that ottava at the end of m1 in musx is now the beginning of m2 in mnx.
-    ASSERT_GE(measures.size(), 2u);
-    ASSERT_FALSE(measures[1].sequences().empty());
-    auto sequence = measures[1].sequences()[0];
-    ASSERT_FALSE(sequence.content().empty());
-    auto content = sequence.content()[0];
-    ASSERT_EQ(content.type(), "ottava");
-    auto ottava = content.get<mnx::sequence::Ottava>();
+    // check to see that ottava at the end of m1 in musx is at end of m1 and ends at beginning of m2
+    ASSERT_GE(measures.size(), 2);
+    ASSERT_TRUE(measures[0].ottavas().has_value());
+    ASSERT_GE(measures[0].ottavas().value().size(), 1);
+    auto ottava = measures[0].ottavas().value()[0];
+    EXPECT_EQ(ottava.position().fraction().numerator(), 1);
+    EXPECT_EQ(ottava.position().fraction().denominator(), 1);
     EXPECT_EQ(ottava.end().measure(), 2);
     EXPECT_EQ(ottava.end().position().fraction().numerator(), 0);
+    EXPECT_EQ(ottava.end().position().fraction().denominator(), 1);
 }
