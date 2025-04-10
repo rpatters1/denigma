@@ -49,7 +49,7 @@ TEST(MnxOttavasTest, OverlappingOttavas)
 
     // measure 1
     {
-        std::vector<mnx::OttavaAmount> expectOttavaType = { mnx::OttavaAmount::TwoOctaveUp, mnx::OttavaAmount::OctaveDown };
+        std::vector<mnx::OttavaAmount> expectOttavaType = { mnx::OttavaAmount::TwoOctavesUp, mnx::OttavaAmount::OctaveDown };
         std::vector<int> expectOttavaEndMeasure = { 2, 2 };
         std::vector<musx::util::Fraction> expectOttaveEndPosition = { musx::util::Fraction(1, 4), musx::util::Fraction(1, 4) };
         std::vector<int> expectedNoteOctaves = { 7, 7, 6, 6 };
