@@ -75,6 +75,7 @@ static void createOttava(mnx::ContentArray content, const std::shared_ptr<const 
         ottavaShape->endTermSeg->endPoint->measId,
         mnxFractionFromSmartShapeEndPoint(ottavaShape)
     );
+    mnxOttava.end().position().set_graceIndex(0);   // guarantees inclusion of any grace notes at the end of the ottava
     if (mnxStaffNumber) {
         mnxOttava.set_staff(mnxStaffNumber.value());
     }
