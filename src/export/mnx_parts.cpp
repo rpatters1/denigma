@@ -268,9 +268,9 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
             createDynamics(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);
             createOttavas(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);
-            context->visifiedEntries.clear();
+            context->visifiedEntries.clear(); // createSequences creates this vector for the use of createBeams
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
-            createBeams(context, mnxMeasure, musxMeasure, context->partStaves[x]);
+            createBeams(context, mnxMeasure, musxMeasure, context->partStaves[x]); // must come after createSequences so that visifiedEntries is properly created when it is called.
         }
     }
     context->clearCounts();
