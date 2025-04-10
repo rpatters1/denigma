@@ -47,6 +47,31 @@
     "color": {
       "type": "string"
     },
+    "dynamic": {
+      "additionalProperties": false,
+      "properties": {
+        "glyph": {
+          "$ref": "#/$defs/smufl-glyph"
+        },
+        "position": {
+          "$ref": "#/$defs/rhythmic-position"
+        },
+        "staff": {
+          "$ref": "#/$defs/staff-number"
+        },
+        "value": {
+          "type": "string"
+        },
+        "voice": {
+          "$ref": "#/$defs/voice-name"
+        }
+      },
+      "required": [
+        "position",
+        "value"
+      ],
+      "type": "object"
+    },
     "event": {
       "additionalProperties": false,
       "properties": {
@@ -300,9 +325,6 @@
               "lineType": {
                 "type": "string"
               },
-              "location": {
-                "type": "string"
-              },
               "side": {
                 "$ref": "#/$defs/slur-side"
               },
@@ -316,6 +338,9 @@
                 "$ref": "#/$defs/id"
               }
             },
+            "required": [
+              "target"
+            ],
             "type": "object"
           },
           "type": "array"
@@ -338,6 +363,12 @@
         "type"
       ],
       "type": "object"
+    },
+    "fraction": {
+      "items": {
+        "$ref": "#/$defs/integer-unsigned"
+      },
+      "type": "array"
     },
     "id": {
       "type": "string"
@@ -424,10 +455,7 @@
       "additionalProperties": false,
       "properties": {
         "fraction": {
-          "items": {
-            "$ref": "#/$defs/integer-unsigned"
-          },
-          "type": "array"
+          "$ref": "#/$defs/fraction"
         },
         "graceIndex": {
           "$ref": "#/$defs/integer-unsigned"
@@ -959,6 +987,50 @@
                   },
                   "type": "array"
                 },
+                "dynamics": {
+                  "items": {
+                    "$ref": "#/$defs/dynamic"
+                  },
+                  "type": "array"
+                },
+                "ottavas": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "end": {
+                        "$ref": "#/$defs/measure-rhythmic-position"
+                      },
+                      "orient": {
+                        "$ref": "#/$defs/orientation"
+                      },
+                      "position": {
+                        "$ref": "#/$defs/rhythmic-position"
+                      },
+                      "staff": {
+                        "$ref": "#/$defs/staff-number"
+                      },
+                      "value": {
+                        "enum": [
+                          1,
+                          2,
+                          -1,
+                          -2
+                        ],
+                        "type": "integer"
+                      },
+                      "voice": {
+                        "$ref": "#/$defs/voice-name"
+                      }
+                    },
+                    "required": [
+                      "end",
+                      "position",
+                      "value"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
                 "sequences": {
                   "items": {
                     "additionalProperties": false,
@@ -1057,41 +1129,8 @@
                             {
                               "additionalProperties": false,
                               "properties": {
-                                "end": {
-                                  "$ref": "#/$defs/measure-rhythmic-position"
-                                },
-                                "orient": {
-                                  "$ref": "#/$defs/orientation"
-                                },
-                                "staff": {
-                                  "$ref": "#/$defs/staff-number"
-                                },
-                                "type": {
-                                  "const": "ottava",
-                                  "type": "string"
-                                },
-                                "value": {
-                                  "enum": [
-                                    1,
-                                    2,
-                                    -1,
-                                    -2
-                                  ],
-                                  "type": "integer"
-                                }
-                              },
-                              "required": [
-                                "end",
-                                "type",
-                                "value"
-                              ],
-                              "type": "object"
-                            },
-                            {
-                              "additionalProperties": false,
-                              "properties": {
                                 "duration": {
-                                  "$ref": "#/$defs/note-value-quantity"
+                                  "$ref": "#/$defs/fraction"
                                 },
                                 "type": {
                                   "const": "space",
@@ -1105,24 +1144,7 @@
                               "type": "object"
                             },
                             {
-                              "additionalProperties": false,
-                              "properties": {
-                                "glyph": {
-                                  "$ref": "#/$defs/smufl-glyph"
-                                },
-                                "type": {
-                                  "const": "dynamic",
-                                  "type": "string"
-                                },
-                                "value": {
-                                  "type": "string"
-                                }
-                              },
-                              "required": [
-                                "type",
-                                "value"
-                              ],
-                              "type": "object"
+                              "$ref": "#/$defs/dynamic"
                             }
                           ]
                         },

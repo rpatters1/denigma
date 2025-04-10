@@ -274,7 +274,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 
     const bool isRestWorkaround = isBeamedRestWorkaround(musxEntryInfo);
     if (musxEntry->isHidden && !isRestWorkaround) {
-        content.append<mnx::sequence::Space>(1, mnxNoteValueFromEdu(musxEntry->duration));
+        content.append<mnx::sequence::Space>(1, mnxFractionFromEdu(musxEntry->duration));
         return;
     }
     MUSX_ASSERT_IF(musxEntry->voice2 && isRestWorkaround) {
@@ -477,8 +477,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             throw std::logic_error("Next entry's elapsed duration value is smaller than tracked duration for sequence.");
         }
         if (currElapsedDuration > elapsedInSequence) {
-            auto [count, value] = mnxNoteValueQuantityFromFraction(context, currElapsedDuration - elapsedInSequence);
-            content.append<mnx::sequence::Space>(count, value);
+            content.append<mnx::sequence::Space>(mnxFractionFromFraction(currElapsedDuration - elapsedInSequence));
         }
 
         if (tupletIndex) {
