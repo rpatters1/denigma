@@ -70,7 +70,7 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
 
 static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
 {
-    auto createOneSlur = [&](const EntryNumber targetEntry, Evpu /*horzOffset*/) -> mnx::sequence::Slur {
+    auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
         if (!mnxEvent.slurs().has_value()) {
             mnxEvent.create_slurs();
         }
@@ -85,26 +85,35 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
                     continue;
                 }
                 std::optional<mnx::SlurTieSide> side;
+                mnx::LineType lineType = mnx::LineType::Solid;
                 switch (shape->shapeType) {
                     default:
                         continue;
                     case others::SmartShape::ShapeType::SlurAuto:
+                        break;
                     case others::SmartShape::ShapeType::DashSlurAuto:
                     case others::SmartShape::ShapeType::DashContouSlurAuto:
+                        lineType = mnx::LineType::Dashed;
                         break;
                     case others::SmartShape::ShapeType::SlurUp:
+                        side = mnx::SlurTieSide::Up;
+                        break;
                     case others::SmartShape::ShapeType::DashSlurUp:
                     case others::SmartShape::ShapeType::DashContourSlurUp:
+                        lineType = mnx::LineType::Dashed;
                         side = mnx::SlurTieSide::Up;
                         break;
                     case others::SmartShape::ShapeType::SlurDown:
+                        side = mnx::SlurTieSide::Down;
+                        break;
                     case others::SmartShape::ShapeType::DashSlurDown:
                     case others::SmartShape::ShapeType::DashContourSlurDown:
+                        lineType = mnx::LineType::Dashed;
                         side = mnx::SlurTieSide::Down;
                         break;
                 }
-                Evpu offset = std::min(shape->startTermSeg->endPointAdj->horzOffset, shape->endTermSeg->endPointAdj->horzOffset);
-                auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber, offset);
+                auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
+                mnxSlur.set_lineType(lineType);
                 if (side) {
                     mnxSlur.set_side(side.value());
                 }
