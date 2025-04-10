@@ -68,54 +68,13 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
     return mnxTuplet;
 }
 
-static void createOttava(mnx::ContentArray content, const std::shared_ptr<const others::SmartShape>& ottavaShape, std::optional<int> mnxStaffNumber)
-{
-    auto mnxOttava = content.append<mnx::sequence::Ottava>(
-        enumConvert<mnx::OttavaAmount>(ottavaShape->shapeType),
-        ottavaShape->endTermSeg->endPoint->measId,
-        mnxFractionFromSmartShapeEndPoint(ottavaShape)
-    );
-    mnxOttava.end().position().set_graceIndex(0);   // guarantees inclusion of any grace notes at the end of the ottava
-    if (mnxStaffNumber) {
-        mnxOttava.set_staff(mnxStaffNumber.value());
-    }
-    /// @todo: orient (if applicable)
-}
-
-/// @note This is a placeholder function until the mnx::Dynamic object is better defined
-static void createDynamic(const MnxMusxMappingPtr& context, mnx::ContentArray content, const std::shared_ptr<const others::TextExpressionDef>& expressionDef)
-{
-    if (auto text = expressionDef->getTextBlock()) {
-        if (auto rawText = text->getRawTextBlock()) {
-            auto fontInfo = rawText->parseFirstFontInfo();
-            std::string dynamicText = text->getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-            auto mnxDynamic = content.append<mnx::sequence::Dynamic>(dynamicText);
-            if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText, *context->denigmaContext)) {
-                mnxDynamic.set_glyph(smuflGlyph.value());
-            }
-        } else {
-            MUSX_INTEGRITY_ERROR("Text block " + std::to_string(text->getCmper()) + " has non-existent raw text block " + std::to_string(text->textId));
-        }
-    }  else {
-        MUSX_INTEGRITY_ERROR("Text expression " + std::to_string(expressionDef->getCmper()) + " has non-existent text block " + std::to_string(expressionDef->textIdKey));
-    }
-}
-
 static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
 {
-    auto createOneSlur = [&](const EntryNumber targetEntry, Evpu horzOffset) -> mnx::sequence::Slur {
+    auto createOneSlur = [&](const EntryNumber targetEntry, Evpu /*horzOffset*/) -> mnx::sequence::Slur {
         if (!mnxEvent.slurs().has_value()) {
             mnxEvent.create_slurs();
         }
-        auto result = mnxEvent.slurs().value().append();
-        if (targetEntry == musxEntry->getEntryNumber()) {
-            result.set_location(horzOffset < 0
-                ? mnx::SlurTieEndLocation::Incoming
-                : mnx::SlurTieEndLocation::Outgoing
-            );
-        } else {
-            result.set_target(calcEventId(targetEntry));
-        }
+        auto result = mnxEvent.slurs().value().append(calcEventId(targetEntry));
         return result;
     };
     if (musxEntry->smartShapeDetail) {
@@ -274,7 +233,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 
     const bool isRestWorkaround = isBeamedRestWorkaround(musxEntryInfo);
     if (musxEntry->isHidden && !isRestWorkaround) {
-        content.append<mnx::sequence::Space>(1, mnxFractionFromEdu(musxEntry->duration));
+        content.append<mnx::sequence::Space>(mnxFractionFromEdu(musxEntry->duration));
         return;
     }
     MUSX_ASSERT_IF(musxEntry->voice2 && isRestWorkaround) {
@@ -410,32 +369,6 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
     auto next = firstEntryInfo;
     int voice = next && next->getEntry()->voice2 ? 2 : 1; // firstEntryInfo can be null
     while (next) {
-        for (auto& ottava : context->insertedOttavas) {
-            if (!ottava.second) { // if the ottava has not been inserted
-                const auto it = context->ottavasApplicableInMeasure.find(ottava.first);
-                ASSERT_IF(it == context->ottavasApplicableInMeasure.end())
-                {
-                    throw std::logic_error("Unable to find ottava " + std::to_string(ottava.first) + " in applicable list for measure "
-                        + std::to_string(next.getMeasure()) + " and staff " + std::to_string(next.getStaff()));
-                }
-                if (it->second->calcAppliesTo(next)) {
-                    createOttava(content, it->second, mnxStaffNumber);
-                    ottava.second = true;
-                }
-            }
-        }
-        for (auto& dynamic : context->dynamicsInMeasure) {
-            if (!dynamic.second) {
-                if (next->elapsedDuration.calcEduDuration() >= dynamic.first->eduPosition) {
-                    auto expDef = dynamic.first->getTextExpression();
-                    ASSERT_IF(!expDef) {
-                        throw std::logic_error("Expression found with non-existent text expression, but it should have been checked earlier.");
-                    }
-                    createDynamic(context, content, expDef);
-                    dynamic.second = true;
-                }
-            }
-        }
         auto entry = next->getEntry();
         if (inGrace && !entry->graceNote) {
             return next;
