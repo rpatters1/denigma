@@ -12,7 +12,7 @@ if "%DENIGMA_PRODUCTION_DEPLOY_PATH%"=="" (
 
 REM Set default build directory
 set BUILD_DIR=build
-set LOCAL_DEPLOY_DIR=deploy
+set LOCAL_DEPLOY_DIR=denigma
 
 echo Using build directory: %BUILD_DIR%
 echo Using local deploy directory: %LOCAL_DEPLOY_DIR%

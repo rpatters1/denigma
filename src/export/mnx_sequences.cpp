@@ -68,53 +68,13 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
     return mnxTuplet;
 }
 
-static void createOttava(mnx::ContentArray content, const std::shared_ptr<const others::SmartShape>& ottavaShape, std::optional<int> mnxStaffNumber)
-{
-    auto mnxOttava = content.append<mnx::sequence::Ottava>(
-        enumConvert<mnx::OttavaAmount>(ottavaShape->shapeType),
-        ottavaShape->endTermSeg->endPoint->measId,
-        mnxFractionFromEdu(ottavaShape->endTermSeg->endPoint->calcEduPosition())
-    );
-    if (mnxStaffNumber) {
-        mnxOttava.set_staff(mnxStaffNumber.value());
-    }
-    /// @todo: orient (if applicable)
-}
-
-/// @note This is a placeholder function until the mnx::Dynamic object is better defined
-static void createDynamic(const MnxMusxMappingPtr& context, mnx::ContentArray content, const std::shared_ptr<const others::TextExpressionDef>& expressionDef)
-{
-    if (auto text = expressionDef->getTextBlock()) {
-        if (auto rawText = text->getRawTextBlock()) {
-            auto fontInfo = rawText->parseFirstFontInfo();
-            std::string dynamicText = text->getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-            auto mnxDynamic = content.append<mnx::sequence::Dynamic>(dynamicText);
-            if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText, *context->denigmaContext)) {
-                mnxDynamic.set_glyph(smuflGlyph.value());
-            }
-        } else {
-            MUSX_INTEGRITY_ERROR("Text block " + std::to_string(text->getCmper()) + " has non-existent raw text block " + std::to_string(text->textId));
-        }
-    }  else {
-        MUSX_INTEGRITY_ERROR("Text expression " + std::to_string(expressionDef->getCmper()) + " has non-existent text block " + std::to_string(expressionDef->textIdKey));
-    }
-}
-
 static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
 {
-    auto createOneSlur = [&](const EntryNumber targetEntry, Evpu horzOffset) -> mnx::sequence::Slur {
+    auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
         if (!mnxEvent.slurs().has_value()) {
             mnxEvent.create_slurs();
         }
-        auto result = mnxEvent.slurs().value().append();
-        if (targetEntry == musxEntry->getEntryNumber()) {
-            result.set_location(horzOffset < 0
-                ? mnx::SlurTieEndLocation::Incoming
-                : mnx::SlurTieEndLocation::Outgoing
-            );
-        } else {
-            result.set_target(calcEventId(targetEntry));
-        }
+        auto result = mnxEvent.slurs().value().append(calcEventId(targetEntry));
         return result;
     };
     if (musxEntry->smartShapeDetail) {
@@ -125,26 +85,35 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
                     continue;
                 }
                 std::optional<mnx::SlurTieSide> side;
+                mnx::LineType lineType = mnx::LineType::Solid;
                 switch (shape->shapeType) {
                     default:
                         continue;
                     case others::SmartShape::ShapeType::SlurAuto:
+                        break;
                     case others::SmartShape::ShapeType::DashSlurAuto:
                     case others::SmartShape::ShapeType::DashContouSlurAuto:
+                        lineType = mnx::LineType::Dashed;
                         break;
                     case others::SmartShape::ShapeType::SlurUp:
+                        side = mnx::SlurTieSide::Up;
+                        break;
                     case others::SmartShape::ShapeType::DashSlurUp:
                     case others::SmartShape::ShapeType::DashContourSlurUp:
+                        lineType = mnx::LineType::Dashed;
                         side = mnx::SlurTieSide::Up;
                         break;
                     case others::SmartShape::ShapeType::SlurDown:
+                        side = mnx::SlurTieSide::Down;
+                        break;
                     case others::SmartShape::ShapeType::DashSlurDown:
                     case others::SmartShape::ShapeType::DashContourSlurDown:
+                        lineType = mnx::LineType::Dashed;
                         side = mnx::SlurTieSide::Down;
                         break;
                 }
-                Evpu offset = std::min(shape->startTermSeg->endPointAdj->horzOffset, shape->endTermSeg->endPointAdj->horzOffset);
-                auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber, offset);
+                auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
+                mnxSlur.set_lineType(lineType);
                 if (side) {
                     mnxSlur.set_side(side.value());
                 }
@@ -273,7 +242,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 
     const bool isRestWorkaround = isBeamedRestWorkaround(musxEntryInfo);
     if (musxEntry->isHidden && !isRestWorkaround) {
-        content.append<mnx::sequence::Space>(1, mnxNoteValueFromEdu(musxEntry->duration));
+        content.append<mnx::sequence::Space>(mnxFractionFromEdu(musxEntry->duration));
         return;
     }
     MUSX_ASSERT_IF(musxEntry->voice2 && isRestWorkaround) {
@@ -343,13 +312,17 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
                           : std::optional<int>(alteration);
             for (const auto& it : context->ottavasApplicableInMeasure) {
                 auto shape = it.second;
-                // if the note is a tie continuation, the ottava has to apply to the original note
-                auto tiedFromNoteInfo = musxNote;
-                while (tiedFromNoteInfo && tiedFromNoteInfo->tieEnd) {
-                    tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
-                }
-                if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
-                    octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
+                if (shape->calcAppliesTo(musxNote.getEntryInfo())) {
+                    // if the note is a tie continuation, the ottava has to apply to the original note
+                    auto tiedFromNoteInfo = musxNote;
+                    while (tiedFromNoteInfo && tiedFromNoteInfo->tieEnd) {
+                        tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
+                    }
+                    if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
+                        octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
+                    } else if (!musxNote.isSameNote(tiedFromNoteInfo)) {
+                        context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", LogSeverity::Verbose);
+                    }
                 }
             }
             auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
@@ -409,32 +382,6 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
     auto next = firstEntryInfo;
     int voice = next && next->getEntry()->voice2 ? 2 : 1; // firstEntryInfo can be null
     while (next) {
-        for (auto& ottava : context->insertedOttavas) {
-            if (!ottava.second) { // if the ottava has not been inserted
-                const auto it = context->ottavasApplicableInMeasure.find(ottava.first);
-                ASSERT_IF(it == context->ottavasApplicableInMeasure.end())
-                {
-                    throw std::logic_error("Unable to find ottava " + std::to_string(ottava.first) + " in applicable list for measure "
-                        + std::to_string(next.getMeasure()) + " and staff " + std::to_string(next.getStaff()));
-                }
-                if (it->second->calcAppliesTo(next)) {
-                    createOttava(content, it->second, mnxStaffNumber);
-                    ottava.second = true;
-                }
-            }
-        }
-        for (auto& dynamic : context->dynamicsInMeasure) {
-            if (!dynamic.second) {
-                if (next->elapsedDuration.calcEduDuration() >= dynamic.first->eduPosition) {
-                    auto expDef = dynamic.first->getTextExpression();
-                    ASSERT_IF(!expDef) {
-                        throw std::logic_error("Expression found with non-existent text expression, but it should have been checked earlier.");
-                    }
-                    createDynamic(context, content, expDef);
-                    dynamic.second = true;
-                }
-            }
-        }
         auto entry = next->getEntry();
         if (inGrace && !entry->graceNote) {
             return next;
@@ -476,8 +423,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             throw std::logic_error("Next entry's elapsed duration value is smaller than tracked duration for sequence.");
         }
         if (currElapsedDuration > elapsedInSequence) {
-            auto [count, value] = mnxNoteValueQuantityFromFraction(context, currElapsedDuration - elapsedInSequence);
-            content.append<mnx::sequence::Space>(count, value);
+            content.append<mnx::sequence::Space>(mnxFractionFromFraction(currElapsedDuration - elapsedInSequence));
         }
 
         if (tupletIndex) {
@@ -518,7 +464,7 @@ void createSequences(const MnxMusxMappingPtr& context,
         return; // nothing to do
     }
     for (LayerIndex layer = 0; layer < MAX_LAYERS; layer++) {
-        if (auto entryFrame = gfhold->createEntryFrame(layer)) {
+        if (auto entryFrame = gfhold->createEntryFrame(layer, /*forWrittenPitch*/false)) {
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {

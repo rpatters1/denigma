@@ -30,12 +30,13 @@
 #include <functional>
 #include <cassert>
 
-
+#include "musx/musx.h"
 #include "utils/stringutils.h"
 
 inline constexpr char MUSX_EXTENSION[]      = "musx";
 inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
 inline constexpr char MNX_EXTENSION[]       = "mnx";
+inline constexpr char JSON_EXTENSION[]      = "json";
 inline constexpr char MSS_EXTENSION[]       = "mss";
 inline constexpr char MXL_EXTENSION[]       = "mxl";
 inline constexpr char MUSICXML_EXTENSION[]  = "musicxml";

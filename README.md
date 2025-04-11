@@ -2,6 +2,13 @@
 
 This utility as extracts and converts Enigma XML from a Finale `.musx` file. It is a successor the original denigma project by [Chris Roode](https://github.com/chrisroode).
 
+**This project is not affiliated with or endorsed by Finale or its parent company.**
+
+- It is an independent open-source utility designed to help users access and convert their own data in the absence of Finale, which has been discontinued.
+- It does not contain any Finale source code.
+- It is not capable of writing Finale files, only reading them.
+- Nothing in this repository circumvents digital copy protection on the Finale application.
+
 Use the `--help` option to get a full list of commands:
 
 ```

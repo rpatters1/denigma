@@ -117,12 +117,9 @@ int _MAIN(int argc, arg_char* argv[])
         showAboutPage();
         return 0;
     }
-    if (args.size() < 2) {
-        std::cerr << "Not enough arguments passed" << std::endl;
-        return showHelpPage(denigmaContext.programName);
-    }
 
     const auto currentCommand = [&]() -> std::shared_ptr<ICommand> {
+        if (args.empty()) return nullptr;
         auto it = registeredCommands.find(arg_string(args[0]));
         if (it != registeredCommands.end()) {
             args.erase(args.begin());
@@ -135,7 +132,8 @@ int _MAIN(int argc, arg_char* argv[])
         }
         return it->second;
     }();
-    if (!currentCommand) {
+    if (!currentCommand || args.empty()) {
+        std::cerr << "Not enough arguments passed" << std::endl;
         return showHelpPage(denigmaContext.programName);
     }
 

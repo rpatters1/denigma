@@ -123,7 +123,7 @@ static void createMappings(const MnxMusxMappingPtr& context)
     }
 }
 
-void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.testOutput) {
@@ -172,6 +172,13 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
         }
         context->mnxDocument->save(outputPath, denigmaContext.indentSpaces.value_or(-1));
     }
+}
+
+void exportMnx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+{
+    // for now mnx and json both export as JSON text files.
+    // the final plan is that the Mnx export will export a zip archive, similar to mxl for musicxml
+    exportJson(outputPath, xmlBuffer, denigmaContext);
 }
 
 } // namespace mnxexp

@@ -118,6 +118,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz-cpp)
 
+include(cmake/Dependencies.cmake) # GitHub branches/tags for MNX and MUSX
+
 # Define a cache variable for the local Musx C++ DOM path relative to the source directory.
 set(MUSX_LOCAL_PATH "" CACHE STRING "Path to local Musx C++ DOM checkout relative to the source directory (if provided)")
 
@@ -132,7 +134,7 @@ if(MUSX_LOCAL_PATH)
         message(FATAL_ERROR "Local Musx C++ DOM not found at ${MUSX_LOCAL_PATH_ABS}")
     endif()
 else()
-    message(STATUS "Using GitHub for Musx C++ DOM")
+    message(STATUS "Using GitHub for MUSX C++ DOM (${MUSXDOM_GIT_TAG_OR_BRANCH})")
 endif()
 
 # Compile definitions
@@ -151,7 +153,7 @@ set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for musx")
 FetchContent_Declare(
     musx
     GIT_REPOSITORY https://github.com/rpatters1/musxdom.git
-    GIT_TAG        main
+    GIT_TAG        ${MUSXDOM_GIT_TAG_OR_BRANCH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(musx)
@@ -173,7 +175,7 @@ if(MNXDOM_LOCAL_PATH)
         message(FATAL_ERROR "Local MNX C++ DOM not found at ${MNXDOM_LOCAL_PATH_ABS}")
     endif()
 else()
-    message(STATUS "Using GitHub for MNX C++ DOM")
+    message(STATUS "Using GitHub for MNX C++ DOM (${MNXDOM_GIT_TAG_OR_BRANCH})")
 endif()
 
 option(mnxdom_BUILD_TESTING "Enable testing mnxdom" OFF)
@@ -181,7 +183,7 @@ option(mnxdom_BUILD_TESTING "Enable testing mnxdom" OFF)
 FetchContent_Declare(
     mnxdom
     GIT_REPOSITORY https://github.com/rpatters1/mnxdom.git
-    GIT_TAG        main
+    GIT_TAG        ${MNXDOM_GIT_TAG_OR_BRANCH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(mnxdom)

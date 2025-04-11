@@ -76,12 +76,9 @@ struct MnxMusxMapping
     std::vector<InstCmper> partStaves;
     std::unordered_map<std::tuple<InstCmper, LayerIndex, int>, std::vector<EntryInfoPtr>, SequenceHash> leftOverEntries; // left over entries per layer/voice combo
     std::unordered_map<std::tuple<InstCmper, LayerIndex, int>, musx::util::Fraction, SequenceHash> duraOffsets; // dura offsets for leftovers per layer/voice combo
-    std::unordered_map<Cmper, std::shared_ptr<const others::SmartShape>> ottavasApplicableInMeasure;
-    std::unordered_map<Cmper, bool> insertedOttavas; ///< tracks (for each measure) whether we inserted ottavas that started in the measure.
-    std::unordered_map<InstCmper, std::vector<Cmper>> leftOverOttavas; ///< tracks ottavas that start after all entries have been processed for that inst/measure.
-    std::unordered_map<std::shared_ptr<const others::MeasureExprAssign>, bool> dynamicsInMeasure;
     std::unordered_set<musx::dom::EntryNumber> visifiedEntries;
-
+    std::unordered_map<Cmper, std::shared_ptr<const others::SmartShape>> ottavasApplicableInMeasure;
+    
     void clearCounts()
     {
         currMeas = currStaff = 0;
@@ -91,9 +88,6 @@ struct MnxMusxMapping
         leftOverEntries.clear();
         duraOffsets.clear();
         ottavasApplicableInMeasure.clear();
-        insertedOttavas.clear();
-        leftOverOttavas.clear();
-        dynamicsInMeasure.clear();
     }
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
@@ -148,6 +142,8 @@ mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllab
 
 mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction);
 mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue);
+mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const others::SmartShape::EndPoint>& smartShape);
+
 int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
 
 void createLayouts(const MnxMusxMappingPtr& context);
@@ -159,7 +155,8 @@ void createSequences(const MnxMusxMappingPtr& context,
     const std::shared_ptr<others::Measure>& musxMeasure,
     InstCmper staffCmper);
 
-void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
+void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
+void exportMnx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
 
 template <typename ToEnum, typename FromEnum>
 ToEnum enumConvert(FromEnum value);

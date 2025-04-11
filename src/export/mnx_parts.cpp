@@ -157,10 +157,9 @@ static void createClefs(
     }
 }
 
-/// @note This function is a placeholder until the mnx::Dynamic object is better defined.
-static void collectDynamics(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper)
+static void createDynamics(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper,
+    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
-    context->dynamicsInMeasure.clear();
     if (musxMeasure->hasExpression) {
         auto shapeAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getPartId(), musxMeasure->getCmper());
         for (const auto& asgn : shapeAssigns) {
@@ -168,7 +167,30 @@ static void collectDynamics(const MnxMusxMappingPtr& context, const std::shared_
                 if (auto expr = asgn->getTextExpression()) {
                     if (auto cat = context->document->getOthers()->get<others::MarkingCategory>(expr->getPartId(), expr->categoryId)) {
                         if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) {
-                            context->dynamicsInMeasure.emplace(asgn, false);
+                            if (auto text = expr->getTextBlock()) {
+                                if (auto rawText = text->getRawTextBlock()) {
+                                    /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
+                                    auto fontInfo = rawText->parseFirstFontInfo();
+                                    std::string dynamicText = text->getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
+                                    if (!mnxMeasure.dynamics().has_value()) {
+                                        mnxMeasure.create_dynamics();
+                                    }
+                                    auto mnxDynamic = mnxMeasure.dynamics().value().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
+                                    if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText, *context->denigmaContext)) {
+                                        mnxDynamic.set_glyph(smuflGlyph.value());
+                                    }
+                                    if (mnxStaffNumber) {
+                                        mnxDynamic.set_staff(mnxStaffNumber.value());
+                                    }
+                                    if (asgn->layer > 0) {
+                                        mnxDynamic.set_voice(calcVoice(asgn->layer - 1, 1));
+                                    }
+                                } else {
+                                    context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, LogSeverity::Warning);
+                                }
+                            }  else {
+                                context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, LogSeverity::Warning);
+                            }
                         }
                     }
                 }
@@ -177,15 +199,15 @@ static void collectDynamics(const MnxMusxMappingPtr& context, const std::shared_
     }
 }
 
-static void collectOttavas(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper)
+static void createOttavas(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper,
+    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     context->ottavasApplicableInMeasure.clear();
-    context->insertedOttavas.clear();
     if (musxMeasure->hasSmartShape) {
         auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getPartId(), musxMeasure->getCmper());
         for (const auto& asgn : shapeAssigns) {
             if (auto shape = context->document->getOthers()->get<others::SmartShape>(asgn->getPartId(), asgn->shapeNum)) {
-                if (shape->startTermSeg->endPoint->staffId == staffCmper || shape->endTermSeg->endPoint->staffId == staffCmper) {
+                if (!shape->hidden && (shape->startTermSeg->endPoint->staffId == staffCmper || shape->endTermSeg->endPoint->staffId == staffCmper)) {
                     switch (shape->shapeType) {
                         default: continue;
                         case others::SmartShape::ShapeType::OctaveDown:
@@ -196,25 +218,24 @@ static void collectOttavas(const MnxMusxMappingPtr& context, const std::shared_p
                     }
                     context->ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
                     if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
-                        context->insertedOttavas.emplace(shape->getCmper(), false);
+                        if (!mnxMeasure.ottavas().has_value()) {
+                            mnxMeasure.create_ottavas();
+                        }
+                        auto mnxOttava = mnxMeasure.ottavas().value().append(
+                            enumConvert<mnx::OttavaAmount>(shape->shapeType),
+                            mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
+                            shape->endTermSeg->endPoint->measId,
+                            mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint)
+                        );
+                        mnxOttava.end().position().set_graceIndex(0);   // guarantees inclusion of any grace notes at the end of the ottava
+                        if (mnxStaffNumber) {
+                            mnxOttava.set_staff(mnxStaffNumber.value());
+                        }
+                        /// @todo: orient (if applicable)
                     }
                 }
             }
         }
-    }
-    auto it = context->leftOverOttavas.find(staffCmper);
-    if (it != context->leftOverOttavas.end()) {
-        for (Cmper leftOverId : it->second) {
-            if (context->ottavasApplicableInMeasure.find(leftOverId) != context->ottavasApplicableInMeasure.end()) {
-                // only add leftovers from previous measure if they continue in this measure.
-                context->insertedOttavas.emplace(leftOverId, false);
-            }
-        }
-        it->second.erase(std::remove_if(it->second.begin(), it->second.end(),
-            [context](const auto& item) {
-                return context->insertedOttavas.find(item) != context->insertedOttavas.end();
-            }),
-            it->second.end());
     }
 }
 
@@ -245,33 +266,11 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             context->currMeasDura = musxMeasure->createTimeSignature()->calcTotalDuration(); /// @todo pass in staff if MNX ever supports ind. time sig per staff
             std::optional<int> staffNumber = (context->partStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
-            collectOttavas(context, musxMeasure, context->partStaves[x]);
-            collectDynamics(context, musxMeasure, context->partStaves[x]);
-            context->visifiedEntries.clear();
+            createDynamics(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);
+            createOttavas(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);
+            context->visifiedEntries.clear(); // createSequences creates this vector for the use of createBeams
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
-            createBeams(context, mnxMeasure, musxMeasure, context->partStaves[x]);
-            for (auto& ottava : context->insertedOttavas) {
-                if (!ottava.second) {
-                    auto ottavaIt = context->leftOverOttavas.find(context->partStaves[x]);
-                    if (ottavaIt == context->leftOverOttavas.end()) {
-                        context->leftOverOttavas.emplace(context->partStaves[x], std::vector<Cmper>({ ottava.first }));
-                    } else {
-                        ottavaIt->second.emplace_back(ottava.first);
-                    }
-                }
-            }
-        }
-    }
-    for (const auto& leftOverOttava : context->leftOverOttavas) {
-        context->currStaff = leftOverOttava.first;
-        for (Cmper shapeId : leftOverOttava.second) {
-            auto shape = context->document->getOthers()->get<others::SmartShape>(SCORE_PARTID, shapeId);
-            ASSERT_IF(!shape) {
-                throw std::logic_error("ottava shape " + std::to_string(shapeId) + " does not exist.");
-            }
-            context->currMeas = shape->startTermSeg->endPoint->measId;
-            context->currMeasDura = shape->startTermSeg->endPoint->calcEduPosition();
-            context->logMessage(LogMsg() << "ottava " << shapeId << " was not inserted into MNX document", LogSeverity::Warning);
+            createBeams(context, mnxMeasure, musxMeasure, context->partStaves[x]); // must come after createSequences so that visifiedEntries is properly created when it is called.
         }
     }
     context->clearCounts();
