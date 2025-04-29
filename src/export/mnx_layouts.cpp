@@ -29,52 +29,6 @@
 namespace denigma {
 namespace mnxexp {
 
-struct StaffGroupInfo
-{
-    std::optional<size_t> startSlot;
-    std::optional<size_t> endSlot;
-    std::shared_ptr<details::StaffGroup> group;
-
-    StaffGroupInfo(const std::shared_ptr<details::StaffGroup>& inp,
-        const std::vector<std::shared_ptr<others::InstrumentUsed>>& systemStaves) : group(inp)
-    {
-        if (systemStaves.empty()) {
-            throw std::logic_error("Attempt to create StaffGroupInfo with no system staves (StaffGroup " + std::to_string(inp->getCmper2()) + ")");
-        }
-        for (size_t x = 0; x < systemStaves.size(); x++) {
-            if (inp->staves.find(systemStaves[x]->staffId) != inp->staves.end()) {
-                startSlot = x;
-                break;
-            }
-        }
-        if (startSlot) {
-            for (size_t x = systemStaves.size() - 1; x >= *startSlot; x--) {
-                if (inp->staves.find(systemStaves[x]->staffId) != inp->staves.end()) {
-                    endSlot = x;
-                    break;
-                }
-            }
-        }
-    }
-
-    static std::vector<StaffGroupInfo> getGroupsAtMeasure(MeasCmper measureId,
-        const std::shared_ptr<others::PartDefinition>& linkedPart,
-        const std::vector<std::shared_ptr<others::InstrumentUsed>>& systemStaves)
-    {
-        auto rawGroups = linkedPart->getDocument()->getDetails()->getArray<details::StaffGroup>(linkedPart->getCmper(), BASE_SYSTEM_ID);
-        std::vector<StaffGroupInfo> retval;
-        for (const auto& rawGroup : rawGroups) {
-            if (rawGroup->startMeas <= measureId && rawGroup->endMeas >= measureId) {
-                StaffGroupInfo group(rawGroup, systemStaves);
-                if (group.startSlot && group.endSlot) {
-                    retval.emplace_back(std::move(group));
-                }
-            }
-        }
-        return retval;
-    }
-};
-
 // Helper function to create a JSON representation of a single staff
 static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
     const MnxMusxMappingPtr& context,
@@ -144,7 +98,7 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
 static void buildOrderedContent(
     mnx::ContentArray&& content,
     const MnxMusxMappingPtr& context,
-    const std::vector<StaffGroupInfo>& groups,
+    const std::vector<details::StaffGroupInfo>& groups,
     const std::vector<std::shared_ptr<others::InstrumentUsed>>& systemStaves,
     const std::shared_ptr<others::Measure> forMeas,
     size_t fromIndex = 0,
@@ -194,9 +148,9 @@ static void buildOrderedContent(
     }
 }
 
-static void sortGroups(std::vector<StaffGroupInfo>& groups)
+static void sortGroups(std::vector<details::StaffGroupInfo>& groups)
 {
-    std::sort(groups.begin(), groups.end(), [](const StaffGroupInfo& lhs, const StaffGroupInfo& rhs) {
+    std::sort(groups.begin(), groups.end(), [](const details::StaffGroupInfo& lhs, const details::StaffGroupInfo& rhs) {
         if (lhs.startSlot < rhs.startSlot) return true; // Earlier start slot comes first
         if (lhs.startSlot > rhs.startSlot) return false;
         if (lhs.endSlot > rhs.endSlot) return true;    // Wider span comes first
@@ -237,7 +191,7 @@ void createLayouts(const MnxMusxMappingPtr& context)
             auto systemStaves = context->document->getOthers()->getArray<others::InstrumentUsed>(
                 linkedPart->getCmper(), systemIuList);
             const MeasCmper forMeas = sysId ? staffSystems[sysId - 1]->startMeas : 1;
-            std::vector<StaffGroupInfo> groups = StaffGroupInfo::getGroupsAtMeasure(forMeas, linkedPart, systemStaves);
+            std::vector<details::StaffGroupInfo> groups = details::StaffGroupInfo::getGroupsAtMeasure(forMeas, linkedPart, systemStaves);
             sortGroups(groups);
             // Create a sequential content array.
             auto meas = context->document->getOthers()->get<others::Measure>(linkedPart->getCmper(), forMeas);
