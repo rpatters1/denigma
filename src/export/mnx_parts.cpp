@@ -37,8 +37,8 @@ static void createBeams(
     InstCmper staffCmper)
 {
     const auto& musxDocument = musxMeasure->getDocument();
-    if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
-        gfhold->iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
+    if (auto gfhold = details::GFrameHoldContext(musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
+        gfhold.iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
             auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
                 assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
                 auto beam = mnxBeams.append();

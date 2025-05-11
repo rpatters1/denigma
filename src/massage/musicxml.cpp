@@ -292,10 +292,10 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
         context->logMessage(LogMsg() << "staff not found for slot " << staffSlot, LogSeverity::Warning);
         return;
     }
-    auto gfHold = context->musxDocument->getDetails()->get<details::GFrameHold>(context->musxPartId, staff->getCmper(), measure);
+    auto gfHold = details::GFrameHoldContext(context->musxDocument, context->musxPartId, staff->getCmper(), measure);
     if (gfHold) {
         pugi::xml_node nextNote;
-        gfHold->iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
+        gfHold.iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
             auto entry = entryInfo->getEntry();
             if (entry->isHidden) { // Dolet does not create note elements for invisible entries
                 return true;
