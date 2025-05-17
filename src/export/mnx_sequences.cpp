@@ -458,13 +458,12 @@ void createSequences(const MnxMusxMappingPtr& context,
     const std::shared_ptr<others::Measure>& musxMeasure,
     InstCmper staffCmper)
 {
-    auto gfhold = musxMeasure->getDocument()->getDetails()->get<details::GFrameHold>(
-        musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper());
+    auto gfhold = details::GFrameHoldContext(musxMeasure->getDocument(), musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper());
     if (!gfhold) {
         return; // nothing to do
     }
     for (LayerIndex layer = 0; layer < MAX_LAYERS; layer++) {
-        if (auto entryFrame = gfhold->createEntryFrame(layer, /*forWrittenPitch*/false)) {
+        if (auto entryFrame = gfhold.createEntryFrame(layer, /*forWrittenPitch*/false)) {
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
