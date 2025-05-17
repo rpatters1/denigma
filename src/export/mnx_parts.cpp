@@ -126,7 +126,7 @@ static void createClefs(
             }
             int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPositon);
             std::optional<int> octave = clefInfo->second ? std::optional<int>(clefInfo->second) : std::nullopt;
-            auto mnxClef = mnxMeasure.clefs().value().append(staffPosition, clefInfo->first, octave);
+            auto mnxClef = mnxMeasure.clefs().value().append(clefInfo->first, staffPosition, octave);
             if (location) {
                 mnxClef.create_position(mnxFractionFromFraction(location));
             }
