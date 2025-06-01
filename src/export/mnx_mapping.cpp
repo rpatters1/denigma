@@ -488,7 +488,7 @@ mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_p
     if (auto entryInfo = endPoint->calcAssociatedEntry()) {
         return mnxFractionFromFraction(entryInfo->elapsedDuration);
     }
-    return mnxFractionFromEdu(endPoint->calcEduPosition()); 
+    return mnxFractionFromFraction(endPoint->calcPosition()); 
 }
 
 int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition)
