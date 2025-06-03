@@ -191,7 +191,7 @@ void createLayouts(const MnxMusxMappingPtr& context)
             auto systemStaves = context->document->getOthers()->getArray<others::InstrumentUsed>(
                 linkedPart->getCmper(), systemIuList);
             const MeasCmper forMeas = sysId ? staffSystems[sysId - 1]->startMeas : 1;
-            std::vector<details::StaffGroupInfo> groups = details::StaffGroupInfo::getGroupsAtMeasure(forMeas, linkedPart, systemStaves);
+            std::vector<details::StaffGroupInfo> groups = details::StaffGroupInfo::getGroupsAtMeasure(forMeas, linkedPart->getCmper(), systemStaves);
             sortGroups(groups);
             // Create a sequential content array.
             auto meas = context->document->getOthers()->get<others::Measure>(linkedPart->getCmper(), forMeas);
