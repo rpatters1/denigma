@@ -73,7 +73,7 @@ enum class EventMarkingType
 
 FontType convertFontToType(const std::shared_ptr<FontInfo>& fontInfo);
 JumpType convertTextToJump(const std::string& text, FontType fontType);
-std::optional<std::pair<mnx::ClefSign, int>> convertCharToClef(const char32_t sym, FontType fontType);
+std::optional<std::pair<mnx::ClefSign, mnx::OttavaAmountOrZero>> convertCharToClef(const char32_t sym, FontType fontType);
 std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others::ArticulationDef>& artic,
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark);

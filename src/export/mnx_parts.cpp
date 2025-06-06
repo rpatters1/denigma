@@ -125,7 +125,7 @@ static void createClefs(
                 mnxMeasure.create_clefs();
             }
             int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPositon);
-            std::optional<int> octave = clefInfo->second ? std::optional<int>(clefInfo->second) : std::nullopt;
+            auto octave = int(clefInfo->second) ? std::optional<mnx::OttavaAmountOrZero>(clefInfo->second) : std::nullopt;
             auto mnxClef = mnxMeasure.clefs().value().append(clefInfo->first, staffPosition, octave);
             if (location) {
                 mnxClef.create_position(mnxFractionFromFraction(location));
@@ -284,11 +284,8 @@ void createParts(const MnxMusxMappingPtr& context)
     auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {
         auto staff = item->getStaff();
-        std::shared_ptr<details::StaffGroup> multiStaffGroup;
-        if (staff->multiStaffInstVisualGroupId) {
-            multiStaffGroup = context->document->getDetails()->get<details::StaffGroup>(SCORE_PARTID, 0, staff->multiStaffInstVisualGroupId);
-        }
-        if (multiStaffGroup && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
+        auto multiStaffInst = staff->getMultiStaffInstGroup();
+        if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
             continue;
         }
         std::string id = "P" + std::to_string(++partNumber);
@@ -302,16 +299,12 @@ void createParts(const MnxMusxMappingPtr& context)
         if (!abrvName.empty()) {
             part.set_shortName(trimNewLineFromString(abrvName));
         }
-        if (multiStaffGroup) {
-            auto groupInfo = details::StaffGroupInfo(multiStaffGroup, scrollView);
-            part.set_staves(int(groupInfo.numStaves().value()));
-            std::vector<InstCmper> stavesInInst;
-            groupInfo.iterateStaves(1, 0, [&](const std::shared_ptr<others::StaffComposite>& staff) {
-                context->inst2Part.emplace(staff->getCmper(), id);
-                stavesInInst.push_back(staff->getCmper());
-                return true;
-            });
-            context->part2Inst.emplace(id, stavesInInst);
+        if (multiStaffInst) {
+            part.set_staves(int(multiStaffInst->visualStaffNums.size()));
+            for (auto inst : multiStaffInst->visualStaffNums) {
+                context->inst2Part.emplace(inst, id);
+            }
+            context->part2Inst.emplace(id, multiStaffInst->visualStaffNums);
         } else {
             context->inst2Part.emplace(staff->getCmper(), id);
             context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
