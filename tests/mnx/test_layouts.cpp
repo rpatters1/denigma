@@ -319,3 +319,32 @@ TEST(MnxLayouts, MultiInstrumentTest)
     EXPECT_EQ(layouts[3]["content"][4]["sources"][0]["part"], "P5");
     EXPECT_EQ(layouts[3]["content"][4]["sources"][0]["labelref"], "shortName");
 }
+
+TEST(MnxLayouts, Piano3StaffTest)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("piano3staff.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+        });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "piano3staff.mnx");
+    ASSERT_TRUE( doc.layouts());
+    auto layouts = doc.layouts().value();
+    ASSERT_GE(layouts.size(), 6);
+
+    EXPECT_EQ(layouts.size(), 6);
+    ASSERT_EQ(layouts[0].content().size(), 3);
+    ASSERT_EQ(layouts[0].content()[2].type(), "group");
+    auto pianoGroup = layouts[0].content()[2].get<mnx::layout::Group>();
+    ASSERT_EQ(pianoGroup.content().size(), 3);
+    for (size_t i = 0; i < pianoGroup.content().size(); i++) {
+        ASSERT_EQ(pianoGroup.content()[i].type(), "staff");
+        auto staffInfo = pianoGroup.content()[i].get<mnx::layout::Staff>();
+        ASSERT_EQ(staffInfo.sources().size(), 1);
+        EXPECT_EQ(staffInfo.sources()[0].part(), "P3");
+        EXPECT_EQ(staffInfo.sources()[0].staff(), i + 1) << "expected staff " << i + 1;
+    }
+}

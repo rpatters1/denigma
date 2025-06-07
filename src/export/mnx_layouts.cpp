@@ -44,8 +44,8 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " does not have a Staff instance.");
     }
     auto mnxSource = mnxStaff.sources().append(it->second);
-    if (auto multiStaffInst = staff->getMultiStaffInstGroup()) {
-        if (auto index = multiStaffInst->getIndexOf(staffSlot->staffId)) {
+    if (auto multiStaffInst = staff->getMultiStaffInstVisualGroup()) {
+        if (auto index = multiStaffInst->getVisualIndexOf(staffSlot->staffId)) {
             mnxSource.set_staff(int(*index) + 1);
         }
     }

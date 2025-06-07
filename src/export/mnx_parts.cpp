@@ -284,7 +284,7 @@ void createParts(const MnxMusxMappingPtr& context)
     auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {
         auto staff = item->getStaff();
-        auto multiStaffInst = staff->getMultiStaffInstGroup();
+        auto multiStaffInst = staff->getMultiStaffInstVisualGroup();
         if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
             continue;
         }
