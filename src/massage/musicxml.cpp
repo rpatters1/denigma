@@ -344,7 +344,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 return false;
             }
 
-            int numDots = 0;
+            unsigned numDots = 0;
             for (pugi::xml_node dot = nextNote.child("dot"); dot; dot = dot.next_sibling("dot")) {
                 ++numDots;
             }

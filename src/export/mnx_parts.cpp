@@ -125,7 +125,7 @@ static void createClefs(
                 mnxMeasure.create_clefs();
             }
             int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPositon);
-            std::optional<int> octave = clefInfo->second ? std::optional<int>(clefInfo->second) : std::nullopt;
+            auto octave = int(clefInfo->second) ? std::optional<mnx::OttavaAmountOrZero>(clefInfo->second) : std::nullopt;
             auto mnxClef = mnxMeasure.clefs().value().append(clefInfo->first, staffPosition, octave);
             if (location) {
                 mnxClef.create_position(mnxFractionFromFraction(location));
@@ -284,7 +284,7 @@ void createParts(const MnxMusxMappingPtr& context)
     auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {
         auto staff = item->getStaff();
-        auto multiStaffInst = staff->getMultiStaffInstGroup();
+        auto multiStaffInst = staff->getMultiStaffInstVisualGroup();
         if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
             continue;
         }
@@ -300,11 +300,11 @@ void createParts(const MnxMusxMappingPtr& context)
             part.set_shortName(trimNewLineFromString(abrvName));
         }
         if (multiStaffInst) {
-            part.set_staves(int(multiStaffInst->staffNums.size()));
-            for (auto inst : multiStaffInst->staffNums) {
+            part.set_staves(int(multiStaffInst->visualStaffNums.size()));
+            for (auto inst : multiStaffInst->visualStaffNums) {
                 context->inst2Part.emplace(inst, id);
             }
-            context->part2Inst.emplace(id, multiStaffInst->staffNums);
+            context->part2Inst.emplace(id, multiStaffInst->visualStaffNums);
         } else {
             context->inst2Part.emplace(staff->getCmper(), id);
             context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));

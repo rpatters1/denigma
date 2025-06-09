@@ -920,6 +920,13 @@
                   "count": {
                     "$ref": "#/$defs/positive-integer"
                   },
+                  "display": {
+                    "enum": [
+                      "common",
+                      "cut"
+                    ],
+                    "type": "string"
+                  },
                   "unit": {
                     "enum": [
                       1,
@@ -1040,6 +1047,15 @@
                             "$ref": "#/$defs/smufl-glyph"
                           },
                           "octave": {
+                            "enum": [
+                              1,
+                              2,
+                              -1,
+                              -2,
+                              3,
+                              -3,
+                              0
+                            ],
                             "type": "integer"
                           },
                           "sign": {
