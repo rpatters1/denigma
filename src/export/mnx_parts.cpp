@@ -38,6 +38,9 @@ static void createBeams(
 {
     const auto& musxDocument = musxMeasure->getDocument();
     if (auto gfhold = details::GFrameHoldContext(musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
+        if (gfhold.calcIsCuesOnly()) {
+            return; // skip cues until MNX spec includes them
+        }
         gfhold.iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
             auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
                 assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
@@ -141,8 +144,11 @@ static void createClefs(
             prevClefIndex = clefIndex;
         }
     };
-    
-    if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
+
+    auto staff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), 0);
+    if (staff && staff->transposition && staff->transposition->setToClef) {
+        addClef(staff->transposedClef, 0);
+    } else if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
         if (gfhold->clefId.has_value()) {
             addClef(gfhold->clefId.value(), 0);
         } else {

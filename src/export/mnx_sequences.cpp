@@ -276,7 +276,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
             if (!mnxEvent.notes()) {
                 mnxEvent.create_notes();
             }
-            auto [noteName, octave, alteration, _] = musxNote.calcNoteProperties();
+            auto [noteName, octave, alteration, _] = musxNote.calcNotePropertiesConcert();
             auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && (!musxNote->showAcci || !musxNote->freezeAcci))
                           ? std::nullopt
                           : std::optional<int>(alteration);
@@ -342,6 +342,9 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
         if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
             auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
             auto staffPosition = std::get<3>(musxRest.calcNoteProperties());
+            if (mnxEvent.measure() || (mnxEvent.duration() && mnxEvent.duration().value().base() == mnx::NoteValueBase::Whole)) {
+                staffPosition += 2; // compensate for discrepancy in Finale vs. MNX whole rest staff positions.
+            }
             mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
         }
     }
@@ -436,8 +439,12 @@ void createSequences(const MnxMusxMappingPtr& context,
     if (!gfhold) {
         return; // nothing to do
     }
+    if (gfhold.calcIsCuesOnly()) {
+        context->logMessage(LogMsg() << " skipping cues until MNX committee decides how to handle them.", LogSeverity::Verbose);
+        return;
+    }
     for (LayerIndex layer = 0; layer < MAX_LAYERS; layer++) {
-        if (auto entryFrame = gfhold.createEntryFrame(layer, /*forWrittenPitch*/false)) {
+        if (auto entryFrame = gfhold.createEntryFrame(layer, /*forWrittenPitch*/true)) {
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
