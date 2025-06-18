@@ -16,8 +16,6 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
         include:
-          - os: ubuntu-latest
-            generator: Ninja
           - os: macos-latest
             generator: Ninja
           - os: windows-latest
