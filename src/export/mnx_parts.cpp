@@ -105,6 +105,7 @@ static void createClefs(
 
     auto addClef = [&](ClefIndex clefIndex, musx::util::Fraction location, std::optional<ClefIndex>& prevIndex) {
         if (clefIndex == prevIndex) {
+            std::cout << "early exit: equal clefs " << clefIndex << " and " << prevIndex.value_or(0xffff) << std::endl;
             return;
         }
         if (clefIndex >= ClefIndex(clefDefs->clefDefs.size())) {
@@ -120,6 +121,7 @@ static void createClefs(
             auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
                 musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
             if (!musxStaff) {
+                std::cout << "createCurrent returned null" << std::endl;
                 context->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
                     << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
                 return;
@@ -141,7 +143,9 @@ static void createClefs(
                     mnxClef.clef().set_glyph(glyphName.value());
                 }
             }
+            std::cout << "before assignment: " << clefIndex << ", " << prevClefIndex.value_or(0xffff) << std::endl;
             prevIndex = clefIndex;
+            std::cout << "after assignment: " << clefIndex << ", " << prevClefIndex.value_or(0xffff) << std::endl;
         }
     };
 
@@ -278,8 +282,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             context->currStaff = context->partStaves[x];
             context->currMeasDura = musxMeasure->createTimeSignature()->calcTotalDuration(); /// @todo pass in staff if MNX ever supports ind. time sig per staff
             std::optional<int> staffNumber = (context->partStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
-            std::optional<ClefIndex>& prevClefIndex = prevClefs[x];
-            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefIndex);
+            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
             createDynamics(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);
             createOttavas(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);
             context->visifiedEntries.clear(); // createSequences creates this vector for the use of createBeams
