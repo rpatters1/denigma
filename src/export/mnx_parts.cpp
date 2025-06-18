@@ -38,6 +38,9 @@ static void createBeams(
 {
     const auto& musxDocument = musxMeasure->getDocument();
     if (auto gfhold = details::GFrameHoldContext(musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
+        if (gfhold.calcIsCuesOnly()) {
+            return; // skip cues until MNX spec includes them
+        }
         gfhold.iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
             auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
                 assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
@@ -139,10 +142,15 @@ static void createClefs(
                 }
             }
             prevClefIndex = clefIndex;
+        } else {
+            MUSX_INTEGRITY_ERROR("Clef char " + std::to_string(int(musxClef->clefChar)) + " has no clef info. " + " (fontType is " + std::to_string(int(fontType)) + ")");
         }
     };
-    
-    if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
+
+    auto staff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), 0);
+    if (staff && staff->transposition && staff->transposition->setToClef) {
+        addClef(staff->transposedClef, 0);
+    } else if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
         if (gfhold->clefId.has_value()) {
             addClef(gfhold->clefId.value(), 0);
         } else {
@@ -152,8 +160,11 @@ static void createClefs(
             }
         }
     } else if (musxMeasure->getCmper() == 1) {
-        int firstIndex = others::Staff::calcFirstClefIndex(musxDocument, musxMeasure->getPartId(), staffCmper);
-        addClef(ClefIndex(firstIndex), 0);
+        ClefIndex firstIndex = others::Staff::calcFirstClefIndex(musxDocument, musxMeasure->getPartId(), staffCmper);
+        addClef(firstIndex, 0);
+    }
+    MUSX_ASSERT_IF(!prevClefIndex.has_value()) {
+        throw std::logic_error("prevClefIndex has no value.");
     }
 }
 

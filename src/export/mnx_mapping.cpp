@@ -33,10 +33,10 @@ namespace mnxexp {
 
 FontType convertFontToType(const std::shared_ptr<FontInfo>& fontInfo)
 {
-    if (fontInfo->getName() == "GraceNotes") {
-        return FontType::GraceNotes;
-    } else if (fontInfo->calcIsSMuFL()) {
+    if (isFontSMuFL(fontInfo)) {
         return FontType::SMuFL;
+    } else if (fontInfo->getName() == "GraceNotes") {
+        return FontType::GraceNotes;
     } else if (fontInfo->calcIsDefaultMusic() || fontInfo->calcIsSymbolFont()) {
         return FontType::Symbol;
     }

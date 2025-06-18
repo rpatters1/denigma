@@ -43,17 +43,6 @@ using XmlAttribute = ::pugi::xml_attribute;
 constexpr static char MSS_VERSION[] = "4.50";
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 
-static const std::set<std::string_view> museScoreSMuFLFonts{
-    "Bravura",
-    "Leland",
-    "Emmentaler",
-    "Gonville",
-    "MuseJazz",
-    "Petaluma",
-    "Finale Maestro",
-    "Finale Broadway"
-};
-
 // Finale preferences:
 struct FinalePreferences
 {
@@ -307,14 +296,7 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     // Default music font
     auto defaultMusicFont = prefs->defaultMusicFont;
-    bool isSMuFL = [defaultMusicFont]() -> bool {
-        if (defaultMusicFont->calcIsSMuFL()) {
-            return true;
-        }
-        auto it = museScoreSMuFLFonts.find(defaultMusicFont->getName());
-        return it != museScoreSMuFLFonts.end();
-    }();
-    if (isSMuFL) {
+    if (isFontSMuFL(defaultMusicFont)) {
         setElementValue(styleElement, "musicalSymbolFont", defaultMusicFont->getName());
         setElementValue(styleElement, "musicalTextFont", defaultMusicFont->getName() + " Text");
     }
