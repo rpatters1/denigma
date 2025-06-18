@@ -103,9 +103,8 @@ static void createClefs(
         throw std::invalid_argument("Musx document contains no clef options.");
     }
 
-    auto addClef = [&](ClefIndex clefIndex, musx::util::Fraction location, std::optional<ClefIndex>& prevIndex) {
-        if (clefIndex == prevIndex) {
-            std::cout << "early exit: equal clefs " << clefIndex << " and " << prevIndex.value_or(0xffff) << std::endl;
+    auto addClef = [&](ClefIndex clefIndex, musx::util::Fraction location) {
+        if (clefIndex == prevClefIndex) {
             return;
         }
         if (clefIndex >= ClefIndex(clefDefs->clefDefs.size())) {
@@ -121,7 +120,6 @@ static void createClefs(
             auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
                 musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
             if (!musxStaff) {
-                std::cout << "createCurrent returned null" << std::endl;
                 context->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
                     << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
                 return;
@@ -143,9 +141,7 @@ static void createClefs(
                     mnxClef.clef().set_glyph(glyphName.value());
                 }
             }
-            std::cout << "before assignment: " << clefIndex << ", " << prevClefIndex.value_or(0xffff) << std::endl;
-            prevIndex = clefIndex;
-            std::cout << "after assignment: " << clefIndex << ", " << prevClefIndex.value_or(0xffff) << std::endl;
+            prevClefIndex = clefIndex;
         } else {
             MUSX_INTEGRITY_ERROR("Clef char " + std::to_string(int(musxClef->clefChar)) + " has no clef info. " + " (fontType is " + std::to_string(int(fontType)) + ")");
         }
@@ -153,23 +149,19 @@ static void createClefs(
 
     auto staff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), 0);
     if (staff && staff->transposition && staff->transposition->setToClef) {
-        std::cout << "adding transposing clef " << staff->transposedClef << " current clef is " << prevClefIndex.value_or(0xffff) << std::endl;
-        addClef(staff->transposedClef, 0, prevClefIndex);
+        addClef(staff->transposedClef, 0);
     } else if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
         if (gfhold->clefId.has_value()) {
-            std::cout << "adding gfhold clef " << gfhold->clefId.value() << " current clef is " << prevClefIndex.value_or(0xffff) << std::endl;
-            addClef(gfhold->clefId.value(), 0, prevClefIndex);
+            addClef(gfhold->clefId.value(), 0);
         } else {
             auto clefList = musxDocument->getOthers()->getArray<others::ClefList>(musxMeasure->getPartId(), gfhold->clefListId);
             for (const auto& clefItem : clefList) {
-                std::cout << "adding midmeasure clef " << clefItem->clefIndex << " current clef is " << prevClefIndex.value_or(0xffff) << std::endl;
-                addClef(clefItem->clefIndex, musx::util::Fraction::fromEdu(clefItem->xEduPos), prevClefIndex);
+                addClef(clefItem->clefIndex, musx::util::Fraction::fromEdu(clefItem->xEduPos));
             }
         }
     } else if (musxMeasure->getCmper() == 1) {
         ClefIndex firstIndex = others::Staff::calcFirstClefIndex(musxDocument, musxMeasure->getPartId(), staffCmper);
-        std::cout << "adding first clef " << firstIndex << " current clef is " << prevClefIndex.value_or(0xffff) << std::endl;
-        addClef(firstIndex, 0, prevClefIndex);
+        addClef(firstIndex, 0);
     }
     MUSX_ASSERT_IF(!prevClefIndex.has_value()) {
         throw std::logic_error("prevClefIndex has no value.");

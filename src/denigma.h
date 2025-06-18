@@ -249,6 +249,7 @@ std::string getTimeStamp(const std::string& fmt);
 
 bool createDirectoryIfNeeded(const std::filesystem::path& path);
 void showAboutPage();
+bool isFontSMuFL(const std::shared_ptr<musx::dom::FontInfo>& font);
 
 } // namespace denigma
 
