@@ -86,7 +86,7 @@ TEST(MnxParts, ForcedClef)
     EXPECT_EQ(rest.staffPosition().value(), 4);
 
     /// check clefs
-    ASSERT_TRUE(measure2.clefs().has_value());
+    ASSERT_TRUE(measure2.clefs().has_value()) << measure2.dump(4);
     auto clefs = measure2.clefs().value();
     ASSERT_GE(clefs.size(), 1);
     EXPECT_EQ(clefs.size(), 1);
