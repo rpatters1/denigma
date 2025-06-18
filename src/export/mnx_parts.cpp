@@ -146,6 +146,8 @@ static void createClefs(
             std::cout << "before assignment: " << clefIndex << ", " << prevClefIndex.value_or(0xffff) << std::endl;
             prevIndex = clefIndex;
             std::cout << "after assignment: " << clefIndex << ", " << prevClefIndex.value_or(0xffff) << std::endl;
+        } else {
+            MUSX_INTEGRITY_ERROR("Clef char " + std::to_string(int(musxClef->clefChar)) + " has no clef info. " + " (fontType is " + std::to_string(int(fontType)) + ")");
         }
     };
 
