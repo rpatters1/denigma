@@ -141,7 +141,7 @@ static void assignKey(
     const std::shared_ptr<others::Measure>& musxMeasure,
     std::optional<int>& prevKeyFifths)
 {
-    auto keyFifths = musxMeasure->createKeySignature()->getAlteration();
+    auto keyFifths = musxMeasure->createKeySignature()->getAlteration(KeySignature::KeyContext::Concert);
     if (keyFifths != prevKeyFifths) {
         mnxMeasure.create_key(keyFifths);
         prevKeyFifths = keyFifths;

@@ -444,7 +444,7 @@ void createSequences(const MnxMusxMappingPtr& context,
         return;
     }
     for (LayerIndex layer = 0; layer < MAX_LAYERS; layer++) {
-        if (auto entryFrame = gfhold.createEntryFrame(layer, /*forWrittenPitch*/true)) {
+        if (auto entryFrame = gfhold.createEntryFrame(layer)) {
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
