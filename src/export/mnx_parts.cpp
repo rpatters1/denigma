@@ -278,7 +278,8 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             context->currStaff = context->partStaves[x];
             context->currMeasDura = musxMeasure->createTimeSignature()->calcTotalDuration(); /// @todo pass in staff if MNX ever supports ind. time sig per staff
             std::optional<int> staffNumber = (context->partStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
-            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
+            std::optional<ClefIndex>& prevClefIndex = prevClefs[x];
+            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefIndex);
             createDynamics(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);
             createOttavas(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);
             context->visifiedEntries.clear(); // createSequences creates this vector for the use of createBeams
