@@ -147,6 +147,7 @@ static void createClefs(
 
     auto staff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), 0);
     if (staff && staff->transposition && staff->transposition->setToClef) {
+        std::cout << "adding clef " << staff->transposedClef << " current clef is " << prevClefIndex.value_or(0xffff) << std::endl;
         addClef(staff->transposedClef, 0);
     } else if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
         if (gfhold->clefId.has_value()) {
