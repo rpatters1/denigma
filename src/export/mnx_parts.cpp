@@ -147,7 +147,8 @@ static void createClefs(
             }
             prevClefIndex = clefIndex;
         } else {
-            MUSX_INTEGRITY_ERROR("Clef char " + std::to_string(int(musxClef->clefChar)) + " has no clef info. " + " (fontType is " + std::to_string(int(fontType)) + ")");
+            context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (fontType is " << int(fontType) << ")"
+                << " Clef change was skipped.", LogSeverity::Warning);
         }
     };
 
@@ -166,9 +167,6 @@ static void createClefs(
     } else if (musxMeasure->getCmper() == 1) {
         ClefIndex firstIndex = others::Staff::calcFirstClefIndex(musxDocument, musxMeasure->getPartId(), staffCmper);
         addClef(firstIndex, 0);
-    }
-    MUSX_ASSERT_IF(!prevClefIndex.has_value()) {
-        throw std::logic_error("prevClefIndex has no value.");
     }
 }
 
