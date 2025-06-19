@@ -55,8 +55,14 @@ void MnxMusxMapping::logMessage(LogMsg&& msg, LogSeverity severity)
     denigmaContext->logMessage(LogMsg() << logEntry << msg.str(), severity);
 }
 
-static void createMnx([[maybe_unused]] const MnxMusxMappingPtr& context)
+static void createMnx(const MnxMusxMappingPtr& context)
 {
+    auto& mnxDocument = context->mnxDocument;
+    if (!mnxDocument->mnx().support()) {
+        mnxDocument->mnx().create_support();
+    }
+    auto support = mnxDocument->mnx().support().value();
+    support.set_useBeams(true);
 }
 
 static void createScores(const MnxMusxMappingPtr& context)

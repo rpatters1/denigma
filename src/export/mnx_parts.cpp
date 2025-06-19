@@ -56,18 +56,22 @@ static void createBeams(
                         unsigned nextBeamNumber = beamNumber + 1;
                         unsigned lowestBeamStub = next.calcLowestBeamStub();
                         if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
-                            if (!beam.hooks().has_value()) {
-                                beam.create_hooks();
+                            if (!beam.beams().has_value()) {
+                                beam.create_beams();
                             }
+                            auto hookBeam = beam.beams().value().append();
+                            hookBeam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
+                            /// @todo only specify direction if hookDir is manually overridden
                             mnx::BeamHookDirection hookDir = next.calcBeamStubIsLeft()
-                                                            ? mnx::BeamHookDirection::Left
-                                                            : mnx::BeamHookDirection::Right;
-                            beam.hooks().value().append(mnx::part::BeamHook::Initializer(calcEventId(next->getEntry()->getEntryNumber()), hookDir));
-                        } else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
-                            if (!beam.inner().has_value()) {
-                                beam.create_inner();
+                                ? mnx::BeamHookDirection::Left
+                                : mnx::BeamHookDirection::Right;
+                            hookBeam.set_direction(hookDir);
+                        }
+                        else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
+                            if (!beam.beams().has_value()) {
+                                beam.create_beams();
                             }
-                            self(beam.inner().value(), nextBeamNumber, next, self);
+                            self(beam.beams().value(), nextBeamNumber, next, self);
                         }
                     }
                     if (unsigned lowestBeamEnd = next.calcLowestBeamEnd()) {
@@ -143,7 +147,8 @@ static void createClefs(
             }
             prevClefIndex = clefIndex;
         } else {
-            MUSX_INTEGRITY_ERROR("Clef char " + std::to_string(int(musxClef->clefChar)) + " has no clef info. " + " (fontType is " + std::to_string(int(fontType)) + ")");
+            context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (fontType is " << int(fontType) << ")"
+                << " Clef change was skipped.", LogSeverity::Warning);
         }
     };
 
@@ -162,9 +167,6 @@ static void createClefs(
     } else if (musxMeasure->getCmper() == 1) {
         ClefIndex firstIndex = others::Staff::calcFirstClefIndex(musxDocument, musxMeasure->getPartId(), staffCmper);
         addClef(firstIndex, 0);
-    }
-    MUSX_ASSERT_IF(!prevClefIndex.has_value()) {
-        throw std::logic_error("prevClefIndex has no value.");
     }
 }
 

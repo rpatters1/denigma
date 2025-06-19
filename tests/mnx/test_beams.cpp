@@ -156,10 +156,10 @@ TEST(MnxBeams, BeamHooksAndInner)
         ASSERT_EQ(beam.events().size(), 2);
         EXPECT_EQ(beam.events()[0], "ev3");
         EXPECT_EQ(beam.events()[1], "ev4");
-        ASSERT_TRUE(beam.hooks().has_value());
-        ASSERT_EQ(beam.hooks().value().size(), 1);
-        EXPECT_EQ(beam.hooks().value()[0].event(), "ev4");
-        EXPECT_FALSE(beam.inner().has_value());
+        ASSERT_TRUE(beam.beams().has_value());
+        ASSERT_EQ(beam.beams().value().size(), 1);
+        EXPECT_EQ(beam.beams().value()[0].events()[0], "ev4");
+        EXPECT_EQ(beam.beams().value()[0].direction(), mnx::BeamHookDirection::Left);
     }
     // beam1
     {
@@ -169,20 +169,18 @@ TEST(MnxBeams, BeamHooksAndInner)
         EXPECT_EQ(beam.events()[1], "ev6");
         EXPECT_EQ(beam.events()[2], "ev7");
         EXPECT_EQ(beam.events()[3], "ev8");
-        ASSERT_TRUE(beam.hooks().has_value());
-        ASSERT_EQ(beam.hooks().value().size(), 2);
-        EXPECT_EQ(beam.hooks().value()[0].event(), "ev5");
-        EXPECT_EQ(beam.hooks().value()[1].event(), "ev6");
-        ASSERT_TRUE(beam.inner().has_value());
-        ASSERT_EQ(beam.inner().value().size(), 1);
-        auto inner = beam.inner().value()[0];
-        ASSERT_EQ(inner.events().size(), 2);
-        EXPECT_EQ(inner.events()[0], "ev7");
-        EXPECT_EQ(inner.events()[1], "ev8");
-        ASSERT_TRUE(inner.hooks().has_value());
-        ASSERT_EQ(inner.hooks().value().size(), 1);
-        EXPECT_EQ(inner.hooks().value()[0].event(), "ev7");
-        EXPECT_FALSE(inner.inner().has_value());
+        ASSERT_TRUE(beam.beams().has_value());
+        ASSERT_EQ(beam.beams().value().size(), 3);
+        EXPECT_EQ(beam.beams().value()[0].events()[0], "ev5");
+        EXPECT_EQ(beam.beams().value()[1].events()[0], "ev6");
+        auto beams = beam.beams().value()[2];
+        ASSERT_EQ(beams.events().size(), 2);
+        EXPECT_EQ(beams.events()[0], "ev7");
+        EXPECT_EQ(beams.events()[1], "ev8");
+        ASSERT_TRUE(beams.beams().has_value());
+        ASSERT_EQ(beams.beams().value().size(), 1);
+        EXPECT_EQ(beams.beams().value()[0].events()[0], "ev7");
+        EXPECT_EQ(beams.beams().value()[0].direction(), mnx::BeamHookDirection::Right);
     }
 }
 
@@ -214,10 +212,10 @@ TEST(MnxBeams, BeamRestWorkarounds)
         EXPECT_EQ(beam.events()[0], "ev5");
         EXPECT_EQ(beam.events()[1], "ev6");
         EXPECT_EQ(beam.events()[2], "ev7");
-        ASSERT_TRUE(beam.hooks().has_value());
-        ASSERT_EQ(beam.hooks().value().size(), 1);
-        EXPECT_EQ(beam.hooks().value()[0].event(), "ev7");
-        EXPECT_FALSE(beam.inner().has_value());
+        ASSERT_TRUE(beam.beams().has_value());
+        ASSERT_EQ(beam.beams().value().size(), 1);
+        EXPECT_EQ(beam.beams().value()[0].events()[0], "ev7");
+        EXPECT_EQ(beam.beams().value()[0].direction(), mnx::BeamHookDirection::Left);
     }
     // beam1
     {
@@ -225,7 +223,7 @@ TEST(MnxBeams, BeamRestWorkarounds)
         ASSERT_EQ(beam.events().size(), 2);
         EXPECT_EQ(beam.events()[0], "ev12");
         EXPECT_EQ(beam.events()[1], "ev13");
-        EXPECT_FALSE(beam.hooks().has_value());
+        EXPECT_FALSE(beam.beams().has_value());
     }
 
     auto measure2 = measures.value()[1];
@@ -239,10 +237,10 @@ TEST(MnxBeams, BeamRestWorkarounds)
         EXPECT_EQ(beam.events()[0], "ev19");
         EXPECT_EQ(beam.events()[1], "ev20");
         EXPECT_EQ(beam.events()[2], "ev21");
-        ASSERT_TRUE(beam.hooks().has_value());
-        ASSERT_EQ(beam.hooks().value().size(), 1);
-        EXPECT_EQ(beam.hooks().value()[0].event(), "ev21");
-        EXPECT_FALSE(beam.inner().has_value());
+        ASSERT_TRUE(beam.beams().has_value());
+        ASSERT_EQ(beam.beams().value().size(), 1);
+        EXPECT_EQ(beam.beams().value()[0].events()[0], "ev21");
+        EXPECT_EQ(beam.beams().value()[0].direction(), mnx::BeamHookDirection::Left);
     }
 
     doc.buildIdMapping();

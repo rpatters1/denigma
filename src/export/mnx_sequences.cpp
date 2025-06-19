@@ -341,7 +341,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
         // If a rest is hidden, it has been detected as a beam workaround, so its staff position is meaningless
         if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
             auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
-            auto staffPosition = std::get<3>(musxRest.calcNoteProperties());
+            auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView());
             if (mnxEvent.measure() || (mnxEvent.duration() && mnxEvent.duration().value().base() == mnx::NoteValueBase::Whole)) {
                 staffPosition += 2; // compensate for discrepancy in Finale vs. MNX whole rest staff positions.
             }
@@ -444,7 +444,7 @@ void createSequences(const MnxMusxMappingPtr& context,
         return;
     }
     for (LayerIndex layer = 0; layer < MAX_LAYERS; layer++) {
-        if (auto entryFrame = gfhold.createEntryFrame(layer, /*forWrittenPitch*/true)) {
+        if (auto entryFrame = gfhold.createEntryFrame(layer)) {
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
