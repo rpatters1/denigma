@@ -131,7 +131,7 @@ static void createClefs(
             if (!mnxMeasure.clefs().has_value()) {
                 mnxMeasure.create_clefs();
             }
-            int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPositon);
+            int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
             auto octave = int(clefInfo->second) ? std::optional<mnx::OttavaAmountOrZero>(clefInfo->second) : std::nullopt;
             auto mnxClef = mnxMeasure.clefs().value().append(clefInfo->first, staffPosition, octave);
             if (location) {

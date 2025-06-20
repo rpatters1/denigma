@@ -92,14 +92,14 @@ BEGIN_ENUM_CONVERSION(details::TupletDef::AutoBracketStyle, mnx::AutoYesNo)
     case details::TupletDef::AutoBracketStyle::UnbeamedOnly: return mnx::AutoYesNo::Auto;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(Note::NoteName, mnx::NoteStep)
-    case Note::NoteName::C: return mnx::NoteStep::C;
-    case Note::NoteName::D: return mnx::NoteStep::D;
-    case Note::NoteName::E: return mnx::NoteStep::E;
-    case Note::NoteName::F: return mnx::NoteStep::F;
-    case Note::NoteName::G: return mnx::NoteStep::G;
-    case Note::NoteName::A: return mnx::NoteStep::A;
-    case Note::NoteName::B: return mnx::NoteStep::B;
+BEGIN_ENUM_CONVERSION(music_theory::NoteName, mnx::NoteStep)
+    case music_theory::NoteName::C: return mnx::NoteStep::C;
+    case music_theory::NoteName::D: return mnx::NoteStep::D;
+    case music_theory::NoteName::E: return mnx::NoteStep::E;
+    case music_theory::NoteName::F: return mnx::NoteStep::F;
+    case music_theory::NoteName::G: return mnx::NoteStep::G;
+    case music_theory::NoteName::A: return mnx::NoteStep::A;
+    case music_theory::NoteName::B: return mnx::NoteStep::B;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mnx::OttavaAmount)
