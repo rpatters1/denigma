@@ -114,35 +114,40 @@ static void createClefs(
         if (clefIndex >= ClefIndex(clefDefs->clefDefs.size())) {
             throw std::invalid_argument("Invalid clef index " + std::to_string(clefIndex));
         }
+        auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
+            musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
+        if (!musxStaff) {
+            context->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
+                << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
+            return;
+        }
         const auto& musxClef = clefDefs->clefDefs[clefIndex];
         auto& clefFont = musxClef->font;
         if (!clefFont || !musxClef->useOwnFont) {
             clefFont = context->defaultMusicFont;
         }
         FontType fontType = convertFontToType(clefFont);
-        if (auto clefInfo = convertCharToClef(musxClef->clefChar, fontType)) {
-            auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
-                musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
-            if (!musxStaff) {
-                context->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
-                    << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
-                return;
-            }
+        if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, fontType)) {
             if (!mnxMeasure.clefs().has_value()) {
                 mnxMeasure.create_clefs();
             }
+            auto [clefSign, octave, hideOctave] = clefInfo.value();
             int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
-            auto octave = int(clefInfo->second) ? std::optional<mnx::OttavaAmountOrZero>(clefInfo->second) : std::nullopt;
-            auto mnxClef = mnxMeasure.clefs().value().append(clefInfo->first, staffPosition, octave);
+            auto mnxClef = mnxMeasure.clefs().value().append(clefSign, staffPosition, octave);
             if (location) {
                 mnxClef.create_position(mnxFractionFromFraction(location));
+            }
+            if (hideOctave) {
+                mnxClef.clef().set_showOctave(false);
             }
             if (mnxStaffNumber) {
                 mnxClef.set_staff(mnxStaffNumber.value());
             }
-            if (auto metaDataPath = clefFont->calcSMuFLMetaDataPath()) {
-                if (auto glyphName = utils::smuflGlyphNameForFont(metaDataPath.value(), musxClef->clefChar, *context->denigmaContext)) {
-                    mnxClef.clef().set_glyph(glyphName.value());
+            if (fontType == FontType::SMuFL) {
+                if (auto metaDataPath = clefFont->calcSMuFLMetaDataPath()) {
+                    if (auto glyphName = utils::smuflGlyphNameForFont(metaDataPath.value(), musxClef->clefChar, *context->denigmaContext)) {
+                        mnxClef.clef().set_glyph(glyphName.value());
+                    }
                 }
             }
             prevClefIndex = clefIndex;

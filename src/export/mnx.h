@@ -136,16 +136,6 @@ inline std::string trimNewLineFromString(const std::string& src)
     return src;
 }
 
-mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
-std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration);
-mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl);
-
-mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction);
-mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue);
-mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const others::SmartShape::EndPoint>& smartShape);
-
-int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
-
 void createLayouts(const MnxMusxMappingPtr& context);
 void createGlobal(const MnxMusxMappingPtr& context);
 void createParts(const MnxMusxMappingPtr& context);
