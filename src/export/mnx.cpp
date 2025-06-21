@@ -142,11 +142,6 @@ void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer
     auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
-    if (auto fontOptions = document->getOptions()->get<options::FontOptions>()) {
-        context->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
-    } else {
-        throw std::invalid_argument("Musx document contains no font options.");
-    }
 
     createMappings(context);   // map repeat text, text exprs, articulations, etc. to semantic values
 

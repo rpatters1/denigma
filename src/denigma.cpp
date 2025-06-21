@@ -229,27 +229,6 @@ bool createDirectoryIfNeeded(const std::filesystem::path& path)
     return false;
 }
 
-bool isFontSMuFL(const std::shared_ptr<musx::dom::FontInfo>& font)
-{
-    static const std::set<std::string_view> knownSmuflFontNames =
-    {
-        "Bravura",
-        "Leland",
-        "Emmentaler",
-        "Gonville",
-        "MuseJazz",
-        "Petaluma",
-        "Finale Maestro",
-        "Finale Broadway"
-    };
-
-    if (font->calcIsSMuFL()) {
-        return true;
-    }
-    auto it = knownSmuflFontNames.find(font->getName());
-    return it != knownSmuflFontNames.end();
-}
-
 void DenigmaContext::startLogging(const std::filesystem::path& defaultLogPath, int argc, arg_char* argv[])
 {
     errorOccurred = false;

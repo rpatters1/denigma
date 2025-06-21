@@ -296,7 +296,7 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     // Default music font
     auto defaultMusicFont = prefs->defaultMusicFont;
-    if (isFontSMuFL(defaultMusicFont)) {
+    if (defaultMusicFont->calcIsSMuFL()) {
         setElementValue(styleElement, "musicalSymbolFont", defaultMusicFont->getName());
         setElementValue(styleElement, "musicalTextFont", defaultMusicFont->getName() + " Text");
     }

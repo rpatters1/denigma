@@ -75,7 +75,7 @@ enum class EventMarkingType
     Unstress
 };
 
-FontType convertFontToType(const std::shared_ptr<FontInfo>& fontInfo);
+FontType convertFontToType(const std::shared_ptr<const FontInfo>& fontInfo);
 JumpType convertTextToJump(const std::string& text, FontType fontType);
 std::optional<std::pair<mnx::ClefSign, mnx::OttavaAmountOrZero>> musxClefTo(const char32_t sym, FontType fontType);
 std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others::ArticulationDef>& artic,

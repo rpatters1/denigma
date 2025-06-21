@@ -30,9 +30,9 @@
 namespace denigma {
 namespace mnxexp {
 
-FontType convertFontToType(const std::shared_ptr<FontInfo>& fontInfo)
+FontType convertFontToType(const std::shared_ptr<const FontInfo>& fontInfo)
 {
-    if (isFontSMuFL(fontInfo)) {
+    if (fontInfo->calcIsSMuFL()) {
         return FontType::SMuFL;
     } else if (fontInfo->getName() == "GraceNotes") {
         return FontType::GraceNotes;

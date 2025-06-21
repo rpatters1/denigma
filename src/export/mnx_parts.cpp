@@ -122,10 +122,7 @@ static void createClefs(
             return;
         }
         const auto& musxClef = clefDefs->clefDefs[clefIndex];
-        auto& clefFont = musxClef->font;
-        if (!clefFont || !musxClef->useOwnFont) {
-            clefFont = context->defaultMusicFont;
-        }
+        auto clefFont = musxClef->calcFont();
         FontType fontType = convertFontToType(clefFont);
         if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, fontType)) {
             if (!mnxMeasure.clefs().has_value()) {
