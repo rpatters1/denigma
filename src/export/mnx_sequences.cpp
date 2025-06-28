@@ -92,7 +92,7 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
                     case others::SmartShape::ShapeType::SlurAuto:
                         break;
                     case others::SmartShape::ShapeType::DashSlurAuto:
-                    case others::SmartShape::ShapeType::DashContouSlurAuto:
+                    case others::SmartShape::ShapeType::DashContourSlurAuto:
                         lineType = mnx::LineType::Dashed;
                         break;
                     case others::SmartShape::ShapeType::SlurUp:
