@@ -298,7 +298,7 @@ void createParts(const MnxMusxMappingPtr& context)
     int partNumber = 0;
     auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {
-        auto staff = item->getStaff();
+        auto staff = item->getStaffInstance(1, 0);
         auto multiStaffInst = staff->getMultiStaffInstVisualGroup();
         if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
             continue;
@@ -323,6 +323,13 @@ void createParts(const MnxMusxMappingPtr& context)
         } else {
             context->inst2Part.emplace(staff->getCmper(), id);
             context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
+        }
+        auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
+        if (transpositionDisp || transpositionAlt) {
+            auto transposition = part.create_transposition(transpositionDisp, music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt));
+            if (staff->transposition && !staff->transposition->noSimplifyKey && staff->transposition->keysig) {
+                transposition.set_keyFifthsFlipAt(7 * music_theory::sign(staff->transposition->keysig->adjust));
+            }
         }
         createMeasures(context, part);
     }

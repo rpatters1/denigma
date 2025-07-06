@@ -41,6 +41,27 @@
         "id": {
           "$ref": "#/$defs/id"
         },
+        "kitNotes": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "kitComponent": {
+                "type": "string"
+              },
+              "staff": {
+                "$ref": "#/$defs/staff-number"
+              },
+              "ties": {
+                "$ref": "#/$defs/tie-list"
+              }
+            },
+            "required": [
+              "kitComponent"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
         "lyrics": {
           "additionalProperties": false,
           "properties": {
@@ -231,29 +252,20 @@
                 ],
                 "type": "object"
               },
-              "smuflFont": {
-                "$ref": "#/$defs/smufl-font"
-              },
               "staff": {
                 "$ref": "#/$defs/staff-number"
               },
               "ties": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "lv": {
-                      "type": "boolean"
-                    },
-                    "side": {
-                      "$ref": "#/$defs/slur-side"
-                    },
-                    "target": {
-                      "$ref": "#/$defs/id"
-                    }
-                  },
-                  "type": "object"
+                "$ref": "#/$defs/tie-list"
+              },
+              "written": {
+                "additionalProperties": false,
+                "properties": {
+                  "diatonicDelta": {
+                    "$ref": "#/$defs/integer-signed"
+                  }
                 },
-                "type": "array"
+                "type": "object"
               }
             },
             "required": [
@@ -335,6 +347,9 @@
     },
     "id": {
       "type": "string"
+    },
+    "integer-signed": {
+      "type": "integer"
     },
     "integer-unsigned": {
       "type": "integer"
@@ -667,6 +682,24 @@
       },
       "type": "array"
     },
+    "tie-list": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "lv": {
+            "type": "boolean"
+          },
+          "side": {
+            "$ref": "#/$defs/slur-side"
+          },
+          "target": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
     "tuplet-display-setting": {
       "enum": [
         "noNumber",
@@ -937,6 +970,24 @@
           },
           "type": "array"
         },
+        "sounds": {
+          "additionalProperties": false,
+          "patternProperties": {
+            "^.*$": {
+              "additionalProperties": false,
+              "properties": {
+                "midiNumber": {
+                  "type": "integer"
+                },
+                "name": {
+                  "$ref": "#/$defs/string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
         "styles": {
           "items": {
             "additionalProperties": false,
@@ -1010,6 +1061,30 @@
         "properties": {
           "id": {
             "$ref": "#/$defs/id"
+          },
+          "kit": {
+            "additionalProperties": false,
+            "patternProperties": {
+              "^.*$": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "$ref": "#/$defs/string"
+                  },
+                  "soundID": {
+                    "$ref": "#/$defs/id"
+                  },
+                  "staffPosition": {
+                    "$ref": "#/$defs/staff-position"
+                  }
+                },
+                "required": [
+                  "staffPosition"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "object"
           },
           "measures": {
             "items": {
@@ -1192,6 +1267,34 @@
           },
           "staves": {
             "type": "integer"
+          },
+          "transposition": {
+            "additionalProperties": false,
+            "properties": {
+              "interval": {
+                "additionalProperties": false,
+                "properties": {
+                  "chromatic": {
+                    "$ref": "#/$defs/integer-signed"
+                  },
+                  "diatonic": {
+                    "$ref": "#/$defs/integer-signed"
+                  }
+                },
+                "required": [
+                  "chromatic",
+                  "diatonic"
+                ],
+                "type": "object"
+              },
+              "keyFifthsFlipAt": {
+                "$ref": "#/$defs/integer-signed"
+              }
+            },
+            "required": [
+              "interval"
+            ],
+            "type": "object"
           }
         },
         "type": "object"
@@ -1281,6 +1384,9 @@
               "type": "object"
             },
             "type": "array"
+          },
+          "useWritten": {
+            "type": "boolean"
           }
         },
         "required": [

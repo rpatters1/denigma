@@ -82,7 +82,7 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
             if (musxDocument) {
                 auto iuList = musxDocument->getOthers()->getArray<others::InstrumentUsed>(musxPartId, BASE_SYSTEM_ID);
                 if (!iuList.empty()) {
-                    if (auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, staffNumber)) {
+                    if (auto staff = others::InstrumentUsed::getStaffInstanceAtIndex(iuList, staffNumber)) {
                         return staff->getFullName();
                     }
                 }
@@ -287,7 +287,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
         context->logMessage(LogMsg() << "no staff list found for part", LogSeverity::Warning);
         return;
     }
-    auto staff = others::InstrumentUsed::getStaffAtIndex(iuList, Cmper(staffSlot));
+    auto staff = others::InstrumentUsed::getStaffInstanceAtIndex(iuList, Cmper(staffSlot));
     if (!staff) {
         context->logMessage(LogMsg() << "staff not found for slot " << staffSlot, LogSeverity::Warning);
         return;

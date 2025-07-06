@@ -69,7 +69,9 @@ static void createScores(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
     auto musxLinkedParts = others::PartDefinition::getInUserOrder(context->document);
+    auto musxMiscOptions = context->document->getOptions()->get<options::MiscOptions>();
     for (const auto& linkedPart : musxLinkedParts) {
+        auto partGlobals = context->document->getOthers()->get<others::PartGlobals>(linkedPart->getCmper(), MUSX_GLOBALS_CMPER);
         if (!mnxDocument->scores()) {
             mnxDocument->create_scores();
         }
@@ -114,6 +116,9 @@ static void createScores(const MnxMusxMappingPtr& context)
                     }
                 }
             }
+        }
+        if (partGlobals && !partGlobals->showTransposed) {
+            mnxScore.set_useWritten(true);
         }
     }
 }
