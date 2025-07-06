@@ -56,22 +56,15 @@ static void createBeams(
                         unsigned nextBeamNumber = beamNumber + 1;
                         unsigned lowestBeamStub = next.calcLowestBeamStub();
                         if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
-                            if (!beam.beams().has_value()) {
-                                beam.create_beams();
-                            }
-                            auto hookBeam = beam.beams().value().append();
+                            auto hookBeam = beam.create_beams().append();
                             hookBeam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
                             /// @todo only specify direction if hookDir is manually overridden
                             mnx::BeamHookDirection hookDir = next.calcBeamStubIsLeft()
                                 ? mnx::BeamHookDirection::Left
                                 : mnx::BeamHookDirection::Right;
                             hookBeam.set_direction(hookDir);
-                        }
-                        else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
-                            if (!beam.beams().has_value()) {
-                                beam.create_beams();
-                            }
-                            self(beam.beams().value(), nextBeamNumber, next, self);
+                        } else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
+                            self(beam.create_beams(), nextBeamNumber, next, self);
                         }
                     }
                     if (unsigned lowestBeamEnd = next.calcLowestBeamEnd()) {
@@ -82,10 +75,7 @@ static void createBeams(
                 }
             };
             if (entryInfo.calcIsBeamStart()) {
-                if (!mnxMeasure.beams().has_value()) {
-                    mnxMeasure.create_beams();
-                }
-                processBeam(mnxMeasure.beams().value(), 1, entryInfo, processBeam);
+                processBeam(mnxMeasure.create_beams(), 1, entryInfo, processBeam);
             }
             return true;
         });
@@ -125,12 +115,9 @@ static void createClefs(
         auto clefFont = musxClef->calcFont();
         FontType fontType = convertFontToType(clefFont);
         if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, fontType)) {
-            if (!mnxMeasure.clefs().has_value()) {
-                mnxMeasure.create_clefs();
-            }
             auto [clefSign, octave, hideOctave] = clefInfo.value();
             int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
-            auto mnxClef = mnxMeasure.clefs().value().append(clefSign, staffPosition, octave);
+            auto mnxClef = mnxMeasure.create_clefs().append(clefSign, staffPosition, octave);
             if (location) {
                 mnxClef.create_position(mnxFractionFromFraction(location));
             }
@@ -187,10 +174,7 @@ static void createDynamics(const MnxMusxMappingPtr& context, const std::shared_p
                                     /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
                                     auto fontInfo = rawText->parseFirstFontInfo();
                                     std::string dynamicText = text->getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-                                    if (!mnxMeasure.dynamics().has_value()) {
-                                        mnxMeasure.create_dynamics();
-                                    }
-                                    auto mnxDynamic = mnxMeasure.dynamics().value().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
+                                    auto mnxDynamic = mnxMeasure.create_dynamics().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
                                     if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText, *context->denigmaContext)) {
                                         mnxDynamic.set_glyph(smuflGlyph.value());
                                     }
@@ -233,10 +217,7 @@ static void createOttavas(const MnxMusxMappingPtr& context, const std::shared_pt
                     }
                     context->ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
                     if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
-                        if (!mnxMeasure.ottavas().has_value()) {
-                            mnxMeasure.create_ottavas();
-                        }
-                        auto mnxOttava = mnxMeasure.ottavas().value().append(
+                        auto mnxOttava = mnxMeasure.create_ottavas().append(
                             enumConvert<mnx::OttavaAmount>(shape->shapeType),
                             mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
                             shape->endTermSeg->endPoint->measId,

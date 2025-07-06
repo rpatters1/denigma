@@ -71,10 +71,7 @@ static void createEnding(mnx::global::Measure& mnxMeasure, const std::shared_ptr
             mnxEnding.set_open(musxEnding->calcIsOpen());
             if (auto musxNumbers = musxMeasure->getDocument()->getOthers()->get<others::RepeatPassList>(SCORE_PARTID, musxMeasure->getCmper())) {
                 for (int value : musxNumbers->values) {
-                    if (!mnxEnding.numbers().has_value()) {
-                        mnxEnding.create_numbers();
-                    }
-                    mnxEnding.numbers().value().push_back(value);
+                    mnxEnding.create_numbers().push_back(value);
                 }
             }
         }
@@ -188,10 +185,8 @@ static void createSegno(
 static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
 {
     auto createTempo = [&mnxMeasure](int bpm, Edu noteValue, Edu eduPosition) {
-        if (!mnxMeasure.tempos().has_value()) {
-            mnxMeasure.create_tempos();
-        }
-        auto tempo = mnxMeasure.tempos().value().append(bpm, mnxNoteValueFromEdu(noteValue));
+        auto mnxTempos = mnxMeasure.create_tempos();
+        auto tempo = mnxTempos.append(bpm, mnxNoteValueFromEdu(noteValue));
         if (eduPosition) {
             auto pos = Fraction::fromEdu(eduPosition);
             tempo.create_location(mnxFractionFromFraction(pos));
@@ -302,10 +297,7 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
             if (musxLyric->syllables.empty()) {
                 continue;
             }
-            if (!mnxDocument->global().lyrics().has_value()) {
-                mnxDocument->global().create_lyrics();
-            }
-            auto mnxLyrics = mnxDocument->global().lyrics().value();
+            auto mnxLyrics = mnxDocument->global().create_lyrics();
             if (!mnxLyrics.lineMetadata().has_value()) {
                 mnxLyrics.create_lineMetadata();
             }
@@ -365,10 +357,7 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
     for (const auto& baseline : baselines) {
         assert(mnxDocument->global().lyrics().has_value()); // bug if false. see early return statement above.
         auto mnxLyrics = mnxDocument->global().lyrics().value();
-        if (!mnxLyrics.lineOrder().has_value()) {
-            mnxLyrics.create_lineOrder();
-        }
-        auto mnxLineOrder = mnxLyrics.lineOrder().value();
+        auto mnxLineOrder = mnxLyrics.create_lineOrder();
         mnxLineOrder.push_back(calcLyricLineId(baseline.first, baseline.second->lyricNumber));
     }
 }

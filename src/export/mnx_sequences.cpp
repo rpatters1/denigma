@@ -71,11 +71,8 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
 static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
 {
     auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
-        if (!mnxEvent.slurs().has_value()) {
-            mnxEvent.create_slurs();
-        }
-        auto result = mnxEvent.slurs().value().append(calcEventId(targetEntry));
-        return result;
+        auto mnxSlurs = mnxEvent.create_slurs();
+        return mnxSlurs.append(calcEventId(targetEntry));
     };
     if (musxEntry->smartShapeDetail) {
         auto shapeAssigns = musxEntry->getDocument()->getDetails()->getArray<details::SmartShapeEntryAssign>(musxEntry->getPartId(), musxEntry->getEntryNumber());
@@ -132,10 +129,7 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
                 std::optional<mnx::BreathMarkSymbol> breathMark;
                 auto marks = calcMarkingType(artic, numMarks, breathMark);
                 for (auto mark : marks) {
-                    if (!mnxEvent.markings().has_value()) {
-                        mnxEvent.create_markings();
-                    }
-                    auto mnxMarkings = mnxEvent.markings().value();
+                    auto mnxMarkings = mnxEvent.create_markings();
                     switch (mark) {
                         case EventMarkingType::Accent:
                             if (!mnxMarkings.accent().has_value()) {
@@ -211,9 +205,7 @@ static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& 
     const auto musxEntry = musxEntryInfo->getEntry();
 
     for (size_t x = 0; x < musxEntry->notes.size(); x++) {
-        if (!mnxEvent.notes()) {
-            mnxEvent.create_notes();
-        }
+        auto mnxNotes = mnxEvent.create_notes();
         auto musxNote = NoteInfoPtr(musxEntryInfo, x);
         auto [noteName, octave, alteration, _] = musxNote.calcNotePropertiesConcert();
         auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && (!musxNote->showAcci || !musxNote->freezeAcci))
@@ -229,13 +221,12 @@ static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& 
                 }
                 if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
                     octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
-                }
-                else if (!musxNote.isSameNote(tiedFromNoteInfo)) {
+                } else if (!musxNote.isSameNote(tiedFromNoteInfo)) {
                     context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", LogSeverity::Verbose);
                 }
             }
         }
-        auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
+        auto mnxNote = mnxNotes.append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
         if (musxNote->freezeAcci) {
             auto acciDisp = mnxNote.create_accidentalDisplay(musxNote->showAcci);
             acciDisp.set_force(true);
@@ -254,8 +245,7 @@ static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& 
                 if (*mnxNoteStaff != mnxStaffNumber.value_or(1)) {
                     mnxNote.set_staff(*mnxNoteStaff);
                 }
-            }
-            else {
+            } else {
                 context->logMessage(LogMsg() << " note has cross-staffing to a staff (" << noteStaff
                     << ") that is not included in the MNX part.", LogSeverity::Warning);
             }
@@ -322,12 +312,10 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
                         << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
                         << lyr->syllable << ").", LogSeverity::Warning);
                 } else {
-                    if (!mnxEvent.lyrics().has_value()) {
-                        auto mnxLyrics = mnxEvent.create_lyrics();
-                        mnxLyrics.create_lines();
-                    }
+                    auto mnxLyrics = mnxEvent.create_lyrics();
+                    auto mnxLyricsLines = mnxLyrics.create_lines();
                     const size_t sylIndex = size_t(lyr->syllable - 1); // Finale syllable numbers are 1-based.
-                    auto mnxLyricLine = mnxEvent.lyrics().value().lines().value().append(
+                    auto mnxLyricLine = mnxLyricsLines.append(
                         calcLyricLineId(std::string(T::TextType::XmlNodeName), lyr->lyricNumber),
                         lyrText->syllables[sylIndex]->syllable 
                     );

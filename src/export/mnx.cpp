@@ -58,10 +58,7 @@ void MnxMusxMapping::logMessage(LogMsg&& msg, LogSeverity severity)
 static void createMnx(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-    if (!mnxDocument->mnx().support()) {
-        mnxDocument->mnx().create_support();
-    }
-    auto support = mnxDocument->mnx().support().value();
+    auto support = mnxDocument->mnx().create_support();
     support.set_useBeams(true);
 }
 
@@ -71,10 +68,7 @@ static void createScores(const MnxMusxMappingPtr& context)
     auto musxMiscOptions = context->document->getOptions()->get<options::MiscOptions>();
     for (const auto& linkedPart : context->musxParts) {
         auto partGlobals = context->document->getOthers()->get<others::PartGlobals>(linkedPart->getCmper(), MUSX_GLOBALS_CMPER);
-        if (!mnxDocument->scores()) {
-            mnxDocument->create_scores();
-        }
-        auto mnxScore = mnxDocument->scores().value().append(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
+        auto mnxScore = mnxDocument->create_scores().append(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
         if (mnxScore.name().empty()) {
             mnxScore.set_name(linkedPart->isScore()
                               ? std::string("Score")
@@ -83,10 +77,7 @@ static void createScores(const MnxMusxMappingPtr& context)
         mnxScore.set_layout(calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID));
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
-            if (!mnxScore.multimeasureRests()) {
-                mnxScore.create_multimeasureRests();
-            }
-            auto mnxMmRest = mnxScore.multimeasureRests().value().append(mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
+            auto mnxMmRest = mnxScore.create_multimeasureRests().append(mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
             if (!mmRest->calcIsNumberVisible()) {
                 mnxMmRest.set_label("");
             }
@@ -94,10 +85,7 @@ static void createScores(const MnxMusxMappingPtr& context)
         auto pages = context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper());
         auto baseIuList = linkedPart->calcSystemIuList(BASE_SYSTEM_ID);
         for (size_t x = 0; x < pages.size(); x++) {
-            if (!mnxScore.pages()) {
-                mnxScore.create_pages();
-            }
-            auto mnxPage = mnxScore.pages().value().append();
+            auto mnxPage = mnxScore.create_pages().append();
             auto mnxSystems = mnxPage.systems();
             auto page = pages[x];
             if (!page->isBlank() && page->lastSystem.has_value()) {
