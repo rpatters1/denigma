@@ -68,9 +68,8 @@ static void createMnx(const MnxMusxMappingPtr& context)
 static void createScores(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-    auto musxLinkedParts = others::PartDefinition::getInUserOrder(context->document);
     auto musxMiscOptions = context->document->getOptions()->get<options::MiscOptions>();
-    for (const auto& linkedPart : musxLinkedParts) {
+    for (const auto& linkedPart : context->musxParts) {
         auto partGlobals = context->document->getOthers()->get<others::PartGlobals>(linkedPart->getCmper(), MUSX_GLOBALS_CMPER);
         if (!mnxDocument->scores()) {
             mnxDocument->create_scores();
@@ -147,6 +146,7 @@ void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer
     auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
+    context->musxParts = others::PartDefinition::getInUserOrder(document);
 
     createMappings(context);   // map repeat text, text exprs, articulations, etc. to semantic values
 

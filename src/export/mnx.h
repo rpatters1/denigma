@@ -59,6 +59,7 @@ struct MnxMusxMapping
     const DenigmaContext* denigmaContext;
     musx::dom::DocumentPtr document;
     std::unique_ptr<mnx::Document> mnxDocument;
+    std::vector<std::shared_ptr<others::PartDefinition>> musxParts;
 
     std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
     std::unordered_map<InstCmper, std::string> inst2Part;
