@@ -127,6 +127,20 @@ inline std::string calcLyricLineId(const std::string& type, Cmper textNumber)
     return type.substr(0, 1) + std::to_string(textNumber);
 }
 
+inline std::string calcPercussionKitId(const std::shared_ptr<others::PercussionNoteInfo>& percNoteInfo)
+{
+    return "ke" + std::to_string(percNoteInfo->percNoteType);
+}
+
+inline std::string calcPercussionSoundId(const std::shared_ptr<others::PercussionNoteInfo>& percNoteInfo)
+{
+    std::string result = "pn" + std::to_string(percNoteInfo->getBaseNoteTypeId());
+    if (auto orderId = percNoteInfo->getNoteTypeOrderId()) {
+        result += "o" + std::to_string(orderId + 1);
+    }
+    return result;
+}
+
 inline std::string trimNewLineFromString(const std::string& src)
 {
     size_t pos = src.find('\n');
