@@ -246,7 +246,6 @@ mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequ
     const std::shared_ptr<others::Staff>& musxStaff)
 {
     auto mnxNote = mnxEvent.create_kitNotes().append(calcPercussionKitId(percNoteInfo));
-    auto percNoteType = percNoteInfo->getNoteType();
     auto part = mnxNote.getEnclosingElement<mnx::Part>();
     MNX_ASSERT_IF(!part.has_value()) {
         throw std::logic_error("Note created without a part.");
