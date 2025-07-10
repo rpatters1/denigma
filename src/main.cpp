@@ -26,6 +26,7 @@
 #include <memory>
 #include <chrono>
 #include <regex>
+#include <clocale>
 
 #include "musx/musx.h"
 
@@ -92,6 +93,10 @@ using namespace denigma;
 
 int _MAIN(int argc, arg_char* argv[])
 {
+#ifndef DENIGMA_TEST
+    setlocale(LC_ALL, "");
+#endif
+    
     if (argc <= 0) {
         std::cerr << "Error: argv[0] is unavailable" << std::endl;
         return 1;
