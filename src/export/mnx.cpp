@@ -88,8 +88,8 @@ static void createScores(const MnxMusxMappingPtr& context)
             auto mnxPage = mnxScore.create_pages().append();
             auto mnxSystems = mnxPage.systems();
             auto page = pages[x];
-            if (!page->isBlank() && page->lastSystem.has_value()) {
-                for (SystemCmper sysId = page->firstSystem; sysId <= *page->lastSystem; sysId++) {
+            if (!page->isBlank() && page->lastSystemId.has_value()) {
+                for (SystemCmper sysId = page->firstSystemId; sysId <= page->lastSystemId.value(); sysId++) {
                     auto system = context->document->getOthers()->get<others::StaffSystem>(linkedPart->getCmper(), sysId);
                     if (!system) {
                         throw std::logic_error("System " + std::to_string(sysId) + " on page " + std::to_string(page->getCmper())
