@@ -170,10 +170,10 @@ static void createDynamics(const MnxMusxMappingPtr& context, const std::shared_p
                     if (auto cat = context->document->getOthers()->get<others::MarkingCategory>(expr->getPartId(), expr->categoryId)) {
                         if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) {
                             if (auto text = expr->getTextBlock()) {
-                                if (auto rawText = text->getRawTextBlock()) {
+                                if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
                                     /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
-                                    auto fontInfo = rawText->parseFirstFontInfo();
-                                    std::string dynamicText = text->getText(SCORE_PARTID, true, musx::util::EnigmaString::AccidentalStyle::Unicode);
+                                    auto fontInfo = rawTextCtx.parseFirstFontInfo();
+                                    std::string dynamicText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
                                     auto mnxDynamic = mnxMeasure.create_dynamics().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
                                     if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText, *context->denigmaContext)) {
                                         mnxDynamic.set_glyph(smuflGlyph.value());
