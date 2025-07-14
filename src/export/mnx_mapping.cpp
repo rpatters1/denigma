@@ -467,7 +467,9 @@ std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefI
             case 0xE050: // SMuFL Standard G clef (unison)
             case 0xF472: // SMuFL Alternate G clef (unison)
                 hideOctave = fontType == FontType::SMuFL;
+                break;
             }
+            break;
         }
         case mnx::ClefSign::CClef:
         {
@@ -483,7 +485,9 @@ std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefI
             case 0xF408: // SMuFL Alternate C clef (unison)
             case 0xF473: // SMuFL Alternate C clef (unison)
                 hideOctave = fontType == FontType::SMuFL;
+                break;
             }
+            break;
         }
         case mnx::ClefSign::FClef:
         {
@@ -499,7 +503,9 @@ std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefI
             case 0xF407: // SMuFL Alternate F clef (unison)
             case 0xF474: // SMuFL Alternate F clef (unison)
                 hideOctave = fontType == FontType::SMuFL;
+                break;
             }
+            break;
         }
         default:
             break;
