@@ -95,3 +95,14 @@ TEST(MnxParts, ForcedClef)
     EXPECT_EQ(clef.clef().octave(), mnx::OttavaAmountOrZero::NoTransposition);
     EXPECT_FALSE(clef.position().has_value());
 }
+
+TEST(MnxParts, PartiallyHiddenCue)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("multimeas_cue.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error", "!Semantic validation errors" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    });
+}

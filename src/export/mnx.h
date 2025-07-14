@@ -58,8 +58,8 @@ struct MnxMusxMapping
 
     const DenigmaContext* denigmaContext;
     musx::dom::DocumentPtr document;
-    std::shared_ptr<FontInfo> defaultMusicFont;
     std::unique_ptr<mnx::Document> mnxDocument;
+    std::vector<std::shared_ptr<others::PartDefinition>> musxParts;
 
     std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
     std::unordered_map<InstCmper, std::string> inst2Part;
@@ -127,6 +127,20 @@ inline std::string calcLyricLineId(const std::string& type, Cmper textNumber)
     return type.substr(0, 1) + std::to_string(textNumber);
 }
 
+inline std::string calcPercussionKitId(const std::shared_ptr<others::PercussionNoteInfo>& percNoteInfo)
+{
+    return "ke" + std::to_string(percNoteInfo->percNoteType);
+}
+
+inline std::string calcPercussionSoundId(const std::shared_ptr<others::PercussionNoteInfo>& percNoteInfo)
+{
+    std::string result = "pn" + std::to_string(percNoteInfo->getBaseNoteTypeId());
+    if (auto orderId = percNoteInfo->getNoteTypeOrderId()) {
+        result += "o" + std::to_string(orderId + 1);
+    }
+    return result;
+}
+
 inline std::string trimNewLineFromString(const std::string& src)
 {
     size_t pos = src.find('\n');
@@ -135,16 +149,6 @@ inline std::string trimNewLineFromString(const std::string& src)
     }
     return src;
 }
-
-mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
-std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration);
-mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl);
-
-mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction);
-mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue);
-mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const others::SmartShape::EndPoint>& smartShape);
-
-int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
 
 void createLayouts(const MnxMusxMappingPtr& context);
 void createGlobal(const MnxMusxMappingPtr& context);

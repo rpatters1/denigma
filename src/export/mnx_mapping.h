@@ -28,6 +28,8 @@
 #include "musx/musx.h"
 #include "mnxdom.h"
 
+#include "mnx.h"
+
  //placeholder function
 
 using namespace musx::dom;
@@ -35,6 +37,8 @@ using namespace musx::util;
 
 namespace denigma {
 namespace mnxexp {
+
+struct MnxMusxMapping;
 
 enum class FontType
 {
@@ -71,12 +75,25 @@ enum class EventMarkingType
     Unstress
 };
 
-FontType convertFontToType(const std::shared_ptr<FontInfo>& fontInfo);
+FontType convertFontToType(const std::shared_ptr<const FontInfo>& fontInfo);
 JumpType convertTextToJump(const std::string& text, FontType fontType);
-std::optional<std::pair<mnx::ClefSign, mnx::OttavaAmountOrZero>> convertCharToClef(const char32_t sym, FontType fontType);
+std::optional<std::pair<mnx::ClefSign, mnx::OttavaAmountOrZero>> musxClefTo(const char32_t sym, FontType fontType);
 std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others::ArticulationDef>& artic,
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark);
+
+mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
+std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
+mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl);
+std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
+    const std::shared_ptr<const options::ClefOptions::ClefDef>& clefDef,
+    const std::shared_ptr<const others::Staff>& staff, FontType fontType);
+
+mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction);
+mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue);
+mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const others::SmartShape::EndPoint>& smartShape);
+
+int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
 
 } // namespace mnxexp
 } // namespace denigma

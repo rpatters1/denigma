@@ -166,12 +166,8 @@ static void sortGroups(std::vector<details::StaffGroupInfo>& groups)
 void createLayouts(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-
-    // Retrieve the linked parts in order.
-    auto musxLinkedParts = others::PartDefinition::getInUserOrder(context->document);
-
     // Iterate over each linked part and generate layouts.
-    for (const auto& linkedPart : musxLinkedParts) {
+    for (const auto& linkedPart : context->musxParts) {
         Cmper baseSystemIuList = linkedPart->calcSystemIuList(BASE_SYSTEM_ID);
         auto staffSystems = context->document->getOthers()->getArray<others::StaffSystem>(linkedPart->getCmper());
         const SystemCmper minSystem = BASE_SYSTEM_ID;

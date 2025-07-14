@@ -296,7 +296,7 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     // Default music font
     auto defaultMusicFont = prefs->defaultMusicFont;
-    if (isFontSMuFL(defaultMusicFont)) {
+    if (defaultMusicFont->calcIsSMuFL()) {
         setElementValue(styleElement, "musicalSymbolFont", defaultMusicFont->getName());
         setElementValue(styleElement, "musicalTextFont", defaultMusicFont->getName() + " Text");
     }
@@ -311,7 +311,7 @@ static void writeLyricsPrefs(XmlElement& styleElement, const FinalePreferencesPt
         }) {
         auto verseText = prefs->document->getTexts()->get<texts::LyricsVerse>(Cmper(verseNumber));
         if (verseText && !verseText->text.empty()) {
-            auto font = verseText->parseFirstFontInfo();
+            auto font = verseText->getRawTextCtx(prefs->forPartId).parseFirstFontInfo();
             if (font) {
                 fontInfo = font;
             }

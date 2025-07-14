@@ -71,11 +71,8 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
 static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
 {
     auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
-        if (!mnxEvent.slurs().has_value()) {
-            mnxEvent.create_slurs();
-        }
-        auto result = mnxEvent.slurs().value().append(calcEventId(targetEntry));
-        return result;
+        auto mnxSlurs = mnxEvent.create_slurs();
+        return mnxSlurs.append(calcEventId(targetEntry));
     };
     if (musxEntry->smartShapeDetail) {
         auto shapeAssigns = musxEntry->getDocument()->getDetails()->getArray<details::SmartShapeEntryAssign>(musxEntry->getPartId(), musxEntry->getEntryNumber());
@@ -92,7 +89,7 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
                     case others::SmartShape::ShapeType::SlurAuto:
                         break;
                     case others::SmartShape::ShapeType::DashSlurAuto:
-                    case others::SmartShape::ShapeType::DashContouSlurAuto:
+                    case others::SmartShape::ShapeType::DashContourSlurAuto:
                         lineType = mnx::LineType::Dashed;
                         break;
                     case others::SmartShape::ShapeType::SlurUp:
@@ -132,10 +129,7 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
                 std::optional<mnx::BreathMarkSymbol> breathMark;
                 auto marks = calcMarkingType(artic, numMarks, breathMark);
                 for (auto mark : marks) {
-                    if (!mnxEvent.markings().has_value()) {
-                        mnxEvent.create_markings();
-                    }
-                    auto mnxMarkings = mnxEvent.markings().value();
+                    auto mnxMarkings = mnxEvent.create_markings();
                     switch (mark) {
                         case EventMarkingType::Accent:
                             if (!mnxMarkings.accent().has_value()) {
@@ -206,9 +200,202 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
     }
 }
 
+mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote)
+{
+    auto [noteName, octave, alteration, _] = musxNote.calcNotePropertiesConcert();
+    auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && (!musxNote->showAcci || !musxNote->freezeAcci))
+        ? std::nullopt
+        : std::optional<int>(alteration);
+    for (const auto& it : context->ottavasApplicableInMeasure) {
+        auto shape = it.second;
+        if (shape->calcAppliesTo(musxNote.getEntryInfo())) {
+            // if the note is a tie continuation, the ottava has to apply to the original note
+            auto tiedFromNoteInfo = musxNote;
+            while (tiedFromNoteInfo && tiedFromNoteInfo->tieEnd) {
+                tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
+            }
+            if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
+                octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
+            } else if (!musxNote.isSameNote(tiedFromNoteInfo)) {
+                context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", LogSeverity::Verbose);
+            }
+        }
+    }
+    auto mnxNote = mnxEvent.create_notes().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
+    if (musxNote->freezeAcci) {
+        auto acciDisp = mnxNote.create_accidentalDisplay(musxNote->showAcci);
+        acciDisp.set_force(true);
+    }
+    const auto musxEntry = musxNote.getEntryInfo()->getEntry();
+    if (musxEntry->noteDetail) {
+        for (const auto& linkedPart : context->musxParts) {
+            if (auto noteAlts = musxEntry->getDocument()->getDetails()->getForNote<details::NoteAlterations>(musxNote, linkedPart->getCmper())) {
+                if (noteAlts->enharmonic) {
+                    auto [enharmonicLev, enharmonicAlt] = musxNote.calcDefaultEnharmonic();
+                    auto mnxWritten = mnxNote.create_written();
+                    mnxWritten.set_diatonicDelta(enharmonicLev - musxNote->harmLev);
+                    break;
+                }
+            }
+        }
+    }
+    return mnxNote;
+}
+
+mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const std::shared_ptr<others::PercussionNoteInfo>& percNoteInfo,
+    const std::shared_ptr<others::Staff>& musxStaff)
+{
+    auto mnxNote = mnxEvent.create_kitNotes().append(calcPercussionKitId(percNoteInfo));
+    auto part = mnxNote.getEnclosingElement<mnx::Part>();
+    MNX_ASSERT_IF(!part.has_value()) {
+        throw std::logic_error("Note created without a part.");
+    }
+    part->create_kit();
+    if (!part->kit()->contains(mnxNote.kitComponent())) {
+        auto kitElement = part->kit()->append(mnxNote.kitComponent(), mnxStaffPosition(musxStaff, percNoteInfo->calcStaffReferencePosition()));
+        const auto& percNoteType = percNoteInfo->getNoteType();
+        if (percNoteType.instrumentId != 0) {
+            kitElement.set_name(percNoteType.createName(percNoteInfo->getNoteTypeOrderId()));
+            kitElement.set_soundID(calcPercussionSoundId(percNoteInfo));
+            auto sounds = context->mnxDocument->global().create_sounds();
+            if (!sounds.contains(kitElement.soundID().value())) {
+                auto sound = sounds.append(kitElement.soundID().value());
+                sound.set_name(kitElement.name().value());
+                if (percNoteType.generalMidi >= 0) {
+                    /// @todo revisit this if there is better support for multiple synth patches
+                    sound.set_midiNumber(percNoteType.generalMidi);
+                }
+            }
+        }
+    }
+    return mnxNote;
+}
+
+template <typename MnxNoteType>
+static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote,
+    const std::shared_ptr<others::Staff>& musxStaff, const std::shared_ptr<others::PercussionNoteInfo>& percNoteInfo, std::optional<int> mnxStaffNumber)
+{
+    static_assert(std::is_base_of_v<mnx::sequence::NoteBase, MnxNoteType>, "MnxNoteType must have base type NoteBase.");
+
+    const auto musxEntry = musxNote.getEntryInfo()->getEntry();
+
+    MnxNoteType mnxNote = [&]() {
+        if constexpr (std::is_same_v<MnxNoteType, mnx::sequence::Note>) {
+            return createNormalNote(context, mnxEvent, musxNote);
+        } else {
+            MUSX_ASSERT_IF(!percNoteInfo) {
+                throw std::logic_error("Kit note requested without PercussionNoteInfo instance.");
+            }
+            return createKitNote(context, mnxEvent, percNoteInfo, musxStaff);
+        }
+    }();
+    /// @todo remove this constexpr check when id is allowed in KitNote
+    if constexpr (std::is_same_v<MnxNoteType, mnx::sequence::Note>) {
+        mnxNote.set_id(calcNoteId(musxNote));
+    }
+    if (musxNote->crossStaff) {
+        InstCmper noteStaff = musxNote.calcStaff();
+        std::optional<int> mnxNoteStaff;
+        for (size_t y = 0; y < context->partStaves.size(); y++) {
+            if (context->partStaves[y] == noteStaff) {
+                mnxNoteStaff = int(y + 1);
+                break;
+            }
+        }
+        if (mnxNoteStaff) {
+            if (*mnxNoteStaff != mnxStaffNumber.value_or(1)) {
+                mnxNote.set_staff(*mnxNoteStaff);
+            }
+        } else {
+            context->logMessage(LogMsg() << " note has cross-staffing to a staff (" << noteStaff
+                << ") that is not included in the MNX part.", LogSeverity::Warning);
+        }
+    }
+    if (musxNote->tieStart) {
+        auto mnxTies = mnxNote.create_ties();
+        auto tiedTo = musxNote.calcTieTo();
+        auto mnxTie = (tiedTo && tiedTo->tieEnd && !tiedTo.getEntryInfo()->getEntry()->isHidden)
+            ? mnxTies.append(calcNoteId(tiedTo))
+            : mnxTies.append();
+        if (auto tieAlter = musxEntry->getDocument()->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {
+            if (tieAlter->freezeDirection) {
+                mnxTie.set_side(tieAlter->down ? mnx::SlurTieSide::Down : mnx::SlurTieSide::Up);
+            }
+        }
+    }
+}
+
+static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
+    const std::shared_ptr<others::Staff>& musxStaff, std::optional<int> mnxStaffNumber)
+{
+    const auto musxEntry = musxEntryInfo->getEntry();
+
+    for (size_t x = 0; x < musxEntry->notes.size(); x++) {
+        const auto mnxNote = NoteInfoPtr(musxEntryInfo, x);
+        if (const auto percNoteInfo = mnxNote.calcPercussionNoteInfo()) {
+            createNote<mnx::sequence::KitNote>(context, mnxEvent, mnxNote, musxStaff, percNoteInfo, mnxStaffNumber);
+        } else {
+            createNote<mnx::sequence::Note>(context, mnxEvent, mnxNote, musxStaff, nullptr, mnxStaffNumber);
+        }
+    }
+}
+
+static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
+    const std::shared_ptr<others::Staff>& musxStaff)
+{
+    const auto musxEntry = musxEntryInfo->getEntry();
+
+    auto mnxRest = mnxEvent.create_rest();
+    if (musxEntryInfo.calcIsFullMeasureRest()) {
+        mnxEvent.clear_duration();
+        mnxEvent.set_measure(true);
+    }
+    // If a rest is hidden, it has been detected as a beam workaround, so its staff position is meaningless
+    if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
+        auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
+        auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView());
+        if (mnxEvent.measure() || (mnxEvent.duration() && mnxEvent.duration().value().base() == mnx::NoteValueBase::Whole)) {
+            staffPosition += 2; // compensate for discrepancy in Finale vs. MNX whole rest staff positions.
+        }
+        mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
+    }
+}
+
+static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
+{
+    const auto musxEntry = musxEntryInfo->getEntry();
+
+    auto createLyricsType = [&](const auto& musxLyrics) {
+        using PtrType = typename std::decay_t<decltype(musxLyrics)>::value_type;
+        using T = typename PtrType::element_type;
+        static_assert(std::is_base_of_v<details::LyricAssign, T>, "musxLyrics must be a subtype of LyricAssign");
+        for (const auto& lyr : musxLyrics) {
+            if (auto lyrText = musxEntry->getDocument()->getTexts()->get<typename T::TextType>(lyr->lyricNumber)) {
+                if (lyr->syllable > lyrText->syllables.size()) {
+                    context->logMessage(LogMsg() << " Layer " << musxEntryInfo.getLayerIndex() + 1
+                        << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
+                        << lyr->syllable << ").", LogSeverity::Warning);
+                } else {
+                    auto mnxLyrics = mnxEvent.create_lyrics();
+                    auto mnxLyricsLines = mnxLyrics.create_lines();
+                    const size_t sylIndex = size_t(lyr->syllable - 1); // Finale syllable numbers are 1-based.
+                    auto mnxLyricLine = mnxLyricsLines.append(
+                        calcLyricLineId(std::string(T::TextType::XmlNodeName), lyr->lyricNumber),
+                        lyrText->syllables[sylIndex]->syllable 
+                    );
+                    mnxLyricLine.set_type(mnxLineTypeFromLyric(lyrText->syllables[sylIndex]));
+                }
+            }
+        }
+    };
+    createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignVerse>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
+    createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignChorus>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
+    createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
+}
+
 static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, const EntryInfoPtr& musxEntryInfo, std::optional<int> mnxStaffNumber)
 {
-    const auto& musxEntry = musxEntryInfo->getEntry();
+    const auto musxEntry = musxEntryInfo->getEntry();
 
     const bool isRestWorkaround = musxEntryInfo.calcIsBeamedRestWorkaroud();
     if (musxEntry->isHidden && !isRestWorkaround) {
@@ -232,121 +419,18 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     
     auto mnxEvent = content.append<mnx::sequence::Event>(mnxNoteValueFromEdu(musxEntry->duration));
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
-
-    auto createLyrics = [&](const auto& musxLyrics) {
-        using PtrType = typename std::decay_t<decltype(musxLyrics)>::value_type;
-        using T = typename PtrType::element_type;
-        static_assert(std::is_base_of_v<details::LyricAssign, T>, "musxLyrics must be a subtype of LyricAssign");
-        for (const auto& lyr : musxLyrics) {
-            if (auto lyrText = musxEntry->getDocument()->getTexts()->get<typename T::TextType>(lyr->lyricNumber)) {
-                if (lyr->syllable > lyrText->syllables.size()) {
-                    context->logMessage(LogMsg() << " Layer " << musxEntryInfo.getLayerIndex() + 1
-                        << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
-                        << lyr->syllable << ").", LogSeverity::Warning);
-                } else {
-                    if (!mnxEvent.lyrics().has_value()) {
-                        auto mnxLyrics = mnxEvent.create_lyrics();
-                        mnxLyrics.create_lines();
-                    }
-                    const size_t sylIndex = size_t(lyr->syllable - 1); // Finale syllable numbers are 1-based.
-                    auto mnxLyricLine = mnxEvent.lyrics().value().lines().value().append(
-                        calcLyricLineId(std::string(T::TextType::XmlNodeName), lyr->lyricNumber),
-                        lyrText->syllables[sylIndex]->syllable 
-                    );
-                    mnxLyricLine.set_type(mnxLineTypeFromLyric(lyrText->syllables[sylIndex]));
-                }
-            }
-        }
-    };
-    createLyrics(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignVerse>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
-    createLyrics(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignChorus>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
-    createLyrics(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
-
+    createLyrics(context, mnxEvent, musxEntryInfo);
     createMarkings(context, mnxEvent, musxEntry);
     /// @todo orient
     createSlurs(context, mnxEvent, musxEntry);
     if (musxEntry->freezeStem && musxEntry->isNote && musxEntry->hasStem()) {
         mnxEvent.set_stemDirection(musxEntry->upStem ? mnx::StemDirection::Up : mnx::StemDirection::Down);
     }
-    // since the staff number was set in the sequence, we don't set mnxStaffNumber here.
 
     if (musxEntry->isNote) {
-        for (size_t x = 0; x < musxEntryInfo->getEntry()->notes.size(); x++) {
-            auto musxNote = NoteInfoPtr(musxEntryInfo, x);
-            if (!mnxEvent.notes()) {
-                mnxEvent.create_notes();
-            }
-            auto [noteName, octave, alteration, _] = musxNote.calcNotePropertiesConcert();
-            auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && (!musxNote->showAcci || !musxNote->freezeAcci))
-                          ? std::nullopt
-                          : std::optional<int>(alteration);
-            for (const auto& it : context->ottavasApplicableInMeasure) {
-                auto shape = it.second;
-                if (shape->calcAppliesTo(musxNote.getEntryInfo())) {
-                    // if the note is a tie continuation, the ottava has to apply to the original note
-                    auto tiedFromNoteInfo = musxNote;
-                    while (tiedFromNoteInfo && tiedFromNoteInfo->tieEnd) {
-                        tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
-                    }
-                    if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
-                        octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
-                    } else if (!musxNote.isSameNote(tiedFromNoteInfo)) {
-                        context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", LogSeverity::Verbose);
-                    }
-                }
-            }
-            auto mnxNote = mnxEvent.notes().value().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
-            if (musxNote->freezeAcci) {
-                auto acciDisp = mnxNote.create_accidentalDisplay(musxNote->showAcci);
-                acciDisp.set_force(true);
-            }
-            mnxNote.set_id(calcNoteId(musxNote));
-            if (musxNote->crossStaff) {
-                InstCmper noteStaff = musxNote.calcStaff();
-                std::optional<int> mnxNoteStaff;
-                for (size_t y = 0; y < context->partStaves.size(); y++) {
-                    if (context->partStaves[y] == noteStaff) {
-                        mnxNoteStaff = int(y + 1);
-                        break;
-                    }
-                }
-                if (mnxNoteStaff) {
-                    if (*mnxNoteStaff != mnxStaffNumber.value_or(1)) {
-                        mnxNote.set_staff(*mnxNoteStaff);
-                    }
-                } else {
-                    context->logMessage(LogMsg() << " note has cross-staffing to a staff (" << noteStaff
-                        << ") that is not included in the MNX part.", LogSeverity::Warning);
-                }
-            }
-            if (musxNote->tieStart) {
-                auto mnxTies = mnxNote.create_ties();
-                auto tiedTo = musxNote.calcTieTo();
-                auto mnxTie = (tiedTo && tiedTo->tieEnd && !tiedTo.getEntryInfo()->getEntry()->isHidden)
-                            ? mnxTies.append(calcNoteId(tiedTo))
-                            : mnxTies.append();
-                if (auto tieAlter = musxEntry->getDocument()->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {
-                    if (tieAlter->freezeDirection) {
-                        mnxTie.set_side(tieAlter->down ? mnx::SlurTieSide::Down : mnx::SlurTieSide::Up);
-                    }
-                }
-            }
-        }
+        createNotes(context, mnxEvent, musxEntryInfo, musxStaff, mnxStaffNumber);
     } else {
-        auto mnxRest = mnxEvent.create_rest();
-        if (musxEntryInfo.calcIsFullMeasureRest()) {
-            mnxEvent.clear_duration();
-            mnxEvent.set_measure(true);
-        }
-        // If a rest is hidden, it has been detected as a beam workaround, so its staff position is meaningless
-        if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
-            auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
-            auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView());
-            if (mnxEvent.measure() || (mnxEvent.duration() && mnxEvent.duration().value().base() == mnx::NoteValueBase::Whole)) {
-                staffPosition += 2; // compensate for discrepancy in Finale vs. MNX whole rest staff positions.
-            }
-            mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
-        }
+        createRest(context, mnxEvent, musxEntryInfo, musxStaff);
     }
 }
 

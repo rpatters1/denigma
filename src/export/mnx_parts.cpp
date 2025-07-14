@@ -56,22 +56,15 @@ static void createBeams(
                         unsigned nextBeamNumber = beamNumber + 1;
                         unsigned lowestBeamStub = next.calcLowestBeamStub();
                         if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
-                            if (!beam.beams().has_value()) {
-                                beam.create_beams();
-                            }
-                            auto hookBeam = beam.beams().value().append();
+                            auto hookBeam = beam.create_beams().append();
                             hookBeam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
                             /// @todo only specify direction if hookDir is manually overridden
                             mnx::BeamHookDirection hookDir = next.calcBeamStubIsLeft()
                                 ? mnx::BeamHookDirection::Left
                                 : mnx::BeamHookDirection::Right;
                             hookBeam.set_direction(hookDir);
-                        }
-                        else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
-                            if (!beam.beams().has_value()) {
-                                beam.create_beams();
-                            }
-                            self(beam.beams().value(), nextBeamNumber, next, self);
+                        } else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
+                            self(beam.create_beams(), nextBeamNumber, next, self);
                         }
                     }
                     if (unsigned lowestBeamEnd = next.calcLowestBeamEnd()) {
@@ -82,10 +75,7 @@ static void createBeams(
                 }
             };
             if (entryInfo.calcIsBeamStart()) {
-                if (!mnxMeasure.beams().has_value()) {
-                    mnxMeasure.create_beams();
-                }
-                processBeam(mnxMeasure.beams().value(), 1, entryInfo, processBeam);
+                processBeam(mnxMeasure.create_beams(), 1, entryInfo, processBeam);
             }
             return true;
         });
@@ -114,35 +104,34 @@ static void createClefs(
         if (clefIndex >= ClefIndex(clefDefs->clefDefs.size())) {
             throw std::invalid_argument("Invalid clef index " + std::to_string(clefIndex));
         }
-        const auto& musxClef = clefDefs->clefDefs[clefIndex];
-        auto& clefFont = musxClef->font;
-        if (!clefFont || !musxClef->useOwnFont) {
-            clefFont = context->defaultMusicFont;
+        auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
+            musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
+        if (!musxStaff) {
+            context->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
+                << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
+            return;
         }
+        const auto& musxClef = clefDefs->clefDefs[clefIndex];
+        auto clefFont = musxClef->calcFont();
         FontType fontType = convertFontToType(clefFont);
-        if (auto clefInfo = convertCharToClef(musxClef->clefChar, fontType)) {
-            auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
-                musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
-            if (!musxStaff) {
-                context->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
-                    << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
-                return;
-            }
-            if (!mnxMeasure.clefs().has_value()) {
-                mnxMeasure.create_clefs();
-            }
-            int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPositon);
-            auto octave = int(clefInfo->second) ? std::optional<mnx::OttavaAmountOrZero>(clefInfo->second) : std::nullopt;
-            auto mnxClef = mnxMeasure.clefs().value().append(clefInfo->first, staffPosition, octave);
+        if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, fontType)) {
+            auto [clefSign, octave, hideOctave] = clefInfo.value();
+            int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
+            auto mnxClef = mnxMeasure.create_clefs().append(clefSign, staffPosition, octave);
             if (location) {
                 mnxClef.create_position(mnxFractionFromFraction(location));
+            }
+            if (hideOctave) {
+                mnxClef.clef().set_showOctave(false);
             }
             if (mnxStaffNumber) {
                 mnxClef.set_staff(mnxStaffNumber.value());
             }
-            if (auto metaDataPath = clefFont->calcSMuFLMetaDataPath()) {
-                if (auto glyphName = utils::smuflGlyphNameForFont(metaDataPath.value(), musxClef->clefChar, *context->denigmaContext)) {
-                    mnxClef.clef().set_glyph(glyphName.value());
+            if (fontType == FontType::SMuFL) {
+                if (auto metaDataPath = clefFont->calcSMuFLMetaDataPath()) {
+                    if (auto glyphName = utils::smuflGlyphNameForFont(metaDataPath.value(), musxClef->clefChar, *context->denigmaContext)) {
+                        mnxClef.clef().set_glyph(glyphName.value());
+                    }
                 }
             }
             prevClefIndex = clefIndex;
@@ -181,14 +170,11 @@ static void createDynamics(const MnxMusxMappingPtr& context, const std::shared_p
                     if (auto cat = context->document->getOthers()->get<others::MarkingCategory>(expr->getPartId(), expr->categoryId)) {
                         if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) {
                             if (auto text = expr->getTextBlock()) {
-                                if (auto rawText = text->getRawTextBlock()) {
+                                if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
                                     /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
-                                    auto fontInfo = rawText->parseFirstFontInfo();
-                                    std::string dynamicText = text->getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-                                    if (!mnxMeasure.dynamics().has_value()) {
-                                        mnxMeasure.create_dynamics();
-                                    }
-                                    auto mnxDynamic = mnxMeasure.dynamics().value().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
+                                    auto fontInfo = rawTextCtx.parseFirstFontInfo();
+                                    std::string dynamicText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
+                                    auto mnxDynamic = mnxMeasure.create_dynamics().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
                                     if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText, *context->denigmaContext)) {
                                         mnxDynamic.set_glyph(smuflGlyph.value());
                                     }
@@ -231,10 +217,7 @@ static void createOttavas(const MnxMusxMappingPtr& context, const std::shared_pt
                     }
                     context->ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
                     if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
-                        if (!mnxMeasure.ottavas().has_value()) {
-                            mnxMeasure.create_ottavas();
-                        }
-                        auto mnxOttava = mnxMeasure.ottavas().value().append(
+                        auto mnxOttava = mnxMeasure.create_ottavas().append(
                             enumConvert<mnx::OttavaAmount>(shape->shapeType),
                             mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
                             shape->endTermSeg->endPoint->measId,
@@ -296,7 +279,7 @@ void createParts(const MnxMusxMappingPtr& context)
     int partNumber = 0;
     auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {
-        auto staff = item->getStaff();
+        auto staff = item->getStaffInstance(1, 0);
         auto multiStaffInst = staff->getMultiStaffInstVisualGroup();
         if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
             continue;
@@ -321,6 +304,13 @@ void createParts(const MnxMusxMappingPtr& context)
         } else {
             context->inst2Part.emplace(staff->getCmper(), id);
             context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
+        }
+        auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
+        if (transpositionDisp || transpositionAlt) {
+            auto transposition = part.create_transposition(transpositionDisp, music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt));
+            if (staff->transposition && !staff->transposition->noSimplifyKey && staff->transposition->keysig) {
+                transposition.set_keyFifthsFlipAt(7 * music_theory::sign(staff->transposition->keysig->adjust));
+            }
         }
         createMeasures(context, part);
     }

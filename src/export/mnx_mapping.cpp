@@ -26,14 +26,13 @@
 #include <cmath>
 
 #include "mnx.h"
-#include "mnx_mapping.h"
 
 namespace denigma {
 namespace mnxexp {
 
-FontType convertFontToType(const std::shared_ptr<FontInfo>& fontInfo)
+FontType convertFontToType(const std::shared_ptr<const FontInfo>& fontInfo)
 {
-    if (isFontSMuFL(fontInfo)) {
+    if (fontInfo->calcIsSMuFL()) {
         return FontType::SMuFL;
     } else if (fontInfo->getName() == "GraceNotes") {
         return FontType::GraceNotes;
@@ -110,84 +109,6 @@ JumpType convertTextToJump(const std::string& text, FontType fontType)
     }
 
     return JumpType::None;
-}
-
-std::optional<std::pair<mnx::ClefSign, mnx::OttavaAmountOrZero>> convertCharToClef(const char32_t sym, FontType fontType)
-{
-    // Standard Unicode musical symbols:
-    switch (sym) {
-        case 0x1D11E: return std::make_pair(mnx::ClefSign::GClef, mnx::OttavaAmountOrZero::NoTransposition); // MUSICAL SYMBOL G CLEF
-        case 0x1D122: return std::make_pair(mnx::ClefSign::FClef, mnx::OttavaAmountOrZero::NoTransposition); // MUSICAL SYMBOL F CLEF
-        case 0x1D121: return std::make_pair(mnx::ClefSign::CClef, mnx::OttavaAmountOrZero::NoTransposition); // MUSICAL SYMBOL C CLEF
-    }
-    if (fontType == FontType::Symbol || fontType == FontType::GraceNotes) {
-        switch (sym) {
-            case '?': return std::make_pair(mnx::ClefSign::FClef, mnx::OttavaAmountOrZero::NoTransposition);
-            case 't': return std::make_pair(mnx::ClefSign::FClef, mnx::OttavaAmountOrZero::OctaveDown);
-            case 'B': return std::make_pair(mnx::ClefSign::CClef, mnx::OttavaAmountOrZero::NoTransposition);
-            case '&': return std::make_pair(mnx::ClefSign::GClef, mnx::OttavaAmountOrZero::NoTransposition);
-            case 'V': return std::make_pair(mnx::ClefSign::GClef, mnx::OttavaAmountOrZero::OctaveDown);
-        }
-        if (fontType == FontType::Symbol) {
-            switch (sym) {
-                case 0xe6: return std::make_pair(mnx::ClefSign::FClef, mnx::OttavaAmountOrZero::OctaveUp);
-                case 0xa0:return std::make_pair(mnx::ClefSign::GClef, mnx::OttavaAmountOrZero::OctaveUp);
-            }
-        }
-        return std::nullopt;
-    }
-    // SMuFL branch: only include clefs with unison or octave multiples
-    if (fontType == FontType::SMuFL) {
-        switch (sym) {
-                // G Clef:
-            case 0xE050: // Standard G clef (unison)
-            case 0xF472: // Alternate G clef (unison)
-                return std::make_pair(mnx::ClefSign::GClef, mnx::OttavaAmountOrZero::NoTransposition);
-            case 0xE052: // G clef 8vb (one octave down)
-            case 0xE055: // G clef 8vb (one octave down)
-            case 0xE056: // G clef 8vb (one octave down)
-            case 0xE057: // G clef 8vb (one octave down)
-            case 0xE05B: // G clef 8vb (one octave down)
-                return std::make_pair(mnx::ClefSign::GClef, mnx::OttavaAmountOrZero::OctaveDown);
-            case 0xE053: // G clef 8va (one octave up)
-            case 0xE05A: // G clef 8va (one octave up)
-                return std::make_pair(mnx::ClefSign::GClef, mnx::OttavaAmountOrZero::OctaveUp);
-            case 0xE051: // G clef 15mb (two octaves down)
-                return std::make_pair(mnx::ClefSign::GClef, mnx::OttavaAmountOrZero::TwoOctavesDown);
-            case 0xE054: // G clef 15ma (two octaves up)
-                return std::make_pair(mnx::ClefSign::GClef, mnx::OttavaAmountOrZero::TwoOctavesUp);
-
-                // F Clef:
-            case 0xE062: // Standard F clef (unison)
-            case 0xF406: // Alternate F clef (unison)
-            case 0xF407: // Alternate F clef (unison)
-            case 0xF474: // Alternate F clef (unison)
-                return std::make_pair(mnx::ClefSign::FClef, mnx::OttavaAmountOrZero::NoTransposition);
-            case 0xE064: // F clef 8vb (one octave down)
-            case 0xE068: // F clef 8vb (one octave down)
-                return std::make_pair(mnx::ClefSign::FClef, mnx::OttavaAmountOrZero::OctaveDown);
-            case 0xE065: // F clef 8va (one octave up)
-            case 0xE067: // F clef 8va (one octave up)
-                return std::make_pair(mnx::ClefSign::FClef, mnx::OttavaAmountOrZero::OctaveUp);
-            case 0xE063: // F clef 15mb (two octaves down)
-                return std::make_pair(mnx::ClefSign::FClef, mnx::OttavaAmountOrZero::TwoOctavesDown);
-            case 0xE066: // F clef 15ma (two octaves up)
-                return std::make_pair(mnx::ClefSign::FClef, mnx::OttavaAmountOrZero::TwoOctavesUp);
-
-                // C Clef:
-            case 0xE05C: // Standard C clef (unison)
-            case 0xE060: // Alternate C clef (unison)
-            case 0xF408: // Alternate C clef (unison)
-            case 0xF473: // Alternate C clef (unison)
-                return std::make_pair(mnx::ClefSign::CClef, mnx::OttavaAmountOrZero::NoTransposition);
-            case 0xE05D: // C clef 8vb (one octave down)
-            case 0xE05F: // C clef 8vb (one octave down)
-                return std::make_pair(mnx::ClefSign::CClef, mnx::OttavaAmountOrZero::OctaveDown);
-            case 0xE05E: // C clef 8va (one octave up)
-                return std::make_pair(mnx::ClefSign::CClef, mnx::OttavaAmountOrZero::OctaveUp);
-        }
-    }
-    return std::nullopt;
 }
 
 std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others::ArticulationDef>& artic,
@@ -495,6 +416,7 @@ int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musx
 {
     return musxStaffPosition - staff->calcMiddleStaffPosition();
 }
+
 mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl)
 {
     if (syl->hasHyphenBefore && syl->hasHyphenAfter) {
@@ -505,6 +427,91 @@ mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllab
         return mnx::LyricLineType::Start;
     }
     return mnx::LyricLineType::Whole;
+}
+
+std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
+    const std::shared_ptr<const options::ClefOptions::ClefDef>& clefDef,
+    const std::shared_ptr<const others::Staff>& staff, FontType fontType)
+{
+    if (clefDef->isBlank()) {
+        /// @todo handle blank clefs
+        return std::nullopt;
+    }
+    auto [musxClefType, octave] = clefDef->calcInfo(staff);
+    if (std::abs(octave) > 3) {
+        return std::nullopt;
+    }
+    std::optional<mnx::ClefSign> clefSign;
+    switch (musxClefType) {
+    case music_theory::ClefType::G: clefSign = mnx::ClefSign::GClef; break;
+        case music_theory::ClefType::C: clefSign = mnx::ClefSign::CClef; break;
+        case music_theory::ClefType::F: clefSign = mnx::ClefSign::FClef; break;
+        /// @todo handle Percussion and Tab cases when defined in mnx spec
+        default: break;
+    }
+    if (!clefSign) {
+        return std::nullopt;
+    }
+    bool hideOctave = false;
+    if (octave != 0) {
+        switch (clefSign.value()) {
+        case mnx::ClefSign::GClef:
+        {
+            switch (clefDef->clefChar) {
+            case 0x1D11E: // Unicode G clef
+                hideOctave = true;
+                break;
+            case '&': // Symbol G Clef
+                hideOctave = fontType == FontType::Symbol || fontType == FontType::GraceNotes;
+                break;
+            case 0xE050: // SMuFL Standard G clef (unison)
+            case 0xF472: // SMuFL Alternate G clef (unison)
+                hideOctave = fontType == FontType::SMuFL;
+                break;
+            }
+            break;
+        }
+        case mnx::ClefSign::CClef:
+        {
+            switch (clefDef->clefChar) {
+            case 0x1D121: // Unicode C clef
+                hideOctave = true;
+                break;
+            case 'B': // Symbol C Clef
+                hideOctave = fontType == FontType::Symbol || fontType == FontType::GraceNotes;
+                break;
+            case 0xE05C: // SMuFL Standard C clef (unison)
+            case 0xE060: // SMuFL Alternate C clef (unison)
+            case 0xF408: // SMuFL Alternate C clef (unison)
+            case 0xF473: // SMuFL Alternate C clef (unison)
+                hideOctave = fontType == FontType::SMuFL;
+                break;
+            }
+            break;
+        }
+        case mnx::ClefSign::FClef:
+        {
+            switch (clefDef->clefChar) {
+            case 0x1D122: // Unicode F clef
+                hideOctave = true;
+                break;
+            case '?': // Symbol F Clef
+                hideOctave = fontType == FontType::Symbol || fontType == FontType::GraceNotes;
+                break;
+            case 0xE062: // SMuFL Standard F clef (unison)
+            case 0xF406: // SMuFL Alternate F clef (unison)
+            case 0xF407: // SMuFL Alternate F clef (unison)
+            case 0xF474: // SMuFL Alternate F clef (unison)
+                hideOctave = fontType == FontType::SMuFL;
+                break;
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
+    return std::make_tuple(clefSign.value(), mnx::OttavaAmountOrZero(octave), hideOctave);
 }
 
 } // namespace mnxexp

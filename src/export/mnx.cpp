@@ -58,22 +58,17 @@ void MnxMusxMapping::logMessage(LogMsg&& msg, LogSeverity severity)
 static void createMnx(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-    if (!mnxDocument->mnx().support()) {
-        mnxDocument->mnx().create_support();
-    }
-    auto support = mnxDocument->mnx().support().value();
+    auto support = mnxDocument->mnx().create_support();
     support.set_useBeams(true);
 }
 
 static void createScores(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-    auto musxLinkedParts = others::PartDefinition::getInUserOrder(context->document);
-    for (const auto& linkedPart : musxLinkedParts) {
-        if (!mnxDocument->scores()) {
-            mnxDocument->create_scores();
-        }
-        auto mnxScore = mnxDocument->scores().value().append(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
+    auto musxMiscOptions = context->document->getOptions()->get<options::MiscOptions>();
+    for (const auto& linkedPart : context->musxParts) {
+        auto partGlobals = context->document->getOthers()->get<others::PartGlobals>(linkedPart->getCmper(), MUSX_GLOBALS_CMPER);
+        auto mnxScore = mnxDocument->create_scores().append(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
         if (mnxScore.name().empty()) {
             mnxScore.set_name(linkedPart->isScore()
                               ? std::string("Score")
@@ -82,10 +77,7 @@ static void createScores(const MnxMusxMappingPtr& context)
         mnxScore.set_layout(calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID));
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
-            if (!mnxScore.multimeasureRests()) {
-                mnxScore.create_multimeasureRests();
-            }
-            auto mnxMmRest = mnxScore.multimeasureRests().value().append(mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
+            auto mnxMmRest = mnxScore.create_multimeasureRests().append(mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
             if (!mmRest->calcIsNumberVisible()) {
                 mnxMmRest.set_label("");
             }
@@ -93,14 +85,11 @@ static void createScores(const MnxMusxMappingPtr& context)
         auto pages = context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper());
         auto baseIuList = linkedPart->calcSystemIuList(BASE_SYSTEM_ID);
         for (size_t x = 0; x < pages.size(); x++) {
-            if (!mnxScore.pages()) {
-                mnxScore.create_pages();
-            }
-            auto mnxPage = mnxScore.pages().value().append();
+            auto mnxPage = mnxScore.create_pages().append();
             auto mnxSystems = mnxPage.systems();
             auto page = pages[x];
-            if (!page->isBlank() && page->lastSystem.has_value()) {
-                for (SystemCmper sysId = page->firstSystem; sysId <= *page->lastSystem; sysId++) {
+            if (!page->isBlank() && page->lastSystemId.has_value()) {
+                for (SystemCmper sysId = page->firstSystemId; sysId <= page->lastSystemId.value(); sysId++) {
                     auto system = context->document->getOthers()->get<others::StaffSystem>(linkedPart->getCmper(), sysId);
                     if (!system) {
                         throw std::logic_error("System " + std::to_string(sysId) + " on page " + std::to_string(page->getCmper())
@@ -114,6 +103,9 @@ static void createScores(const MnxMusxMappingPtr& context)
                     }
                 }
             }
+        }
+        if (partGlobals && !partGlobals->showTransposed) {
+            mnxScore.set_useWritten(true);
         }
     }
 }
@@ -142,11 +134,7 @@ void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer
     auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
-    if (auto fontOptions = document->getOptions()->get<options::FontOptions>()) {
-        context->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
-    } else {
-        throw std::invalid_argument("Musx document contains no font options.");
-    }
+    context->musxParts = others::PartDefinition::getInUserOrder(document);
 
     createMappings(context);   // map repeat text, text exprs, articulations, etc. to semantic values
 
