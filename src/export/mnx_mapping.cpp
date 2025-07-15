@@ -454,6 +454,7 @@ std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefI
     }
     bool hideOctave = false;
     if (octave != 0) {
+        /// @todo rewrite these switches using glyph names instead of code points. Requires mappings for pre-SMuFL symbol fonts.
         switch (clefSign.value()) {
         case mnx::ClefSign::GClef:
         {
