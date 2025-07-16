@@ -92,17 +92,14 @@ static void createClefs(
     std::optional<ClefIndex>& prevClefIndex)
 {
     const auto& musxDocument = musxMeasure->getDocument();
-    auto clefDefs = musxDocument->getOptions()->get<options::ClefOptions>();
-    if (!clefDefs) {
+    auto clefOptions = musxDocument->getOptions()->get<options::ClefOptions>();
+    if (!clefOptions) {
         throw std::invalid_argument("Musx document contains no clef options.");
     }
 
     auto addClef = [&](ClefIndex clefIndex, musx::util::Fraction location) {
         if (clefIndex == prevClefIndex) {
             return;
-        }
-        if (clefIndex >= ClefIndex(clefDefs->clefDefs.size())) {
-            throw std::invalid_argument("Invalid clef index " + std::to_string(clefIndex));
         }
         auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
             musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
@@ -111,7 +108,7 @@ static void createClefs(
                 << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
             return;
         }
-        const auto& musxClef = clefDefs->clefDefs[clefIndex];
+        const auto& musxClef = clefOptions->getClefDef(clefIndex);
         auto clefFont = musxClef->calcFont();
         FontType fontType = convertFontToType(clefFont);
         if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, fontType)) {
