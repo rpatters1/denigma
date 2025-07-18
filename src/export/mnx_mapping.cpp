@@ -316,57 +316,29 @@ std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others
         }
         return {};
     };
+    
     auto checkShape = [&](Cmper shapeId) -> std::vector<EventMarkingType> {
         if (auto shape = artic->getDocument()->getOthers()->get<others::ShapeDef>(artic->getPartId(), shapeId)) {
-            // very specific support for Robert Patterson's tenuto mark.
-            static const std::vector<others::ShapeDef::InstructionType> expectedInsts = {
-                others::ShapeDef::InstructionType::StartObject,
-                others::ShapeDef::InstructionType::RMoveTo,
-                others::ShapeDef::InstructionType::LineWidth,
-                others::ShapeDef::InstructionType::RLineTo,
-                others::ShapeDef::InstructionType::Stroke,
-            };
-            size_t nextIndex = 0;
-            shape->iterateInstructions([&](others::ShapeDef::InstructionType inst, [[maybe_unused]] std::vector<int> data) {
-                if (inst == others::ShapeDef::InstructionType::SetDash) {
-                    return true; // skip SetDash
+            if (auto knownShape = shape->recognize()) {
+                switch (knownShape.value()) {
+                    case KnownShapeDefType::TenutoMark: return { EventMarkingType::Tenuto };
+                    default: break;
                 }
-                if (nextIndex >= expectedInsts.size()) {
-                    nextIndex++; // assure no tenuto is returned
-                    return false;
-                }
-                if (inst != expectedInsts[nextIndex]) {
-                    return false;
-                }
-                if (const auto lineWidth = others::ShapeDef::Instruction::parseLineWidth(inst, data)) {
-                    if (lineWidth->efix < 4 * EFIX_PER_EVPU || lineWidth->efix > 6 * EFIX_PER_EVPU) {
-                        return false;
-                    }
-                } else if (const auto rLineTo = others::ShapeDef::Instruction::parseRLineTo(inst, data)) {
-                    if (rLineTo->dx < EVPU_PER_SPACE || rLineTo->dx > 1.5 * EVPU_PER_SPACE || rLineTo->dy != 0) {
-                        return false;
-                    }
-                }
-                nextIndex++;
-                return true;
-            });
-            if (nextIndex == expectedInsts.size()) {
-                return { EventMarkingType::Tenuto };
             }
         }
         return {};
     };
 
     auto main = artic->mainIsShape
-        ? checkShape(artic->mainShape)
-        : checkSymbol(artic->charMain, convertFontToType(artic->fontMain));
+              ? checkShape(artic->mainShape)
+              : checkSymbol(artic->charMain, convertFontToType(artic->fontMain));
     if (!main.empty()) {
         return main;
     }
 
     auto alt = artic->altIsShape
-        ? checkShape(artic->altShape)
-        : checkSymbol(artic->charAlt, convertFontToType(artic->fontAlt));
+             ? checkShape(artic->altShape)
+             : checkSymbol(artic->charAlt, convertFontToType(artic->fontAlt));
 
     return alt;
 }
