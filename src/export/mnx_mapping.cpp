@@ -338,19 +338,14 @@ std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others
                 if (inst != expectedInsts[nextIndex]) {
                     return false;
                 }
-                switch (inst) {
-                    case others::ShapeDef::InstructionType::LineWidth:
-                        if (data[0] < 4 * EFIX_PER_EVPU || data[0] > 6 * EFIX_PER_EVPU) {
-                            return false;
-                        }
-                        break;
-                    case others::ShapeDef::InstructionType::RLineTo:
-                        if (data[0] < EVPU_PER_SPACE || data[0] > 1.5 * EVPU_PER_SPACE || data[1] != 0) {
-                            return false;
-                        }
-                        break;
-                    default:
-                        break;
+                if (const auto lineWidth = others::ShapeDef::Instruction::parseLineWidth(inst, data)) {
+                    if (lineWidth->efix < 4 * EFIX_PER_EVPU || lineWidth->efix > 6 * EFIX_PER_EVPU) {
+                        return false;
+                    }
+                } else if (const auto rLineTo = others::ShapeDef::Instruction::parseRLineTo(inst, data)) {
+                    if (rLineTo->dx < EVPU_PER_SPACE || rLineTo->dx > 1.5 * EVPU_PER_SPACE || rLineTo->dy != 0) {
+                        return false;
+                    }
                 }
                 nextIndex++;
                 return true;
