@@ -256,10 +256,10 @@ mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequ
         const auto& percNoteType = percNoteInfo->getNoteType();
         if (percNoteType.instrumentId != 0) {
             kitElement.set_name(percNoteType.createName(percNoteInfo->getNoteTypeOrderId()));
-            kitElement.set_soundID(calcPercussionSoundId(percNoteInfo));
+            kitElement.set_sound(calcPercussionSoundId(percNoteInfo));
             auto sounds = context->mnxDocument->global().create_sounds();
-            if (!sounds.contains(kitElement.soundID().value())) {
-                auto sound = sounds.append(kitElement.soundID().value());
+            if (!sounds.contains(kitElement.sound().value())) {
+                auto sound = sounds.append(kitElement.sound().value());
                 sound.set_name(kitElement.name().value());
                 if (percNoteType.generalMidi >= 0) {
                     /// @todo revisit this if there is better support for multiple synth patches
@@ -289,10 +289,7 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
             return createKitNote(context, mnxEvent, percNoteInfo, musxStaff);
         }
     }();
-    /// @todo remove this constexpr check when id is allowed in KitNote
-    if constexpr (std::is_same_v<MnxNoteType, mnx::sequence::Note>) {
-        mnxNote.set_id(calcNoteId(musxNote));
-    }
+    mnxNote.set_id(calcNoteId(musxNote));
     if (musxNote->crossStaff) {
         InstCmper noteStaff = musxNote.calcStaff();
         std::optional<int> mnxNoteStaff;
