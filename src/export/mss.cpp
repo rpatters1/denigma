@@ -290,15 +290,33 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "firstSystemIndentationValue", double(pagePrefs->firstSysMarginLeft) / EVPU_PER_SPACE);
 
     // Calculate Spatium
-    auto pagePercent = double(pagePrefs->pagePercent) / 100.0;
-    auto staffPercent = (double(pagePrefs->rawStaffHeight) / (EVPU_PER_SPACE * 4 * 16)) * (double(pagePrefs->sysPercent) / 100.0);
-    setElementValue(styleElement, "spatium", (EVPU_PER_SPACE * staffPercent * pagePercent) / EVPU_PER_MM);
+    setElementValue(styleElement, "spatium", (EVPU_PER_SPACE * prefs->pageFormat->calcCombinedSystemScaling().toDouble()) / EVPU_PER_MM);
+
+    // Calculate small staff size and small note size from first system, if any is there
+    if (const auto& firstSystem = prefs->document->getOthers()->get<others::StaffSystem>(prefs->forPartId, 1)) {
+        auto [minSize, maxSize] = firstSystem->calcMinMaxStaffSizes();
+        if (minSize < 1) {
+            setElementValue(styleElement, "smallStaffMag", minSize.toDouble());
+            setElementValue(styleElement, "smallNoteMag", minSize.toDouble());
+        }
+    }
 
     // Default music font
-    auto defaultMusicFont = prefs->defaultMusicFont;
-    if (defaultMusicFont->calcIsSMuFL()) {
-        setElementValue(styleElement, "musicalSymbolFont", defaultMusicFont->getName());
-        setElementValue(styleElement, "musicalTextFont", defaultMusicFont->getName() + " Text");
+    const auto musicFontName = [&]() -> std::string {
+        const auto& defaultMusicFont = prefs->defaultMusicFont;
+        std::string fontName = defaultMusicFont->getName();
+        if (defaultMusicFont->calcIsSMuFL()) {
+            return fontName;
+        } else if (fontName == "Maestro") {
+            return "Finale Maestro";
+        } else if (fontName == "Petrucci") {
+            return "Finale Legacy";
+        } // other `else if` checks as required go here
+        return {};
+    }();
+    if (!musicFontName.empty()) {
+        setElementValue(styleElement, "musicalSymbolFont", musicFontName);
+        setElementValue(styleElement, "musicalTextFont", musicFontName + " Text");
     }
 }
 
@@ -631,15 +649,16 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
         throw std::invalid_argument("unable to find MarkingCategory for dynamics");
     }
     auto catFontInfo = cat->musicFont;
-    bool override = catFontInfo && catFontInfo->calcIsSMuFL() && catFontInfo->fontId != 0;
+    const bool catFontIsSMuFL = catFontInfo->calcIsSMuFL();
+    const bool override = catFontInfo && catFontIsSMuFL && catFontInfo->fontId != 0;
     setElementValue(styleElement, "dynamicsOverrideFont", override);
     if (override) {
         setElementValue(styleElement, "dynamicsFont", catFontInfo->getName());
-        setElementValue(styleElement, "dynamicsSize", catFontInfo->fontSize / prefs->defaultMusicFont->fontSize);
+        setElementValue(styleElement, "dynamicsSize", double(catFontInfo->fontSize) / double(prefs->defaultMusicFont->fontSize));
     } else {
         setElementValue(styleElement, "dynamicsFont", prefs->defaultMusicFont->getName());
         setElementValue(styleElement, "dynamicsSize",
-                        catFontInfo->calcIsSMuFL() ? (catFontInfo->fontSize / prefs->defaultMusicFont->fontSize) : 1.0);
+                        catFontIsSMuFL ? (double(catFontInfo->fontSize) / double(prefs->defaultMusicFont->fontSize)) : 1.0);
     }
     // Load font preferences for Text Blocks
     auto textBlockFont = options::FontOptions::getFontInfo(prefs->document, FontType::TextBlock);

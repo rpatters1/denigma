@@ -14,6 +14,8 @@
         <enableIndentationOnFirstSystem>1</enableIndentationOnFirstSystem>
         <firstSystemIndentationValue>6</firstSystemIndentationValue>
         <spatium>1.808</spatium>
+        <musicalSymbolFont>Finale Maestro</musicalSymbolFont>
+        <musicalTextFont>Finale Maestro Text</musicalTextFont>
         <lyricsOddFontFace>Times New Roman</lyricsOddFontFace>
         <lyricsOddFontSize>10</lyricsOddFontSize>
         <lyricsOddFontSpatiumDependent>1</lyricsOddFontSpatiumDependent>
