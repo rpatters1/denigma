@@ -34,7 +34,7 @@
         <startBarlineSingle>0</startBarlineSingle>
         <startBarlineMultiple>1</startBarlineMultiple>
         <bracketWidth>0.5</bracketWidth>
-        <bracketDistance>0.5</bracketDistance>
+        <bracketDistance>0.25</bracketDistance>
         <akkoladeBarDistance>0.5</akkoladeBarDistance>
         <clefLeftMargin>1</clefLeftMargin>
         <keysigLeftMargin>1</keysigLeftMargin>
@@ -43,7 +43,7 @@
         <clefTimesigDistance>1</clefTimesigDistance>
         <keyTimesigDistance>1.5</keyTimesigDistance>
         <keyBarlineDistance>2.5</keyBarlineDistance>
-        <clefBarlineDistance>2.5</clefBarlineDistance>
+        <clefBarlineDistance>0.5</clefBarlineDistance>
         <timesigBarlineDistance>2.5</timesigBarlineDistance>
         <measureRepeatNumberPos>-0.020833</measureRepeatNumberPos>
         <staffLineWidth>0.083333</staffLineWidth>

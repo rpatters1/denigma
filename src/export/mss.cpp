@@ -208,8 +208,11 @@ static void writeFontPref(XmlElement& styleElement, const std::string& namePrefi
 
 static void writeDefaultFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
 {
-    auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
-    writeFontPref(styleElement, namePrefix, fontPrefs.get());
+    if (auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type)) {
+        writeFontPref(styleElement, namePrefix, fontPrefs.get());
+    } else {
+        prefs->denigmaContext->logMessage(LogMsg() << "unable to load default font pref for " << int(type), LogSeverity::Warning);
+    }
 }
 
 void writeLinePrefs(XmlElement& styleElement,
@@ -232,9 +235,8 @@ static void writeFramePrefs(XmlElement& styleElement, const std::string& namePre
 {
     if (!enclosure || enclosure->shape == others::Enclosure::Shape::NoEnclosure || enclosure->lineWidth == 0) {
         setElementValue(styleElement, namePrefix + "FrameType", 0);
-        return; // Do not override any other defaults if no enclosure shape
-    } 
-    if (enclosure->shape == others::Enclosure::Shape::Ellipse) {
+        if (!enclosure) return; // Do not override any other defaults if no enclosure shape
+    } else if (enclosure->shape == others::Enclosure::Shape::Ellipse) {
         setElementValue(styleElement, namePrefix + "FrameType", 2);
     } else {
         setElementValue(styleElement, namePrefix + "FrameType", 1);
@@ -242,7 +244,7 @@ static void writeFramePrefs(XmlElement& styleElement, const std::string& namePre
     setElementValue(styleElement, namePrefix + "FramePadding", enclosure->xMargin / EVPU_PER_SPACE);
     setElementValue(styleElement, namePrefix + "FrameWidth", enclosure->lineWidth / EFIX_PER_SPACE);
     setElementValue(styleElement, namePrefix + "FrameRound", 
-                    enclosure->roundCorners ? enclosure->cornerRadius / EFIX_PER_EVPU : 0.0);
+                    enclosure->roundCorners ? int(lround(enclosure->cornerRadius / EFIX_PER_EVPU)) : 0);
 }
 
 static void writeCategoryTextFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, others::MarkingCategory::CategoryType categoryType)
@@ -359,7 +361,7 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "startBarlineMultiple", prefs->barlineOptions->drawLeftBarlineMultipleStaves);
 
     setElementValue(styleElement, "bracketWidth", 0.5); // Hard-coded in Finale
-    setElementValue(styleElement, "bracketDistance", -prefs->braceOptions->defBracketPos / EVPU_PER_SPACE);
+    setElementValue(styleElement, "bracketDistance", ((-prefs->braceOptions->defBracketPos) - 0.25 * EVPU_PER_SPACE) / EVPU_PER_SPACE); // Finale subtracts half the bracket width on layout (observed).
     setElementValue(styleElement, "akkoladeBarDistance", -prefs->braceOptions->defBracketPos / EVPU_PER_SPACE);
 
     setElementValue(styleElement, "clefLeftMargin", prefs->clefOptions->clefFrontSepar / EVPU_PER_SPACE);
@@ -382,7 +384,7 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     // setElementValue(styleElement, "systemHeaderDistance", prefs->keyOptions->keyBack / EVPU_PER_SPACE);
     // setElementValue(styleElement, "systemHeaderTimeSigDistance", prefs->timeOptions->timeBack / EVPU_PER_SPACE);
 
-    setElementValue(styleElement, "clefBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "clefBarlineDistance", -(prefs->clefOptions->clefChangeOffset) / EVPU_PER_SPACE);
     setElementValue(styleElement, "timesigBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
 
     setElementValue(styleElement, "measureRepeatNumberPos", -(prefs->alternateNotationOptions->twoMeasNumLift + 0.5) / EVPU_PER_SPACE);
@@ -435,6 +437,8 @@ void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "dotMag", museMagVal(prefs, options::FontOptions::FontType::AugDots));
     setElementValue(styleElement, "dotNoteDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE);
     setElementValue(styleElement, "dotRestDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE); // Same value as dotNoteDistance
+    /// @todo Finale's value is calculated relative to the rightmost point of the previous dot, MuseScore the leftmost. (Observed behavior)
+    /// We need to add on the symbol width of one dot for the correct value.
     setElementValue(styleElement, "dotDotDistance", prefs->augDotOptions->dotOffset / EVPU_PER_SPACE);
     setElementValue(styleElement, "articulationMag", museMagVal(prefs, options::FontOptions::FontType::Articulation));
     setElementValue(styleElement, "graceNoteMag", prefs->graceOptions->gracePerc / 100.0);
