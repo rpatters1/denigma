@@ -373,7 +373,7 @@ mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue)
 
 mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const others::SmartShape::EndPoint>& endPoint)
 {
-    if (auto entryInfo = endPoint->calcAssociatedEntry()) {
+    if (auto entryInfo = endPoint->calcAssociatedEntry(SCORE_PARTID)) {
         return mnxFractionFromFraction(entryInfo->elapsedDuration);
     }
     return mnxFractionFromFraction(endPoint->calcPosition()); 
