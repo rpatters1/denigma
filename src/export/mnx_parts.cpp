@@ -296,12 +296,10 @@ void createParts(const MnxMusxMappingPtr& context)
         const auto& [topStaffId, instInfo] = *instIt;
         if (instInfo.staves.size() > 1) {
             part.set_staves(int(instInfo.staves.size()));
-            std::unordered_set<InstCmper> staves;
             for (const auto& [staffId, index] : instInfo.staves) {
                 context->inst2Part.emplace(staffId, id);
-                staves.emplace(staffId);
             }
-            context->part2Inst.emplace(id, std::vector(staves.begin(), staves.end()));
+            context->part2Inst.emplace(id, instInfo.getSequentialStaves());
         } else {
             context->inst2Part.emplace(staff->getCmper(), id);
             context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
