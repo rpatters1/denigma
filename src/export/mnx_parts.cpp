@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "mnx.h"
 #include "utils/smufl_support.h"
@@ -295,10 +296,12 @@ void createParts(const MnxMusxMappingPtr& context)
         const auto& [topStaffId, instInfo] = *instIt;
         if (instInfo.staves.size() > 1) {
             part.set_staves(int(instInfo.staves.size()));
-            for (const auto staffId : instInfo.staves) {
+            std::unordered_set<InstCmper> staves;
+            for (const auto& [staffId, index] : instInfo.staves) {
                 context->inst2Part.emplace(staffId, id);
+                staves.emplace(staffId);
             }
-            context->part2Inst.emplace(id, std::vector(instInfo.staves.begin(), instInfo.staves.end()));
+            context->part2Inst.emplace(id, std::vector(staves.begin(), staves.end()));
         } else {
             context->inst2Part.emplace(staff->getCmper(), id);
             context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
