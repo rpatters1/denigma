@@ -276,9 +276,9 @@ void createParts(const MnxMusxMappingPtr& context)
     int partNumber = 0;
     auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {
-        auto staff = item->getStaffInstance(1, 0);
-        auto multiStaffInst = staff->getMultiStaffInstVisualGroup();
-        if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
+        const auto staff = item->getStaffInstance(1, 0);
+        const auto instIt = context->document->getInstruments().find(staff->getCmper());
+        if (instIt == context->document->getInstruments().end()) {
             continue;
         }
         std::string id = "P" + std::to_string(++partNumber);
@@ -292,12 +292,13 @@ void createParts(const MnxMusxMappingPtr& context)
         if (!abrvName.empty()) {
             part.set_shortName(trimNewLineFromString(abrvName));
         }
-        if (multiStaffInst) {
-            part.set_staves(int(multiStaffInst->visualStaffNums.size()));
-            for (auto inst : multiStaffInst->visualStaffNums) {
-                context->inst2Part.emplace(inst, id);
+        const auto& [topStaffId, instInfo] = *instIt;
+        if (instInfo.staves.size() > 1) {
+            part.set_staves(int(instInfo.staves.size()));
+            for (const auto staffId : instInfo.staves) {
+                context->inst2Part.emplace(staffId, id);
             }
-            context->part2Inst.emplace(id, multiStaffInst->visualStaffNums);
+            context->part2Inst.emplace(id, std::vector(instInfo.staves.begin(), instInfo.staves.end()));
         } else {
             context->inst2Part.emplace(staff->getCmper(), id);
             context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
