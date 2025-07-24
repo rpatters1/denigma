@@ -46,8 +46,8 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
     auto mnxSource = mnxStaff.sources().append(it->second);
     const auto& instInfo = meas->getDocument()->getInstrumentForStaff(staffSlot->staffId);
     if (instInfo.staves.size() > 0) {
-        if (const auto& it = instInfo.staves.find(staffSlot->staffId); it != instInfo.staves.end()) {
-            mnxSource.set_staff(int(it->second) + 1);
+        if (const auto& staffIt = instInfo.staves.find(staffSlot->staffId); staffIt != instInfo.staves.end()) {
+            mnxSource.set_staff(int(staffIt->second) + 1);
         }
     }
     if (staff->showNamesForPart(meas->getPartId())) {
