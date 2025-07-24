@@ -182,6 +182,12 @@ void openJson(const std::filesystem::path& path, nlohmann::json& result)
 
 int main(int argc, char** argv)
 {
+#ifndef MUSX_TEST_DATA_PATH
+#error MUSX_TEST_DATA_PATH is not defined. Please set it via target_compile_definitions.
+#else
+    musx::util::TestConfiguration::setTestDataPath(MUSX_TEST_DATA_PATH);
+#endif
+
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new TestEnvironment);
     return RUN_ALL_TESTS();
