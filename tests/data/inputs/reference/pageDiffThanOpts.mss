@@ -34,7 +34,7 @@
         <startBarlineSingle>0</startBarlineSingle>
         <startBarlineMultiple>1</startBarlineMultiple>
         <bracketWidth>0.5</bracketWidth>
-        <bracketDistance>0.5</bracketDistance>
+        <bracketDistance>0.25</bracketDistance>
         <akkoladeBarDistance>0.5</akkoladeBarDistance>
         <clefLeftMargin>1</clefLeftMargin>
         <keysigLeftMargin>1</keysigLeftMargin>
@@ -43,7 +43,7 @@
         <clefTimesigDistance>1</clefTimesigDistance>
         <keyTimesigDistance>1.5</keyTimesigDistance>
         <keyBarlineDistance>2.5</keyBarlineDistance>
-        <clefBarlineDistance>2.5</clefBarlineDistance>
+        <clefBarlineDistance>0.5</clefBarlineDistance>
         <timesigBarlineDistance>2.5</timesigBarlineDistance>
         <measureRepeatNumberPos>-0.020833</measureRepeatNumberPos>
         <staffLineWidth>0.083333</staffLineWidth>
@@ -59,7 +59,7 @@
         <genCourtesyClef>1</genCourtesyClef>
         <keySigCourtesyBarlineMode>0</keySigCourtesyBarlineMode>
         <timeSigCourtesyBarlineMode>0</timeSigCourtesyBarlineMode>
-        <hideEmptyStaves>1</hideEmptyStaves>
+        <hideEmptyStaves>0</hideEmptyStaves>
         <useStraightNoteFlags>0</useStraightNoteFlags>
         <stemWidth>0.083333</stemWidth>
         <shortenStem>1</shortenStem>
@@ -79,7 +79,7 @@
         <dotMag>1</dotMag>
         <dotNoteDistance>0.45833</dotNoteDistance>
         <dotRestDistance>0.45833</dotRestDistance>
-        <dotDotDistance>0.54167</dotDotDistance>
+        <dotDotDistance>0.95767</dotDotDistance>
         <articulationMag>1</articulationMag>
         <graceNoteMag>0.7</graceNoteMag>
         <concertPitch>0</concertPitch>

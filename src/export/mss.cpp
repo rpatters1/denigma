@@ -30,6 +30,7 @@
 #include "musx/musx.h"
 #include "pugixml.hpp"
 #include "utils/stringutils.h"
+#include "utils/smufl_support.h"
 
 namespace denigma {
 namespace mss {
@@ -40,7 +41,7 @@ using XmlDocument = ::pugi::xml_document;
 using XmlElement = ::pugi::xml_node;
 using XmlAttribute = ::pugi::xml_attribute;
 
-constexpr static char MSS_VERSION[] = "4.50";
+constexpr static char MSS_VERSION[] = "4.50"; // Do not change this version without checking notes on changed values.
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 
 // Finale preferences:
@@ -51,8 +52,10 @@ struct FinalePreferences
 
     const DenigmaContext* denigmaContext;
     DocumentPtr document;
-    std::shared_ptr<FontInfo> defaultMusicFont;
     Cmper forPartId{};
+    //
+    std::shared_ptr<FontInfo> defaultMusicFont;
+    std::string musicFontName;
     //
     std::shared_ptr<options::AccidentalOptions> accidentalOptions;
     std::shared_ptr<options::AlternateNotationOptions> alternateNotationOptions;
@@ -101,6 +104,26 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
 
     auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
     retval->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
+    if (!retval->defaultMusicFont) {
+        throw std::invalid_argument("document contains no information for the default music font.");
+    }
+    retval->musicFontName = [&]() -> std::string {
+        std::string fontName = retval->defaultMusicFont->getName();
+        if (retval->defaultMusicFont->calcIsSMuFL()) {
+            return fontName;
+        } else if (fontName == "Broadway Copyist") {
+            return "Finale Broadway";
+        } else if (fontName == "Engraver") {
+            return "Finale Engraver";
+        } else if (fontName == "Jazz") {
+            return "Finale Jazz";
+        } else if (fontName == "Maestro" || fontName == "Pmusic" || fontName == "Sonata") {
+            return "Finale Maestro";
+        } else if (fontName == "Petrucci") {
+            return "Finale Legacy";
+        } // other `else if` checks as required go here
+        return {};
+    }();
     //
     retval->accidentalOptions = getDocOptions<options::AccidentalOptions>(retval, "accidental");
     retval->alternateNotationOptions = getDocOptions<options::AlternateNotationOptions>(retval, "alternate notation");
@@ -208,8 +231,11 @@ static void writeFontPref(XmlElement& styleElement, const std::string& namePrefi
 
 static void writeDefaultFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
 {
-    auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
-    writeFontPref(styleElement, namePrefix, fontPrefs.get());
+    if (auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type)) {
+        writeFontPref(styleElement, namePrefix, fontPrefs.get());
+    } else {
+        prefs->denigmaContext->logMessage(LogMsg() << "unable to load default font pref for " << int(type), LogSeverity::Warning);
+    }
 }
 
 void writeLinePrefs(XmlElement& styleElement,
@@ -232,9 +258,8 @@ static void writeFramePrefs(XmlElement& styleElement, const std::string& namePre
 {
     if (!enclosure || enclosure->shape == others::Enclosure::Shape::NoEnclosure || enclosure->lineWidth == 0) {
         setElementValue(styleElement, namePrefix + "FrameType", 0);
-        return; // Do not override any other defaults if no enclosure shape
-    } 
-    if (enclosure->shape == others::Enclosure::Shape::Ellipse) {
+        if (!enclosure) return; // Do not override any other defaults if no enclosure shape
+    } else if (enclosure->shape == others::Enclosure::Shape::Ellipse) {
         setElementValue(styleElement, namePrefix + "FrameType", 2);
     } else {
         setElementValue(styleElement, namePrefix + "FrameType", 1);
@@ -242,7 +267,7 @@ static void writeFramePrefs(XmlElement& styleElement, const std::string& namePre
     setElementValue(styleElement, namePrefix + "FramePadding", enclosure->xMargin / EVPU_PER_SPACE);
     setElementValue(styleElement, namePrefix + "FrameWidth", enclosure->lineWidth / EFIX_PER_SPACE);
     setElementValue(styleElement, namePrefix + "FrameRound", 
-                    enclosure->roundCorners ? enclosure->cornerRadius / EFIX_PER_EVPU : 0.0);
+                    enclosure->roundCorners ? int(lround(enclosure->cornerRadius / EFIX_PER_EVPU)) : 0);
 }
 
 static void writeCategoryTextFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, others::MarkingCategory::CategoryType categoryType)
@@ -290,15 +315,33 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "firstSystemIndentationValue", double(pagePrefs->firstSysMarginLeft) / EVPU_PER_SPACE);
 
     // Calculate Spatium
-    auto pagePercent = double(pagePrefs->pagePercent) / 100.0;
-    auto staffPercent = (double(pagePrefs->rawStaffHeight) / (EVPU_PER_SPACE * 4 * 16)) * (double(pagePrefs->sysPercent) / 100.0);
-    setElementValue(styleElement, "spatium", (EVPU_PER_SPACE * staffPercent * pagePercent) / EVPU_PER_MM);
+    setElementValue(styleElement, "spatium", (EVPU_PER_SPACE * prefs->pageFormat->calcCombinedSystemScaling().toDouble()) / EVPU_PER_MM);
+
+    // Calculate small staff size and small note size from first system, if any is there
+    if (const auto& firstSystem = prefs->document->getOthers()->get<others::StaffSystem>(prefs->forPartId, 1)) {
+        auto [minSize, maxSize] = firstSystem->calcMinMaxStaffSizes();
+        if (minSize < 1) {
+            setElementValue(styleElement, "smallStaffMag", minSize.toDouble());
+            setElementValue(styleElement, "smallNoteMag", minSize.toDouble());
+        }
+    }
 
     // Default music font
-    auto defaultMusicFont = prefs->defaultMusicFont;
-    if (defaultMusicFont->calcIsSMuFL()) {
-        setElementValue(styleElement, "musicalSymbolFont", defaultMusicFont->getName());
-        setElementValue(styleElement, "musicalTextFont", defaultMusicFont->getName() + " Text");
+    const auto musicFontName = [&]() -> std::string {
+        const auto& defaultMusicFont = prefs->defaultMusicFont;
+        std::string fontName = defaultMusicFont->getName();
+        if (defaultMusicFont->calcIsSMuFL()) {
+            return fontName;
+        } else if (fontName == "Maestro") {
+            return "Finale Maestro";
+        } else if (fontName == "Petrucci") {
+            return "Finale Legacy";
+        } // other `else if` checks as required go here
+        return {};
+    }();
+    if (!musicFontName.empty()) {
+        setElementValue(styleElement, "musicalSymbolFont", musicFontName);
+        setElementValue(styleElement, "musicalTextFont", musicFontName + " Text");
     }
 }
 
@@ -341,7 +384,7 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "startBarlineMultiple", prefs->barlineOptions->drawLeftBarlineMultipleStaves);
 
     setElementValue(styleElement, "bracketWidth", 0.5); // Hard-coded in Finale
-    setElementValue(styleElement, "bracketDistance", -prefs->braceOptions->defBracketPos / EVPU_PER_SPACE);
+    setElementValue(styleElement, "bracketDistance", ((-prefs->braceOptions->defBracketPos) - 0.25 * EVPU_PER_SPACE) / EVPU_PER_SPACE); // Finale subtracts half the bracket width on layout (observed).
     setElementValue(styleElement, "akkoladeBarDistance", -prefs->braceOptions->defBracketPos / EVPU_PER_SPACE);
 
     setElementValue(styleElement, "clefLeftMargin", prefs->clefOptions->clefFrontSepar / EVPU_PER_SPACE);
@@ -364,7 +407,7 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     // setElementValue(styleElement, "systemHeaderDistance", prefs->keyOptions->keyBack / EVPU_PER_SPACE);
     // setElementValue(styleElement, "systemHeaderTimeSigDistance", prefs->timeOptions->timeBack / EVPU_PER_SPACE);
 
-    setElementValue(styleElement, "clefBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "clefBarlineDistance", -(prefs->clefOptions->clefChangeOffset) / EVPU_PER_SPACE);
     setElementValue(styleElement, "timesigBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
 
     setElementValue(styleElement, "measureRepeatNumberPos", -(prefs->alternateNotationOptions->twoMeasNumLift + 0.5) / EVPU_PER_SPACE);
@@ -384,7 +427,11 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     setElementValue(styleElement, "keySigCourtesyBarlineMode", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
     setElementValue(styleElement, "timeSigCourtesyBarlineMode", 0); // Hard-coded as 0 in Lua
-    setElementValue(styleElement, "hideEmptyStaves", !prefs->forPartId);
+    if (prefs->forPartId == SCORE_PARTID) {
+        setElementValue(styleElement, "hideEmptyStaves", prefs->document->getInstruments().size() > 1);
+    } else {
+        setElementValue(styleElement, "hideEmptyStaves", prefs->document->createInstrumentMap(prefs->forPartId).size() > 1);
+    }
 }
 
 void writeStemPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
@@ -414,10 +461,30 @@ void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     // Finale randomly adds twice the stem width to the length of a beam stub. (Observed behavior)
     setElementValue(styleElement, "beamMinLen", (prefs->beamOptions->beamStubLength + (2.0 * prefs->stemOptions->stemWidth / EFIX_PER_EVPU)) / EVPU_PER_SPACE);
     setElementValue(styleElement, "beamNoSlope", prefs->beamOptions->beamingStyle == options::BeamOptions::FlattenStyle::AlwaysFlat);
-    setElementValue(styleElement, "dotMag", museMagVal(prefs, options::FontOptions::FontType::AugDots));
+    double dotMag = museMagVal(prefs, options::FontOptions::FontType::AugDots);
+    setElementValue(styleElement, "dotMag", dotMag);
     setElementValue(styleElement, "dotNoteDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE);
     setElementValue(styleElement, "dotRestDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE); // Same value as dotNoteDistance
-    setElementValue(styleElement, "dotDotDistance", prefs->augDotOptions->dotOffset / EVPU_PER_SPACE);
+    // Finale's dotOffset value is calculated relative to the rightmost point of the previous dot, MuseScore's dotDotDistance the leftmost. (Observed behavior)
+    // Therefore, we need to add the dot width to MuseScore's dotDotDistance.
+    auto dotWidth = [&]() -> std::optional<EvpuFloat> {
+        if (!prefs->musicFontName.empty()) {
+            if (auto musicFontWidth = utils::smuflGlyphWidthForFont(prefs->musicFontName, "augmentationDot")) {
+                return musicFontWidth;
+            } else if (auto maestroFontWidth = utils::smuflGlyphWidthForFont("Finale Maestro", "augmentationDot")) {
+                prefs->denigmaContext->logMessage(LogMsg() << "unable to find augmentation dot width for " << prefs->musicFontName
+                    << ". Using Finale Maestro instead.", LogSeverity::Warning);
+                return maestroFontWidth;
+            }
+        }
+        return std::nullopt;
+    }();
+    if (dotWidth) {
+        setElementValue(styleElement, "dotDotDistance", (prefs->augDotOptions->dotOffset + (dotMag * dotWidth.value())) / EVPU_PER_SPACE);
+    } else {
+        prefs->denigmaContext->logMessage(LogMsg() << "Unable to find augmentation dot width for music font [" << prefs->musicFontName
+            << "]. Dot-to-dot distance setting was skipped.", LogSeverity::Warning);
+    }
     setElementValue(styleElement, "articulationMag", museMagVal(prefs, options::FontOptions::FontType::Articulation));
     setElementValue(styleElement, "graceNoteMag", prefs->graceOptions->gracePerc / 100.0);
     setElementValue(styleElement, "concertPitch", !prefs->partGlobals->showTransposed);
@@ -470,6 +537,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
             }
         };
 
+        // WARNING: These values changed in MuseScore 4.6 to be AlignH values ("left", "center", "right")
         auto horizontalAlignment = [](MeasureNumberRegion::AlignJustify align) -> int {
             switch (align) {
                 default:
@@ -631,15 +699,16 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
         throw std::invalid_argument("unable to find MarkingCategory for dynamics");
     }
     auto catFontInfo = cat->musicFont;
-    bool override = catFontInfo && catFontInfo->calcIsSMuFL() && catFontInfo->fontId != 0;
+    const bool catFontIsSMuFL = catFontInfo->calcIsSMuFL();
+    const bool override = catFontInfo && catFontIsSMuFL && catFontInfo->fontId != 0;
     setElementValue(styleElement, "dynamicsOverrideFont", override);
     if (override) {
         setElementValue(styleElement, "dynamicsFont", catFontInfo->getName());
-        setElementValue(styleElement, "dynamicsSize", catFontInfo->fontSize / prefs->defaultMusicFont->fontSize);
+        setElementValue(styleElement, "dynamicsSize", double(catFontInfo->fontSize) / double(prefs->defaultMusicFont->fontSize));
     } else {
         setElementValue(styleElement, "dynamicsFont", prefs->defaultMusicFont->getName());
         setElementValue(styleElement, "dynamicsSize",
-                        catFontInfo->calcIsSMuFL() ? (catFontInfo->fontSize / prefs->defaultMusicFont->fontSize) : 1.0);
+                        catFontIsSMuFL ? (double(catFontInfo->fontSize) / double(prefs->defaultMusicFont->fontSize)) : 1.0);
     }
     // Load font preferences for Text Blocks
     auto textBlockFont = options::FontOptions::getFontInfo(prefs->document, FontType::TextBlock);

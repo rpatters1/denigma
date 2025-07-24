@@ -44,9 +44,10 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " does not have a Staff instance.");
     }
     auto mnxSource = mnxStaff.sources().append(it->second);
-    if (auto multiStaffInst = staff->getMultiStaffInstVisualGroup()) {
-        if (auto index = multiStaffInst->getVisualIndexOf(staffSlot->staffId)) {
-            mnxSource.set_staff(int(*index) + 1);
+    const auto& instInfo = meas->getDocument()->getInstrumentForStaff(staffSlot->staffId);
+    if (instInfo.staves.size() > 0) {
+        if (const auto& staffIt = instInfo.staves.find(staffSlot->staffId); staffIt != instInfo.staves.end()) {
+            mnxSource.set_staff(int(staffIt->second) + 1);
         }
     }
     if (staff->showNamesForPart(meas->getPartId())) {

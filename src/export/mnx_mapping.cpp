@@ -316,62 +316,29 @@ std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others
         }
         return {};
     };
+    
     auto checkShape = [&](Cmper shapeId) -> std::vector<EventMarkingType> {
         if (auto shape = artic->getDocument()->getOthers()->get<others::ShapeDef>(artic->getPartId(), shapeId)) {
-            // very specific support for Robert Patterson's tenuto mark.
-            static const std::vector<others::ShapeDef::InstructionType> expectedInsts = {
-                others::ShapeDef::InstructionType::StartObject,
-                others::ShapeDef::InstructionType::RMoveTo,
-                others::ShapeDef::InstructionType::LineWidth,
-                others::ShapeDef::InstructionType::RLineTo,
-                others::ShapeDef::InstructionType::Stroke,
-            };
-            size_t nextIndex = 0;
-            shape->iterateInstructions([&](others::ShapeDef::InstructionType inst, [[maybe_unused]] std::vector<int> data) {
-                if (inst == others::ShapeDef::InstructionType::SetDash) {
-                    return true; // skip SetDash
+            if (auto knownShape = shape->recognize()) {
+                switch (knownShape.value()) {
+                    case KnownShapeDefType::TenutoMark: return { EventMarkingType::Tenuto };
+                    default: break;
                 }
-                if (nextIndex >= expectedInsts.size()) {
-                    nextIndex++; // assure no tenuto is returned
-                    return false;
-                }
-                if (inst != expectedInsts[nextIndex]) {
-                    return false;
-                }
-                switch (inst) {
-                    case others::ShapeDef::InstructionType::LineWidth:
-                        if (data[0] < 4 * EFIX_PER_EVPU || data[0] > 6 * EFIX_PER_EVPU) {
-                            return false;
-                        }
-                        break;
-                    case others::ShapeDef::InstructionType::RLineTo:
-                        if (data[0] < EVPU_PER_SPACE || data[0] > 1.5 * EVPU_PER_SPACE || data[1] != 0) {
-                            return false;
-                        }
-                        break;
-                    default:
-                        break;
-                }
-                nextIndex++;
-                return true;
-            });
-            if (nextIndex == expectedInsts.size()) {
-                return { EventMarkingType::Tenuto };
             }
         }
         return {};
     };
 
     auto main = artic->mainIsShape
-        ? checkShape(artic->mainShape)
-        : checkSymbol(artic->charMain, convertFontToType(artic->fontMain));
+              ? checkShape(artic->mainShape)
+              : checkSymbol(artic->charMain, convertFontToType(artic->fontMain));
     if (!main.empty()) {
         return main;
     }
 
     auto alt = artic->altIsShape
-        ? checkShape(artic->altShape)
-        : checkSymbol(artic->charAlt, convertFontToType(artic->fontAlt));
+             ? checkShape(artic->altShape)
+             : checkSymbol(artic->charAlt, convertFontToType(artic->fontAlt));
 
     return alt;
 }
@@ -406,7 +373,7 @@ mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue)
 
 mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const others::SmartShape::EndPoint>& endPoint)
 {
-    if (auto entryInfo = endPoint->calcAssociatedEntry()) {
+    if (auto entryInfo = endPoint->calcAssociatedEntry(SCORE_PARTID)) {
         return mnxFractionFromFraction(entryInfo->elapsedDuration);
     }
     return mnxFractionFromFraction(endPoint->calcPosition()); 
@@ -454,6 +421,7 @@ std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefI
     }
     bool hideOctave = false;
     if (octave != 0) {
+        /// @todo rewrite these switches using glyph names instead of code points. Requires mappings for pre-SMuFL symbol fonts.
         switch (clefSign.value()) {
         case mnx::ClefSign::GClef:
         {

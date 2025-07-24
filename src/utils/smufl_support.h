@@ -36,4 +36,6 @@ std::optional<std::string> smuflGlyphNameForFont(const std::filesystem::path& fo
 
 std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<musx::dom::FontInfo>& fontInfo, const std::string& text, const denigma::DenigmaContext& denigmaContext);
 
+std::optional<musx::dom::EvpuFloat> smuflGlyphWidthForFont(const std::string& fontName, const std::string& glyphName);
+
 } // namespace utils

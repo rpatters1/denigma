@@ -57,6 +57,10 @@ if(denigma_BUILD_TESTING)
         musx
     )
 
+    target_compile_definitions(denigma_tests PRIVATE
+        MUSX_TEST_DATA_PATH="${musx_SOURCE_DIR}/tests/data"
+    )
+
     # Define testing-specific preprocessor macro
     target_compile_definitions(denigma_tests PRIVATE DENIGMA_TEST)
 

@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "mnx.h"
 #include "utils/smufl_support.h"
@@ -92,17 +93,14 @@ static void createClefs(
     std::optional<ClefIndex>& prevClefIndex)
 {
     const auto& musxDocument = musxMeasure->getDocument();
-    auto clefDefs = musxDocument->getOptions()->get<options::ClefOptions>();
-    if (!clefDefs) {
+    auto clefOptions = musxDocument->getOptions()->get<options::ClefOptions>();
+    if (!clefOptions) {
         throw std::invalid_argument("Musx document contains no clef options.");
     }
 
     auto addClef = [&](ClefIndex clefIndex, musx::util::Fraction location) {
         if (clefIndex == prevClefIndex) {
             return;
-        }
-        if (clefIndex >= ClefIndex(clefDefs->clefDefs.size())) {
-            throw std::invalid_argument("Invalid clef index " + std::to_string(clefIndex));
         }
         auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
             musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
@@ -111,7 +109,7 @@ static void createClefs(
                 << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
             return;
         }
-        const auto& musxClef = clefDefs->clefDefs[clefIndex];
+        const auto& musxClef = clefOptions->getClefDef(clefIndex);
         auto clefFont = musxClef->calcFont();
         FontType fontType = convertFontToType(clefFont);
         if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, fontType)) {
@@ -279,9 +277,9 @@ void createParts(const MnxMusxMappingPtr& context)
     int partNumber = 0;
     auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {
-        auto staff = item->getStaffInstance(1, 0);
-        auto multiStaffInst = staff->getMultiStaffInstVisualGroup();
-        if (multiStaffInst && context->inst2Part.find(staff->getCmper()) != context->inst2Part.end()) {
+        const auto staff = item->getStaffInstance(1, 0);
+        const auto instIt = context->document->getInstruments().find(staff->getCmper());
+        if (instIt == context->document->getInstruments().end()) {
             continue;
         }
         std::string id = "P" + std::to_string(++partNumber);
@@ -295,12 +293,13 @@ void createParts(const MnxMusxMappingPtr& context)
         if (!abrvName.empty()) {
             part.set_shortName(trimNewLineFromString(abrvName));
         }
-        if (multiStaffInst) {
-            part.set_staves(int(multiStaffInst->visualStaffNums.size()));
-            for (auto inst : multiStaffInst->visualStaffNums) {
-                context->inst2Part.emplace(inst, id);
+        const auto& [topStaffId, instInfo] = *instIt;
+        if (instInfo.staves.size() > 1) {
+            part.set_staves(int(instInfo.staves.size()));
+            for (const auto& [staffId, index] : instInfo.staves) {
+                context->inst2Part.emplace(staffId, id);
             }
-            context->part2Inst.emplace(id, multiStaffInst->visualStaffNums);
+            context->part2Inst.emplace(id, instInfo.getSequentialStaves());
         } else {
             context->inst2Part.emplace(staff->getCmper(), id);
             context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));

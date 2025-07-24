@@ -14,6 +14,8 @@
         <enableIndentationOnFirstSystem>1</enableIndentationOnFirstSystem>
         <firstSystemIndentationValue>6</firstSystemIndentationValue>
         <spatium>1.808</spatium>
+        <musicalSymbolFont>Finale Maestro</musicalSymbolFont>
+        <musicalTextFont>Finale Maestro Text</musicalTextFont>
         <lyricsOddFontFace>Times New Roman</lyricsOddFontFace>
         <lyricsOddFontSize>10</lyricsOddFontSize>
         <lyricsOddFontSpatiumDependent>1</lyricsOddFontSpatiumDependent>
@@ -32,7 +34,7 @@
         <startBarlineSingle>0</startBarlineSingle>
         <startBarlineMultiple>1</startBarlineMultiple>
         <bracketWidth>0.5</bracketWidth>
-        <bracketDistance>0.5</bracketDistance>
+        <bracketDistance>0.25</bracketDistance>
         <akkoladeBarDistance>0.5</akkoladeBarDistance>
         <clefLeftMargin>1</clefLeftMargin>
         <keysigLeftMargin>1</keysigLeftMargin>
@@ -41,7 +43,7 @@
         <clefTimesigDistance>1</clefTimesigDistance>
         <keyTimesigDistance>1.5</keyTimesigDistance>
         <keyBarlineDistance>2</keyBarlineDistance>
-        <clefBarlineDistance>2.6667</clefBarlineDistance>
+        <clefBarlineDistance>0.33333</clefBarlineDistance>
         <timesigBarlineDistance>2.6667</timesigBarlineDistance>
         <measureRepeatNumberPos>-1.0208</measureRepeatNumberPos>
         <staffLineWidth>0.07487</staffLineWidth>
@@ -57,7 +59,7 @@
         <genCourtesyClef>1</genCourtesyClef>
         <keySigCourtesyBarlineMode>1</keySigCourtesyBarlineMode>
         <timeSigCourtesyBarlineMode>0</timeSigCourtesyBarlineMode>
-        <hideEmptyStaves>1</hideEmptyStaves>
+        <hideEmptyStaves>0</hideEmptyStaves>
         <useStraightNoteFlags>0</useStraightNoteFlags>
         <stemWidth>0.07487</stemWidth>
         <shortenStem>1</shortenStem>
@@ -77,7 +79,7 @@
         <dotMag>1</dotMag>
         <dotNoteDistance>0.33333</dotNoteDistance>
         <dotRestDistance>0.33333</dotRestDistance>
-        <dotDotDistance>0.33333</dotDotDistance>
+        <dotDotDistance>0.74933</dotDotDistance>
         <articulationMag>1</articulationMag>
         <graceNoteMag>0.6</graceNoteMag>
         <concertPitch>0</concertPitch>
