@@ -30,6 +30,7 @@
 #include "musx/musx.h"
 #include "pugixml.hpp"
 #include "utils/stringutils.h"
+#include "utils/smufl_support.h"
 
 namespace denigma {
 namespace mss {
@@ -40,7 +41,7 @@ using XmlDocument = ::pugi::xml_document;
 using XmlElement = ::pugi::xml_node;
 using XmlAttribute = ::pugi::xml_attribute;
 
-constexpr static char MSS_VERSION[] = "4.50";
+constexpr static char MSS_VERSION[] = "4.50"; // Do not change this version without checking notes on changed values.
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 
 // Finale preferences:
@@ -51,8 +52,10 @@ struct FinalePreferences
 
     const DenigmaContext* denigmaContext;
     DocumentPtr document;
-    std::shared_ptr<FontInfo> defaultMusicFont;
     Cmper forPartId{};
+    //
+    std::shared_ptr<FontInfo> defaultMusicFont;
+    std::string musicFontName;
     //
     std::shared_ptr<options::AccidentalOptions> accidentalOptions;
     std::shared_ptr<options::AlternateNotationOptions> alternateNotationOptions;
@@ -101,6 +104,26 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
 
     auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
     retval->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
+    if (!retval->defaultMusicFont) {
+        throw std::invalid_argument("document contains no information for the default music font.");
+    }
+    retval->musicFontName = [&]() -> std::string {
+        std::string fontName = retval->defaultMusicFont->getName();
+        if (retval->defaultMusicFont->calcIsSMuFL()) {
+            return fontName;
+        } else if (fontName == "Broadway Copyist") {
+            return "Finale Broadway";
+        } else if (fontName == "Engraver") {
+            return "Finale Engraver";
+        } else if (fontName == "Jazz") {
+            return "Finale Jazz";
+        } else if (fontName == "Maestro" || fontName == "Pmusic" || fontName == "Sonata") {
+            return "Finale Maestro";
+        } else if (fontName == "Petrucci") {
+            return "Finale Legacy";
+        } // other `else if` checks as required go here
+        return {};
+    }();
     //
     retval->accidentalOptions = getDocOptions<options::AccidentalOptions>(retval, "accidental");
     retval->alternateNotationOptions = getDocOptions<options::AlternateNotationOptions>(retval, "alternate notation");
@@ -404,7 +427,11 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     setElementValue(styleElement, "keySigCourtesyBarlineMode", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
     setElementValue(styleElement, "timeSigCourtesyBarlineMode", 0); // Hard-coded as 0 in Lua
-    setElementValue(styleElement, "hideEmptyStaves", !prefs->forPartId);
+    if (prefs->forPartId == SCORE_PARTID) {
+        setElementValue(styleElement, "hideEmptyStaves", prefs->document->getInstruments().size() > 1);
+    } else {
+        setElementValue(styleElement, "hideEmptyStaves", prefs->document->createInstrumentMap(prefs->forPartId).size() > 1);
+    }
 }
 
 void writeStemPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
@@ -434,12 +461,30 @@ void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     // Finale randomly adds twice the stem width to the length of a beam stub. (Observed behavior)
     setElementValue(styleElement, "beamMinLen", (prefs->beamOptions->beamStubLength + (2.0 * prefs->stemOptions->stemWidth / EFIX_PER_EVPU)) / EVPU_PER_SPACE);
     setElementValue(styleElement, "beamNoSlope", prefs->beamOptions->beamingStyle == options::BeamOptions::FlattenStyle::AlwaysFlat);
-    setElementValue(styleElement, "dotMag", museMagVal(prefs, options::FontOptions::FontType::AugDots));
+    double dotMag = museMagVal(prefs, options::FontOptions::FontType::AugDots);
+    setElementValue(styleElement, "dotMag", dotMag);
     setElementValue(styleElement, "dotNoteDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE);
     setElementValue(styleElement, "dotRestDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE); // Same value as dotNoteDistance
-    /// @todo Finale's value is calculated relative to the rightmost point of the previous dot, MuseScore the leftmost. (Observed behavior)
-    /// We need to add on the symbol width of one dot for the correct value.
-    setElementValue(styleElement, "dotDotDistance", prefs->augDotOptions->dotOffset / EVPU_PER_SPACE);
+    // Finale's dotOffset value is calculated relative to the rightmost point of the previous dot, MuseScore's dotDotDistance the leftmost. (Observed behavior)
+    // Therefore, we need to add the dot width to MuseScore's dotDotDistance.
+    auto dotWidth = [&]() -> std::optional<EvpuFloat> {
+        if (!prefs->musicFontName.empty()) {
+            if (auto musicFontWidth = utils::smuflGlyphWidthForFont(prefs->musicFontName, "augmentationDot")) {
+                return musicFontWidth;
+            } else if (auto maestroFontWidth = utils::smuflGlyphWidthForFont("Finale Maestro", "augmentationDot")) {
+                prefs->denigmaContext->logMessage(LogMsg() << "unable to find augmentation dot width for " << prefs->musicFontName
+                    << ". Using Finale Maestro instead.", LogSeverity::Warning);
+                return maestroFontWidth;
+            }
+        }
+        return std::nullopt;
+    }();
+    if (dotWidth) {
+        setElementValue(styleElement, "dotDotDistance", (prefs->augDotOptions->dotOffset + (dotMag * dotWidth.value())) / EVPU_PER_SPACE);
+    } else {
+        prefs->denigmaContext->logMessage(LogMsg() << "Unable to find augmentation dot width for music font [" << prefs->musicFontName
+            << "]. Dot-to-dot distance setting was skipped.", LogSeverity::Warning);
+    }
     setElementValue(styleElement, "articulationMag", museMagVal(prefs, options::FontOptions::FontType::Articulation));
     setElementValue(styleElement, "graceNoteMag", prefs->graceOptions->gracePerc / 100.0);
     setElementValue(styleElement, "concertPitch", !prefs->partGlobals->showTransposed);
@@ -492,6 +537,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
             }
         };
 
+        // WARNING: These values changed in MuseScore 4.6 to be AlignH values ("left", "center", "right")
         auto horizontalAlignment = [](MeasureNumberRegion::AlignJustify align) -> int {
             switch (align) {
                 default:

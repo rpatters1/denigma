@@ -28,6 +28,10 @@
 #include "nlohmann/json.hpp"
 #include "ziputils.h"
 
+#include "musx/musx.h"
+
+using namespace musx::dom;
+
 namespace utils {
 
 static char32_t ucodeToCodePoint(const std::string& ucode)
@@ -95,11 +99,32 @@ std::optional<std::string> smuflGlyphNameForFont(const std::filesystem::path& fo
     return result;
 }
 
-std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<musx::dom::FontInfo>& fontInfo, const std::string& text, const denigma::DenigmaContext& denigmaContext)
+std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<FontInfo>& fontInfo, const std::string& text, const denigma::DenigmaContext& denigmaContext)
 {
     if (auto metaDataPath = fontInfo->calcSMuFLMetaDataPath()) {
         if (auto codePoint = utf8ToCodepoint(text)) {
             return smuflGlyphNameForFont(metaDataPath.value(), codePoint.value(), denigmaContext);
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<EvpuFloat> smuflGlyphWidthForFont(const std::string& fontName, const std::string& glyphName)
+{
+    if (auto metaDataPath = FontInfo::calcSMuFLMetaDataPath(fontName)) {
+        std::ifstream jsonFile;
+        jsonFile.exceptions(std::ios::failbit | std::ios::badbit);
+        jsonFile.open(metaDataPath.value());
+        if (!jsonFile.is_open()) {
+            throw std::runtime_error("Unable to open JSON file: " + metaDataPath.value().u8string());
+        }
+        nlohmann::json json;
+        jsonFile >> json;
+        if (json.contains("glyphBBoxes") && json["glyphBBoxes"].contains(glyphName)) {
+            nlohmann::json glyphBox = json["glyphBBoxes"][glyphName];
+            return (glyphBox["bBoxNE"][0].get<EvpuFloat>() - glyphBox["bBoxSW"][0].get<EvpuFloat>()) * EVPU_PER_SPACE;
+        } else if (json.contains("glyphAdvanceWidths") && json["glyphAdvanceWidths"].contains(glyphName)) {
+            return json["glyphAdvanceWidths"][glyphName].get<EvpuFloat>() * EVPU_PER_SPACE;
         }
     }
     return std::nullopt;

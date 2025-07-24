@@ -59,7 +59,7 @@
         <genCourtesyClef>1</genCourtesyClef>
         <keySigCourtesyBarlineMode>0</keySigCourtesyBarlineMode>
         <timeSigCourtesyBarlineMode>0</timeSigCourtesyBarlineMode>
-        <hideEmptyStaves>1</hideEmptyStaves>
+        <hideEmptyStaves>0</hideEmptyStaves>
         <useStraightNoteFlags>0</useStraightNoteFlags>
         <stemWidth>0.083333</stemWidth>
         <shortenStem>1</shortenStem>
@@ -79,7 +79,7 @@
         <dotMag>1</dotMag>
         <dotNoteDistance>0.45833</dotNoteDistance>
         <dotRestDistance>0.45833</dotRestDistance>
-        <dotDotDistance>0.54167</dotDotDistance>
+        <dotDotDistance>0.95767</dotDotDistance>
         <articulationMag>1</articulationMag>
         <graceNoteMag>0.7</graceNoteMag>
         <concertPitch>0</concertPitch>

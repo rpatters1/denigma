@@ -79,7 +79,7 @@
         <dotMag>1</dotMag>
         <dotNoteDistance>0.33333</dotNoteDistance>
         <dotRestDistance>0.33333</dotRestDistance>
-        <dotDotDistance>0.33333</dotDotDistance>
+        <dotDotDistance>0.74933</dotDotDistance>
         <articulationMag>1</articulationMag>
         <graceNoteMag>0.6</graceNoteMag>
         <concertPitch>0</concertPitch>
