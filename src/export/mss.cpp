@@ -325,23 +325,9 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
             setElementValue(styleElement, "smallNoteMag", minSize.toDouble());
         }
     }
-
-    // Default music font
-    const auto musicFontName = [&]() -> std::string {
-        const auto& defaultMusicFont = prefs->defaultMusicFont;
-        std::string fontName = defaultMusicFont->getName();
-        if (defaultMusicFont->calcIsSMuFL()) {
-            return fontName;
-        } else if (fontName == "Maestro") {
-            return "Finale Maestro";
-        } else if (fontName == "Petrucci") {
-            return "Finale Legacy";
-        } // other `else if` checks as required go here
-        return {};
-    }();
-    if (!musicFontName.empty()) {
-        setElementValue(styleElement, "musicalSymbolFont", musicFontName);
-        setElementValue(styleElement, "musicalTextFont", musicFontName + " Text");
+    if (!prefs->musicFontName.empty()) {
+        setElementValue(styleElement, "musicalSymbolFont", prefs->musicFontName);
+        setElementValue(styleElement, "musicalTextFont", prefs->musicFontName + " Text");
     }
 }
 
@@ -427,11 +413,7 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     setElementValue(styleElement, "keySigCourtesyBarlineMode", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
     setElementValue(styleElement, "timeSigCourtesyBarlineMode", 0); // Hard-coded as 0 in Lua
-    if (prefs->forPartId == SCORE_PARTID) {
-        setElementValue(styleElement, "hideEmptyStaves", prefs->document->getInstruments().size() > 1);
-    } else {
-        setElementValue(styleElement, "hideEmptyStaves", prefs->document->createInstrumentMap(prefs->forPartId).size() > 1);
-    }
+    setElementValue(styleElement, "hideEmptyStaves", prefs->document->calcHasVaryingSystemStaves(prefs->forPartId));
 }
 
 void writeStemPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
