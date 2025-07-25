@@ -145,6 +145,8 @@
         <voltaFontStyle>0</voltaFontStyle>
         <voltaAlign>left,baseline</voltaAlign>
         <tupletOutOfStaff>1</tupletOutOfStaff>
+        <tupletNumberRythmicCenter>0</tupletNumberRythmicCenter>
+        <tupletExtendToEndOfDuration>0</tupletExtendToEndOfDuration>
         <tupletStemLeftDistance>0</tupletStemLeftDistance>
         <tupletStemRightDistance>0</tupletStemRightDistance>
         <tupletNoteLeftDistance>0</tupletNoteLeftDistance>
