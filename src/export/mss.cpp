@@ -612,6 +612,10 @@ void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pref
     const auto& tupletOptions = prefs->tupletOptions;
 
     setElementValue(styleElement, "tupletOutOfStaff", tupletOptions->avoidStaff);
+    // tupletNumberRythmicCenter and tupletExtendToEndOfDuration are 4.6 settings, but MuseScore 4.5 should ignore them
+    // while MuseScore 4.6 picks them up even out of a 4.6 file.
+    setElementValue(styleElement, "tupletNumberRythmicCenter", tupletOptions->metricCenter); // 4.6 setting
+    setElementValue(styleElement, "tupletExtendToEndOfDuration", tupletOptions->fullDura); // 4.6 setting
     setElementValue(styleElement, "tupletStemLeftDistance", tupletOptions->leftHookExt / EVPU_PER_SPACE);
     setElementValue(styleElement, "tupletStemRightDistance", tupletOptions->rightHookExt / EVPU_PER_SPACE);
     setElementValue(styleElement, "tupletNoteLeftDistance", tupletOptions->leftHookExt / EVPU_PER_SPACE);
