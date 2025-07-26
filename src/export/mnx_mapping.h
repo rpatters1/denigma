@@ -91,7 +91,7 @@ std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefI
 
 mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction);
 mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue);
-mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const others::SmartShape::EndPoint>& smartShape);
+mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const smartshape::EndPoint>& smartShape);
 
 int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
 
