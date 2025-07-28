@@ -24,13 +24,12 @@
 #include <string>
 
 #include "smufl_support.h"
-#include "smufl_glyphnames.xxd"
 
 #include "nlohmann/json.hpp"
 #include "ziputils.h"
 
 #include "musx/musx.h"
-#include "smufl_support.h"
+#include "smufl_mapping.h"
 
 using namespace musx::dom;
 

@@ -227,7 +227,6 @@ add_custom_target(PrintConfig ALL
 )
 
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
-include("${CMAKE_SOURCE_DIR}/cmake/GenerateSMuFLXxd.cmake")
 
 # Add executable target
 add_executable(denigma
@@ -258,7 +257,7 @@ if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
 endif()
 
 # Ensure the include directories are added
-add_dependencies(denigma GenerateLicenseXxd GenerateSMuFLXxd)
+add_dependencies(denigma GenerateLicenseXxd)
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
 target_include_directories(denigma SYSTEM PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
