@@ -26,21 +26,10 @@
 #include <cmath>
 
 #include "mnx.h"
+#include "utils/smufl_support.h"
 
 namespace denigma {
 namespace mnxexp {
-
-FontType convertFontToType(const std::shared_ptr<const FontInfo>& fontInfo)
-{
-    if (fontInfo->calcIsSMuFL()) {
-        return FontType::SMuFL;
-    } else if (fontInfo->getName() == "GraceNotes") {
-        return FontType::GraceNotes;
-    } else if (fontInfo->calcIsDefaultMusic() || fontInfo->calcIsSymbolFont()) {
-        return FontType::Symbol;
-    }
-    return FontType::Unicode;
-}
 
 /**
  * @brief Provides a default mapping from TextRepeatDef text to a jump type
@@ -50,10 +39,25 @@ FontType convertFontToType(const std::shared_ptr<const FontInfo>& fontInfo)
  * Anything else returns JumpType::None. It does a case-insensitive comparison.
  */
 /// @param text The text to map. (Usuallu from TextRepeatText)
-/// @param fontType The font type (Unicode/Ascii, SMuFL, or Symbol)
+/// @param glyphName The glyphname, if any.
 /// @return 
-JumpType convertTextToJump(const std::string& text, FontType fontType)
+JumpType convertTextToJump(const std::string& text, const std::optional<std::string>& glyphName)
 {
+    if (glyphName) {
+        if (glyphName == "segno" || glyphName == "segnoSerpent1" || glyphName == "segnoSerpent2" || glyphName == "segnoJapanese") {
+            return JumpType::Segno;
+        }
+        if (glyphName == "dalSegno") {
+            return JumpType::DalSegno;
+        }
+        if (glyphName == "daCapo") {
+            return JumpType::DaCapo;
+        }
+        if (glyphName == "coda" || glyphName == "codaSquare" || glyphName == "codaJapanese") {
+            return JumpType::Coda;
+        }
+    }
+
     std::string lowerText = utils::toLowerCase(text); // Convert input text to lowercase    
 
     if (lowerText == "d.c. al fine") {
@@ -74,38 +78,11 @@ JumpType convertTextToJump(const std::string& text, FontType fontType)
     if (lowerText == "fine") {
         return JumpType::Fine;
     }
-
-    if (fontType == FontType::Unicode) {
-        if (lowerText == "§" || lowerText == "𝄋") {
-            return JumpType::Segno;
-        }
-        if (lowerText == "𝄌") {
-            return JumpType::Coda;
-        }
+    if (lowerText == "§" || lowerText == "𝄋") {
+        return JumpType::Segno;
     }
-
-    if (fontType == FontType::Symbol) {
-        if (lowerText == "%" || lowerText == u8"\u009F") {
-            return JumpType::Segno;
-        }
-        if (lowerText == u8"\u00DE") {
-            return JumpType::Coda;
-        }
-    }
-
-    if (fontType == FontType::SMuFL) {
-        if (lowerText == u8"\uE047" || lowerText == u8"\uE04A" || lowerText == u8"\uE04B" || lowerText == u8"\uF404") {
-            return JumpType::Segno;
-        }
-        if (lowerText == u8"\uE045") {
-            return JumpType::DalSegno;
-        }
-        if (lowerText == u8"\uE046") {
-            return JumpType::DaCapo;
-        }
-        if (lowerText == u8"\uE048" || lowerText == u8"\uE049" || lowerText == u8"\uF405") {
-            return JumpType::Coda;
-        }
+    if (lowerText == "𝄌") {
+        return JumpType::Coda;
     }
 
     return JumpType::None;
@@ -115,7 +92,7 @@ std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark)
 {
-    auto checkSymbol = [&](char32_t sym, FontType fontType) -> std::vector<EventMarkingType> {
+    auto checkSymbol = [&](char32_t sym, const std::shared_ptr<const FontInfo>& fontInfo) -> std::vector<EventMarkingType> {
         // First, check for standard Unicode chars
         switch (sym) {
             case 0x1D167:
@@ -135,184 +112,74 @@ std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others
             case 0x1D17D: return { EventMarkingType::Tenuto };
             case 0x1D17E: return { EventMarkingType::Staccatissimo };
             case 0x1D17F: return { EventMarkingType::StrongAccent };
+            default: break;                
         }
-        switch (fontType) {
-            case FontType::Unicode: // this also includes ASCII
-                switch (sym) {
-                    case ',':
-                        breathMark = mnx::BreathMarkSymbol::Comma;
-                        return { EventMarkingType::Breath };
-                    case '>': return { EventMarkingType::Accent };
-                    case '.': return { EventMarkingType::Staccato };
-                    case '-':
-                    case 0x2013: // en-dash
-                    case 0x2014: // em-dash
-                        return { EventMarkingType::Tenuto };
-                }
-                break;
-            case FontType::GraceNotes:
-                // GraceNotes currently only supported for tremolo symbols
-                switch (sym) {
-                    case 124:
-                        numMarks = 1;
-                        return { EventMarkingType::Tremolo };
-                    case 199:
-                        numMarks = 2;
-                        return { EventMarkingType::Tremolo };
-                    case 200:
-                        numMarks = 3;
-                        return { EventMarkingType::Tremolo };
-                    case 230:
-                        numMarks = 3;
-                        return { EventMarkingType::Tremolo };
-                }
-                break;
-            case FontType::Symbol:
-                switch (sym) {
-                    case 33:
-                        numMarks = 1;
-                        return { EventMarkingType::Tremolo };
-                    case 39: return { EventMarkingType::Spiccato };
-                    case 44:
-                        breathMark = mnx::BreathMarkSymbol::Comma;
-                        return { EventMarkingType::Breath };
-                    case 45: return { EventMarkingType::Tenuto };
-                    case 46: return { EventMarkingType::Staccato };
-                    case 60: return { EventMarkingType::Staccato, EventMarkingType::Tenuto };
-                    case 62: return { EventMarkingType::Accent };
-                    case 64:
-                        numMarks = 2;
-                        return { EventMarkingType::Tremolo };
-                    case 94: return { EventMarkingType::StrongAccent };
-                    case 107: return { EventMarkingType::Staccato };
-                    case 118: return { EventMarkingType::StrongAccent };
-                    case 133:
-                        breathMark = mnx::BreathMarkSymbol::Tick;
-                        return { EventMarkingType::Breath }; // v-slash breath
-                    case 137:
-                    case 138:
-                        return { EventMarkingType::Accent, EventMarkingType::Tenuto };
-                    case 171: return { EventMarkingType::Staccatissimo };
-                    case 172: return { EventMarkingType::StrongAccent, EventMarkingType::Staccato };
-                    case 174: return { EventMarkingType::Spiccato };
-                    case 190:
-                        numMarks = 3;
-                        return { EventMarkingType::Tremolo };
-                    case 216: return { EventMarkingType::Staccatissimo };
-                    case 223: return { EventMarkingType::Accent, EventMarkingType::Staccato };
-                    case 232: return { EventMarkingType::StrongAccent, EventMarkingType::Staccato };
-                    case 248: return { EventMarkingType::Staccato, EventMarkingType::Tenuto };
-                    case 249: return { EventMarkingType::Accent, EventMarkingType::Staccato };
-                }
-                break;
-            case FontType::SMuFL:
-                switch (sym) {
-                    // accents
-                    case 0xE4A0:
-                    case 0xE4A1:
-                    case 0xF632:
-                        return { EventMarkingType::Accent };
-                    case 0xE4B0:
-                    case 0xE4B1:
-                    case 0xF62B:
-                    case 0xF62C:
-                        return { EventMarkingType::Accent, EventMarkingType::Staccato };
-                    case 0xE4B4:
-                    case 0xE4B5:
-                    case 0xF630:
-                    case 0xF631:
-                        return { EventMarkingType::Accent, EventMarkingType::Tenuto };
-                    // breaths
-                    case 0xE4CE:
-                    case 0xF635:
-                        breathMark = mnx::BreathMarkSymbol::Comma;
-                        return { EventMarkingType::Breath };
-                    case 0xE4CF:
-                        breathMark = mnx::BreathMarkSymbol::Tick;
-                        return { EventMarkingType::Breath };
-                    case 0xE4D0:
-                        breathMark = mnx::BreathMarkSymbol::Upbow;
-                        return { EventMarkingType::Breath };
-                    case 0xE4D5:
-                        breathMark = mnx::BreathMarkSymbol::Salzedo;
-                        return { EventMarkingType::Breath };
-                    // soft accents
-                    // spiccato, staccatissimo, staccato
-                    case 0xE486:
-                    case 0xE487:
-                    case 0xE4AA:
-                    case 0xE4AB:
-                        return { EventMarkingType::Spiccato };
-                    case 0xE4A8:
-                    case 0xE4A9:
-                        return { EventMarkingType::Staccatissimo };
-                    case 0xE4A2:
-                    case 0xE4A3:
-                        return { EventMarkingType::Staccato };
-                    case 0xE4AE:
-                    case 0xE4AF:
-                    case 0xF62D:
-                    case 0xF62E:
-                        return { EventMarkingType::Staccato, EventMarkingType::StrongAccent };
-                    case 0xE4B2:
-                    case 0xE4B3:
-                    case 0xF62F:
-                    case 0xF636:
-                        return { EventMarkingType::Staccato, EventMarkingType::Tenuto };
-                    // stress/unstress
-                    case 0xE4B6:
-                    case 0xE4B7:
-                        return { EventMarkingType::Stress };
-                    case 0xE4B8:
-                    case 0xE4B9:
-                        return { EventMarkingType::Unstress };
-                    // strong accents (marcato)
-                    case 0xE4AC:
-                    case 0xE4AD:
-                        return { EventMarkingType::StrongAccent };
-                    case 0xE4BC:
-                    case 0xE4BD:
-                        return { EventMarkingType::StrongAccent, EventMarkingType::Tenuto };
-                    // tenuto
-                    case 0xE4A4:
-                    case 0xE4A5:
-                        return { EventMarkingType::Tenuto };
-                    // tremolo
-                    case 0xE213:
-                    case 0xE22A:
-                    case 0xE22B:
-                    case 0xE22C:
-                    case 0xE22D:
-                    case 0xE232:
-                        numMarks = 0;
-                        return { EventMarkingType::Tremolo };
-                    case 0xE220:
-                    case 0xE225:
-                    case 0xF680:
-                        numMarks = 1;
-                        return { EventMarkingType::Tremolo };
-                    case 0xE221:
-                    case 0xE226:
-                    case 0xF681:
-                        numMarks = 2;
-                        return { EventMarkingType::Tremolo };
-                    case 0xE222:
-                    case 0xE227:
-                    case 0xF682:
-                        numMarks = 3;
-                        return { EventMarkingType::Tremolo };
-                    case 0xE223:
-                    case 0xE228:
-                    case 0xF683:
-                        numMarks = 4;
-                        return { EventMarkingType::Tremolo };
-                    case 0xE224:
-                    case 0xE229:
-                    case 0xF684:
-                        numMarks = 5;
-                        return { EventMarkingType::Tremolo };
-                }
-                break;
+
+        /// @todo Spiccato marking has no SMuFl glyph!
+        if (auto glyphName = utils::smuflGlyphNameForFont(fontInfo, sym)) {
+            if (glyphName == "articAccentAbove" || glyphName == "articAccentBelow" || glyphName == "articAccentAboveLegacy") {
+                return { EventMarkingType::Accent };
+            } else if (glyphName == "articAccentStaccatoAbove" || glyphName == "articAccentStaccatoBelow" ||
+                    glyphName == "articAccentStaccatoAboveLegacy" || glyphName == "articAccentStaccatoBelowLegacy") {
+                return { EventMarkingType::Accent, EventMarkingType::Staccato };
+            } else if (glyphName == "articTenutoAccentAbove" || glyphName == "articTenutoAccentBelow" ||
+                    glyphName == "articTenutoAccentAboveLegacy" || glyphName == "articTenutoAccentBelowLegacy") {
+                return { EventMarkingType::Accent, EventMarkingType::Tenuto };
+            } else if (glyphName == "breathMarkComma" || glyphName == "breathMarkCommaLegacy") {
+                breathMark = mnx::BreathMarkSymbol::Comma;
+                return { EventMarkingType::Breath };
+            } else if (glyphName == "breathMarkTick") {
+                breathMark = mnx::BreathMarkSymbol::Tick;
+                return { EventMarkingType::Breath };
+            } else if (glyphName == "breathMarkUpbow") {
+                breathMark = mnx::BreathMarkSymbol::Upbow;
+                return { EventMarkingType::Breath };
+            } else if (glyphName == "breathMarkSalzedo") {
+                breathMark = mnx::BreathMarkSymbol::Salzedo;
+                return { EventMarkingType::Breath };
+            } else if (glyphName == "articStaccatissimoAbove" || glyphName == "articStaccatissimoBelow" ||
+                    glyphName == "articStaccatissimoStrokeAbove" || glyphName == "articStaccatissimoStrokeBelow" ||
+                    glyphName == "articStaccatissimoWedgeAbove" || glyphName == "articStaccatissimoWedgeBelow") {
+                return { EventMarkingType::Staccatissimo };
+            } else if (glyphName == "articStaccatoAbove" || glyphName == "articStaccatoBelow") {
+                return { EventMarkingType::Staccato };
+            } else if (glyphName == "articMarcatoStaccatoAbove" || glyphName == "articMarcatoStaccatoBelow" ||
+                    glyphName == "articMarcatoStaccatoAboveLegacy" || glyphName == "articMarcatoStaccatoBelowLegacy") {
+                return { EventMarkingType::Staccato, EventMarkingType::StrongAccent };
+            } else if (glyphName == "articTenutoStaccatoAbove" || glyphName == "articTenutoStaccatoBelow" ||
+                    glyphName == "articTenutoStaccatoAboveLegacy" || glyphName == "articTenutoStaccatoBelowLegacy") {
+                return { EventMarkingType::Staccato, EventMarkingType::Tenuto };
+            } else if (glyphName == "articStressAbove" || glyphName == "articStressBelow") {
+                return { EventMarkingType::Stress };
+            } else if (glyphName == "articUnstressAbove" || glyphName == "articUnstressBelow") {
+                return { EventMarkingType::Unstress };
+            } else if (glyphName == "articMarcatoAbove" || glyphName == "articMarcatoBelow") {
+                return { EventMarkingType::StrongAccent };
+            } else if (glyphName == "articMarcatoTenutoAbove" || glyphName == "articMarcatoTenutoBelow") {
+                return { EventMarkingType::StrongAccent, EventMarkingType::Tenuto };
+            } else if (glyphName == "articTenutoAbove" || glyphName == "articTenutoBelow") {
+                return { EventMarkingType::Tenuto };
+            } else if (glyphName == "stemPendereckiTremolo" || glyphName == "buzzRoll" ||
+                    glyphName == "pendereckiTremolo" || glyphName == "unmeasuredTremolo" ||
+                    glyphName == "unmeasuredTremoloSimple" || glyphName == "stockhausenTremolo") {
+                numMarks = 0;
+                return { EventMarkingType::Tremolo };
+            } else if (glyphName == "tremolo1" || glyphName == "tremoloFingered1" || glyphName == "tremolo1Alt") {
+                numMarks = 1;
+                return { EventMarkingType::Tremolo };
+            } else if (glyphName == "tremolo2" || glyphName == "tremoloFingered2" || glyphName == "tremolo2Alt") {
+                numMarks = 2;
+                return { EventMarkingType::Tremolo };
+            } else if (glyphName == "tremolo3" || glyphName == "tremoloFingered3" || glyphName == "tremolo3Alt") {
+                numMarks = 3;
+                return { EventMarkingType::Tremolo };
+            } else if (glyphName == "tremolo4" || glyphName == "tremoloFingered4" || glyphName == "tremolo4Legacy") {
+                numMarks = 4;
+                return { EventMarkingType::Tremolo };
+            } else if (glyphName == "tremolo5" || glyphName == "tremoloFingered5" || glyphName == "tremolo5Legacy") {
+                numMarks = 5;
+                return { EventMarkingType::Tremolo };
+            }
         }
         return {};
     };
@@ -331,14 +198,14 @@ std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others
 
     auto main = artic->mainIsShape
               ? checkShape(artic->mainShape)
-              : checkSymbol(artic->charMain, convertFontToType(artic->fontMain));
+              : checkSymbol(artic->charMain, artic->fontMain);
     if (!main.empty()) {
         return main;
     }
 
     auto alt = artic->altIsShape
              ? checkShape(artic->altShape)
-             : checkSymbol(artic->charAlt, convertFontToType(artic->fontAlt));
+             : checkSymbol(artic->charAlt, artic->fontAlt);
 
     return alt;
 }
@@ -398,7 +265,7 @@ mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllab
 
 std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
     const std::shared_ptr<const options::ClefOptions::ClefDef>& clefDef,
-    const std::shared_ptr<const others::Staff>& staff, FontType fontType)
+    const std::shared_ptr<const others::Staff>& staff, std::optional<std::string_view> glyphName)
 {
     if (clefDef->isBlank()) {
         /// @todo handle blank clefs
@@ -425,53 +292,22 @@ std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefI
         switch (clefSign.value()) {
         case mnx::ClefSign::GClef:
         {
-            switch (clefDef->clefChar) {
-            case 0x1D11E: // Unicode G clef
+            if (clefDef->clefChar == 0x1D11E || glyphName == "gClef" || glyphName == "gClefSmall") { // Unicode G clef or known SMuFL G clef
                 hideOctave = true;
-                break;
-            case '&': // Symbol G Clef
-                hideOctave = fontType == FontType::Symbol || fontType == FontType::GraceNotes;
-                break;
-            case 0xE050: // SMuFL Standard G clef (unison)
-            case 0xF472: // SMuFL Alternate G clef (unison)
-                hideOctave = fontType == FontType::SMuFL;
-                break;
             }
             break;
         }
         case mnx::ClefSign::CClef:
         {
-            switch (clefDef->clefChar) {
-            case 0x1D121: // Unicode C clef
+            if (clefDef->clefChar == 0x1D121 || glyphName == "cClef" || glyphName == "cClefSquare" || glyphName == "cClefFrench" || glyphName == "cClefFrench20C") {
                 hideOctave = true;
-                break;
-            case 'B': // Symbol C Clef
-                hideOctave = fontType == FontType::Symbol || fontType == FontType::GraceNotes;
-                break;
-            case 0xE05C: // SMuFL Standard C clef (unison)
-            case 0xE060: // SMuFL Alternate C clef (unison)
-            case 0xF408: // SMuFL Alternate C clef (unison)
-            case 0xF473: // SMuFL Alternate C clef (unison)
-                hideOctave = fontType == FontType::SMuFL;
-                break;
             }
             break;
         }
         case mnx::ClefSign::FClef:
         {
-            switch (clefDef->clefChar) {
-            case 0x1D122: // Unicode F clef
+            if (clefDef->clefChar == 0x1D122 || glyphName == "fClef" || glyphName == "fClefFrench" || glyphName == "fClef19thCentury") {
                 hideOctave = true;
-                break;
-            case '?': // Symbol F Clef
-                hideOctave = fontType == FontType::Symbol || fontType == FontType::GraceNotes;
-                break;
-            case 0xE062: // SMuFL Standard F clef (unison)
-            case 0xF406: // SMuFL Alternate F clef (unison)
-            case 0xF407: // SMuFL Alternate F clef (unison)
-            case 0xF474: // SMuFL Alternate F clef (unison)
-                hideOctave = fontType == FontType::SMuFL;
-                break;
             }
             break;
         }

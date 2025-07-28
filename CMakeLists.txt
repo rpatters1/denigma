@@ -191,6 +191,23 @@ FetchContent_MakeAvailable(mnxdom)
 FetchContent_GetProperties(mnxdom)
 message(STATUS "mnxdom Source Directory: ${mnxdom_SOURCE_DIR}")
 
+# Define a cache variable for the local Smufl Mapping Library path relative to the source directory.
+set(SMUFL_MAPPING_LOCAL_PATH "" CACHE STRING "Path to local Smufl Mapping Library checkout relative to the source directory (if provided)")
+
+if(SMUFL_MAPPING_LOCAL_PATH)
+    # Combine the source directory with the relative path to get an absolute path.
+    get_filename_component(SMUFL_MAPPING_LOCAL_PATH_ABS "${CMAKE_SOURCE_DIR}/${SMUFL_MAPPING_LOCAL_PATH}" ABSOLUTE)
+    if(EXISTS "${SMUFL_MAPPING_LOCAL_PATH_ABS}/CMakeLists.txt")
+        message(STATUS "Local Smufl Mapping Library found at ${SMUFL_MAPPING_LOCAL_PATH_ABS}")
+        # Set the FetchContent source directory to the computed absolute path.
+        set(FETCHCONTENT_SOURCE_DIR_SMUFL_MAPPING "${SMUFL_MAPPING_LOCAL_PATH_ABS}" CACHE INTERNAL "")
+    else()
+        message(FATAL_ERROR "Local Smufl Mapping Library not found at ${SMUFL_MAPPING_LOCAL_PATH_ABS}")
+    endif()
+else()
+    message(STATUS "Using GitHub for Smufl Mapping Library (${SMUFL_MAPPING_GIT_TAG_OR_BRANCH})")
+endif()
+
 # Disable building tests for smufl_mapping
 set(smufl_mapping_BUILD_TESTING OFF CACHE BOOL "Do not build tests for smufl_mapping")
 # Fetch musx

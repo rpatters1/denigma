@@ -75,8 +75,7 @@ enum class EventMarkingType
     Unstress
 };
 
-FontType convertFontToType(const std::shared_ptr<const FontInfo>& fontInfo);
-JumpType convertTextToJump(const std::string& text, FontType fontType);
+JumpType convertTextToJump(const std::string& text, const std::optional<std::string>& glyphName);
 std::optional<std::pair<mnx::ClefSign, mnx::OttavaAmountOrZero>> musxClefTo(const char32_t sym, FontType fontType);
 std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others::ArticulationDef>& artic,
     std::optional<int>& numMarks,
@@ -87,7 +86,7 @@ std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(con
 mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl);
 std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
     const std::shared_ptr<const options::ClefOptions::ClefDef>& clefDef,
-    const std::shared_ptr<const others::Staff>& staff, FontType fontType);
+    const std::shared_ptr<const others::Staff>& staff, std::optional<std::string_view> glyphName);
 
 mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction);
 mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue);
