@@ -55,6 +55,7 @@ if(denigma_BUILD_TESTING)
         pugixml
         mnxdom
         musx
+        smufl_mapping
     )
 
     target_compile_definitions(denigma_tests PRIVATE

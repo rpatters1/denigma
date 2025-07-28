@@ -191,6 +191,20 @@ FetchContent_MakeAvailable(mnxdom)
 FetchContent_GetProperties(mnxdom)
 message(STATUS "mnxdom Source Directory: ${mnxdom_SOURCE_DIR}")
 
+# Disable building tests for smufl_mapping
+set(smufl_mapping_BUILD_TESTING OFF CACHE BOOL "Do not build tests for smufl_mapping")
+# Fetch musx
+FetchContent_Declare(
+    smufl_mapping
+    GIT_REPOSITORY https://github.com/rpatters1/smufl-mapping.git
+    GIT_TAG        ${SMUFL_MAPPING_GIT_TAG_OR_BRANCH}
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(smufl_mapping)
+
+FetchContent_GetProperties(smufl_mapping)
+message(STATUS "Smufl Mapping Source Directory: ${smufl_mapping_SOURCE_DIR}")
+
 add_custom_target(PrintConfig ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Active build configuration: $<CONFIG>"
 )
@@ -238,6 +252,7 @@ target_link_libraries(denigma PRIVATE
     pugixml
     mnxdom
     musx
+    smufl_mapping
 )
 
 # Define an interface library for precompiled headers
@@ -252,6 +267,7 @@ target_precompile_headers(denigma_pch INTERFACE
     "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
     "${musx_SOURCE_DIR}/src/musx/musx.h"
     "${mnxdom_SOURCE_DIR}/src/mnxdom.h"
+    "${smufl_mapping_SOURCE_DIR}/src/smufl_mapping.h"
 )
 
 # Link the interface library to denigma
