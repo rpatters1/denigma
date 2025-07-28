@@ -137,8 +137,9 @@ std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others
             } else if (glyphName == "breathMarkSalzedo") {
                 breathMark = mnx::BreathMarkSymbol::Salzedo;
                 return { EventMarkingType::Breath };
-            } else if (glyphName == "articStaccatissimoAbove" || glyphName == "articStaccatissimoBelow" ||
-                    glyphName == "articStaccatissimoStrokeAbove" || glyphName == "articStaccatissimoStrokeBelow" ||
+            } else if (glyphName == "articStaccatissimoAbove" || glyphName == "articStaccatissimoBelow") {
+                return { EventMarkingType::Spiccato };
+            } else if (glyphName == "articStaccatissimoStrokeAbove" || glyphName == "articStaccatissimoStrokeBelow" ||
                     glyphName == "articStaccatissimoWedgeAbove" || glyphName == "articStaccatissimoWedgeBelow") {
                 return { EventMarkingType::Staccatissimo };
             } else if (glyphName == "articStaccatoAbove" || glyphName == "articStaccatoBelow") {
