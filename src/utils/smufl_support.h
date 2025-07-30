@@ -30,11 +30,9 @@
 
 namespace utils {
 
-std::optional<std::string> smuflGlyphName(char32_t codePoint, const denigma::DenigmaContext& denigmaContext);
+std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<const musx::dom::FontInfo>& fontInfo, char32_t codepoint);
 
-std::optional<std::string> smuflGlyphNameForFont(const std::filesystem::path& fontMetadataPath, char32_t codePoint, const denigma::DenigmaContext& denigmaContext);
-
-std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<musx::dom::FontInfo>& fontInfo, const std::string& text, const denigma::DenigmaContext& denigmaContext);
+std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<const musx::dom::FontInfo>& fontInfo, const std::string& text);
 
 std::optional<musx::dom::EvpuFloat> smuflGlyphWidthForFont(const std::string& fontName, const std::string& glyphName);
 

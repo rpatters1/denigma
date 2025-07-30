@@ -5,6 +5,8 @@
 set(LICENSE_FILES
     "${CMAKE_SOURCE_DIR}/LICENSE"
     "${musx_SOURCE_DIR}/LICENSE"
+    "${mnxdom_SOURCE_DIR}/LICENSE"
+    "${smufl_mapping_SOURCE_DIR}/LICENSE"
     "${ezgz_SOURCE_DIR}/LICENSE"
     "${pugixml_SOURCE_DIR}/LICENSE.md"
     "${miniz-cpp_SOURCE_DIR}/LICENSE.md"
@@ -13,6 +15,8 @@ set(LICENSE_FILES
 set(LICENSE_PREFIXES
     denigma
     musx
+    mnxdom
+    smufl_mapping
     ezgz
     pugixml
     miniz_cpp

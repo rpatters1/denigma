@@ -191,12 +191,42 @@ FetchContent_MakeAvailable(mnxdom)
 FetchContent_GetProperties(mnxdom)
 message(STATUS "mnxdom Source Directory: ${mnxdom_SOURCE_DIR}")
 
+# Define a cache variable for the local Smufl Mapping Library path relative to the source directory.
+set(SMUFL_MAPPING_LOCAL_PATH "" CACHE STRING "Path to local Smufl Mapping Library checkout relative to the source directory (if provided)")
+
+if(SMUFL_MAPPING_LOCAL_PATH)
+    # Combine the source directory with the relative path to get an absolute path.
+    get_filename_component(SMUFL_MAPPING_LOCAL_PATH_ABS "${CMAKE_SOURCE_DIR}/${SMUFL_MAPPING_LOCAL_PATH}" ABSOLUTE)
+    if(EXISTS "${SMUFL_MAPPING_LOCAL_PATH_ABS}/CMakeLists.txt")
+        message(STATUS "Local Smufl Mapping Library found at ${SMUFL_MAPPING_LOCAL_PATH_ABS}")
+        # Set the FetchContent source directory to the computed absolute path.
+        set(FETCHCONTENT_SOURCE_DIR_SMUFL_MAPPING "${SMUFL_MAPPING_LOCAL_PATH_ABS}" CACHE INTERNAL "")
+    else()
+        message(FATAL_ERROR "Local Smufl Mapping Library not found at ${SMUFL_MAPPING_LOCAL_PATH_ABS}")
+    endif()
+else()
+    message(STATUS "Using GitHub for Smufl Mapping Library (${SMUFL_MAPPING_GIT_TAG_OR_BRANCH})")
+endif()
+
+# Disable building tests for smufl_mapping
+set(smufl_mapping_BUILD_TESTING OFF CACHE BOOL "Do not build tests for smufl_mapping")
+# Fetch musx
+FetchContent_Declare(
+    smufl_mapping
+    GIT_REPOSITORY https://github.com/rpatters1/smufl-mapping.git
+    GIT_TAG        ${SMUFL_MAPPING_GIT_TAG_OR_BRANCH}
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(smufl_mapping)
+
+FetchContent_GetProperties(smufl_mapping)
+message(STATUS "Smufl Mapping Source Directory: ${smufl_mapping_SOURCE_DIR}")
+
 add_custom_target(PrintConfig ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Active build configuration: $<CONFIG>"
 )
 
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
-include("${CMAKE_SOURCE_DIR}/cmake/GenerateSMuFLXxd.cmake")
 
 # Add executable target
 add_executable(denigma
@@ -227,7 +257,7 @@ if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
 endif()
 
 # Ensure the include directories are added
-add_dependencies(denigma GenerateLicenseXxd GenerateSMuFLXxd)
+add_dependencies(denigma GenerateLicenseXxd)
 target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
 target_include_directories(denigma SYSTEM PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
@@ -238,6 +268,7 @@ target_link_libraries(denigma PRIVATE
     pugixml
     mnxdom
     musx
+    smufl_mapping
 )
 
 # Define an interface library for precompiled headers
@@ -252,6 +283,7 @@ target_precompile_headers(denigma_pch INTERFACE
     "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
     "${musx_SOURCE_DIR}/src/musx/musx.h"
     "${mnxdom_SOURCE_DIR}/src/mnxdom.h"
+    "${smufl_mapping_SOURCE_DIR}/src/smufl_mapping.h"
 )
 
 # Link the interface library to denigma

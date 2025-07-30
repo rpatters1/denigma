@@ -174,7 +174,7 @@ static void createSegno(
         auto segno = mnxMeasure.create_segno(mnxFractionFromFraction(location));
         if (auto repeatText = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
             if (auto repeatDef = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
-                if (auto glyphName = utils::smuflGlyphNameForFont(repeatDef->font, repeatText->text, *context->denigmaContext)) {
+                if (auto glyphName = utils::smuflGlyphNameForFont(repeatDef->font, repeatText->text)) {
                     segno.set_glyph(glyphName.value());
                 }
             }

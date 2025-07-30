@@ -111,8 +111,8 @@ static void createClefs(
         }
         const auto& musxClef = clefOptions->getClefDef(clefIndex);
         auto clefFont = musxClef->calcFont();
-        FontType fontType = convertFontToType(clefFont);
-        if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, fontType)) {
+        auto glyphName = utils::smuflGlyphNameForFont(clefFont, musxClef->clefChar);
+        if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, glyphName)) {
             auto [clefSign, octave, hideOctave] = clefInfo.value();
             int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
             auto mnxClef = mnxMeasure.create_clefs().append(clefSign, staffPosition, octave);
@@ -125,16 +125,12 @@ static void createClefs(
             if (mnxStaffNumber) {
                 mnxClef.set_staff(mnxStaffNumber.value());
             }
-            if (fontType == FontType::SMuFL) {
-                if (auto metaDataPath = clefFont->calcSMuFLMetaDataPath()) {
-                    if (auto glyphName = utils::smuflGlyphNameForFont(metaDataPath.value(), musxClef->clefChar, *context->denigmaContext)) {
-                        mnxClef.clef().set_glyph(glyphName.value());
-                    }
-                }
+            if (glyphName) {
+                mnxClef.clef().set_glyph(glyphName.value());
             }
             prevClefIndex = clefIndex;
         } else {
-            context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (fontType is " << int(fontType) << ")"
+            context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (glyph name is " << glyphName.value_or("") << ")"
                 << " Clef change was skipped.", LogSeverity::Warning);
         }
     };
@@ -173,8 +169,8 @@ static void createDynamics(const MnxMusxMappingPtr& context, const std::shared_p
                                     auto fontInfo = rawTextCtx.parseFirstFontInfo();
                                     std::string dynamicText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
                                     auto mnxDynamic = mnxMeasure.create_dynamics().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
-                                    if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText, *context->denigmaContext)) {
-                                        mnxDynamic.set_glyph(smuflGlyph.value());
+                                    if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText)) {
+                                        mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
                                     }
                                     if (mnxStaffNumber) {
                                         mnxDynamic.set_staff(mnxStaffNumber.value());

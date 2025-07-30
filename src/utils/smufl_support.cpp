@@ -21,14 +21,15 @@
  */
 #include <unordered_map>
 #include <istream>
+#include <string>
 
 #include "smufl_support.h"
-#include "smufl_glyphnames.xxd"
 
 #include "nlohmann/json.hpp"
 #include "ziputils.h"
 
 #include "musx/musx.h"
+#include "smufl_mapping.h"
 
 using namespace musx::dom;
 
@@ -50,61 +51,56 @@ static std::unordered_map<char32_t, std::string> createGlyphMap(const nlohmann::
     return result;
 }
 
-std::optional<std::string> smuflGlyphName(char32_t codePoint, const denigma::DenigmaContext& denigmaContext)
+static std::optional<std::string> smuflGlyphNameForFont(const std::filesystem::path& fontMetadataPath, char32_t codepoint)
 {
-    static const auto glyphMap = [&]() -> std::unordered_map<char32_t, std::string> {
-        std::vector<unsigned char> zipFile(smufl_glyphnames_zip, smufl_glyphnames_zip + smufl_glyphnames_zip_len);
-        nlohmann::json json = nlohmann::json::parse(readFile(zipFile, "glyphnames.json", denigmaContext));
-        return createGlyphMap(json);
-    }();
+    static std::unordered_map<std::string, const std::unordered_map<char32_t, std::string>> fontMaps;
 
-    const auto it = glyphMap.find(codePoint);
-    if (it != glyphMap.end()) {
-        return it->second;
+    if (auto glyphName = smufl_mapping::getGlyphName(codepoint)) {
+        return std::string(*glyphName);
+    }
+    auto it = fontMaps.find(fontMetadataPath.u8string());
+    if (it == fontMaps.end()) {
+        auto [newIt, _] = fontMaps.emplace(fontMetadataPath.u8string(), [&]() {
+            std::ifstream jsonFile;
+            jsonFile.exceptions(std::ios::failbit | std::ios::badbit);
+            jsonFile.open(fontMetadataPath);
+            if (!jsonFile.is_open()) {
+                throw std::runtime_error("Unable to open JSON file: " + fontMetadataPath.u8string());
+            }
+            nlohmann::json json;
+            jsonFile >> json;
+            if (json.contains("optionalGlyphs")) {
+                return createGlyphMap(json["optionalGlyphs"]);
+            }
+            return std::unordered_map<char32_t, std::string>();
+        }());
+        it = newIt;
+    }
+    if (it != fontMaps.end()) {
+        auto mapIt = it->second.find(codepoint);
+        if (mapIt != it->second.end()) {
+            return mapIt->second;
+        }
+    }
+    return std::nullopt;
+}
+std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<const FontInfo>& fontInfo, char32_t codepoint)
+{
+    if (auto metaDataPath = fontInfo->calcSMuFLMetaDataPath()) {
+        if (auto glyphName = smufl_mapping::getGlyphName(codepoint, smufl_mapping::SmuflGlyphSource::Finale)) {
+            return std::string(*glyphName);
+        }
+        return smuflGlyphNameForFont(metaDataPath.value(), codepoint);
+    } else if (auto legacyInfo = smufl_mapping::getLegacyGlyphInfo(fontInfo->getName(), codepoint)) {
+        return std::string(legacyInfo->name);
     }
     return std::nullopt;
 }
 
-std::optional<std::string> smuflGlyphNameForFont(const std::filesystem::path& fontMetadataPath, char32_t codePoint, const denigma::DenigmaContext& denigmaContext)
+std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<const FontInfo>& fontInfo, const std::string& text)
 {
-    static std::unordered_map<std::string, const std::unordered_map<char32_t, std::string>> fontMaps;
-
-    auto result = smuflGlyphName(codePoint, denigmaContext);
-    if (!result) {
-        auto it = fontMaps.find(fontMetadataPath.u8string());
-        if (it == fontMaps.end()) {
-            auto [newIt, _] = fontMaps.emplace(fontMetadataPath.u8string(), [&]() {
-                std::ifstream jsonFile;
-                jsonFile.exceptions(std::ios::failbit | std::ios::badbit);
-                jsonFile.open(fontMetadataPath);
-                if (!jsonFile.is_open()) {
-                    throw std::runtime_error("Unable to open JSON file: " + fontMetadataPath.u8string());
-                }
-                nlohmann::json json;
-                jsonFile >> json;
-                if (json.contains("optionalGlyphs")) {
-                    return createGlyphMap(json["optionalGlyphs"]);
-                }
-                return std::unordered_map<char32_t, std::string>();
-            }());
-            it = newIt;
-        }
-        if (it != fontMaps.end()) {
-            auto mapIt = it->second.find(codePoint);
-            if (mapIt != it->second.end()) {
-                result = mapIt->second;
-            }
-        }
-    }
-    return result;
-}
-
-std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<FontInfo>& fontInfo, const std::string& text, const denigma::DenigmaContext& denigmaContext)
-{
-    if (auto metaDataPath = fontInfo->calcSMuFLMetaDataPath()) {
-        if (auto codePoint = utf8ToCodepoint(text)) {
-            return smuflGlyphNameForFont(metaDataPath.value(), codePoint.value(), denigmaContext);
-        }
+    if (auto codepoint = utf8ToCodepoint(text)) {
+        return smuflGlyphNameForFont(fontInfo, codepoint.value());
     }
     return std::nullopt;
 }

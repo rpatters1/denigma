@@ -1,4 +1,0 @@
-These json files are standard files from the SMuFL Github repository:
-https://github.com/w3c/smufl
-
-The zip files are the zipped versions of them that are embedded in denigma to save space.
