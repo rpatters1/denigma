@@ -100,7 +100,7 @@ static void buildOrderedContent(
     mnx::ContentArray&& content,
     const MnxMusxMappingPtr& context,
     const std::vector<details::StaffGroupInfo>& groups,
-    const std::vector<std::shared_ptr<others::InstrumentUsed>>& systemStaves,
+    const MusxInstanceList<others::InstrumentUsed>& systemStaves,
     const std::shared_ptr<others::Measure> forMeas,
     size_t fromIndex = 0,
     size_t toIndex = std::numeric_limits<size_t>::max(),
