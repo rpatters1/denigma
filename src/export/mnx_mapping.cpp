@@ -247,7 +247,7 @@ mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_p
     return mnxFractionFromFraction(endPoint->calcPosition()); 
 }
 
-int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition)
+int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosition)
 {
     return musxStaffPosition - staff->calcMiddleStaffPosition();
 }

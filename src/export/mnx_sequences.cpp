@@ -127,7 +127,7 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
             if (auto artic = context->document->getOthers()->get<others::ArticulationDef>(asgn->getPartId(), asgn->articDef)) {
                 std::optional<int> numMarks;
                 std::optional<mnx::BreathMarkSymbol> breathMark;
-                auto marks = calcMarkingType(artic, numMarks, breathMark);
+                auto marks = calcMarkingType(artic.ptr(), numMarks, breathMark);
                 for (auto mark : marks) {
                     auto mnxMarkings = mnxEvent.create_markings();
                     switch (mark) {

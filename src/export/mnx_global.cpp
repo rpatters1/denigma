@@ -220,11 +220,11 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const MusxInstance<ot
             }
         }
         for (const auto& it : temposAtPositions) {
-            if (auto textExpr = std::dynamic_pointer_cast<const others::TextExpressionDef>(it.second)) {
+            if (auto textExpr = std::dynamic_pointer_cast<const others::TextExpressionDef>(it.second.ptr())) {
                 createTempo(textExpr->value, textExpr->auxData1, it.first);
-            } else if (auto shapeExpr = std::dynamic_pointer_cast<const others::ShapeExpressionDef>(it.second)) {
+            } else if (auto shapeExpr = std::dynamic_pointer_cast<const others::ShapeExpressionDef>(it.second.ptr())) {
                 createTempo(shapeExpr->value, shapeExpr->auxData1, it.first);
-            } else if (auto tempoChange = std::dynamic_pointer_cast<const others::TempoChange>(it.second)) {
+            } else if (auto tempoChange = std::dynamic_pointer_cast<const others::TempoChange>(it.second.ptr())) {
                 const auto noteType = tempoUnit.value_or(NoteType::Quarter);
                 createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);
                 /// @todo hide this tempo change if MNX ever adds visibility to the tempo object.

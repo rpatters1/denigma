@@ -156,8 +156,8 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     auto measNumRegions = retval->document->getOthers()->getArray<others::MeasureNumberRegion>(forPartId);
     if (measNumRegions.size() > 0) {
         retval->measNumScorePart = (forPartId && measNumRegions[0]->useScoreInfoForPart && measNumRegions[0]->partData)
-                                 ? measNumRegions[0]->partData
-                                 : measNumRegions[0]->scoreData;
+                                 ? MusxInstance<others::MeasureNumberRegion::ScorePartData>(measNumRegions[0]->partData)
+                                 : MusxInstance<others::MeasureNumberRegion::ScorePartData>(measNumRegions[0]->scoreData);
         if (!retval->measNumScorePart) {
             throw std::invalid_argument("document contains no ScorePartData for measure number region " + std::to_string(measNumRegions[0]->getCmper()));
         }
@@ -333,7 +333,7 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
 static void writeLyricsPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
-    auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::LyricVerse);
+    auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::LyricVerse).ptr();
     for (auto [verseNumber, evenOdd] : {
             std::make_pair(1, "Odd"),
             std::make_pair(2, "Even")
@@ -502,7 +502,7 @@ void writeSmartShapePrefs(XmlElement& styleElement, const FinalePreferencesPtr& 
 void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
     using MeasureNumberRegion = others::MeasureNumberRegion;
-    setElementValue(styleElement, "showMeasureNumber", prefs->measNumScorePart != nullptr);
+    setElementValue(styleElement, "showMeasureNumber", bool(prefs->measNumScorePart));
     if (prefs->measNumScorePart) {
         const auto& scorePart = prefs->measNumScorePart;
         setElementValue(styleElement, "showMeasureNumberOne", !scorePart->hideFirstMeasure);
@@ -534,8 +534,8 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         };
 
         // Helper function to process segments
-        auto processSegment = [&](const MusxInstance<FontInfo>& fontInfo,
-                                  const MusxInstance<others::Enclosure>& enclosure,
+        auto processSegment = [&](const std::shared_ptr<const FontInfo>& fontInfo,
+                                  const std::shared_ptr<const others::Enclosure>& enclosure,
                                   bool useEnclosure,
                                   MeasureNumberRegion::AlignJustify justification,
                                   MeasureNumberRegion::AlignJustify alignment,
@@ -712,7 +712,7 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     if (!fullPosition) {
         throw std::invalid_argument("unable to find default full name positioning for staves");
     }
-    auto justifyToAlignment = [](const MusxInstance<others::NamePositioning>& position) {
+    auto justifyToAlignment = [](const std::shared_ptr<const others::NamePositioning>& position) {
         switch (position->justify) {
             case others::NamePositioning::AlignJustify::Left:
                 return std::string("left,center");

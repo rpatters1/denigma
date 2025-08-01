@@ -110,7 +110,7 @@ static void createClefs(
             return;
         }
         const auto& musxClef = clefOptions->getClefDef(clefIndex);
-        auto clefFont = musxClef->calcFont();
+        auto clefFont = musxClef->calcFont().ptr();
         auto glyphName = utils::smuflGlyphNameForFont(clefFont, musxClef->clefChar);
         if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, glyphName)) {
             auto [clefSign, octave, hideOctave] = clefInfo.value();

@@ -83,7 +83,7 @@ mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& f
 mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue);
 mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const musx::dom::smartshape::EndPoint>& smartShape);
 
-int mnxStaffPosition(const std::shared_ptr<const others::Staff>& staff, int musxStaffPosition);
+int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosition);
 
 } // namespace mnxexp
 } // namespace denigma
