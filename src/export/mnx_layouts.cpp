@@ -185,7 +185,7 @@ void createLayouts(const MnxMusxMappingPtr& context)
             layout.set_id(calcSystemLayoutId(linkedPart->getCmper(), sysId));
 
             // Retrieve staff groups and staves in scroll view order.
-            auto systemStaves = context->document->getOthers()->getArray<others::InstrumentUsed>(
+            const auto systemStaves = context->document->getOthers()->getArray<others::InstrumentUsed>(
                 linkedPart->getCmper(), systemIuList);
             const MeasCmper forMeas = sysId ? staffSystems[sysId - 1]->startMeas : 1;
             std::vector<details::StaffGroupInfo> groups = details::StaffGroupInfo::getGroupsAtMeasure(forMeas, linkedPart->getCmper(), systemStaves);
