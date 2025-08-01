@@ -169,7 +169,7 @@ static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<
                                     auto fontInfo = rawTextCtx.parseFirstFontInfo();
                                     std::string dynamicText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
                                     auto mnxDynamic = mnxMeasure.create_dynamics().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
-                                    if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText)) {
+                                    if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo.ptr(), dynamicText)) {
                                         mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
                                     }
                                     if (mnxStaffNumber) {

@@ -333,7 +333,7 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
 static void writeLyricsPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
-    auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::LyricVerse).ptr();
+    auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::LyricVerse);
     for (auto [verseNumber, evenOdd] : {
             std::make_pair(1, "Odd"),
             std::make_pair(2, "Even")
