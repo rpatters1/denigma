@@ -34,7 +34,7 @@ namespace mnxexp {
 static void createBeams(
     [[maybe_unused]] const MnxMusxMappingPtr& context,
     mnx::part::Measure& mnxMeasure,
-    const std::shared_ptr<others::Measure>& musxMeasure,
+    const MusxInstance<others::Measure>& musxMeasure,
     InstCmper staffCmper)
 {
     const auto& musxDocument = musxMeasure->getDocument();
@@ -88,7 +88,7 @@ static void createClefs(
     const mnx::Part& mnxPart,
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
-    const std::shared_ptr<others::Measure>& musxMeasure,
+    const MusxInstance<others::Measure>& musxMeasure,
     InstCmper staffCmper,
     std::optional<ClefIndex>& prevClefIndex)
 {
@@ -153,7 +153,7 @@ static void createClefs(
     }
 }
 
-static void createDynamics(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper,
+static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, InstCmper staffCmper,
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     if (musxMeasure->hasExpression) {
@@ -192,7 +192,7 @@ static void createDynamics(const MnxMusxMappingPtr& context, const std::shared_p
     }
 }
 
-static void createOttavas(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper,
+static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, InstCmper staffCmper,
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     context->ottavasApplicableInMeasure.clear();

@@ -30,7 +30,7 @@
 namespace denigma {
 namespace mnxexp {
 
-static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::shared_ptr<const details::TupletDef>& musxTuplet)
+static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const MusxInstance<details::TupletDef>& musxTuplet)
 {
     auto mnxTuplet = content.append<mnx::sequence::Tuplet>(
         musxTuplet->displayNumber, mnxNoteValueFromEdu(musxTuplet->displayDuration),
@@ -68,7 +68,7 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const std::
     return mnxTuplet;
 }
 
-static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
+static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const MusxInstance<Entry>& musxEntry)
 {
     auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
         auto mnxSlurs = mnxEvent.create_slurs();
@@ -119,7 +119,7 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
     }
 }
 
-static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
+static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const MusxInstance<Entry>& musxEntry)
 {
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(musxEntry->getPartId(), musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
@@ -242,8 +242,8 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
     return mnxNote;
 }
 
-mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const std::shared_ptr<others::PercussionNoteInfo>& percNoteInfo,
-    const std::shared_ptr<others::Staff>& musxStaff)
+mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const MusxInstance<others::PercussionNoteInfo>& percNoteInfo,
+    const MusxInstance<others::Staff>& musxStaff)
 {
     auto mnxNote = mnxEvent.create_kitNotes().append(calcPercussionKitId(percNoteInfo));
     auto part = mnxNote.getEnclosingElement<mnx::Part>();
@@ -273,7 +273,7 @@ mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequ
 
 template <typename MnxNoteType>
 static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote,
-    const std::shared_ptr<others::Staff>& musxStaff, const std::shared_ptr<others::PercussionNoteInfo>& percNoteInfo, std::optional<int> mnxStaffNumber)
+    const MusxInstance<others::Staff>& musxStaff, const MusxInstance<others::PercussionNoteInfo>& percNoteInfo, std::optional<int> mnxStaffNumber)
 {
     static_assert(std::is_base_of_v<mnx::sequence::NoteBase, MnxNoteType>, "MnxNoteType must have base type NoteBase.");
 
@@ -323,7 +323,7 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
 }
 
 static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
-    const std::shared_ptr<others::Staff>& musxStaff, std::optional<int> mnxStaffNumber)
+    const MusxInstance<others::Staff>& musxStaff, std::optional<int> mnxStaffNumber)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
 
@@ -338,7 +338,7 @@ static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& 
 }
 
 static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
-    const std::shared_ptr<others::Staff>& musxStaff)
+    const MusxInstance<others::Staff>& musxStaff)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
 
@@ -513,7 +513,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
 void createSequences(const MnxMusxMappingPtr& context,
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
-    const std::shared_ptr<others::Measure>& musxMeasure,
+    const MusxInstance<others::Measure>& musxMeasure,
     InstCmper staffCmper)
 {
     auto gfhold = details::GFrameHoldContext(musxMeasure->getDocument(), musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper());

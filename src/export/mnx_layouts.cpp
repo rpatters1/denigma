@@ -32,8 +32,8 @@ namespace mnxexp {
 // Helper function to create a JSON representation of a single staff
 static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
     const MnxMusxMappingPtr& context,
-    const std::shared_ptr<others::Measure>& meas,
-    const std::shared_ptr<others::InstrumentUsed>& staffSlot)
+    const MusxInstance<others::Measure>& meas,
+    const MusxInstance<others::InstrumentUsed>& staffSlot)
 {
     auto it = context->inst2Part.find(staffSlot->staffId);
     if (it == context->inst2Part.end()) {
@@ -101,7 +101,7 @@ static void buildOrderedContent(
     const MnxMusxMappingPtr& context,
     const std::vector<details::StaffGroupInfo>& groups,
     const MusxInstanceList<others::InstrumentUsed>& systemStaves,
-    const std::shared_ptr<others::Measure> forMeas,
+    const MusxInstance<others::Measure> forMeas,
     size_t fromIndex = 0,
     size_t toIndex = std::numeric_limits<size_t>::max(),
     size_t groupIndex = 0)

@@ -54,40 +54,40 @@ struct FinalePreferences
     DocumentPtr document;
     Cmper forPartId{};
     //
-    std::shared_ptr<FontInfo> defaultMusicFont;
+    MusxInstance<FontInfo> defaultMusicFont;
     std::string musicFontName;
     //
-    std::shared_ptr<options::AccidentalOptions> accidentalOptions;
-    std::shared_ptr<options::AlternateNotationOptions> alternateNotationOptions;
-    std::shared_ptr<options::AugmentationDotOptions> augDotOptions;
-    std::shared_ptr<options::BarlineOptions> barlineOptions;
-    std::shared_ptr<options::BeamOptions> beamOptions;
-    std::shared_ptr<options::ClefOptions> clefOptions;
-    std::shared_ptr<options::FlagOptions> flagOptions;
-    std::shared_ptr<options::GraceNoteOptions> graceOptions;
-    std::shared_ptr<options::KeySignatureOptions> keyOptions;
-    std::shared_ptr<options::LineCurveOptions> lineCurveOptions;
-    std::shared_ptr<options::MiscOptions> miscOptions;
-    std::shared_ptr<options::MultimeasureRestOptions> mmRestOptions;
-    std::shared_ptr<options::MusicSpacingOptions> musicSpacing;
-    std::shared_ptr<options::PageFormatOptions::PageFormat> pageFormat;
-    std::shared_ptr<options::PianoBraceBracketOptions> braceOptions;
-    std::shared_ptr<options::RepeatOptions> repeatOptions;
-    std::shared_ptr<options::SmartShapeOptions> smartShapeOptions;
-    std::shared_ptr<options::StaffOptions> staffOptions;
-    std::shared_ptr<options::StemOptions> stemOptions;
-    std::shared_ptr<options::TieOptions> tieOptions;
-    std::shared_ptr<options::TimeSignatureOptions> timeOptions;
-    std::shared_ptr<options::TupletOptions> tupletOptions;
+    MusxInstance<options::AccidentalOptions> accidentalOptions;
+    MusxInstance<options::AlternateNotationOptions> alternateNotationOptions;
+    MusxInstance<options::AugmentationDotOptions> augDotOptions;
+    MusxInstance<options::BarlineOptions> barlineOptions;
+    MusxInstance<options::BeamOptions> beamOptions;
+    MusxInstance<options::ClefOptions> clefOptions;
+    MusxInstance<options::FlagOptions> flagOptions;
+    MusxInstance<options::GraceNoteOptions> graceOptions;
+    MusxInstance<options::KeySignatureOptions> keyOptions;
+    MusxInstance<options::LineCurveOptions> lineCurveOptions;
+    MusxInstance<options::MiscOptions> miscOptions;
+    MusxInstance<options::MultimeasureRestOptions> mmRestOptions;
+    MusxInstance<options::MusicSpacingOptions> musicSpacing;
+    MusxInstance<options::PageFormatOptions::PageFormat> pageFormat;
+    MusxInstance<options::PianoBraceBracketOptions> braceOptions;
+    MusxInstance<options::RepeatOptions> repeatOptions;
+    MusxInstance<options::SmartShapeOptions> smartShapeOptions;
+    MusxInstance<options::StaffOptions> staffOptions;
+    MusxInstance<options::StemOptions> stemOptions;
+    MusxInstance<options::TieOptions> tieOptions;
+    MusxInstance<options::TimeSignatureOptions> timeOptions;
+    MusxInstance<options::TupletOptions> tupletOptions;
     //
-    std::shared_ptr<others::LayerAttributes> layerOneAttributes;
-    std::shared_ptr<others::MeasureNumberRegion::ScorePartData> measNumScorePart;
-    std::shared_ptr<others::PartGlobals> partGlobals;
+    MusxInstance<others::LayerAttributes> layerOneAttributes;
+    MusxInstance<others::MeasureNumberRegion::ScorePartData> measNumScorePart;
+    MusxInstance<others::PartGlobals> partGlobals;
 };
 using FinalePreferencesPtr = std::shared_ptr<FinalePreferences>;
 
 template <typename T>
-static std::shared_ptr<T> getDocOptions(const FinalePreferencesPtr& prefs, const std::string& prefsName)
+static MusxInstance<T> getDocOptions(const FinalePreferencesPtr& prefs, const std::string& prefsName)
 {
     auto retval = prefs->document->getOptions()->get<T>();
     if (!retval) {
@@ -534,8 +534,8 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         };
 
         // Helper function to process segments
-        auto processSegment = [&](const std::shared_ptr<FontInfo>& fontInfo,
-                                  const std::shared_ptr<others::Enclosure>& enclosure,
+        auto processSegment = [&](const MusxInstance<FontInfo>& fontInfo,
+                                  const MusxInstance<others::Enclosure>& enclosure,
                                   bool useEnclosure,
                                   MeasureNumberRegion::AlignJustify justification,
                                   MeasureNumberRegion::AlignJustify alignment,
@@ -712,7 +712,7 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     if (!fullPosition) {
         throw std::invalid_argument("unable to find default full name positioning for staves");
     }
-    auto justifyToAlignment = [](const std::shared_ptr<others::NamePositioning>& position) {
+    auto justifyToAlignment = [](const MusxInstance<others::NamePositioning>& position) {
         switch (position->justify) {
             case others::NamePositioning::AlignJustify::Left:
                 return std::string("left,center");
@@ -758,7 +758,7 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     }
 }
 
-static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const DenigmaContext& denigmaContext, const std::shared_ptr<others::PartDefinition>& part = nullptr)
+static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part = nullptr)
 {
     // calculate actual output path
     std::filesystem::path qualifiedOutputPath = outputPath;
