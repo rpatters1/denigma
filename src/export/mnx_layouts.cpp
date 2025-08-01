@@ -33,7 +33,7 @@ namespace mnxexp {
 static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
     const MnxMusxMappingPtr& context,
     const MusxInstance<others::Measure>& meas,
-    const MusxInstance<others::InstrumentUsed>& staffSlot)
+    const MusxInstance<others::StaffUsed>& staffSlot)
 {
     auto it = context->inst2Part.find(staffSlot->staffId);
     if (it == context->inst2Part.end()) {
@@ -100,7 +100,7 @@ static void buildOrderedContent(
     mnx::ContentArray&& content,
     const MnxMusxMappingPtr& context,
     const std::vector<details::StaffGroupInfo>& groups,
-    const MusxInstanceList<others::InstrumentUsed>& systemStaves,
+    const MusxInstanceList<others::StaffUsed>& systemStaves,
     const MusxInstance<others::Measure> forMeas,
     size_t fromIndex = 0,
     size_t toIndex = std::numeric_limits<size_t>::max(),
@@ -185,7 +185,7 @@ void createLayouts(const MnxMusxMappingPtr& context)
             layout.set_id(calcSystemLayoutId(linkedPart->getCmper(), sysId));
 
             // Retrieve staff groups and staves in scroll view order.
-            const auto systemStaves = context->document->getOthers()->getArray<others::InstrumentUsed>(
+            const auto systemStaves = context->document->getOthers()->getArray<others::StaffUsed>(
                 linkedPart->getCmper(), systemIuList);
             const MeasCmper forMeas = sysId ? staffSystems[sysId - 1]->startMeas : 1;
             std::vector<details::StaffGroupInfo> groups = details::StaffGroupInfo::getGroupsAtMeasure(forMeas, linkedPart->getCmper(), systemStaves);

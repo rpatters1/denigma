@@ -80,7 +80,7 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
         auto staffNumber = Cmper(currentStaff + currentStaffOffset);
         std::string staffName = [&]() -> std::string {
             if (musxDocument) {
-                const auto iuList = musxDocument->getOthers()->getArray<others::InstrumentUsed>(musxPartId, BASE_SYSTEM_ID);
+                const auto iuList = musxDocument->getOthers()->getArray<others::StaffUsed>(musxPartId, BASE_SYSTEM_ID);
                 if (!iuList.empty()) {
                     if (auto staff = iuList.getStaffInstanceAtIndex(staffNumber)) {
                         return staff->getFullName();
@@ -279,10 +279,10 @@ static int log2_exact(uint32_t value)
 }
 
 static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
-    int staffSlot, MeasCmper measure, double /*durationUnit*/, InstCmper staffNum,
+    int staffSlot, MeasCmper measure, double /*durationUnit*/, StaffCmper staffNum,
     const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    const auto iuList = context->musxDocument->getOthers()->getArray<others::InstrumentUsed>(context->musxPartId, BASE_SYSTEM_ID);
+    const auto iuList = context->musxDocument->getOthers()->getArray<others::StaffUsed>(context->musxPartId, BASE_SYSTEM_ID);
     if (iuList.empty()) {
         context->logMessage(LogMsg() << "no staff list found for part", LogSeverity::Warning);
         return;
@@ -429,7 +429,7 @@ void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageM
             context->currentMeasure++;
 
             if (context->musxDocument && context->denigmaContext->refloatRests) {
-                for (InstCmper staffNum = 1; staffNum <= stavesUsed; ++staffNum) {
+                for (StaffCmper staffNum = 1; staffNum <= stavesUsed; ++staffNum) {
                     context->currentStaffOffset = staffNum - 1;
                     massageXmlWithFinaleDocument(
                         xmlMeasure,

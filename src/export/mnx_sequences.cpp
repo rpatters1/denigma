@@ -291,7 +291,7 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
     }();
     mnxNote.set_id(calcNoteId(musxNote));
     if (musxNote->crossStaff) {
-        InstCmper noteStaff = musxNote.calcStaff();
+        StaffCmper noteStaff = musxNote.calcStaff();
         std::optional<int> mnxNoteStaff;
         for (size_t y = 0; y < context->partStaves.size(); y++) {
             if (context->partStaves[y] == noteStaff) {
@@ -514,7 +514,7 @@ void createSequences(const MnxMusxMappingPtr& context,
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
     const MusxInstance<others::Measure>& musxMeasure,
-    InstCmper staffCmper)
+    StaffCmper staffCmper)
 {
     auto gfhold = details::GFrameHoldContext(musxMeasure->getDocument(), musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper());
     if (!gfhold) {

@@ -35,7 +35,7 @@ static void createBeams(
     [[maybe_unused]] const MnxMusxMappingPtr& context,
     mnx::part::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
-    InstCmper staffCmper)
+    StaffCmper staffCmper)
 {
     const auto& musxDocument = musxMeasure->getDocument();
     if (auto gfhold = details::GFrameHoldContext(musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
@@ -89,7 +89,7 @@ static void createClefs(
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
     const MusxInstance<others::Measure>& musxMeasure,
-    InstCmper staffCmper,
+    StaffCmper staffCmper,
     std::optional<ClefIndex>& prevClefIndex)
 {
     const auto& musxDocument = musxMeasure->getDocument();
@@ -153,7 +153,7 @@ static void createClefs(
     }
 }
 
-static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, InstCmper staffCmper,
+static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper,
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     if (musxMeasure->hasExpression) {
@@ -192,7 +192,7 @@ static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<
     }
 }
 
-static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, InstCmper staffCmper,
+static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper,
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     context->ottavasApplicableInMeasure.clear();
@@ -269,7 +269,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
 void createParts(const MnxMusxMappingPtr& context)
 {
     auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);
-    const auto scrollView = context->document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
+    const auto scrollView = context->document->getOthers()->getArray<others::StaffUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
     int partNumber = 0;
     auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {
@@ -298,7 +298,7 @@ void createParts(const MnxMusxMappingPtr& context)
             context->part2Inst.emplace(id, instInfo.getSequentialStaves());
         } else {
             context->inst2Part.emplace(staff->getCmper(), id);
-            context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
+            context->part2Inst.emplace(id, std::vector<StaffCmper>({ StaffCmper(staff->getCmper()) }));
         }
         auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
         if (transpositionDisp || transpositionAlt) {
