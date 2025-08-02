@@ -186,7 +186,7 @@ std::vector<EventMarkingType> calcMarkingType(const MusxInstance<others::Articul
     };
     
     auto checkShape = [&](Cmper shapeId) -> std::vector<EventMarkingType> {
-        if (auto shape = artic->getDocument()->getOthers()->get<others::ShapeDef>(artic->getPartId(), shapeId)) {
+        if (auto shape = artic->getDocument()->getOthers()->get<others::ShapeDef>(artic->getRequestedPartId(), shapeId)) {
             if (auto knownShape = shape->recognize()) {
                 switch (knownShape.value()) {
                     case KnownShapeDefType::TenutoMark: return { EventMarkingType::Tenuto };

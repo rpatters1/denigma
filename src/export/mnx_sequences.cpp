@@ -124,7 +124,7 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) {
-            if (auto artic = context->document->getOthers()->get<others::ArticulationDef>(asgn->getPartId(), asgn->articDef)) {
+            if (auto artic = context->document->getOthers()->get<others::ArticulationDef>(asgn->getRequestedPartId(), asgn->articDef)) {
                 std::optional<int> numMarks;
                 std::optional<mnx::BreathMarkSymbol> breathMark;
                 auto marks = calcMarkingType(artic, numMarks, breathMark);
@@ -516,7 +516,7 @@ void createSequences(const MnxMusxMappingPtr& context,
     const MusxInstance<others::Measure>& musxMeasure,
     StaffCmper staffCmper)
 {
-    auto gfhold = details::GFrameHoldContext(musxMeasure->getDocument(), musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper());
+    auto gfhold = details::GFrameHoldContext(musxMeasure->getDocument(), musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper());
     if (!gfhold) {
         return; // nothing to do
     }

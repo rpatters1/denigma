@@ -39,7 +39,7 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
     if (it == context->inst2Part.end()) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " was not assigned to any MNX part.");
     }
-    auto staff = others::StaffComposite::createCurrent(context->document, staffSlot->getPartId(), staffSlot->staffId, meas->getCmper(), 0);
+    auto staff = others::StaffComposite::createCurrent(context->document, staffSlot->getRequestedPartId(), staffSlot->staffId, meas->getCmper(), 0);
     if (!staff) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " does not have a Staff instance.");
     }
@@ -50,7 +50,7 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
             mnxSource.set_staff(int(staffIt->second) + 1);
         }
     }
-    if (staff->showNamesForPart(meas->getPartId())) {
+    if (staff->showNamesForPart(meas->getRequestedPartId())) {
         if (meas->calcShouldShowFullNames()) {
             if (staff->multiStaffInstId) {
                 mnxSource.set_label(staff->getFullName());
