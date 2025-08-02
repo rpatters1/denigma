@@ -88,11 +88,11 @@ JumpType convertTextToJump(const std::string& text, const std::optional<std::str
     return JumpType::None;
 }
 
-std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others::ArticulationDef>& artic,
+std::vector<EventMarkingType> calcMarkingType(const MusxInstance<others::ArticulationDef>& artic,
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark)
 {
-    auto checkSymbol = [&](char32_t sym, const std::shared_ptr<const FontInfo>& fontInfo) -> std::vector<EventMarkingType> {
+    auto checkSymbol = [&](char32_t sym, const MusxInstance<FontInfo>& fontInfo) -> std::vector<EventMarkingType> {
         // First, check for standard Unicode chars
         switch (sym) {
             case 0x1D167:
@@ -239,7 +239,7 @@ mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue)
     return mnxFractionFromFraction(musx::util::Fraction::fromEdu(eduValue));
 }
 
-mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const smartshape::EndPoint>& endPoint)
+mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& endPoint)
 {
     if (auto entryInfo = endPoint->calcAssociatedEntry(SCORE_PARTID)) {
         return mnxFractionFromFraction(entryInfo->elapsedDuration);
@@ -252,7 +252,7 @@ int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosi
     return musxStaffPosition - staff->calcMiddleStaffPosition();
 }
 
-mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl)
+mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl)
 {
     if (syl->hasHyphenBefore && syl->hasHyphenAfter) {
         return mnx::LyricLineType::Middle;
@@ -265,7 +265,7 @@ mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllab
 }
 
 std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
-    const std::shared_ptr<const options::ClefOptions::ClefDef>& clefDef,
+    const MusxInstance<options::ClefOptions::ClefDef>& clefDef,
     const MusxInstance<others::Staff>& staff, std::optional<std::string_view> glyphName)
 {
     if (clefDef->isBlank()) {

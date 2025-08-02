@@ -54,7 +54,7 @@ struct FinalePreferences
     DocumentPtr document;
     Cmper forPartId{};
     //
-    std::shared_ptr<const FontInfo> defaultMusicFont;
+    MusxInstance<FontInfo> defaultMusicFont;
     std::string musicFontName;
     //
     MusxInstance<options::AccidentalOptions> accidentalOptions;
@@ -70,7 +70,7 @@ struct FinalePreferences
     MusxInstance<options::MiscOptions> miscOptions;
     MusxInstance<options::MultimeasureRestOptions> mmRestOptions;
     MusxInstance<options::MusicSpacingOptions> musicSpacing;
-    std::shared_ptr<const options::PageFormatOptions::PageFormat> pageFormat;
+    MusxInstance<options::PageFormatOptions::PageFormat> pageFormat;
     MusxInstance<options::PianoBraceBracketOptions> braceOptions;
     MusxInstance<options::RepeatOptions> repeatOptions;
     MusxInstance<options::SmartShapeOptions> smartShapeOptions;
@@ -81,7 +81,7 @@ struct FinalePreferences
     MusxInstance<options::TupletOptions> tupletOptions;
     //
     MusxInstance<others::LayerAttributes> layerOneAttributes;
-    std::shared_ptr<const others::MeasureNumberRegion::ScorePartData> measNumScorePart;
+    MusxInstance<others::MeasureNumberRegion::ScorePartData> measNumScorePart;
     MusxInstance<others::PartGlobals> partGlobals;
 };
 using FinalePreferencesPtr = std::shared_ptr<FinalePreferences>;
@@ -340,7 +340,7 @@ static void writeLyricsPrefs(XmlElement& styleElement, const FinalePreferencesPt
         }) {
         auto verseText = prefs->document->getTexts()->get<texts::LyricsVerse>(Cmper(verseNumber));
         if (verseText && !verseText->text.empty()) {
-            auto font = verseText->getRawTextCtx(prefs->forPartId).parseFirstFontInfo();
+            auto font = verseText->getRawTextCtx(verseText, prefs->forPartId).parseFirstFontInfo();
             if (font) {
                 fontInfo = font;
             }
@@ -534,8 +534,8 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         };
 
         // Helper function to process segments
-        auto processSegment = [&](const std::shared_ptr<const FontInfo>& fontInfo,
-                                  const std::shared_ptr<const others::Enclosure>& enclosure,
+        auto processSegment = [&](const MusxInstance<FontInfo>& fontInfo,
+                                  const MusxInstance<others::Enclosure>& enclosure,
                                   bool useEnclosure,
                                   MeasureNumberRegion::AlignJustify justification,
                                   MeasureNumberRegion::AlignJustify alignment,
@@ -712,7 +712,7 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     if (!fullPosition) {
         throw std::invalid_argument("unable to find default full name positioning for staves");
     }
-    auto justifyToAlignment = [](const std::shared_ptr<const others::NamePositioning>& position) {
+    auto justifyToAlignment = [](const MusxInstance<others::NamePositioning>& position) {
         switch (position->justify) {
             case others::NamePositioning::AlignJustify::Left:
                 return std::string("left,center");

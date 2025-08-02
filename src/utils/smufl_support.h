@@ -30,9 +30,9 @@
 
 namespace utils {
 
-std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<const musx::dom::FontInfo>& fontInfo, char32_t codepoint);
+std::optional<std::string> smuflGlyphNameForFont(const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, char32_t codepoint);
 
-std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<const musx::dom::FontInfo>& fontInfo, const std::string& text);
+std::optional<std::string> smuflGlyphNameForFont(const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, const std::string& text);
 
 std::optional<musx::dom::EvpuFloat> smuflGlyphWidthForFont(const std::string& fontName, const std::string& glyphName);
 

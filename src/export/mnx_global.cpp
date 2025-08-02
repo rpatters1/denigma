@@ -220,11 +220,11 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const MusxInstance<ot
             }
         }
         for (const auto& it : temposAtPositions) {
-            if (auto textExpr = std::dynamic_pointer_cast<const others::TextExpressionDef>(it.second.ptr())) {
+            if (auto textExpr = std::dynamic_pointer_cast<const others::TextExpressionDef>(it.second)) {
                 createTempo(textExpr->value, textExpr->auxData1, it.first);
-            } else if (auto shapeExpr = std::dynamic_pointer_cast<const others::ShapeExpressionDef>(it.second.ptr())) {
+            } else if (auto shapeExpr = std::dynamic_pointer_cast<const others::ShapeExpressionDef>(it.second)) {
                 createTempo(shapeExpr->value, shapeExpr->auxData1, it.first);
-            } else if (auto tempoChange = std::dynamic_pointer_cast<const others::TempoChange>(it.second.ptr())) {
+            } else if (auto tempoChange = std::dynamic_pointer_cast<const others::TempoChange>(it.second)) {
                 const auto noteType = tempoUnit.value_or(NoteType::Quarter);
                 createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);
                 /// @todo hide this tempo change if MNX ever adds visibility to the tempo object.
@@ -237,7 +237,7 @@ static void assignTimeSignature(
     const MnxMusxMappingPtr& context,
     mnx::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
-    std::shared_ptr<const TimeSignature>& prevTimeSig)
+    MusxInstance<TimeSignature>& prevTimeSig)
 {
     auto timeSig = musxMeasure->createTimeSignature();
     if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get())) {
@@ -266,7 +266,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     auto musxMeasures = musxDocument->getOthers()->getArray<others::Measure>(SCORE_PARTID);
     auto musxBarlineOptions = musxDocument->getOptions()->get<options::BarlineOptions>();
     std::optional<int> prevKeyFifths;
-    std::shared_ptr<const TimeSignature> prevTimeSig;
+    MusxInstance<TimeSignature> prevTimeSig;
     for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxDocument->global().measures().append();
         // MNX default indices match our cmper values, so there is no reason to include them.

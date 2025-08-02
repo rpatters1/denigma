@@ -68,20 +68,20 @@ enum class EventMarkingType
 };
 
 JumpType convertTextToJump(const std::string& text, const std::optional<std::string>& glyphName);
-std::vector<EventMarkingType> calcMarkingType(const std::shared_ptr<const others::ArticulationDef>& artic,
+std::vector<EventMarkingType> calcMarkingType(const MusxInstance<others::ArticulationDef>& artic,
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark);
 
 mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
 std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
-mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl);
+mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl);
 std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
-    const std::shared_ptr<const options::ClefOptions::ClefDef>& clefDef,
+    const MusxInstance<options::ClefOptions::ClefDef>& clefDef,
     const MusxInstance<others::Staff>& staff, std::optional<std::string_view> glyphName);
 
 mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction);
 mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue);
-mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const std::shared_ptr<const musx::dom::smartshape::EndPoint>& smartShape);
+mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const MusxInstance<musx::dom::smartshape::EndPoint>& smartShape);
 
 int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosition);
 

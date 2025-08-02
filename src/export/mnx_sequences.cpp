@@ -68,7 +68,7 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const MusxI
     return mnxTuplet;
 }
 
-static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
+static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const MusxInstance<Entry>& musxEntry)
 {
     auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
         auto mnxSlurs = mnxEvent.create_slurs();
@@ -119,7 +119,7 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
     }
 }
 
-static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
+static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const MusxInstance<Entry>& musxEntry)
 {
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
@@ -127,7 +127,7 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
             if (auto artic = context->document->getOthers()->get<others::ArticulationDef>(asgn->getPartId(), asgn->articDef)) {
                 std::optional<int> numMarks;
                 std::optional<mnx::BreathMarkSymbol> breathMark;
-                auto marks = calcMarkingType(artic.ptr(), numMarks, breathMark);
+                auto marks = calcMarkingType(artic, numMarks, breathMark);
                 for (auto mark : marks) {
                     auto mnxMarkings = mnxEvent.create_markings();
                     switch (mark) {
