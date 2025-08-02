@@ -237,7 +237,7 @@ static void assignTimeSignature(
     const MnxMusxMappingPtr& context,
     mnx::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
-    MusxInstance<TimeSignature>& prevTimeSig)
+    std::shared_ptr<const TimeSignature>& prevTimeSig)
 {
     auto timeSig = musxMeasure->createTimeSignature();
     if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get())) {
@@ -266,7 +266,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     auto musxMeasures = musxDocument->getOthers()->getArray<others::Measure>(SCORE_PARTID);
     auto musxBarlineOptions = musxDocument->getOptions()->get<options::BarlineOptions>();
     std::optional<int> prevKeyFifths;
-    MusxInstance<TimeSignature> prevTimeSig;
+    std::shared_ptr<const TimeSignature> prevTimeSig;
     for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxDocument->global().measures().append();
         // MNX default indices match our cmper values, so there is no reason to include them.

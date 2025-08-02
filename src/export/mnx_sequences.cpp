@@ -68,16 +68,16 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const MusxI
     return mnxTuplet;
 }
 
-static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const MusxInstance<Entry>& musxEntry)
+static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
 {
     auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
         auto mnxSlurs = mnxEvent.create_slurs();
         return mnxSlurs.append(calcEventId(targetEntry));
     };
     if (musxEntry->smartShapeDetail) {
-        auto shapeAssigns = musxEntry->getDocument()->getDetails()->getArray<details::SmartShapeEntryAssign>(musxEntry->getPartId(), musxEntry->getEntryNumber());
+        auto shapeAssigns = musxEntry->getDocument()->getDetails()->getArray<details::SmartShapeEntryAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
         for (const auto& assign : shapeAssigns) {
-            if (auto shape = musxEntry->getDocument()->getOthers()->get<others::SmartShape>(musxEntry->getPartId(), assign->shapeNum)) {
+            if (auto shape = musxEntry->getDocument()->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum)) {
                 if (shape->startTermSeg->endPoint->entryNumber != musxEntry->getEntryNumber()) {
                     continue;
                 }
@@ -119,9 +119,9 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
     }
 }
 
-static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const MusxInstance<Entry>& musxEntry)
+static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const std::shared_ptr<const Entry>& musxEntry)
 {
-    auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(musxEntry->getPartId(), musxEntry->getEntryNumber());
+    auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) {
             if (auto artic = context->document->getOthers()->get<others::ArticulationDef>(asgn->getPartId(), asgn->articDef)) {
@@ -385,9 +385,9 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
             }
         }
     };
-    createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignVerse>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
-    createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignChorus>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
-    createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(musxEntry->getPartId(), musxEntry->getEntryNumber()));
+    createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignVerse>(SCORE_PARTID, musxEntry->getEntryNumber()));
+    createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignChorus>(SCORE_PARTID, musxEntry->getEntryNumber()));
+    createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, musxEntry->getEntryNumber()));
 }
 
 static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, const EntryInfoPtr& musxEntryInfo, std::optional<int> mnxStaffNumber)

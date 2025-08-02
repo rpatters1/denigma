@@ -76,7 +76,7 @@ mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
 std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
 mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllableInfo>& syl);
 std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
-    const MusxInstance<options::ClefOptions::ClefDef>& clefDef,
+    const std::shared_ptr<const options::ClefOptions::ClefDef>& clefDef,
     const MusxInstance<others::Staff>& staff, std::optional<std::string_view> glyphName);
 
 mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction);

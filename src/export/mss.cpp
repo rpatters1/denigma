@@ -54,7 +54,7 @@ struct FinalePreferences
     DocumentPtr document;
     Cmper forPartId{};
     //
-    MusxInstance<FontInfo> defaultMusicFont;
+    std::shared_ptr<const FontInfo> defaultMusicFont;
     std::string musicFontName;
     //
     MusxInstance<options::AccidentalOptions> accidentalOptions;
@@ -70,7 +70,7 @@ struct FinalePreferences
     MusxInstance<options::MiscOptions> miscOptions;
     MusxInstance<options::MultimeasureRestOptions> mmRestOptions;
     MusxInstance<options::MusicSpacingOptions> musicSpacing;
-    MusxInstance<options::PageFormatOptions::PageFormat> pageFormat;
+    std::shared_ptr<const options::PageFormatOptions::PageFormat> pageFormat;
     MusxInstance<options::PianoBraceBracketOptions> braceOptions;
     MusxInstance<options::RepeatOptions> repeatOptions;
     MusxInstance<options::SmartShapeOptions> smartShapeOptions;
@@ -81,7 +81,7 @@ struct FinalePreferences
     MusxInstance<options::TupletOptions> tupletOptions;
     //
     MusxInstance<others::LayerAttributes> layerOneAttributes;
-    MusxInstance<others::MeasureNumberRegion::ScorePartData> measNumScorePart;
+    std::shared_ptr<const others::MeasureNumberRegion::ScorePartData> measNumScorePart;
     MusxInstance<others::PartGlobals> partGlobals;
 };
 using FinalePreferencesPtr = std::shared_ptr<FinalePreferences>;
@@ -156,8 +156,8 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     auto measNumRegions = retval->document->getOthers()->getArray<others::MeasureNumberRegion>(forPartId);
     if (measNumRegions.size() > 0) {
         retval->measNumScorePart = (forPartId && measNumRegions[0]->useScoreInfoForPart && measNumRegions[0]->partData)
-                                 ? MusxInstance<others::MeasureNumberRegion::ScorePartData>(measNumRegions[0]->partData)
-                                 : MusxInstance<others::MeasureNumberRegion::ScorePartData>(measNumRegions[0]->scoreData);
+                                 ? measNumRegions[0]->partData
+                                 : measNumRegions[0]->scoreData;
         if (!retval->measNumScorePart) {
             throw std::invalid_argument("document contains no ScorePartData for measure number region " + std::to_string(measNumRegions[0]->getCmper()));
         }

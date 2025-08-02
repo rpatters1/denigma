@@ -110,7 +110,7 @@ static void createClefs(
             return;
         }
         const auto& musxClef = clefOptions->getClefDef(clefIndex);
-        auto clefFont = musxClef->calcFont().ptr();
+        auto clefFont = musxClef->calcFont();
         auto glyphName = utils::smuflGlyphNameForFont(clefFont, musxClef->clefChar);
         if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, glyphName)) {
             auto [clefSign, octave, hideOctave] = clefInfo.value();
@@ -169,7 +169,7 @@ static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<
                                     auto fontInfo = rawTextCtx.parseFirstFontInfo();
                                     std::string dynamicText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
                                     auto mnxDynamic = mnxMeasure.create_dynamics().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
-                                    if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo.ptr(), dynamicText)) {
+                                    if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText)) {
                                         mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
                                     }
                                     if (mnxStaffNumber) {

@@ -265,7 +265,7 @@ mnx::LyricLineType mnxLineTypeFromLyric(const std::shared_ptr<const LyricsSyllab
 }
 
 std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
-    const MusxInstance<options::ClefOptions::ClefDef>& clefDef,
+    const std::shared_ptr<const options::ClefOptions::ClefDef>& clefDef,
     const MusxInstance<others::Staff>& staff, std::optional<std::string_view> glyphName)
 {
     if (clefDef->isBlank()) {
