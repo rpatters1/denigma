@@ -163,7 +163,7 @@
         <tupletUseSymbols>0</tupletUseSymbols>
         <tupletBracketHookHeight>0.5</tupletBracketHookHeight>
         <dynamicsOverrideFont>0</dynamicsOverrideFont>
-        <dynamicsFont>Maestro</dynamicsFont>
+        <dynamicsFont>Finale Maestro</dynamicsFont>
         <dynamicsSize>1</dynamicsSize>
         <defaultFontFace>Times New Roman</defaultFontFace>
         <defaultFontSize>10</defaultFontSize>

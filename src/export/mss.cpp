@@ -684,17 +684,17 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     if (!cat) {
         throw std::invalid_argument("unable to find MarkingCategory for dynamics");
     }
-    auto catFontInfo = cat->musicFont;
-    const bool catFontIsSMuFL = catFontInfo->calcIsSMuFL();
-    const bool override = catFontInfo && catFontIsSMuFL && catFontInfo->fontId != 0;
-    setElementValue(styleElement, "dynamicsOverrideFont", override);
-    if (override) {
-        setElementValue(styleElement, "dynamicsFont", catFontInfo->getName());
-        setElementValue(styleElement, "dynamicsSize", double(catFontInfo->fontSize) / double(prefs->defaultMusicFont->fontSize));
-    } else {
-        setElementValue(styleElement, "dynamicsFont", prefs->defaultMusicFont->getName());
-        setElementValue(styleElement, "dynamicsSize",
-                        catFontIsSMuFL ? (double(catFontInfo->fontSize) / double(prefs->defaultMusicFont->fontSize)) : 1.0);
+    if (auto catFontInfo = cat->musicFont) {
+        const bool catFontIsSMuFL = catFontInfo->calcIsSMuFL();
+        const bool override = catFontIsSMuFL && !catFontInfo->calcIsDefaultMusic();
+        setElementValue(styleElement, "dynamicsOverrideFont", override);
+        if (override) {
+            setElementValue(styleElement, "dynamicsFont", catFontInfo->getName());
+            setElementValue(styleElement, "dynamicsSize", double(catFontInfo->fontSize) / double(prefs->defaultMusicFont->fontSize));
+        } else if (!prefs->musicFontName.empty()) {
+            setElementValue(styleElement, "dynamicsFont", prefs->musicFontName);
+            setElementValue(styleElement, "dynamicsSize", double(catFontInfo->fontSize) / double(prefs->defaultMusicFont->fontSize));
+        }
     }
     // Load font preferences for Text Blocks
     auto textBlockFont = options::FontOptions::getFontInfo(prefs->document, FontType::TextBlock);
@@ -733,7 +733,7 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     writeCategoryTextFontPref(styleElement, prefs, "dynamics", CategoryType::Dynamics);
     writeCategoryTextFontPref(styleElement, prefs, "expression", CategoryType::ExpressiveText);
     writeCategoryTextFontPref(styleElement, prefs, "tempo", CategoryType::TempoMarks);
-    writeCategoryTextFontPref(styleElement, prefs, "tempoChange", CategoryType::ExpressiveText);
+    writeCategoryTextFontPref(styleElement, prefs, "tempoChange", CategoryType::TempoAlterations);
     writeLinePrefs(styleElement, "tempoChange", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
     writeCategoryTextFontPref(styleElement, prefs, "metronome", CategoryType::TempoMarks);
     setElementValue(styleElement, "translatorFontFace", textBlockFont->getName());
@@ -743,6 +743,10 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     writeDefaultFontPref(styleElement, prefs, "repeatLeft", FontType::Repeat);
     writeDefaultFontPref(styleElement, prefs, "repeatRight", FontType::Repeat);
     writeFontPref(styleElement, "frame", textBlockFont.get());
+    writeFontPref(styleElement, "textLine", textBlockFont.get());
+    writeFontPref(styleElement, "systemTextLine", textBlockFont.get());
+    writeFontPref(styleElement, "glissando", textBlockFont.get());
+    writeFontPref(styleElement, "bend", textBlockFont.get());
     writeCategoryTextFontPref(styleElement, prefs, "textLine", CategoryType::TechniqueText);
     writeCategoryTextFontPref(styleElement, prefs, "systemTextLine", CategoryType::ExpressiveText);
     writeCategoryTextFontPref(styleElement, prefs, "glissando", CategoryType::TechniqueText);
