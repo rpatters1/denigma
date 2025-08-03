@@ -32,14 +32,14 @@ namespace mnxexp {
 // Helper function to create a JSON representation of a single staff
 static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
     const MnxMusxMappingPtr& context,
-    const std::shared_ptr<others::Measure>& meas,
-    const std::shared_ptr<others::InstrumentUsed>& staffSlot)
+    const MusxInstance<others::Measure>& meas,
+    const MusxInstance<others::StaffUsed>& staffSlot)
 {
     auto it = context->inst2Part.find(staffSlot->staffId);
     if (it == context->inst2Part.end()) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " was not assigned to any MNX part.");
     }
-    auto staff = others::StaffComposite::createCurrent(context->document, staffSlot->getPartId(), staffSlot->staffId, meas->getCmper(), 0);
+    auto staff = others::StaffComposite::createCurrent(context->document, staffSlot->getRequestedPartId(), staffSlot->staffId, meas->getCmper(), 0);
     if (!staff) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " does not have a Staff instance.");
     }
@@ -50,7 +50,7 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
             mnxSource.set_staff(int(staffIt->second) + 1);
         }
     }
-    if (staff->showNamesForPart(meas->getPartId())) {
+    if (staff->showNamesForPart(meas->getRequestedPartId())) {
         if (meas->calcShouldShowFullNames()) {
             if (staff->multiStaffInstId) {
                 mnxSource.set_label(staff->getFullName());
@@ -100,8 +100,8 @@ static void buildOrderedContent(
     mnx::ContentArray&& content,
     const MnxMusxMappingPtr& context,
     const std::vector<details::StaffGroupInfo>& groups,
-    const std::vector<std::shared_ptr<others::InstrumentUsed>>& systemStaves,
-    const std::shared_ptr<others::Measure> forMeas,
+    const MusxInstanceList<others::StaffUsed>& systemStaves,
+    const MusxInstance<others::Measure> forMeas,
     size_t fromIndex = 0,
     size_t toIndex = std::numeric_limits<size_t>::max(),
     size_t groupIndex = 0)
@@ -185,7 +185,7 @@ void createLayouts(const MnxMusxMappingPtr& context)
             layout.set_id(calcSystemLayoutId(linkedPart->getCmper(), sysId));
 
             // Retrieve staff groups and staves in scroll view order.
-            auto systemStaves = context->document->getOthers()->getArray<others::InstrumentUsed>(
+            const auto systemStaves = context->document->getOthers()->getArray<others::StaffUsed>(
                 linkedPart->getCmper(), systemIuList);
             const MeasCmper forMeas = sysId ? staffSystems[sysId - 1]->startMeas : 1;
             std::vector<details::StaffGroupInfo> groups = details::StaffGroupInfo::getGroupsAtMeasure(forMeas, linkedPart->getCmper(), systemStaves);

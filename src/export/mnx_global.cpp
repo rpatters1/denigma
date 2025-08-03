@@ -32,8 +32,8 @@ namespace mnxexp {
 
 static void assignBarline(
     mnx::global::Measure& mnxMeasure,
-    const std::shared_ptr<others::Measure>& musxMeasure,
-    const std::shared_ptr<options::BarlineOptions>& musxBarlineOptions,
+    const MusxInstance<others::Measure>& musxMeasure,
+    const MusxInstance<options::BarlineOptions>& musxBarlineOptions,
     bool isForFinalMeasure)
 {
     if (musxBarlineOptions->drawBarlines) {
@@ -63,7 +63,7 @@ static void assignBarline(
     }
 }
 
-static void createEnding(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
+static void createEnding(mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
     if (musxMeasure->hasEnding) {
         if (auto musxEnding = musxMeasure->getDocument()->getOthers()->get<others::RepeatEndingStart>(SCORE_PARTID, musxMeasure->getCmper())) {
@@ -78,7 +78,7 @@ static void createEnding(mnx::global::Measure& mnxMeasure, const std::shared_ptr
     }
 }
 
-static musx::util::Fraction calcJumpLocation(const std::shared_ptr<others::TextRepeatAssign> repeatAssign, const std::shared_ptr<others::Measure>& musxMeasure)
+static musx::util::Fraction calcJumpLocation(const MusxInstance<others::TextRepeatAssign> repeatAssign, const MusxInstance<others::Measure>& musxMeasure)
 {
     musx::util::Fraction result{};
     if (const auto def = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, repeatAssign->textRepeatId)) {
@@ -90,7 +90,7 @@ static musx::util::Fraction calcJumpLocation(const std::shared_ptr<others::TextR
     return result;
 }
 
-static std::optional<std::shared_ptr<others::TextRepeatAssign>> searchForJump(const MnxMusxMappingPtr& context, JumpType jumpType, const std::shared_ptr<others::Measure>& musxMeasure)
+static std::optional<MusxInstance<others::TextRepeatAssign>> searchForJump(const MnxMusxMappingPtr& context, JumpType jumpType, const MusxInstance<others::Measure>& musxMeasure)
 {
     if (musxMeasure->hasTextRepeat) {
         auto textRepeatAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::TextRepeatAssign>(SCORE_PARTID, musxMeasure->getCmper());
@@ -107,7 +107,7 @@ static std::optional<std::shared_ptr<others::TextRepeatAssign>> searchForJump(co
 static void createFine(
     const MnxMusxMappingPtr& context,
     mnx::global::Measure& mnxMeasure,
-    const std::shared_ptr<others::Measure>& musxMeasure)
+    const MusxInstance<others::Measure>& musxMeasure)
 {
     if (auto repeatAssign = searchForJump(context, JumpType::Fine, musxMeasure)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
@@ -118,7 +118,7 @@ static void createFine(
 static void createJump(
     const MnxMusxMappingPtr& context,
     mnx::global::Measure& mnxMeasure,
-    const std::shared_ptr<others::Measure>& musxMeasure)
+    const MusxInstance<others::Measure>& musxMeasure)
 {
     static const std::unordered_map<JumpType, mnx::JumpType> jumpMapping = {
         {JumpType::DalSegno, mnx::JumpType::Segno},
@@ -135,7 +135,7 @@ static void createJump(
 
 static void assignKey(
     mnx::global::Measure& mnxMeasure,
-    const std::shared_ptr<others::Measure>& musxMeasure,
+    const MusxInstance<others::Measure>& musxMeasure,
     std::optional<int>& prevKeyFifths)
 {
     auto keyFifths = musxMeasure->createKeySignature()->getAlteration(KeySignature::KeyContext::Concert);
@@ -145,7 +145,7 @@ static void assignKey(
     }
 }
 
-static void assignDisplayNumber(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
+static void assignDisplayNumber(mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
     int displayNumber = musxMeasure->calcDisplayNumber();
     if (displayNumber != musxMeasure->getCmper()) {
@@ -153,7 +153,7 @@ static void assignDisplayNumber(mnx::global::Measure& mnxMeasure, const std::sha
     }
 }
 
-static void assignRepeats(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
+static void assignRepeats(mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
     if (musxMeasure->forwardRepeatBar) {
         mnxMeasure.create_repeatStart();
@@ -167,7 +167,7 @@ static void assignRepeats(mnx::global::Measure& mnxMeasure, const std::shared_pt
 static void createSegno(
     const MnxMusxMappingPtr& context,
     mnx::global::Measure& mnxMeasure,
-    const std::shared_ptr<others::Measure>& musxMeasure)
+    const MusxInstance<others::Measure>& musxMeasure)
 {
     if (auto repeatAssign = searchForJump(context, JumpType::Segno, musxMeasure)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
@@ -182,7 +182,7 @@ static void createSegno(
     }
 }
 
-static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr<others::Measure>& musxMeasure)
+static void createTempos(mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
     auto createTempo = [&mnxMeasure](int bpm, Edu noteValue, Edu eduPosition) {
         auto mnxTempos = mnxMeasure.create_tempos();
@@ -193,7 +193,7 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
         }    
     };
     if (musxMeasure->hasExpression) {
-        std::map<Edu, std::shared_ptr<OthersBase>> temposAtPositions; // use OthersBase because it has to accept multiple types
+        std::map<Edu, MusxInstance<OthersBase>> temposAtPositions; // use OthersBase because it has to accept multiple types
         // Search in order of decreasing precedence: text exprs, then shape exprs, then tempo changes. Using emplace keeps the first one.
         // We want text exprs to be chosen over the others, if they coincide at a beat location.
         const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
@@ -220,11 +220,11 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
             }
         }
         for (const auto& it : temposAtPositions) {
-            if (auto textExpr = std::dynamic_pointer_cast<others::TextExpressionDef>(it.second)) {
+            if (auto textExpr = std::dynamic_pointer_cast<const others::TextExpressionDef>(it.second)) {
                 createTempo(textExpr->value, textExpr->auxData1, it.first);
-            } else if (auto shapeExpr = std::dynamic_pointer_cast<others::ShapeExpressionDef>(it.second)) {
+            } else if (auto shapeExpr = std::dynamic_pointer_cast<const others::ShapeExpressionDef>(it.second)) {
                 createTempo(shapeExpr->value, shapeExpr->auxData1, it.first);
-            } else if (auto tempoChange = std::dynamic_pointer_cast<others::TempoChange>(it.second)) {
+            } else if (auto tempoChange = std::dynamic_pointer_cast<const others::TempoChange>(it.second)) {
                 const auto noteType = tempoUnit.value_or(NoteType::Quarter);
                 createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);
                 /// @todo hide this tempo change if MNX ever adds visibility to the tempo object.
@@ -236,8 +236,8 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const std::shared_ptr
 static void assignTimeSignature(
     const MnxMusxMappingPtr& context,
     mnx::global::Measure& mnxMeasure,
-    const std::shared_ptr<others::Measure>& musxMeasure,
-    std::shared_ptr<TimeSignature>& prevTimeSig)
+    const MusxInstance<others::Measure>& musxMeasure,
+    MusxInstance<TimeSignature>& prevTimeSig)
 {
     auto timeSig = musxMeasure->createTimeSignature();
     if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get())) {
@@ -266,7 +266,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     auto musxMeasures = musxDocument->getOthers()->getArray<others::Measure>(SCORE_PARTID);
     auto musxBarlineOptions = musxDocument->getOptions()->get<options::BarlineOptions>();
     std::optional<int> prevKeyFifths;
-    std::shared_ptr<TimeSignature> prevTimeSig;
+    MusxInstance<TimeSignature> prevTimeSig;
     for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxDocument->global().measures().append();
         // MNX default indices match our cmper values, so there is no reason to include them.
@@ -318,7 +318,7 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
         return;
     }
 
-    std::vector<std::pair<std::string, std::shared_ptr<const details::Baseline>>> baselines;
+    std::vector<std::pair<std::string, MusxInstance<details::Baseline>>> baselines;
     auto addBaselines = [&](const auto& lyricsBaselines) {
         using PtrType = typename std::decay_t<decltype(lyricsBaselines)>::value_type;
         using T = typename PtrType::element_type;

@@ -163,7 +163,7 @@
         <tupletUseSymbols>0</tupletUseSymbols>
         <tupletBracketHookHeight>0.5</tupletBracketHookHeight>
         <dynamicsOverrideFont>0</dynamicsOverrideFont>
-        <dynamicsFont>Maestro</dynamicsFont>
+        <dynamicsFont>Finale Maestro</dynamicsFont>
         <dynamicsSize>1</dynamicsSize>
         <defaultFontFace>Times New Roman</defaultFontFace>
         <defaultFontSize>10</defaultFontSize>
@@ -243,7 +243,7 @@
         <systemTextLineFontFace>Times New Roman</systemTextLineFontFace>
         <systemTextLineFontSize>10</systemTextLineFontSize>
         <systemTextLineFontSpatiumDependent>1</systemTextLineFontSpatiumDependent>
-        <systemTextLineFontStyle>2</systemTextLineFontStyle>
+        <systemTextLineFontStyle>0</systemTextLineFontStyle>
         <glissandoFontFace>Times New Roman</glissandoFontFace>
         <glissandoFontSize>10</glissandoFontSize>
         <glissandoFontSpatiumDependent>1</glissandoFontSpatiumDependent>

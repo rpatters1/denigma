@@ -34,11 +34,11 @@ namespace mnxexp {
 static void createBeams(
     [[maybe_unused]] const MnxMusxMappingPtr& context,
     mnx::part::Measure& mnxMeasure,
-    const std::shared_ptr<others::Measure>& musxMeasure,
-    InstCmper staffCmper)
+    const MusxInstance<others::Measure>& musxMeasure,
+    StaffCmper staffCmper)
 {
     const auto& musxDocument = musxMeasure->getDocument();
-    if (auto gfhold = details::GFrameHoldContext(musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
+    if (auto gfhold = details::GFrameHoldContext(musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper())) {
         if (gfhold.calcIsCuesOnly()) {
             return; // skip cues until MNX spec includes them
         }
@@ -88,8 +88,8 @@ static void createClefs(
     const mnx::Part& mnxPart,
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
-    const std::shared_ptr<others::Measure>& musxMeasure,
-    InstCmper staffCmper,
+    const MusxInstance<others::Measure>& musxMeasure,
+    StaffCmper staffCmper,
     std::optional<ClefIndex>& prevClefIndex)
 {
     const auto& musxDocument = musxMeasure->getDocument();
@@ -103,7 +103,7 @@ static void createClefs(
             return;
         }
         auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
-            musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
+            musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
         if (!musxStaff) {
             context->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
                 << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
@@ -135,33 +135,33 @@ static void createClefs(
         }
     };
 
-    auto staff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper(), 0);
+    auto staff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper(), 0);
     if (staff && staff->transposition && staff->transposition->setToClef) {
         addClef(staff->transposedClef, 0);
-    } else if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getPartId(), staffCmper, musxMeasure->getCmper())) {
+    } else if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper())) {
         if (gfhold->clefId.has_value()) {
             addClef(gfhold->clefId.value(), 0);
         } else {
-            auto clefList = musxDocument->getOthers()->getArray<others::ClefList>(musxMeasure->getPartId(), gfhold->clefListId);
+            auto clefList = musxDocument->getOthers()->getArray<others::ClefList>(musxMeasure->getRequestedPartId(), gfhold->clefListId);
             for (const auto& clefItem : clefList) {
                 addClef(clefItem->clefIndex, musx::util::Fraction::fromEdu(clefItem->xEduPos));
             }
         }
     } else if (musxMeasure->getCmper() == 1) {
-        ClefIndex firstIndex = others::Staff::calcFirstClefIndex(musxDocument, musxMeasure->getPartId(), staffCmper);
+        ClefIndex firstIndex = others::Staff::calcFirstClefIndex(musxDocument, musxMeasure->getRequestedPartId(), staffCmper);
         addClef(firstIndex, 0);
     }
 }
 
-static void createDynamics(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper,
+static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper,
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     if (musxMeasure->hasExpression) {
-        auto shapeAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getPartId(), musxMeasure->getCmper());
+        auto shapeAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
         for (const auto& asgn : shapeAssigns) {
             if (asgn->staffAssign == staffCmper && asgn->textExprId && !asgn->hidden) {
                 if (auto expr = asgn->getTextExpression()) {
-                    if (auto cat = context->document->getOthers()->get<others::MarkingCategory>(expr->getPartId(), expr->categoryId)) {
+                    if (auto cat = context->document->getOthers()->get<others::MarkingCategory>(expr->getRequestedPartId(), expr->categoryId)) {
                         if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) {
                             if (auto text = expr->getTextBlock()) {
                                 if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
@@ -192,14 +192,14 @@ static void createDynamics(const MnxMusxMappingPtr& context, const std::shared_p
     }
 }
 
-static void createOttavas(const MnxMusxMappingPtr& context, const std::shared_ptr<others::Measure>& musxMeasure, InstCmper staffCmper,
+static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper,
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     context->ottavasApplicableInMeasure.clear();
     if (musxMeasure->hasSmartShape) {
-        auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getPartId(), musxMeasure->getCmper());
+        auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
         for (const auto& asgn : shapeAssigns) {
-            if (auto shape = context->document->getOthers()->get<others::SmartShape>(asgn->getPartId(), asgn->shapeNum)) {
+            if (auto shape = context->document->getOthers()->get<others::SmartShape>(asgn->getRequestedPartId(), asgn->shapeNum)) {
                 if (!shape->hidden && (shape->startTermSeg->endPoint->staffId == staffCmper || shape->endTermSeg->endPoint->staffId == staffCmper)) {
                     switch (shape->shapeType) {
                         default: continue;
@@ -269,7 +269,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
 void createParts(const MnxMusxMappingPtr& context)
 {
     auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);
-    auto scrollView = context->document->getOthers()->getArray<others::InstrumentUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
+    const auto scrollView = context->document->getOthers()->getArray<others::StaffUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
     int partNumber = 0;
     auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {
@@ -298,7 +298,7 @@ void createParts(const MnxMusxMappingPtr& context)
             context->part2Inst.emplace(id, instInfo.getSequentialStaves());
         } else {
             context->inst2Part.emplace(staff->getCmper(), id);
-            context->part2Inst.emplace(id, std::vector<InstCmper>({ InstCmper(staff->getCmper()) }));
+            context->part2Inst.emplace(id, std::vector<StaffCmper>({ StaffCmper(staff->getCmper()) }));
         }
         auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
         if (transpositionDisp || transpositionAlt) {

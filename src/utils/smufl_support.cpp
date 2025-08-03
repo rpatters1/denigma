@@ -84,7 +84,7 @@ static std::optional<std::string> smuflGlyphNameForFont(const std::filesystem::p
     }
     return std::nullopt;
 }
-std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<const FontInfo>& fontInfo, char32_t codepoint)
+std::optional<std::string> smuflGlyphNameForFont(const MusxInstance<FontInfo>& fontInfo, char32_t codepoint)
 {
     if (auto metaDataPath = fontInfo->calcSMuFLMetaDataPath()) {
         if (auto glyphName = smufl_mapping::getGlyphName(codepoint, smufl_mapping::SmuflGlyphSource::Finale)) {
@@ -97,7 +97,7 @@ std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<const Fon
     return std::nullopt;
 }
 
-std::optional<std::string> smuflGlyphNameForFont(const std::shared_ptr<const FontInfo>& fontInfo, const std::string& text)
+std::optional<std::string> smuflGlyphNameForFont(const MusxInstance<FontInfo>& fontInfo, const std::string& text)
 {
     if (auto codepoint = utf8ToCodepoint(text)) {
         return smuflGlyphNameForFont(fontInfo, codepoint.value());

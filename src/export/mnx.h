@@ -39,7 +39,7 @@ namespace mnxexp {
 
 // stoopid c++17 standard does not include a hash for tuple
 struct SequenceHash {
-    std::size_t operator()(const std::tuple<InstCmper, LayerIndex, int>& t) const {
+    std::size_t operator()(const std::tuple<StaffCmper, LayerIndex, int>& t) const {
         auto [x, y, z] = t;
         std::size_t h1 = std::hash<int>{}(x);
         std::size_t h2 = std::hash<int>{}(y);
@@ -54,30 +54,30 @@ using json = nlohmann::ordered_json;
 struct MnxMusxMapping
 {
     MnxMusxMapping(const DenigmaContext& context, const DocumentPtr& doc)
-        : denigmaContext(&context), document(doc), mnxDocument() {}
+        : denigmaContext(&context), document(doc), mnxDocument(), musxParts(doc, SCORE_PARTID) {}
 
     const DenigmaContext* denigmaContext;
     musx::dom::DocumentPtr document;
     std::unique_ptr<mnx::Document> mnxDocument;
-    std::vector<std::shared_ptr<others::PartDefinition>> musxParts;
+    MusxInstanceList<others::PartDefinition> musxParts;
 
-    std::unordered_map<std::string, std::vector<InstCmper>> part2Inst;
-    std::unordered_map<InstCmper, std::string> inst2Part;
+    std::unordered_map<std::string, std::vector<StaffCmper>> part2Inst;
+    std::unordered_map<StaffCmper, std::string> inst2Part;
     std::unordered_set<std::string> lyricLineIds;
 
     // musx mappings
     std::unordered_map<Cmper, JumpType> textRepeat2Jump;
 
     MeasCmper currMeas{};
-    InstCmper currStaff{};
+    StaffCmper currStaff{};
     musx::util::Fraction currMeasDura{};    ///< duration of current measure
     musx::util::Fraction duraOffset{};      ///< offset to apply to leftOverEntries
     std::string voice;
-    std::vector<InstCmper> partStaves;
-    std::unordered_map<std::tuple<InstCmper, LayerIndex, int>, std::vector<EntryInfoPtr>, SequenceHash> leftOverEntries; // left over entries per layer/voice combo
-    std::unordered_map<std::tuple<InstCmper, LayerIndex, int>, musx::util::Fraction, SequenceHash> duraOffsets; // dura offsets for leftovers per layer/voice combo
+    std::vector<StaffCmper> partStaves;
+    std::unordered_map<std::tuple<StaffCmper, LayerIndex, int>, std::vector<EntryInfoPtr>, SequenceHash> leftOverEntries; // left over entries per layer/voice combo
+    std::unordered_map<std::tuple<StaffCmper, LayerIndex, int>, musx::util::Fraction, SequenceHash> duraOffsets; // dura offsets for leftovers per layer/voice combo
     std::unordered_set<musx::dom::EntryNumber> visifiedEntries;
-    std::unordered_map<Cmper, std::shared_ptr<const others::SmartShape>> ottavasApplicableInMeasure;
+    std::unordered_map<Cmper, MusxInstance<others::SmartShape>> ottavasApplicableInMeasure;
     
     void clearCounts()
     {
@@ -127,12 +127,12 @@ inline std::string calcLyricLineId(const std::string& type, Cmper textNumber)
     return type.substr(0, 1) + std::to_string(textNumber);
 }
 
-inline std::string calcPercussionKitId(const std::shared_ptr<others::PercussionNoteInfo>& percNoteInfo)
+inline std::string calcPercussionKitId(const MusxInstance<others::PercussionNoteInfo>& percNoteInfo)
 {
     return "ke" + std::to_string(percNoteInfo->percNoteType);
 }
 
-inline std::string calcPercussionSoundId(const std::shared_ptr<others::PercussionNoteInfo>& percNoteInfo)
+inline std::string calcPercussionSoundId(const MusxInstance<others::PercussionNoteInfo>& percNoteInfo)
 {
     std::string result = "pn" + std::to_string(percNoteInfo->getBaseNoteTypeId());
     if (auto orderId = percNoteInfo->getNoteTypeOrderId()) {
@@ -156,8 +156,8 @@ void createParts(const MnxMusxMappingPtr& context);
 void createSequences(const MnxMusxMappingPtr& context,
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
-    const std::shared_ptr<others::Measure>& musxMeasure,
-    InstCmper staffCmper);
+    const MusxInstance<others::Measure>& musxMeasure,
+    StaffCmper staffCmper);
 
 void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
 void exportMnx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
