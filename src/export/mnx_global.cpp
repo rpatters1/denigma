@@ -318,7 +318,7 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
         return;
     }
 
-    std::vector<std::pair<std::string, MusxInstance<const details::Baseline>>> baselines;
+    std::vector<std::pair<std::string, MusxInstance<details::Baseline>>> baselines;
     auto addBaselines = [&](const auto& lyricsBaselines) {
         using PtrType = typename std::decay_t<decltype(lyricsBaselines)>::value_type;
         using T = typename PtrType::element_type;
