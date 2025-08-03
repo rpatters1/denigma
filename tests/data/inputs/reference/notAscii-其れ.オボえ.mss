@@ -243,7 +243,7 @@
         <systemTextLineFontFace>Times New Roman</systemTextLineFontFace>
         <systemTextLineFontSize>10</systemTextLineFontSize>
         <systemTextLineFontSpatiumDependent>1</systemTextLineFontSpatiumDependent>
-        <systemTextLineFontStyle>2</systemTextLineFontStyle>
+        <systemTextLineFontStyle>0</systemTextLineFontStyle>
         <glissandoFontFace>Times New Roman</glissandoFontFace>
         <glissandoFontSize>10</glissandoFontSize>
         <glissandoFontSpatiumDependent>1</glissandoFontSpatiumDependent>

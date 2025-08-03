@@ -747,10 +747,6 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     writeFontPref(styleElement, "systemTextLine", textBlockFont.get());
     writeFontPref(styleElement, "glissando", textBlockFont.get());
     writeFontPref(styleElement, "bend", textBlockFont.get());
-    writeCategoryTextFontPref(styleElement, prefs, "textLine", CategoryType::TechniqueText);
-    writeCategoryTextFontPref(styleElement, prefs, "systemTextLine", CategoryType::ExpressiveText);
-    writeCategoryTextFontPref(styleElement, prefs, "glissando", CategoryType::TechniqueText);
-    writeCategoryTextFontPref(styleElement, prefs, "bend", CategoryType::TechniqueText);
     writeFontPref(styleElement, "header", textBlockFont.get());
     writeFontPref(styleElement, "footer", textBlockFont.get());
     writeFontPref(styleElement, "copyright", textBlockFont.get());
