@@ -1280,21 +1280,24 @@
               "interval": {
                 "additionalProperties": false,
                 "properties": {
-                  "chromatic": {
+                  "halfSteps": {
                     "$ref": "#/$defs/integer-signed"
                   },
-                  "diatonic": {
+                  "staffDistance": {
                     "$ref": "#/$defs/integer-signed"
                   }
                 },
                 "required": [
-                  "chromatic",
-                  "diatonic"
+                  "halfSteps",
+                  "staffDistance"
                 ],
                 "type": "object"
               },
               "keyFifthsFlipAt": {
                 "$ref": "#/$defs/integer-signed"
+              },
+              "prefersWrittenPitches": {
+                "type": "boolean"
               }
             },
             "required": [

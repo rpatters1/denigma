@@ -268,6 +268,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
 
 void createParts(const MnxMusxMappingPtr& context)
 {
+    auto musxMiscOptions = context->document->getOptions()->get<options::MiscOptions>();
     auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);
     const auto scrollView = context->document->getOthers()->getArray<others::StaffUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
     int partNumber = 0;
@@ -305,6 +306,11 @@ void createParts(const MnxMusxMappingPtr& context)
             auto transposition = part.create_transposition(transpositionDisp, music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt));
             if (staff->transposition && !staff->transposition->noSimplifyKey && staff->transposition->keysig) {
                 transposition.set_keyFifthsFlipAt(7 * music_theory::sign(staff->transposition->keysig->adjust));
+            }
+            if (transpositionDisp % music_theory::STANDARD_DIATONIC_STEPS == 0 && transpositionAlt == 0) {
+                if (musxMiscOptions->keepWrittenOctaveInConcertPitch) {
+                    transposition.set_prefersWrittenPitches(true);
+                }
             }
         }
         createMeasures(context, part);
