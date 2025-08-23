@@ -86,10 +86,13 @@ public:
     static void recodeBuffer(T& buffer, uint32_t initialState = INITIAL_STATE)
     {
         // Ensure that the value type is either uint8_t or char
-        static_assert(std::is_same<typename T::value_type, uint8_t>::value ||
-                      std::is_same<typename T::value_type, char>::value,
+        static_assert(std::is_same<typename T::value_type, uint8_t>::value
+#if defined(__cpp_char8_t)
+                      || std::is_same<typename T::value_type, char8_t>::value
+#endif
+                      || std::is_same<typename T::value_type, char>::value,
                       "recodeBuffer can only be called with containers of uint8_t or char.");
-        return recodeBuffer(buffer.data(), buffer.size(), initialState);
+        recodeBuffer(buffer.data(), buffer.size(), initialState);
     }
 };
 
