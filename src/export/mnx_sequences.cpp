@@ -368,7 +368,7 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
         static_assert(std::is_base_of_v<details::LyricAssign, T>, "musxLyrics must be a subtype of LyricAssign");
         for (const auto& lyr : musxLyrics) {
             if (auto lyrText = musxEntry->getDocument()->getTexts()->get<typename T::TextType>(lyr->lyricNumber)) {
-                if (lyr->syllable > lyrText->syllables.size()) {
+                if (lyr->syllable > lyrText->syllables.size()) { // Finale syllable numbers are 1-based.
                     context->logMessage(LogMsg() << " Layer " << musxEntryInfo.getLayerIndex() + 1
                         << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
                         << lyr->syllable << ").", LogSeverity::Warning);
