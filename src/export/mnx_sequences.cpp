@@ -124,7 +124,7 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) {
-            if (auto artic = context->document->getOthers()->get<others::ArticulationDef>(asgn->getRequestedPartId(), asgn->articDef)) {
+            if (auto artic = context->document->getOthers()->get<others::ArticulationDef>(asgn->getRequestedPartId(), asgn->articDef); artic && !artic->noPrint) {
                 std::optional<int> numMarks;
                 std::optional<mnx::BreathMarkSymbol> breathMark;
                 auto marks = calcMarkingType(artic, numMarks, breathMark);
