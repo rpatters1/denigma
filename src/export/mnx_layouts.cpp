@@ -126,9 +126,9 @@ static void buildOrderedContent(
             }
             if (group.startSlot != group.endSlot || group.group->bracket->showOnSingleStaff) {
                 switch (group.group->bracket->style) {
-                case details::StaffGroup::BracketStyle::None:
+                case details::Bracket::BracketStyle::None:
                     break;
-                case details::StaffGroup::BracketStyle::PianoBrace:
+                case details::Bracket::BracketStyle::PianoBrace:
                     mnxGroup.set_symbol(mnx::LayoutSymbol::Brace);
                     break;
                 default:
