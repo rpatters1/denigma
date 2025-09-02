@@ -1,5 +1,6 @@
 # Ignore build directories
 /build/
+/build-release/
 /out/
 /bin/
 /lib/
