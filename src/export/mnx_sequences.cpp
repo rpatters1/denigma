@@ -124,7 +124,7 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) {
-            if (auto artic = context->document->getOthers()->get<others::ArticulationDef>(asgn->getRequestedPartId(), asgn->articDef)) {
+            if (auto artic = context->document->getOthers()->get<others::ArticulationDef>(asgn->getRequestedPartId(), asgn->articDef); artic && !artic->noPrint) {
                 std::optional<int> numMarks;
                 std::optional<mnx::BreathMarkSymbol> breathMark;
                 auto marks = calcMarkingType(artic, numMarks, breathMark);
@@ -368,7 +368,7 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
         static_assert(std::is_base_of_v<details::LyricAssign, T>, "musxLyrics must be a subtype of LyricAssign");
         for (const auto& lyr : musxLyrics) {
             if (auto lyrText = musxEntry->getDocument()->getTexts()->get<typename T::TextType>(lyr->lyricNumber)) {
-                if (lyr->syllable > lyrText->syllables.size()) {
+                if (lyr->syllable > lyrText->syllables.size()) { // Finale syllable numbers are 1-based.
                     context->logMessage(LogMsg() << " Layer " << musxEntryInfo.getLayerIndex() + 1
                         << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
                         << lyr->syllable << ").", LogSeverity::Warning);

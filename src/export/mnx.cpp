@@ -66,7 +66,6 @@ static void createMnx(const MnxMusxMappingPtr& context)
 static void createScores(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-    auto musxMiscOptions = context->document->getOptions()->get<options::MiscOptions>();
     for (const auto& linkedPart : context->musxParts) {
         auto partGlobals = context->document->getOthers()->get<others::PartGlobals>(linkedPart->getCmper(), MUSX_GLOBALS_CMPER);
         auto mnxScore = mnxDocument->create_scores().append(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
