@@ -3,7 +3,7 @@
     "accent": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -17,7 +17,7 @@
     "accidental-display": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -40,7 +40,7 @@
     "accidental-enclosure": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -67,7 +67,7 @@
     "barline": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -100,7 +100,7 @@
     "beam": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -140,7 +140,7 @@
     "breath-mark": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -157,7 +157,7 @@
     "clef": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -204,7 +204,7 @@
     "dynamic": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -243,7 +243,7 @@
     "ending": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -287,7 +287,7 @@
     "event": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -334,7 +334,7 @@
     "event-lyric-line": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -372,7 +372,7 @@
     "event-markings": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -419,7 +419,7 @@
     "fine": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -448,7 +448,7 @@
     "global": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -471,8 +471,14 @@
       "type": "object",
       "unevaluatedProperties": false
     },
-    "globalAttrs": {
+    "global-attrs": {
       "properties": {
+        "_c": {
+          "$ref": "#/$defs/string"
+        },
+        "_x": {
+          "$ref": "#/$defs/vendor-extensions"
+        },
         "id": {
           "$ref": "#/$defs/id"
         }
@@ -482,7 +488,7 @@
     "grace": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -544,7 +550,7 @@
     "interval": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -565,7 +571,7 @@
     "jump": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -593,7 +599,7 @@
     "key": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -625,7 +631,7 @@
     "kit-component": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -651,7 +657,7 @@
     "kit-note": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -689,7 +695,7 @@
     "layout-change": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -767,7 +773,7 @@
     "lyric-line-metadata": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -793,7 +799,7 @@
     "lyrics": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -807,7 +813,7 @@
     "lyrics-global": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -827,7 +833,7 @@
     "measure-global": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -877,7 +883,7 @@
     "measure-rhythmic-position": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -907,7 +913,7 @@
     "mnx": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -927,7 +933,7 @@
     "multimeasure-rest": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -957,7 +963,7 @@
     "note": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -992,7 +998,7 @@
     "note-value": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1034,7 +1040,7 @@
     "note-value-quantity": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1067,7 +1073,7 @@
     "ottava": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1130,7 +1136,7 @@
     "page": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1156,7 +1162,7 @@
     "part": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1188,7 +1194,7 @@
     "part-measure": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1229,7 +1235,7 @@
     "part-transposition": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1258,7 +1264,7 @@
     "perform-options": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {},
@@ -1268,7 +1274,7 @@
     "pitch": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1292,7 +1298,7 @@
     "positioned-clef": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1324,7 +1330,7 @@
     "repeat-end": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1338,7 +1344,7 @@
     "repeat-start": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {},
@@ -1351,7 +1357,7 @@
     "rest": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1365,7 +1371,7 @@
     "rhythmic-position": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1385,7 +1391,7 @@
     "root": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1416,7 +1422,7 @@
     "score": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1454,7 +1460,7 @@
     "segno": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1480,7 +1486,7 @@
     "sequence": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1534,7 +1540,7 @@
     "slur": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1588,7 +1594,7 @@
     "soft-accent": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {},
@@ -1598,7 +1604,7 @@
     "sound": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1624,7 +1630,7 @@
     "space": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1645,7 +1651,7 @@
     "spiccato": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {},
@@ -1655,7 +1661,7 @@
     "staccatissimo": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {},
@@ -1665,7 +1671,7 @@
     "staccato": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {},
@@ -1675,7 +1681,7 @@
     "staff": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1708,7 +1714,7 @@
     "staff-group": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1747,7 +1753,7 @@
     "staff-source": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1812,7 +1818,7 @@
     "stress-marking": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {},
@@ -1825,7 +1831,7 @@
     "strong-accent": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1842,7 +1848,7 @@
     "style-global": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1871,7 +1877,7 @@
     "support": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1888,7 +1894,7 @@
     "system": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1911,7 +1917,7 @@
     "system-layout": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1947,7 +1953,7 @@
     "tempo": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -1977,7 +1983,7 @@
     "tenuto": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {},
@@ -1987,7 +1993,7 @@
     "tie": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -2013,7 +2019,7 @@
     "time": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -2057,7 +2063,7 @@
     "tremolo-single": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -2074,7 +2080,7 @@
     "tuplet": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
@@ -2126,7 +2132,7 @@
     "unstress-marking": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {},
@@ -2140,6 +2146,19 @@
       ],
       "type": "string"
     },
+    "vendor-dict": {
+      "properties": {},
+      "type": "object"
+    },
+    "vendor-extensions": {
+      "additionalProperties": false,
+      "patternProperties": {
+        "^.*$": {
+          "$ref": "#/$defs/vendor-dict"
+        }
+      },
+      "type": "object"
+    },
     "version-number": {
       "type": "integer"
     },
@@ -2149,7 +2168,7 @@
     "written": {
       "allOf": [
         {
-          "$ref": "#/$defs/globalAttrs"
+          "$ref": "#/$defs/global-attrs"
         }
       ],
       "properties": {
