@@ -30,8 +30,18 @@
 namespace denigma {
 namespace mnxexp {
 
-static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const MusxInstance<details::TupletDef>& musxTuplet)
+static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int numberOfBeams)
 {
+    const auto& musxTuplet = tupletInfo.tuplet;
+    const auto entryCount = tupletInfo.numEntries();
+    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(numberOfBeams, entryCount, mnxNoteValueFromEdu(musxTuplet->referenceDuration / entryCount));
+    /// @todo: additional fields (like noteheads) when defined by MNX committee.
+    return mnxTremolo;
+}
+
+static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo)
+{
+    const auto& musxTuplet = tupletInfo.tuplet;
     auto mnxTuplet = content.append<mnx::sequence::Tuplet>(
         musxTuplet->displayNumber, mnxNoteValueFromEdu(musxTuplet->displayDuration),
         musxTuplet->referenceNumber, mnxNoteValueFromEdu(musxTuplet->referenceDuration));
@@ -497,8 +507,13 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             auto thisTupletIndex = next.calcNextTupletIndex(tupletIndex);
             if (thisTupletIndex != tupletIndex && thisTupletIndex) {
                 auto tuplInfo = next.getFrame()->tupletInfo[thisTupletIndex.value()];
-                auto tuplet = createTuplet(content, tuplInfo.tuplet);
-                next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                if (tuplInfo.calcIsTremolo()) {
+                    auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.calcNumberOfBeams());
+                    next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                } else {
+                    auto tuplet = createTuplet(content, tuplInfo);
+                    next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                }
                 continue;
             }
         }

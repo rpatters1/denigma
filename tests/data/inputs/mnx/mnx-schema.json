@@ -161,9 +161,6 @@
         }
       ],
       "properties": {
-        "class": {
-          "$ref": "#/$defs/style-class"
-        },
         "color": {
           "$ref": "#/$defs/simple-color"
         },
@@ -247,9 +244,6 @@
         }
       ],
       "properties": {
-        "class": {
-          "$ref": "#/$defs/style-class"
-        },
         "color": {
           "$ref": "#/$defs/color"
         },
@@ -423,9 +417,6 @@
         }
       ],
       "properties": {
-        "class": {
-          "$ref": "#/$defs/style-class"
-        },
         "color": {
           "$ref": "#/$defs/color"
         },
@@ -460,9 +451,6 @@
         },
         "sounds": {
           "$ref": "#/$defs/sounds-global"
-        },
-        "styles": {
-          "$ref": "#/$defs/styles-global"
         }
       },
       "required": [
@@ -492,9 +480,6 @@
         }
       ],
       "properties": {
-        "class": {
-          "$ref": "#/$defs/style-class"
-        },
         "color": {
           "$ref": "#/$defs/color"
         },
@@ -603,9 +588,6 @@
         }
       ],
       "properties": {
-        "class": {
-          "$ref": "#/$defs/style-class"
-        },
         "color": {
           "$ref": "#/$defs/color"
         },
@@ -661,9 +643,6 @@
         }
       ],
       "properties": {
-        "class": {
-          "$ref": "#/$defs/style-class"
-        },
         "kitComponent": {
           "$ref": "#/$defs/kit-component-id"
         },
@@ -734,10 +713,6 @@
       ],
       "type": "string"
     },
-    "literal string space": {
-      "const": "space",
-      "type": "string"
-    },
     "literal-string-event": {
       "const": "event",
       "type": "string"
@@ -750,8 +725,16 @@
       "const": "group",
       "type": "string"
     },
+    "literal-string-space": {
+      "const": "space",
+      "type": "string"
+    },
     "literal-string-staff": {
       "const": "staff",
+      "type": "string"
+    },
+    "literal-string-tremolo": {
+      "const": "tremolo",
       "type": "string"
     },
     "literal-string-tuplet": {
@@ -930,6 +913,38 @@
       "type": "object",
       "unevaluatedProperties": false
     },
+    "multi-note-tremolo": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/global-attrs"
+        }
+      ],
+      "properties": {
+        "content": {
+          "$ref": "#/$defs/tremolo-sequence-content"
+        },
+        "individualDuration": {
+          "$ref": "#/$defs/note-value"
+        },
+        "marks": {
+          "$ref": "#/$defs/positive-integer"
+        },
+        "outer": {
+          "$ref": "#/$defs/note-value-quantity"
+        },
+        "type": {
+          "$ref": "#/$defs/literal-string-tremolo"
+        }
+      },
+      "required": [
+        "content",
+        "marks",
+        "outer",
+        "type"
+      ],
+      "type": "object",
+      "unevaluatedProperties": false
+    },
     "multimeasure-rest": {
       "allOf": [
         {
@@ -969,9 +984,6 @@
       "properties": {
         "accidentalDisplay": {
           "$ref": "#/$defs/accidental-display"
-        },
-        "class": {
-          "$ref": "#/$defs/style-class"
         },
         "perform": {
           "$ref": "#/$defs/perform-options"
@@ -1464,9 +1476,6 @@
         }
       ],
       "properties": {
-        "class": {
-          "$ref": "#/$defs/style-class"
-        },
         "color": {
           "$ref": "#/$defs/color"
         },
@@ -1523,6 +1532,9 @@
           },
           {
             "$ref": "#/$defs/space"
+          },
+          {
+            "$ref": "#/$defs/multi-note-tremolo"
           }
         ]
       },
@@ -1638,7 +1650,7 @@
           "$ref": "#/$defs/fraction"
         },
         "type": {
-          "$ref": "#/$defs/literal string space"
+          "$ref": "#/$defs/literal-string-space"
         }
       },
       "required": [
@@ -1842,38 +1854,6 @@
       "type": "object",
       "unevaluatedProperties": false
     },
-    "style-class": {
-      "type": "string"
-    },
-    "style-global": {
-      "allOf": [
-        {
-          "$ref": "#/$defs/global-attrs"
-        }
-      ],
-      "properties": {
-        "color": {
-          "$ref": "#/$defs/color"
-        },
-        "selector": {
-          "$ref": "#/$defs/style-selector"
-        }
-      },
-      "required": [
-        "selector"
-      ],
-      "type": "object",
-      "unevaluatedProperties": false
-    },
-    "style-selector": {
-      "type": "string"
-    },
-    "styles-global": {
-      "items": {
-        "$ref": "#/$defs/style-global"
-      },
-      "type": "array"
-    },
     "support": {
       "allOf": [
         {
@@ -2059,6 +2039,12 @@
         128
       ],
       "type": "integer"
+    },
+    "tremolo-sequence-content": {
+      "items": {
+        "$ref": "#/$defs/event"
+      },
+      "type": "array"
     },
     "tremolo-single": {
       "allOf": [

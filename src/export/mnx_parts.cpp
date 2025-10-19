@@ -76,6 +76,16 @@ static void createBeams(
                 }
             };
             if (entryInfo.calcIsBeamStart()) {
+                const auto tupletIndices = entryInfo.findTupletInfo();
+                for (size_t x : tupletIndices) {
+                    const auto& tuplet = entryInfo.getFrame()->tupletInfo[x];
+                    if (tuplet.includesEntry(entryInfo)) {
+                        if (tuplet.calcIsTremolo()) {
+                            /// @todo this may need to be more sophisticated in the future
+                            return true; // skip any beam that is also a tremolo.
+                        }
+                    }
+                }
                 processBeam(mnxMeasure.create_beams(), 1, entryInfo, processBeam);
             }
             return true;
