@@ -34,7 +34,7 @@ static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray 
 {
     const auto& musxTuplet = tupletInfo.tuplet;
     const auto entryCount = tupletInfo.numEntries();
-    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(numberOfBeams, entryCount, mnxNoteValueFromEdu(musxTuplet->referenceDuration / entryCount));
+    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(numberOfBeams, entryCount, mnxNoteValueFromEdu((musxTuplet->calcReferenceDuration() / entryCount).calcEduDuration()));
     /// @todo: additional fields (like noteheads) when defined by MNX committee.
     return mnxTremolo;
 }
