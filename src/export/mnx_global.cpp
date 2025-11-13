@@ -198,6 +198,9 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const MusxInstance<ot
         // We want text exprs to be chosen over the others, if they coincide at a beat location.
         const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
         for (const auto& expAssign : expAssigns) {
+            if (!expAssign->calcIsAssignedInRequestedPart()) {
+                continue;
+            }
             if (const auto textExpr = expAssign->getTextExpression()) {
                 if (textExpr->playbackType == others::PlaybackType::Tempo && textExpr->auxData1 > 0) {
                     temposAtPositions.emplace(expAssign->eduPosition, textExpr);

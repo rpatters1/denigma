@@ -167,12 +167,15 @@ static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     if (musxMeasure->hasExpression) {
-        auto shapeAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
-        for (const auto& asgn : shapeAssigns) {
+        auto exprAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
+        for (const auto& asgn : exprAssigns) {
+            if (!asgn->calcIsAssignedInRequestedPart()) {
+                continue;
+            }
             if (asgn->staffAssign == staffCmper && asgn->textExprId && !asgn->hidden) {
                 if (auto expr = asgn->getTextExpression()) {
                     if (auto cat = context->document->getOthers()->get<others::MarkingCategory>(expr->getRequestedPartId(), expr->categoryId)) {
-                        if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) {
+                        if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) { /// @todo: be smarter about identifying dynamics
                             if (auto text = expr->getTextBlock()) {
                                 if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
                                     /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
