@@ -47,7 +47,7 @@ static void createBeams(
                 assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
                 auto beam = mnxBeams.append();
                 for (auto next = firstInBeam; next; ) {
-                    const auto contRight = next.calcCreatesBeamContinuationRight();
+                    const auto contRight = next.calcBeamContinuesRightOverBarline();
                     if (!contRight && next.calcCreatesSingletonBeamRight()) {
                         return;
                     }
@@ -74,9 +74,11 @@ static void createBeams(
                             self(beam.create_beams(), nextBeamNumber, next, self);
                         }
                     }
-                    if (unsigned lowestBeamEnd = next.calcLowestBeamEnd()) {
-                        if (lowestBeamEnd <= beamNumber) {
-                            break;
+                    if (beamNumber > 1) {
+                        if (unsigned lowestBeamEnd = next.calcLowestBeamEnd()) {
+                            if (lowestBeamEnd <= beamNumber) {
+                                break;
+                            }
                         }
                     }
                     if (contRight) {
