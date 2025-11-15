@@ -46,19 +46,25 @@ static void createBeams(
             auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
                 assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
                 auto beam = mnxBeams.append();
-                for (auto next = firstInBeam; next; next = next.getNextInBeamGroup(/*includeHidden*/true)) {
+                for (auto next = firstInBeam; next; ) {
+                    const auto contRight = next.calcCreatesBeamContinuationRight();
+                    if (!contRight && next.calcCreatesSingletonBeamRight()) {
+                        return;
+                    }
                     if (next->getEntry()->isHidden) {
                         if (context->visifiedEntries.find(next->getEntry()->getEntryNumber()) == context->visifiedEntries.end()) {
                             continue;
                         }
                     }
-                    beam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
+                    const EntryNumber entryNumber = next->getEntry()->getEntryNumber();
+                    context->beamedEntries.emplace(entryNumber);
+                    beam.events().push_back(calcEventId(entryNumber));
                     if (unsigned lowestBeamStart = next.calcLowestBeamStart()) {
                         unsigned nextBeamNumber = beamNumber + 1;
                         unsigned lowestBeamStub = next.calcLowestBeamStub();
                         if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
                             auto hookBeam = beam.create_beams().append();
-                            hookBeam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
+                            hookBeam.events().push_back(calcEventId(entryNumber));
                             /// @todo only specify direction if hookDir is manually overridden
                             mnx::BeamHookDirection hookDir = next.calcBeamStubIsLeft()
                                 ? mnx::BeamHookDirection::Left
@@ -73,9 +79,20 @@ static void createBeams(
                             break;
                         }
                     }
+                    if (contRight) {
+                        next = contRight;
+                    } else {
+                        next = next.getNextInBeamGroup(/*includeHidden*/true);
+                    }
                 }
             };
+            if (context->beamedEntries.find(entryInfo->getEntry()->getEntryNumber()) != context->beamedEntries.end()) {
+                return true; // skip any entry that is already in a primary beam.
+            }
             if (entryInfo.calcIsBeamStart()) {
+                if (entryInfo.calcCreatesSingletonBeamLeft()) {
+                    return true;
+                }
                 const auto tupletIndices = entryInfo.findTupletInfo();
                 for (size_t x : tupletIndices) {
                     const auto& tuplet = entryInfo.getFrame()->tupletInfo[x];

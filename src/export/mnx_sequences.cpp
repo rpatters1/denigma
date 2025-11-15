@@ -503,6 +503,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             }
         }
 
+        bool skipNext = false;
         if (!inGrace) {
             auto thisTupletIndex = next.calcNextTupletIndex(tupletIndex);
             if (thisTupletIndex != tupletIndex && thisTupletIndex) {
@@ -510,15 +511,31 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                 if (tuplInfo.calcIsTremolo()) {
                     auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.calcNumberOfBeams());
                     next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                    continue;
+                } else if (tuplInfo.calcCreatesSingletonBeamLeft()) {
+                    next = next.getNextInVoice(voice);
+                    ASSERT_IF (!next) {
+                        throw std::logic_error("calcCreatesSingletonLeft returned true, but next in voice was empty.");
+                    }
+                } else if (tuplInfo.calcCreatesSingletonBeamRight()) {
+                    skipNext = true;
                 } else {
                     auto tuplet = createTuplet(content, tuplInfo);
                     next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                    continue;
                 }
-                continue;
             }
         }
 
         createEvent(context, content, next, mnxStaffNumber);
+
+        if (skipNext) {
+            next = next.getNextInVoice(voice);
+            ASSERT_IF (!next) {
+                throw std::logic_error("calcCreatesSingletonRight returned true, but next in voice was empty.");
+            }
+        }
+
         elapsedInSequence = currElapsedDuration + next->actualDuration;
         next = next.getNextInVoice(voice);
     }
