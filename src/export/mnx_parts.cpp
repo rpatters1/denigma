@@ -46,11 +46,7 @@ static void createBeams(
             auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
                 assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
                 auto beam = mnxBeams.append();
-                for (auto next = firstInBeam; next; ) {
-                    const auto contRight = next.calcBeamContinuesRightOverBarline();
-                    if (!contRight && next.calcCreatesSingletonBeamRight()) {
-                        return;
-                    }
+                for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars()) {
                     if (next->getEntry()->isHidden) {
                         if (context->visifiedEntries.find(next->getEntry()->getEntryNumber()) == context->visifiedEntries.end()) {
                             continue;
@@ -74,17 +70,10 @@ static void createBeams(
                             self(beam.create_beams(), nextBeamNumber, next, self);
                         }
                     }
-                    if (beamNumber > 1) {
-                        if (unsigned lowestBeamEnd = next.calcLowestBeamEnd()) {
-                            if (lowestBeamEnd <= beamNumber) {
-                                break;
-                            }
+                    if (unsigned lowestBeamEnd = next.calcLowestBeamEndAcrossBarlines()) {
+                        if (lowestBeamEnd <= beamNumber) {
+                            break;
                         }
-                    }
-                    if (contRight) {
-                        next = contRight;
-                    } else {
-                        next = next.getNextInBeamGroup(/*includeHidden*/true);
                     }
                 }
             };
