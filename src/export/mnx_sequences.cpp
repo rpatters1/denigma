@@ -518,8 +518,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                         throw std::logic_error("calcCreatesSingletonLeft returned true, but next in voice was empty.");
                     }
                     continue;
-                }
-                else if (tuplInfo.calcCreatesSingletonBeamRight()) {
+                } else if (tuplInfo.calcCreatesSingletonBeamRight()) {
                     skipNext = true;
                 } else {
                     auto tuplet = createTuplet(content, tuplInfo);
