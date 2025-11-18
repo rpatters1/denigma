@@ -229,17 +229,17 @@ std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(con
     return std::make_pair(duration.numerator(), mnxNoteValueFromEdu(musx::util::Fraction(1, duration.denominator()).calcEduDuration()));
 }
 
-mnx::Fraction::Initializer mnxFractionFromFraction(const musx::util::Fraction& fraction)
+mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction)
 {
-    return mnx::Fraction::Initializer(fraction.numerator(), fraction.denominator());
+    return mnx::FractionValue(fraction.numerator(), fraction.denominator());
 }
 
-mnx::Fraction::Initializer mnxFractionFromEdu(Edu eduValue)
+mnx::FractionValue mnxFractionFromEdu(Edu eduValue)
 {
     return mnxFractionFromFraction(musx::util::Fraction::fromEdu(eduValue));
 }
 
-mnx::Fraction::Initializer mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& endPoint)
+mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& endPoint)
 {
     if (auto entryInfo = endPoint->calcAssociatedEntry(SCORE_PARTID)) {
         return mnxFractionFromFraction(entryInfo->elapsedDuration);

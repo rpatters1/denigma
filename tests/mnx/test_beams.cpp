@@ -261,7 +261,6 @@ TEST(MnxBeams, BeamRestWorkarounds)
     );
 }
 
-/*
 TEST(MnxBeams, BeamsOverSystemBreakBarlines)
 {
     setupTestDataPaths();
@@ -280,4 +279,3 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
     ASSERT_GE(measures.value().size(), 7);
     auto measure = measures.value()[0];
 }
-*/
