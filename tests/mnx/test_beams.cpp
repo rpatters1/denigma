@@ -260,3 +260,24 @@ TEST(MnxBeams, BeamRestWorkarounds)
         mnx::util::mapping_error
     );
 }
+
+/*
+TEST(MnxBeams, BeamsOverSystemBreakBarlines)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("beamovers.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+        });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "beamovers.mnx");
+    auto parts = doc.parts();
+    ASSERT_FALSE(parts.empty()) << "no parts in document";
+    auto measures = parts[0].measures();
+    ASSERT_TRUE(measures);
+    ASSERT_GE(measures.value().size(), 7);
+    auto measure = measures.value()[0];
+}
+*/

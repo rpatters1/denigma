@@ -44,9 +44,9 @@ static void createBeams(
         }
         gfhold.iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
             auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
-                assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
+                assert(firstInBeam.calcLowestBeamStart(/*considerBeamOverBarlines*/true) <= beamNumber);
                 auto beam = mnxBeams.append();
-                for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars()) {
+                for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars(/*includeHidden*/true)) {
                     if (next->getEntry()->isHidden) {
                         if (context->visifiedEntries.find(next->getEntry()->getEntryNumber()) == context->visifiedEntries.end()) {
                             continue;
@@ -55,7 +55,7 @@ static void createBeams(
                     const EntryNumber entryNumber = next->getEntry()->getEntryNumber();
                     context->beamedEntries.emplace(entryNumber);
                     beam.events().push_back(calcEventId(entryNumber));
-                    if (unsigned lowestBeamStart = next.calcLowestBeamStart()) {
+                    if (unsigned lowestBeamStart = next.calcLowestBeamStart(/*considerBeamOverBarlines*/true)) {
                         unsigned nextBeamNumber = beamNumber + 1;
                         unsigned lowestBeamStub = next.calcLowestBeamStub();
                         if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
