@@ -36,7 +36,7 @@ TEST(MnxLayouts, MultiInstrumentTest)
     std::filesystem::path inputPath;
     copyInputToOutput("multistaff_inst.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
     });
 
@@ -326,7 +326,7 @@ TEST(MnxLayouts, Piano3StaffTest)
     std::filesystem::path inputPath;
     copyInputToOutput("piano3staff.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
         });
 

@@ -63,7 +63,7 @@ TEST(MnxBeams, MultiMeasureBeamsToMnxMeasures)
     std::filesystem::path inputPath;
     copyInputToOutput("multimeas_beam.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
     });
 
@@ -99,7 +99,7 @@ TEST(MnxBeams, MultiMeasureBeams)
     std::filesystem::path inputPath;
     copyInputToOutput("multimeas_beam.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
     });
 
@@ -135,7 +135,7 @@ TEST(MnxBeams, BeamHooksAndInner)
     std::filesystem::path inputPath;
     copyInputToOutput("secbeams.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
     });
 
@@ -190,7 +190,7 @@ TEST(MnxBeams, BeamRestWorkarounds)
     std::filesystem::path inputPath;
     copyInputToOutput("beam_workaround.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
     });
 
@@ -267,9 +267,9 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
     std::filesystem::path inputPath;
     copyInputToOutput("beamovers.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
-        });
+    });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "beamovers.mnx");
     auto parts = doc.parts();
