@@ -152,8 +152,8 @@ set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for musx")
 # Fetch musx
 FetchContent_Declare(
     musx
-    URL https://github.com/rpatters1/musxdom/archive/refs/tags/v2.0.0.tar.gz
-    URL_HASH SHA256=f976d65257f391bf6ceb0b6a1a3050deedb63a206c2bf2d193b5a0a581f5b3b4
+    GIT_REPOSITORY https://github.com/rpatters1/musxdom.git
+    GIT_TAG        ${MUSXDOM_GIT_TAG_OR_BRANCH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(musx)
@@ -213,8 +213,8 @@ set(smufl_mapping_BUILD_TESTING OFF CACHE BOOL "Do not build tests for smufl_map
 # Fetch musx
 FetchContent_Declare(
     smufl_mapping
-    URL https://github.com/rpatters1/smufl-mapping/archive/refs/tags/v1.0.0.tar.gz
-    URL_HASH SHA256=53db1524ecfae1e8d3022a796b05bf4dc85ebbcd522c88c431e3db221263d3ab
+    GIT_REPOSITORY https://github.com/rpatters1/smufl-mapping.git
+    GIT_TAG        ${SMUFL_MAPPING_GIT_TAG_OR_BRANCH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(smufl_mapping)
