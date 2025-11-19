@@ -44,21 +44,23 @@ static void createBeams(
         }
         gfhold.iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
             auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
-                assert(firstInBeam.calcLowestBeamStart() <= beamNumber);
+                assert(firstInBeam.calcLowestBeamStart(/*considerBeamOverBarlines*/true) <= beamNumber);
                 auto beam = mnxBeams.append();
-                for (auto next = firstInBeam; next; next = next.getNextInBeamGroup(/*includeHidden*/true)) {
+                for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars(/*includeHidden*/true)) {
                     if (next->getEntry()->isHidden) {
                         if (context->visifiedEntries.find(next->getEntry()->getEntryNumber()) == context->visifiedEntries.end()) {
                             continue;
                         }
                     }
-                    beam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
-                    if (unsigned lowestBeamStart = next.calcLowestBeamStart()) {
+                    const EntryNumber entryNumber = next->getEntry()->getEntryNumber();
+                    context->beamedEntries.emplace(entryNumber);
+                    beam.events().push_back(calcEventId(entryNumber));
+                    if (unsigned lowestBeamStart = next.calcLowestBeamStart(/*considerBeamOverBarlines*/true)) {
                         unsigned nextBeamNumber = beamNumber + 1;
                         unsigned lowestBeamStub = next.calcLowestBeamStub();
                         if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
                             auto hookBeam = beam.create_beams().append();
-                            hookBeam.events().push_back(calcEventId(next->getEntry()->getEntryNumber()));
+                            hookBeam.events().push_back(calcEventId(entryNumber));
                             /// @todo only specify direction if hookDir is manually overridden
                             mnx::BeamHookDirection hookDir = next.calcBeamStubIsLeft()
                                 ? mnx::BeamHookDirection::Left
@@ -68,14 +70,30 @@ static void createBeams(
                             self(beam.create_beams(), nextBeamNumber, next, self);
                         }
                     }
-                    if (unsigned lowestBeamEnd = next.calcLowestBeamEnd()) {
+                    if (unsigned lowestBeamEnd = next.calcLowestBeamEndAcrossBarlines()) {
                         if (lowestBeamEnd <= beamNumber) {
                             break;
                         }
                     }
                 }
             };
+            if (context->beamedEntries.find(entryInfo->getEntry()->getEntryNumber()) != context->beamedEntries.end()) {
+                return true; // skip any entry that is already in a primary beam.
+            }
             if (entryInfo.calcIsBeamStart()) {
+                if (entryInfo.calcCreatesSingletonBeamLeft()) {
+                    return true;
+                }
+                const auto tupletIndices = entryInfo.findTupletInfo();
+                for (size_t x : tupletIndices) {
+                    const auto& tuplet = entryInfo.getFrame()->tupletInfo[x];
+                    if (tuplet.includesEntry(entryInfo)) {
+                        if (tuplet.calcIsTremolo()) {
+                            /// @todo this may need to be more sophisticated in the future
+                            return true; // skip any beam that is also a tremolo.
+                        }
+                    }
+                }
                 processBeam(mnxMeasure.create_beams(), 1, entryInfo, processBeam);
             }
             return true;
@@ -157,12 +175,15 @@ static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     if (musxMeasure->hasExpression) {
-        auto shapeAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
-        for (const auto& asgn : shapeAssigns) {
+        auto exprAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
+        for (const auto& asgn : exprAssigns) {
+            if (!asgn->calcIsAssignedInRequestedPart()) {
+                continue;
+            }
             if (asgn->staffAssign == staffCmper && asgn->textExprId && !asgn->hidden) {
                 if (auto expr = asgn->getTextExpression()) {
                     if (auto cat = context->document->getOthers()->get<others::MarkingCategory>(expr->getRequestedPartId(), expr->categoryId)) {
-                        if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) {
+                        if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) { /// @todo: be smarter about identifying dynamics
                             if (auto text = expr->getTextBlock()) {
                                 if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
                                     /// @note This block is a placeholder until the mnx::Dynamic object is better defined.

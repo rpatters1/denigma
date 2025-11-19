@@ -198,6 +198,9 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const MusxInstance<ot
         // We want text exprs to be chosen over the others, if they coincide at a beat location.
         const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
         for (const auto& expAssign : expAssigns) {
+            if (!expAssign->calcIsAssignedInRequestedPart()) {
+                continue;
+            }
             if (const auto textExpr = expAssign->getTextExpression()) {
                 if (textExpr->playbackType == others::PlaybackType::Tempo && textExpr->auxData1 > 0) {
                     temposAtPositions.emplace(expAssign->eduPosition, textExpr);
@@ -325,7 +328,7 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
         static_assert(std::is_base_of_v<details::Baseline, T>, "lyricsBaselines must be a subtype of Baseline");
         for (const auto& baseline : lyricsBaselines) {
             std::string type = std::string(T::TextType::XmlNodeName);
-            const auto it = context->lyricLineIds.find(calcLyricLineId(type, baseline->lyricNumber));
+            const auto it = context->lyricLineIds.find(calcLyricLineId(type, baseline->lyricNumber.value_or(0)));
             if (it != context->lyricLineIds.end()) { // only process baselines for lyrics that actually exist
                 baselines.emplace_back(std::make_pair(type, baseline));
             }
@@ -358,7 +361,7 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
         assert(mnxDocument->global().lyrics().has_value()); // bug if false. see early return statement above.
         auto mnxLyrics = mnxDocument->global().lyrics().value();
         auto mnxLineOrder = mnxLyrics.create_lineOrder();
-        mnxLineOrder.push_back(calcLyricLineId(baseline.first, baseline.second->lyricNumber));
+        mnxLineOrder.push_back(calcLyricLineId(baseline.first, baseline.second->lyricNumber.value_or(0)));
     }
 }
 

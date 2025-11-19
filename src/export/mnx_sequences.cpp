@@ -30,8 +30,18 @@
 namespace denigma {
 namespace mnxexp {
 
-static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const MusxInstance<details::TupletDef>& musxTuplet)
+static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int numberOfBeams)
 {
+    const auto& musxTuplet = tupletInfo.tuplet;
+    const auto entryCount = static_cast<unsigned>(tupletInfo.numEntries());
+    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(numberOfBeams, entryCount, mnxNoteValueFromEdu((musxTuplet->calcReferenceDuration() / entryCount).calcEduDuration()));
+    /// @todo: additional fields (like noteheads) when defined by MNX committee.
+    return mnxTremolo;
+}
+
+static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo)
+{
+    const auto& musxTuplet = tupletInfo.tuplet;
     auto mnxTuplet = content.append<mnx::sequence::Tuplet>(
         musxTuplet->displayNumber, mnxNoteValueFromEdu(musxTuplet->displayDuration),
         musxTuplet->referenceNumber, mnxNoteValueFromEdu(musxTuplet->referenceDuration));
@@ -367,7 +377,7 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
         using T = typename PtrType::element_type;
         static_assert(std::is_base_of_v<details::LyricAssign, T>, "musxLyrics must be a subtype of LyricAssign");
         for (const auto& lyr : musxLyrics) {
-            if (auto lyrText = musxEntry->getDocument()->getTexts()->get<typename T::TextType>(lyr->lyricNumber)) {
+            if (auto lyrText = lyr->getLyricText()) {
                 if (lyr->syllable > lyrText->syllables.size()) { // Finale syllable numbers are 1-based.
                     context->logMessage(LogMsg() << " Layer " << musxEntryInfo.getLayerIndex() + 1
                         << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
@@ -493,17 +503,40 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             }
         }
 
+        bool skipNext = false;
         if (!inGrace) {
             auto thisTupletIndex = next.calcNextTupletIndex(tupletIndex);
             if (thisTupletIndex != tupletIndex && thisTupletIndex) {
                 auto tuplInfo = next.getFrame()->tupletInfo[thisTupletIndex.value()];
-                auto tuplet = createTuplet(content, tuplInfo.tuplet);
-                next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
-                continue;
+                if (tuplInfo.calcIsTremolo()) {
+                    auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.calcNumberOfBeams());
+                    next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                    continue;
+                } else if (tuplInfo.calcCreatesSingletonBeamLeft()) {
+                    next = next.getNextInVoice(voice);
+                    ASSERT_IF (!next) {
+                        throw std::logic_error("calcCreatesSingletonLeft returned true, but next in voice was empty.");
+                    }
+                    continue;
+                } else if (tuplInfo.calcCreatesSingletonBeamRight()) {
+                    skipNext = true;
+                } else {
+                    auto tuplet = createTuplet(content, tuplInfo);
+                    next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                    continue;
+                }
             }
         }
 
         createEvent(context, content, next, mnxStaffNumber);
+
+        if (skipNext) {
+            next = next.getNextInVoice(voice);
+            ASSERT_IF (!next) {
+                throw std::logic_error("calcCreatesSingletonRight returned true, but next in voice was empty.");
+            }
+        }
+
         elapsedInSequence = currElapsedDuration + next->actualDuration;
         next = next.getNextInVoice(voice);
     }

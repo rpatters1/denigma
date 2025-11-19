@@ -37,7 +37,7 @@ TEST(MnxParts, MultiInstrumentTest)
     std::filesystem::path inputPath;
     copyInputToOutput("piano3staff.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
     });
 
@@ -57,7 +57,7 @@ TEST(MnxParts, ForcedClef)
     std::filesystem::path inputPath;
     copyInputToOutput("forced_bass_clef_smufl.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
     });
 
@@ -102,7 +102,7 @@ TEST(MnxParts, PartiallyHiddenCue)
     std::filesystem::path inputPath;
     copyInputToOutput("multimeas_cue.musx", inputPath);
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!Validation error", "!Semantic validation errors" }, [&]() {
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error", "!Semantic validation errors" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
     });
 }
