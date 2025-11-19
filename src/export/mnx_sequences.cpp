@@ -33,7 +33,7 @@ namespace mnxexp {
 static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int numberOfBeams)
 {
     const auto& musxTuplet = tupletInfo.tuplet;
-    const auto entryCount = tupletInfo.numEntries();
+    const auto entryCount = static_cast<unsigned>(tupletInfo.numEntries());
     auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(numberOfBeams, entryCount, mnxNoteValueFromEdu((musxTuplet->calcReferenceDuration() / entryCount).calcEduDuration()));
     /// @todo: additional fields (like noteheads) when defined by MNX committee.
     return mnxTremolo;
