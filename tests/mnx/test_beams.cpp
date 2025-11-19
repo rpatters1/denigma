@@ -269,7 +269,7 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
     checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
-    });
+        });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "beamovers.mnx");
     auto parts = doc.parts();
@@ -277,5 +277,166 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
     auto measures = parts[0].measures();
     ASSERT_TRUE(measures);
     ASSERT_GE(measures.value().size(), 7);
-    auto measure = measures.value()[0];
+
+    {
+        auto measure = measures.value()[0];
+        ASSERT_TRUE(measure.beams().has_value());
+        auto beams = measure.beams().value();
+        ASSERT_GE(beams.size(), 1);
+        auto beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 3);
+        EXPECT_EQ(beam.events()[0], "ev128");
+        EXPECT_EQ(beam.events()[1], "ev129");
+        EXPECT_EQ(beam.events()[2], "ev130");
+    }
+    {
+        auto measure = measures.value()[1];
+        ASSERT_TRUE(measure.beams().has_value());
+        auto beams = measure.beams().value();
+        ASSERT_GE(beams.size(), 1);
+        auto beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 3);
+        EXPECT_EQ(beam.events()[0], "ev135");
+        EXPECT_EQ(beam.events()[1], "ev136");
+        EXPECT_EQ(beam.events()[2], "ev173");
+    }
+    {
+        auto measure = measures.value()[2];
+        ASSERT_TRUE(measure.beams().has_value());
+        auto beams = measure.beams().value();
+        ASSERT_GE(beams.size(), 1);
+        auto beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 8);
+        EXPECT_EQ(beam.events()[0], "ev142");
+        EXPECT_EQ(beam.events()[1], "ev143");
+        EXPECT_EQ(beam.events()[2], "ev144");
+        EXPECT_EQ(beam.events()[3], "ev145");
+        EXPECT_EQ(beam.events()[4], "ev146");
+        EXPECT_EQ(beam.events()[5], "ev147");
+        EXPECT_EQ(beam.events()[6], "ev148");
+        EXPECT_EQ(beam.events()[7], "ev149");
+        ASSERT_TRUE(beam.beams().has_value());
+        beams = beam.beams().value();
+        ASSERT_GE(beams.size(), 2);
+        beam = beams[0];
+        EXPECT_EQ(beam.events()[0], "ev142");
+        EXPECT_EQ(beam.events()[1], "ev143");
+        EXPECT_EQ(beam.events()[2], "ev144");
+        EXPECT_EQ(beam.events()[3], "ev145");
+        beam = beams[1];
+        EXPECT_EQ(beam.events()[0], "ev146");
+        EXPECT_EQ(beam.events()[1], "ev147");
+        EXPECT_EQ(beam.events()[2], "ev148");
+        EXPECT_EQ(beam.events()[3], "ev149");
+    }
+    {
+        auto measure = measures.value()[3];
+        ASSERT_TRUE(measure.beams().has_value());
+        auto beams = measure.beams().value();
+        ASSERT_GE(beams.size(), 1);
+        auto beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 7);
+        EXPECT_EQ(beam.events()[0], "ev153");
+        EXPECT_EQ(beam.events()[1], "ev154");
+        EXPECT_EQ(beam.events()[2], "ev155");
+        EXPECT_EQ(beam.events()[3], "ev156");
+        EXPECT_EQ(beam.events()[4], "ev157");
+        EXPECT_EQ(beam.events()[5], "ev158");
+        EXPECT_EQ(beam.events()[6], "ev159");
+        ASSERT_TRUE(beam.beams().has_value());
+        beams = beam.beams().value();
+        ASSERT_GE(beams.size(), 1);
+        beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 7);
+        EXPECT_EQ(beam.events()[0], "ev153");
+        EXPECT_EQ(beam.events()[1], "ev154");
+        EXPECT_EQ(beam.events()[2], "ev155");
+        EXPECT_EQ(beam.events()[3], "ev156");
+        EXPECT_EQ(beam.events()[4], "ev157");
+        EXPECT_EQ(beam.events()[5], "ev158");
+        EXPECT_EQ(beam.events()[6], "ev159");
+        ASSERT_TRUE(beam.beams().has_value());
+        beams = beam.beams().value();
+        ASSERT_GE(beams.size(), 2);
+        beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 2);
+        EXPECT_EQ(beam.events()[0], "ev153");
+        EXPECT_EQ(beam.events()[1], "ev154");
+        beam = beams[1];
+        ASSERT_EQ(beam.events().size(), 4);
+        EXPECT_EQ(beam.events()[0], "ev156");
+        EXPECT_EQ(beam.events()[1], "ev157");
+        EXPECT_EQ(beam.events()[2], "ev158");
+        EXPECT_EQ(beam.events()[3], "ev159");
+    }
+    {
+        auto measure = measures.value()[4];
+        ASSERT_TRUE(measure.beams().has_value());
+        auto beams = measure.beams().value();
+        ASSERT_GE(beams.size(), 1);
+        auto beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 6);
+        EXPECT_EQ(beam.events()[0], "ev163");
+        EXPECT_EQ(beam.events()[1], "ev164");
+        EXPECT_EQ(beam.events()[2], "ev165");
+        EXPECT_EQ(beam.events()[3], "ev167");
+        EXPECT_EQ(beam.events()[4], "ev168");
+        EXPECT_EQ(beam.events()[5], "ev169");
+        ASSERT_TRUE(beam.beams().has_value());
+        beams = beam.beams().value();
+        ASSERT_GE(beams.size(), 1);
+        beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 6);
+        EXPECT_EQ(beam.events()[0], "ev163");
+        EXPECT_EQ(beam.events()[1], "ev164");
+        EXPECT_EQ(beam.events()[2], "ev165");
+        EXPECT_EQ(beam.events()[3], "ev167");
+        EXPECT_EQ(beam.events()[4], "ev168");
+        EXPECT_EQ(beam.events()[5], "ev169");
+        ASSERT_TRUE(beam.beams().has_value());
+        beams = beam.beams().value();
+        ASSERT_GE(beams.size(), 1);
+        beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 2);
+        EXPECT_EQ(beam.events()[0], "ev163");
+        EXPECT_EQ(beam.events()[1], "ev164");
+    }
+    {
+        auto measure = measures.value()[5];
+        ASSERT_TRUE(measure.beams().has_value());
+        auto beams = measure.beams().value();
+        ASSERT_GE(beams.size(), 1);
+        auto beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 12);
+        EXPECT_EQ(beam.events()[0], "ev176");
+        EXPECT_EQ(beam.events()[1], "ev177");
+        EXPECT_EQ(beam.events()[2], "ev178");
+        EXPECT_EQ(beam.events()[3], "ev179");
+        EXPECT_EQ(beam.events()[4], "ev180");
+        EXPECT_EQ(beam.events()[5], "ev181");
+        EXPECT_EQ(beam.events()[6], "ev182");
+        EXPECT_EQ(beam.events()[7], "ev183");
+        EXPECT_EQ(beam.events()[8], "ev184");
+        EXPECT_EQ(beam.events()[9], "ev185");
+        EXPECT_EQ(beam.events()[10], "ev186");
+        EXPECT_EQ(beam.events()[11], "ev187");
+        ASSERT_TRUE(beam.beams().has_value());
+        beams = beam.beams().value();
+        ASSERT_GE(beams.size(), 3);
+        beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 4);
+        EXPECT_EQ(beam.events()[0], "ev176");
+        EXPECT_EQ(beam.events()[1], "ev177");
+        EXPECT_EQ(beam.events()[2], "ev178");
+        EXPECT_EQ(beam.events()[3], "ev179");
+        ASSERT_TRUE(beam.beams().has_value());
+        beams = beam.beams().value();
+        ASSERT_GE(beams.size(), 1);
+        beam = beams[0];
+        ASSERT_EQ(beam.events().size(), 4);
+        EXPECT_EQ(beam.events()[0], "ev176");
+        EXPECT_EQ(beam.events()[1], "ev177");
+        EXPECT_EQ(beam.events()[2], "ev178");
+        EXPECT_EQ(beam.events()[3], "ev179");
+    }
 }
