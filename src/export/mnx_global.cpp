@@ -147,9 +147,10 @@ static void assignKey(
 
 static void assignDisplayNumber(mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
-    int displayNumber = musxMeasure->calcDisplayNumber();
-    if (displayNumber != musxMeasure->getCmper()) {
-        mnxMeasure.set_number(displayNumber);
+    if (const auto displayNumber = musxMeasure->calcDisplayNumber()) {
+        if (displayNumber.value() != musxMeasure->getCmper()) {
+            mnxMeasure.set_number(displayNumber.value());
+        }
     }
 }
 
