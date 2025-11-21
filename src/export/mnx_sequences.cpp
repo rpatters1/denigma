@@ -430,8 +430,9 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     createMarkings(context, mnxEvent, musxEntry);
     /// @todo orient
     createSlurs(context, mnxEvent, musxEntry);
-    if (musxEntry->freezeStem && musxEntry->isNote && musxEntry->hasStem()) {
-        mnxEvent.set_stemDirection(musxEntry->upStem ? mnx::StemDirection::Up : mnx::StemDirection::Down);
+    const auto [freezeStem, upStem] = musxEntryInfo.calcEntryStemSettings();
+    if (freezeStem && musxEntry->isNote && musxEntry->hasStem()) {
+        mnxEvent.set_stemDirection(upStem ? mnx::StemDirection::Up : mnx::StemDirection::Down);
     }
 
     if (musxEntry->isNote) {
