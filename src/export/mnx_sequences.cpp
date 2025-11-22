@@ -451,6 +451,15 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
     auto next = firstEntryInfo;
     int voice = next && next->getEntry()->voice2 ? 2 : 1; // firstEntryInfo can be null
     while (next) {
+        if (tupletIndex) {
+            const auto& currentTuplet = next.getFrame()->tupletInfo[tupletIndex.value()];
+            if (next.getIndexInFrame() > currentTuplet.endIndex) {
+                // We've already processed the last event of this tuplet
+                // (possibly inside a nested tuplet call) – hand back control.
+                return next;
+            }
+        }
+
         auto entry = next->getEntry();
         if (inGrace && !entry->graceNote) {
             return next;
@@ -493,14 +502,18 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
         }
         if (currElapsedDuration > elapsedInSequence) {
             content.append<mnx::sequence::Space>(mnxFractionFromFraction(currElapsedDuration - elapsedInSequence));
+            elapsedInSequence = currElapsedDuration;
         }
 
         if (tupletIndex) {
             auto tuplInfo = next.getFrame()->tupletInfo[tupletIndex.value()];
             if (tuplInfo.endIndex == next.getIndexInFrame()) {
-                createEvent(context, content, next, mnxStaffNumber);
-                elapsedInSequence = currElapsedDuration + next->actualDuration;
-                return next.getNextInVoice(voice);
+                auto thisTupletIndex = next.calcNextTupletIndex(tupletIndex);
+                if (!thisTupletIndex || next.getFrame()->tupletInfo[thisTupletIndex.value()].startIndex != next.getIndexInFrame()) {
+                    createEvent(context, content, next, mnxStaffNumber);
+                    elapsedInSequence = currElapsedDuration + next->actualDuration;
+                    return next.getNextInVoice(voice);
+                }
             }
         }
 

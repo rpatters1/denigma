@@ -229,6 +229,11 @@ std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(con
     return std::make_pair(duration.numerator(), mnxNoteValueFromEdu(musx::util::Fraction(1, duration.denominator()).calcEduDuration()));
 }
 
+musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction)
+{
+    return musx::util::Fraction(mnxFraction.numerator(), mnxFraction.denominator());
+}
+
 mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction)
 {
     return mnx::FractionValue(fraction.numerator(), fraction.denominator());
