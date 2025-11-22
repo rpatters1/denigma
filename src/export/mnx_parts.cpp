@@ -328,7 +328,7 @@ void createParts(const MnxMusxMappingPtr& context)
             if (staff->transposition && !staff->transposition->noSimplifyKey && staff->transposition->keysig) {
                 transposition.set_keyFifthsFlipAt(7 * music_theory::sign(staff->transposition->keysig->adjust));
             }
-            if (transpositionDisp % music_theory::STANDARD_DIATONIC_STEPS == 0 && transpositionAlt == 0) {
+            if (music_theory::calcTranspositionIsOctave(transpositionDisp, transpositionAlt)) {
                 if (musxMiscOptions->keepWrittenOctaveInConcertPitch) {
                     transposition.set_prefersWrittenPitches(true);
                 }

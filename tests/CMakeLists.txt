@@ -24,6 +24,7 @@ if(denigma_BUILD_TESTING)
         mnx/test_parts.cpp
         mnx/test_schema.cpp
         mnx/test_scores.cpp
+        mnx/test_sequences.cpp
         ${DENIGMA_SOURCES}
     )
 

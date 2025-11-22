@@ -156,7 +156,7 @@ void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer
             if (auto semanticResult = mnx::validation::semanticValidate(*context->mnxDocument); !semanticResult) {
                 denigmaContext.logMessage(LogMsg() << "Semantic validation errors:", LogSeverity::Warning);
                 for (const auto& error : semanticResult.errors) {
-                    denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), LogSeverity::Warning);
+                    denigmaContext.logMessage(LogMsg() << "    " << error.to_string(4), LogSeverity::Warning);
                 }
             } else {
                 size_t layoutSize = context->mnxDocument->layouts() ? context->mnxDocument->layouts().value().size() : 0;

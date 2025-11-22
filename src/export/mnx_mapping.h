@@ -79,6 +79,7 @@ std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefI
     const MusxInstance<options::ClefOptions::ClefDef>& clefDef,
     const MusxInstance<others::Staff>& staff, std::optional<std::string_view> glyphName);
 
+musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction);
 mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction);
 mnx::FractionValue mnxFractionFromEdu(Edu eduValue);
 mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<musx::dom::smartshape::EndPoint>& smartShape);
