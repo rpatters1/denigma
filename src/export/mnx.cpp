@@ -83,7 +83,6 @@ static void createScores(const MnxMusxMappingPtr& context)
             }
         }
         auto pages = context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper());
-        auto baseIuList = linkedPart->calcSystemIuList(BASE_SYSTEM_ID);
         for (size_t x = 0; x < pages.size(); x++) {
             auto mnxPage = mnxScore.create_pages().append();
             auto mnxSystems = mnxPage.systems();
@@ -96,11 +95,7 @@ static void createScores(const MnxMusxMappingPtr& context)
                             + " in part " + linkedPart->getName() + " does not exist.");
                     }
                     auto mnxSystem = mnxSystems.append(system->startMeas);
-                    if (linkedPart->calcSystemIuList(sysId) == baseIuList) {
-                        mnxSystem.set_layout(calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID));
-                    } else {
-                        mnxSystem.set_layout(calcSystemLayoutId(linkedPart->getCmper(), sysId));
-                    }
+                    mnxSystem.set_layout(calcSystemLayoutId(linkedPart->getCmper(), sysId));
                 }
             }
         }
