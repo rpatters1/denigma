@@ -80,7 +80,7 @@ void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
         auto staffNumber = Cmper(currentStaff + currentStaffOffset);
         std::string staffName = [&]() -> std::string {
             if (musxDocument) {
-                const auto iuList = musxDocument->getOthers()->getArray<others::StaffUsed>(musxPartId, BASE_SYSTEM_ID);
+                const auto iuList = musxDocument->getScrollViewStaves(musxPartId);
                 if (!iuList.empty()) {
                     if (auto staff = iuList.getStaffInstanceAtIndex(staffNumber)) {
                         return staff->getFullName();
@@ -282,7 +282,9 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
     int staffSlot, MeasCmper measure, double /*durationUnit*/, StaffCmper staffNum,
     const std::shared_ptr<MassageMusicXmlContext>& context)
 {
-    const auto iuList = context->musxDocument->getOthers()->getArray<others::StaffUsed>(context->musxPartId, BASE_SYSTEM_ID);
+    // This call to getScrollViewStaves may need to take account of Special Part Extraction, but this is how it has
+    // been, so we will not change it unless it is proven to be broken.
+    const auto iuList = context->musxDocument->getScrollViewStaves(context->musxPartId);
     if (iuList.empty()) {
         context->logMessage(LogMsg() << "no staff list found for part", LogSeverity::Warning);
         return;

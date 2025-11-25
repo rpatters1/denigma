@@ -291,7 +291,7 @@ void createParts(const MnxMusxMappingPtr& context)
 {
     auto musxMiscOptions = context->document->getOptions()->get<options::MiscOptions>();
     auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);
-    const auto scrollView = context->document->getOthers()->getArray<others::StaffUsed>(SCORE_PARTID, BASE_SYSTEM_ID);
+    const auto scrollView = context->document->getScrollViewStaves(SCORE_PARTID);
     int partNumber = 0;
     auto parts = context->mnxDocument->parts();
     for (const auto& item : scrollView) {

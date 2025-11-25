@@ -169,12 +169,12 @@ void createLayouts(const MnxMusxMappingPtr& context)
     auto& mnxDocument = context->mnxDocument;
     // Iterate over each linked part and generate layouts.
     for (const auto& linkedPart : context->musxParts) {
-        Cmper baseSystemIuList = linkedPart->calcSystemIuList(BASE_SYSTEM_ID);
+        Cmper baseSystemIuList = linkedPart->calcScrollViewCmper();
         auto staffSystems = context->document->getOthers()->getArray<others::StaffSystem>(linkedPart->getCmper());
         const SystemCmper minSystem = BASE_SYSTEM_ID;
         const SystemCmper maxSystem = SystemCmper(staffSystems.size());
         for (SystemCmper sysId = minSystem; sysId <= maxSystem; sysId++) { //NOTE: unusual loop limits are *on purpose*
-            Cmper systemIuList = sysId ? linkedPart->calcSystemIuList(staffSystems[sysId - 1]->getCmper()) : baseSystemIuList;
+            Cmper systemIuList = sysId ? staffSystems[sysId - 1]->getCmper() : baseSystemIuList;
             if (sysId != BASE_SYSTEM_ID && systemIuList == baseSystemIuList) {
                 continue;
             }
