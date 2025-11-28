@@ -30,6 +30,16 @@
 namespace denigma {
 namespace mnxexp {
 
+/// @brief Result returned by addEntryToContent function.,
+struct AddEntryResult
+{
+    EntryInfoPtr nextEntry;     ///< next entry to process
+    bool hitEndOfFrame{};       ///< stopped due to end of frame.
+
+    /// @brief Implicit conversion to bool based on nextEntry.
+    operator bool() const { return nextEntry; }
+};
+
 static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int numberOfBeams)
 {
     const auto& musxTuplet = tupletInfo.tuplet;
@@ -443,7 +453,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 }
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
-static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
+static AddEntryResult addEntryToContent(const MnxMusxMappingPtr& context,
     mnx::ContentArray content, const EntryInfoPtr& firstEntryInfo,
     std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt)
@@ -456,16 +466,16 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             if (next.getIndexInFrame() > currentTuplet.endIndex) {
                 // We've already processed the last event of this tuplet
                 // (possibly inside a nested tuplet call) – hand back control.
-                return next;
+                return { next, false };
             }
         }
 
         auto entry = next->getEntry();
         if (inGrace && !entry->graceNote) {
-            return next;
+            return { next, false };
         } else if (!inGrace && entry->graceNote) {
             auto grace = content.append<mnx::sequence::Grace>();
-            next = addEntryToContent(context, grace.content(), next, mnxStaffNumber, elapsedInSequence, true);
+            const auto result = addEntryToContent(context, grace.content(), next, mnxStaffNumber, elapsedInSequence, true);
             if (grace.content().size() == 1) {
                 auto musxGraceOptions = entry->getDocument()->getOptions()->get<options::GraceNoteOptions>();
                 if (!musxGraceOptions) {
@@ -473,6 +483,10 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                 }
                 grace.set_slash(musxGraceOptions->slashFlaggedGraceNotes);
             }
+            if (result.hitEndOfFrame) {
+                return result;
+            }
+            next = result.nextEntry;
             continue;
         }
 
@@ -480,7 +494,22 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             continue; // skip any v2 that is part of a beaming workaround
         }
         const auto currElapsedDuration = next->elapsedDuration - context->duraOffset;
-        if (currElapsedDuration >= context->currMeasDura && next->actualDuration > 0) { // zero-length tuplets have 0 actual dura
+        const auto isEndOfFrame = [&]() -> bool {
+            if (currElapsedDuration > context->currMeasDura) {
+                return true;
+            }
+            if (currElapsedDuration < context->currMeasDura) {
+                return false;
+            }
+            if (next.findHiddenSourceForBeamOverBarline()) {
+                if (entry->graceNote) {
+                    return next.findMainEntryForGraceNote();
+                }
+                return true;
+            }
+            return false;
+        }();
+        if (isEndOfFrame) {
             if (currElapsedDuration > context->currMeasDura) {
                 if (auto prev = next.getPreviousInFrame()) {
                     context->logMessage(LogMsg() << "Entry " << prev->getEntry()->getEntryNumber() << " at index " << prev.getIndexInFrame()
@@ -493,7 +522,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                 context->logMessage(LogMsg()
                     << "Tuplet exceeds the measure length. This is not supported in MNX. Results may be unpredictable.", LogSeverity::Warning);
             } else {
-                return next;
+                return { next, true };
             }
         }
 
@@ -512,7 +541,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                 if (!thisTupletIndex || next.getFrame()->tupletInfo[thisTupletIndex.value()].startIndex != next.getIndexInFrame()) {
                     createEvent(context, content, next, mnxStaffNumber);
                     elapsedInSequence = currElapsedDuration + next->actualDuration;
-                    return next.getNextInVoice(voice);
+                    return { next.getNextInVoice(voice), false };
                 }
             }
         }
@@ -524,7 +553,11 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                 auto tuplInfo = next.getFrame()->tupletInfo[thisTupletIndex.value()];
                 if (tuplInfo.calcIsTremolo()) {
                     auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.calcNumberOfBeams());
-                    next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                    const auto result = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                    if (result.hitEndOfFrame) {
+                        return result;
+                    }
+                    next = result.nextEntry;
                     continue;
                 } else if (tuplInfo.calcCreatesSingletonBeamLeft()) {
                     next = next.getNextInVoice(voice);
@@ -536,7 +569,11 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
                     skipNext = true;
                 } else {
                     auto tuplet = createTuplet(content, tuplInfo);
-                    next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                    const auto result = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                    if (result.hitEndOfFrame) {
+                        return result;
+                    }
+                    next = result.nextEntry;
                     continue;
                 }
             }
@@ -554,7 +591,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
         elapsedInSequence = currElapsedDuration + next->actualDuration;
         next = next.getNextInVoice(voice);
     }
-    return next;
+    return { next, false };
 }
 
 void createSequences(const MnxMusxMappingPtr& context,
@@ -602,9 +639,9 @@ void createSequences(const MnxMusxMappingPtr& context,
                         musx::util::Fraction elapsedInVoice = 0;
                         if (!it_leftOver->second.empty()) {
                             context->duraOffset = it_duraOffset->second;
-                            if (auto leftOver = addEntryToContent(context, sequence.content(), it_leftOver->second[0], mnxStaffNumber, elapsedInVoice, false)) {
+                            if (auto leftOverResult = addEntryToContent(context, sequence.content(), it_leftOver->second[0], mnxStaffNumber, elapsedInVoice, false)) {
                                 auto& leftOvers = it_leftOver->second;
-                                while (!leftOvers.empty() && !leftOvers[0].isSameEntry(leftOver)) {
+                                while (!leftOvers.empty() && !leftOvers[0].isSameEntry(leftOverResult.nextEntry)) {
                                     leftOvers.erase(leftOvers.begin());
                                 }
                             } else {
@@ -620,7 +657,8 @@ void createSequences(const MnxMusxMappingPtr& context,
                             }
                         }
                         context->duraOffset = 0;
-                        if (auto leftOver = addEntryToContent(context, sequence.content(), firstEntry, mnxStaffNumber, elapsedInVoice, false)) {
+                        if (auto leftOverResult = addEntryToContent(context, sequence.content(), firstEntry, mnxStaffNumber, elapsedInVoice, false)) {
+                            auto leftOver = leftOverResult.nextEntry;
                             it_duraOffset->second += context->currMeasDura;
                             if (!it_leftOver->second.empty()) {
                                 while (leftOver) {
