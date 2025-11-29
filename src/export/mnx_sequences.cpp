@@ -407,7 +407,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     }
     const auto musxEntry = musxEntryInfo->getEntry();
 
-    const bool isRestWorkaround = musxEntryInfo.calcIsBeamedRestWorkaroud();
+    const bool isRestWorkaround = musxEntryInfo.calcIsBeamedRestWorkaround();
     if (musxEntry->isHidden && !isRestWorkaround) {
         content.append<mnx::sequence::Space>(mnxFractionFromEdu(musxEntry->duration));
         return;
@@ -479,7 +479,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             continue;
         }
 
-        if (entry->voice2 && next.calcIsBeamedRestWorkaroud()) {
+        if (entry->voice2 && next.calcIsBeamedRestWorkaround()) {
             continue; // skip any v2 that is part of a beaming workaround
         }
         const auto currElapsedDuration = next->elapsedDuration;
@@ -593,7 +593,7 @@ void createSequences(const MnxMusxMappingPtr& context,
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
                     if (auto firstEntry = entryFrame->getFirstInVoice(voice)) {
-                        while (voice == 2 && firstEntry && firstEntry.calcIsBeamedRestWorkaroud()) {
+                        while (voice == 2 && firstEntry && firstEntry.calcIsBeamedRestWorkaround()) {
                             firstEntry = firstEntry.getNextInVoice(voice);
                         }
                         if (!firstEntry) {

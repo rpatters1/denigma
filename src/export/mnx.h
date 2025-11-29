@@ -81,6 +81,7 @@ struct MnxMusxMapping
         currMeas = currStaff = 0;
         voice.clear();
         partStaves.clear();
+        visifiedEntries.clear();
         beamedEntries.clear();
         ottavasApplicableInMeasure.clear();
     }
