@@ -274,7 +274,6 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
         auto mnxMeasure = mnxMeasures.append();
         for (size_t x = 0; x < context->partStaves.size(); x++) {
             context->currStaff = context->partStaves[x];
-            context->currMeasDura = musxMeasure->createTimeSignature()->calcTotalDuration(); /// @todo pass in staff if MNX ever supports ind. time sig per staff
             std::optional<int> staffNumber = (context->partStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
             createDynamics(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);

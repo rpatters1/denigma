@@ -400,8 +400,11 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
     createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, musxEntry->getEntryNumber()));
 }
 
-static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, const EntryInfoPtr& musxEntryInfo, std::optional<int> mnxStaffNumber)
+static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, EntryInfoPtr musxEntryInfo, std::optional<int> mnxStaffNumber)
 {
+    if (auto display = musxEntryInfo.findDisplayEntryForBeamOverBarline()) {
+        musxEntryInfo = display;
+    }
     const auto musxEntry = musxEntryInfo->getEntry();
 
     const bool isRestWorkaround = musxEntryInfo.calcIsBeamedRestWorkaroud();
@@ -479,22 +482,35 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
         if (entry->voice2 && next.calcIsBeamedRestWorkaroud()) {
             continue; // skip any v2 that is part of a beaming workaround
         }
-        const auto currElapsedDuration = next->elapsedDuration - context->duraOffset;
-        if (currElapsedDuration >= context->currMeasDura && next->actualDuration > 0) { // zero-length tuplets have 0 actual dura
-            if (currElapsedDuration > context->currMeasDura) {
-                if (auto prev = next.getPreviousInFrame()) {
+        const auto currElapsedDuration = next->elapsedDuration;
+        const auto isEndOfFrame = [&]() -> bool {
+            if (currElapsedDuration > next.getFrame()->measureStaffDuration) {
+                return true;
+            }
+            if (currElapsedDuration < next.getFrame()->measureStaffDuration) {
+                return false;
+            }
+            if (next.findHiddenSourceForBeamOverBarline()) {
+                if (entry->graceNote) {
+                    return next.findMainEntryForGraceNote();
+                }
+                return true;
+            }
+            return false;
+        }();
+        if (isEndOfFrame) {
+            if (currElapsedDuration > next.getFrame()->measureStaffDuration) {
+                if (auto prev = next.getPreviousInFrame(); prev->elapsedDuration < next.getFrame()->measureStaffDuration) {
                     context->logMessage(LogMsg() << "Entry " << prev->getEntry()->getEntryNumber() << " at index " << prev.getIndexInFrame()
                         << " exceeds the measure length.", LogSeverity::Warning);
-                } else {
-                    context->logMessage(LogMsg() << "Encountered entry that exceeds the measure length.", LogSeverity::Warning);
                 }
             }
             if (tupletIndex) { // keep tuplets together, even if they exceed the measure
                 context->logMessage(LogMsg()
                     << "Tuplet exceeds the measure length. This is not supported in MNX. Results may be unpredictable.", LogSeverity::Warning);
-            } else {
-                return next;
-            }
+            } else if (next.findHiddenSourceForBeamOverBarline()) {
+                return {};
+            } // allow the extra length in this sequence. Semantic validation catches it.
         }
 
         ASSERT_IF(currElapsedDuration < elapsedInSequence) {
@@ -589,54 +605,8 @@ void createSequences(const MnxMusxMappingPtr& context,
                         }
                         context->voice = calcVoice(layer, voice);
                         sequence.set_voice(context->voice);
-                        auto sequenceKey = std::make_tuple(context->currStaff, layer, voice);
-                        auto it_leftOver = context->leftOverEntries.find(sequenceKey);
-                        if (it_leftOver == context->leftOverEntries.end()) {
-                            it_leftOver = context->leftOverEntries.emplace(sequenceKey, std::vector<EntryInfoPtr>{}).first;
-                        }
-                        auto it_duraOffset = context->duraOffsets.find(sequenceKey);
-                        if (it_duraOffset == context->duraOffsets.end()) {
-                            it_duraOffset = context->duraOffsets.emplace(sequenceKey, 0).first;
-                        }
-                        context->duraOffset = 0;
                         musx::util::Fraction elapsedInVoice = 0;
-                        if (!it_leftOver->second.empty()) {
-                            context->duraOffset = it_duraOffset->second;
-                            if (auto leftOver = addEntryToContent(context, sequence.content(), it_leftOver->second[0], mnxStaffNumber, elapsedInVoice, false)) {
-                                auto& leftOvers = it_leftOver->second;
-                                while (!leftOvers.empty() && !leftOvers[0].isSameEntry(leftOver)) {
-                                    leftOvers.erase(leftOvers.begin());
-                                }
-                            } else {
-                                it_leftOver->second.clear();
-                                it_duraOffset->second = 0;
-                            }
-                            while (firstEntry && firstEntry->elapsedDuration < elapsedInVoice) {
-                                if (!firstEntry->getEntry()->isHidden) {
-                                    context->logMessage(LogMsg() << "Entry at index " << firstEntry.getIndexInFrame()
-                                        << " overwritten by leftovers from earlier measure.");
-                                }
-                                firstEntry = firstEntry.getNextInVoice(voice);
-                            }
-                        }
-                        context->duraOffset = 0;
-                        if (auto leftOver = addEntryToContent(context, sequence.content(), firstEntry, mnxStaffNumber, elapsedInVoice, false)) {
-                            it_duraOffset->second += context->currMeasDura;
-                            if (!it_leftOver->second.empty()) {
-                                while (leftOver) {
-                                    if (!leftOver->getEntry()->isHidden) {
-                                        context->logMessage(LogMsg() << " skipping left over note entries while left over note entries from earlier measure exist.");
-                                        break;
-                                    }
-                                    leftOver = leftOver.getNextInVoice(voice);
-                                }
-                            } else {
-                                while (leftOver) {
-                                    it_leftOver->second.push_back(leftOver);
-                                    leftOver = leftOver.getNextInVoice(voice);
-                                }
-                            }
-                        }
+                        addEntryToContent(context, sequence.content(), firstEntry, mnxStaffNumber, elapsedInVoice, false);
                         context->voice.clear();
                     }
                 }

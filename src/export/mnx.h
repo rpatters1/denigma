@@ -70,12 +70,8 @@ struct MnxMusxMapping
 
     MeasCmper currMeas{};
     StaffCmper currStaff{};
-    musx::util::Fraction currMeasDura{};    ///< duration of current measure
-    musx::util::Fraction duraOffset{};      ///< offset to apply to leftOverEntries
     std::string voice;
     std::vector<StaffCmper> partStaves;
-    std::unordered_map<std::tuple<StaffCmper, LayerIndex, int>, std::vector<EntryInfoPtr>, SequenceHash> leftOverEntries; // left over entries per layer/voice combo
-    std::unordered_map<std::tuple<StaffCmper, LayerIndex, int>, musx::util::Fraction, SequenceHash> duraOffsets; // dura offsets for leftovers per layer/voice combo
     std::unordered_set<EntryNumber> visifiedEntries;
     std::unordered_set<EntryNumber> beamedEntries;
     std::unordered_map<Cmper, MusxInstance<others::SmartShape>> ottavasApplicableInMeasure;
@@ -83,11 +79,8 @@ struct MnxMusxMapping
     void clearCounts()
     {
         currMeas = currStaff = 0;
-        currMeasDura = duraOffset = 0;
         voice.clear();
         partStaves.clear();
-        leftOverEntries.clear();
-        duraOffsets.clear();
         beamedEntries.clear();
         ottavasApplicableInMeasure.clear();
     }
