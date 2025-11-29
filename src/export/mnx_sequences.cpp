@@ -303,8 +303,8 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
     if (musxNote->crossStaff) {
         StaffCmper noteStaff = musxNote.calcStaff();
         std::optional<int> mnxNoteStaff;
-        for (size_t y = 0; y < context->partStaves.size(); y++) {
-            if (context->partStaves[y] == noteStaff) {
+        for (size_t y = 0; y < context->currPartStaves.size(); y++) {
+            if (context->currPartStaves[y] == noteStaff) {
                 mnxNoteStaff = int(y + 1);
                 break;
             }
@@ -407,16 +407,17 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     }
     const auto musxEntry = musxEntryInfo->getEntry();
 
-    const bool isRestWorkaround = musxEntryInfo.calcIsBeamedRestWorkaround();
-    if (musxEntry->isHidden && !isRestWorkaround) {
+    const bool isRestWorkaroundHiddenEntry = musxEntryInfo.calcIsBeamedRestWorkaroundHiddenRest();
+    const bool hiddenEntry = musxEntry->isHidden && !isRestWorkaroundHiddenEntry;
+    if (hiddenEntry) {
+        /// @todo include hidden entries perhaps, if MNX starts allowing them.
         content.append<mnx::sequence::Space>(mnxFractionFromEdu(musxEntry->duration));
         return;
     }
-    MUSX_ASSERT_IF(musxEntry->voice2 && isRestWorkaround) {
+    MUSX_ASSERT_IF(musxEntryInfo.calcIsBeamedRestWorkaroundVisibleRest()) {
         throw std::logic_error("cannot create an MNX event for a voice2 entry that is part of a beaming workaround");
     }
-    if (isRestWorkaround) {
-        context->visifiedEntries.emplace(musxEntry->getEntryNumber());
+    if (isRestWorkaroundHiddenEntry) {
         context->logMessage(LogMsg() << "recognized hidden rest " << musxEntry->getEntryNumber()
             << " as beaming workaround and converted it to visible.", LogSeverity::Verbose);
     }
@@ -479,7 +480,7 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             continue;
         }
 
-        if (entry->voice2 && next.calcIsBeamedRestWorkaround()) {
+        if (next.calcIsBeamedRestWorkaroundVisibleRest()) {
             continue; // skip any v2 that is part of a beaming workaround
         }
         const auto currElapsedDuration = next->elapsedDuration;
@@ -593,7 +594,7 @@ void createSequences(const MnxMusxMappingPtr& context,
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
                     if (auto firstEntry = entryFrame->getFirstInVoice(voice)) {
-                        while (voice == 2 && firstEntry && firstEntry.calcIsBeamedRestWorkaround()) {
+                        while (voice == 2 && firstEntry && firstEntry.calcIsBeamedRestWorkaroundVisibleRest()) {
                             firstEntry = firstEntry.getNextInVoice(voice);
                         }
                         if (!firstEntry) {

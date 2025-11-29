@@ -71,8 +71,7 @@ struct MnxMusxMapping
     MeasCmper currMeas{};
     StaffCmper currStaff{};
     std::string voice;
-    std::vector<StaffCmper> partStaves;
-    std::unordered_set<EntryNumber> visifiedEntries;
+    std::vector<StaffCmper> currPartStaves;
     std::unordered_set<EntryNumber> beamedEntries;
     std::unordered_map<Cmper, MusxInstance<others::SmartShape>> ottavasApplicableInMeasure;
 
@@ -80,8 +79,7 @@ struct MnxMusxMapping
     {
         currMeas = currStaff = 0;
         voice.clear();
-        partStaves.clear();
-        visifiedEntries.clear();
+        currPartStaves.clear();
         beamedEntries.clear();
         ottavasApplicableInMeasure.clear();
     }

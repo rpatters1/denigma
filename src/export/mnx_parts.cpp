@@ -47,10 +47,8 @@ static void createBeams(
                 assert(firstInBeam.calcLowestBeamStart(/*considerBeamOverBarlines*/true) <= beamNumber);
                 auto beam = mnxBeams.append();
                 for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars(/*includeHidden*/true)) {
-                    if (next->getEntry()->isHidden) {
-                        if (context->visifiedEntries.find(next->getEntry()->getEntryNumber()) == context->visifiedEntries.end()) {
-                            continue;
-                        }
+                    if (next->getEntry()->isHidden && !next.calcIsBeamedRestWorkaroundHiddenRest()) {
+                        continue;
                     }
                     const EntryNumber entryNumber = next->getEntry()->getEntryNumber();
                     context->beamedEntries.emplace(entryNumber);
@@ -263,24 +261,23 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
         context->logMessage(LogMsg() << "Part Id " << part.id().value_or(std::to_string(part.calcArrayIndex()))
             << " is not mapped", LogSeverity::Warning);
     } else {
-        context->partStaves = it->second;
+        context->currPartStaves = it->second;
     }
     std::vector<std::optional<ClefIndex>> prevClefs;
-    for (size_t x = 0; x < context->partStaves.size(); x++) {
+    for (size_t x = 0; x < context->currPartStaves.size(); x++) {
         prevClefs.push_back(std::nullopt);
     }
     for (const auto& musxMeasure : musxMeasures) {
         context->currMeas++;
         auto mnxMeasure = mnxMeasures.append();
-        for (size_t x = 0; x < context->partStaves.size(); x++) {
-            context->currStaff = context->partStaves[x];
-            std::optional<int> staffNumber = (context->partStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
-            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x], prevClefs[x]);
-            createDynamics(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);
-            createOttavas(context, musxMeasure, context->partStaves[x], mnxMeasure, staffNumber);
-            context->visifiedEntries.clear(); // createSequences creates this vector for the use of createBeams
-            createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->partStaves[x]);
-            createBeams(context, mnxMeasure, musxMeasure, context->partStaves[x]); // must come after createSequences so that visifiedEntries is properly created when it is called.
+        for (size_t x = 0; x < context->currPartStaves.size(); x++) {
+            context->currStaff = context->currPartStaves[x];
+            std::optional<int> staffNumber = (context->currPartStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
+            createBeams(context, mnxMeasure, musxMeasure, context->currPartStaves[x]);
+            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->currPartStaves[x], prevClefs[x]);
+            createDynamics(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
+            createOttavas(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
+            createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->currPartStaves[x]);
         }
     }
     context->clearCounts();
