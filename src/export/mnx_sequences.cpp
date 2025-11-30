@@ -593,13 +593,7 @@ void createSequences(const MnxMusxMappingPtr& context,
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
-                    if (auto firstEntry = entryFrame->getFirstInVoice(voice)) {
-                        while (voice == 2 && firstEntry && firstEntry.calcIsBeamedRestWorkaroundVisibleRest()) {
-                            firstEntry = firstEntry.getNextInVoice(voice);
-                        }
-                        if (!firstEntry) {
-                            continue;
-                        }
+                    if (auto firstEntry = entryFrame->getFirstInVoice(voice, /*skipBeamedRestWorkaround*/true)) {
                         auto sequence = mnxMeasure.sequences().append();
                         if (mnxStaffNumber) {
                             sequence.set_staff(mnxStaffNumber.value());
