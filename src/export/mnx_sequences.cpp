@@ -440,8 +440,8 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 }
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
-static EntryInfoPtr::WorkaroundIterator addEntryToContent(const MnxMusxMappingPtr& context,
-    mnx::ContentArray content, const EntryInfoPtr::WorkaroundIterator& firstEntryInfo,
+static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingPtr& context,
+    mnx::ContentArray content, const EntryInfoPtr::InterpretedIterator& firstEntryInfo,
     std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt)
 {
@@ -523,7 +523,6 @@ static EntryInfoPtr::WorkaroundIterator addEntryToContent(const MnxMusxMappingPt
             }
         }
 
-        bool skipNext = false;
         if (!inGrace) {
             auto thisTupletIndex = next.getEntryInfo().calcNextTupletIndex(tupletIndex);
             if (thisTupletIndex != tupletIndex && thisTupletIndex) {
@@ -532,14 +531,6 @@ static EntryInfoPtr::WorkaroundIterator addEntryToContent(const MnxMusxMappingPt
                     auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.getEntryInfo().calcNumberOfBeams());
                     next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
                     continue;
-                } else if (tuplInfo.calcCreatesSingletonBeamLeft()) {
-                    next = next.getNext();
-                    ASSERT_IF (!next) {
-                        throw std::logic_error("calcCreatesSingletonLeft returned true, but next in voice was empty.");
-                    }
-                    continue;
-                } else if (tuplInfo.calcCreatesSingletonBeamRight()) {
-                    skipNext = true;
                 } else {
                     auto tuplet = createTuplet(content, tuplInfo);
                     next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
@@ -550,15 +541,7 @@ static EntryInfoPtr::WorkaroundIterator addEntryToContent(const MnxMusxMappingPt
 
         createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden());
 
-        if (skipNext) {
-            next = next.getNext();
-            ASSERT_IF(!next)
-            {
-                throw std::logic_error("calcCreatesSingletonRight returned true, but next in voice was empty.");
-            }
-        }
-
-        elapsedInSequence = currElapsedDuration + next.getEntryInfo()->actualDuration;
+        elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
         next = next.getNext();
     }
     return next;
@@ -583,7 +566,7 @@ void createSequences(const MnxMusxMappingPtr& context,
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
-                    if (auto firstEntry = entryFrame->getFirstWorkaroundIterator(voice)) {
+                    if (auto firstEntry = entryFrame->getFirstInterpretedIterator(voice)) {
                         auto sequence = mnxMeasure.sequences().append();
                         if (mnxStaffNumber) {
                             sequence.set_staff(mnxStaffNumber.value());
