@@ -440,8 +440,8 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 }
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
-static EntryInfoPtr::BeamedRestWorkaroundAwareResult addEntryToContent(const MnxMusxMappingPtr& context,
-    mnx::ContentArray content, const EntryInfoPtr::BeamedRestWorkaroundAwareResult& firstEntryInfo,
+static EntryInfoPtr::WorkaroundAwareResult addEntryToContent(const MnxMusxMappingPtr& context,
+    mnx::ContentArray content, const EntryInfoPtr::WorkaroundAwareResult& firstEntryInfo,
     std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt)
 {
@@ -519,7 +519,7 @@ static EntryInfoPtr::BeamedRestWorkaroundAwareResult addEntryToContent(const Mnx
                 if (!thisTupletIndex || next.entry.getFrame()->tupletInfo[thisTupletIndex.value()].startIndex != next.entry.getIndexInFrame()) {
                     createEvent(context, content, next.entry, mnxStaffNumber, next.effectiveHidden);
                     elapsedInSequence = currElapsedDuration + next.entry->actualDuration;
-                    return next.entry.getNextInVoiceBeamedRestWorkaroundAware(voice);
+                    return next.entry.getNextInVoiceWorkaroundAware(voice);
                 }
             }
         }
@@ -534,7 +534,7 @@ static EntryInfoPtr::BeamedRestWorkaroundAwareResult addEntryToContent(const Mnx
                     next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
                     continue;
                 } else if (tuplInfo.calcCreatesSingletonBeamLeft()) {
-                    next = next.entry.getNextInVoiceBeamedRestWorkaroundAware(voice);
+                    next = next.entry.getNextInVoiceWorkaroundAware(voice);
                     ASSERT_IF (!next) {
                         throw std::logic_error("calcCreatesSingletonLeft returned true, but next in voice was empty.");
                     }
@@ -552,7 +552,7 @@ static EntryInfoPtr::BeamedRestWorkaroundAwareResult addEntryToContent(const Mnx
         createEvent(context, content, next.entry, mnxStaffNumber, next.effectiveHidden);
 
         if (skipNext) {
-            next = next.entry.getNextInVoiceBeamedRestWorkaroundAware(voice);
+            next = next.entry.getNextInVoiceWorkaroundAware(voice);
             ASSERT_IF(!next)
             {
                 throw std::logic_error("calcCreatesSingletonRight returned true, but next in voice was empty.");
@@ -560,7 +560,7 @@ static EntryInfoPtr::BeamedRestWorkaroundAwareResult addEntryToContent(const Mnx
         }
 
         elapsedInSequence = currElapsedDuration + next.entry->actualDuration;
-        next = next.entry.getNextInVoiceBeamedRestWorkaroundAware(voice);
+        next = next.entry.getNextInVoiceWorkaroundAware(voice);
     }
     return next;
 }
@@ -584,7 +584,7 @@ void createSequences(const MnxMusxMappingPtr& context,
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
-                    if (auto firstEntry = entryFrame->getFirstInVoiceBeamedRestWorkaroundAware(voice)) {
+                    if (auto firstEntry = entryFrame->getFirstInVoiceWorkaroundAware(voice)) {
                         auto sequence = mnxMeasure.sequences().append();
                         if (mnxStaffNumber) {
                             sequence.set_staff(mnxStaffNumber.value());

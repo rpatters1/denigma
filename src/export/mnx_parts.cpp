@@ -46,7 +46,7 @@ static void createBeams(
             auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
                 assert(firstInBeam.calcLowestBeamStart(/*considerBeamOverBarlines*/true) <= beamNumber);
                 auto beam = mnxBeams.append();
-                for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars(EntryInfoPtr::BeamIterationMode::IncludeBeamWorkaroundHiddenRests)) {
+                for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars(EntryInfoPtr::BeamIterationMode::WorkaroundAware)) {
                     const EntryNumber entryNumber = next->getEntry()->getEntryNumber();
                     context->beamedEntries.emplace(entryNumber);
                     beam.events().push_back(calcEventId(entryNumber));
