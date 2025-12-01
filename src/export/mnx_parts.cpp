@@ -75,10 +75,7 @@ static void createBeams(
             if (context->beamedEntries.find(entryInfo->getEntry()->getEntryNumber()) != context->beamedEntries.end()) {
                 return true; // skip any entry that is already in a primary beam.
             }
-            if (entryInfo.calcIsBeamStart()) {
-                if (entryInfo.calcCreatesSingletonBeamLeft()) {
-                    return true;
-                }
+            if (entryInfo.calcIsBeamStart(EntryInfoPtr::BeamIterationMode::Interpreted)) {
                 const auto tupletIndices = entryInfo.findTupletInfo();
                 for (size_t x : tupletIndices) {
                     const auto& tuplet = entryInfo.getFrame()->tupletInfo[x];
