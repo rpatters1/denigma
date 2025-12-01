@@ -440,24 +440,23 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 }
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
-static EntryInfoPtr::WorkaroundAwareResult addEntryToContent(const MnxMusxMappingPtr& context,
-    mnx::ContentArray content, const EntryInfoPtr::WorkaroundAwareResult& firstEntryInfo,
+static EntryInfoPtr::WorkaroundIterator addEntryToContent(const MnxMusxMappingPtr& context,
+    mnx::ContentArray content, const EntryInfoPtr::WorkaroundIterator& firstEntryInfo,
     std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt)
 {
     auto next = firstEntryInfo;
-    int voice = next && next.entry->getEntry()->voice2 ? 2 : 1; // firstEntryInfo can be null
     while (next) {
         if (tupletIndex) {
-            const auto& currentTuplet = next.entry.getFrame()->tupletInfo[tupletIndex.value()];
-            if (next.entry.getIndexInFrame() > currentTuplet.endIndex) {
+            const auto& currentTuplet = next.getEntryInfo().getFrame()->tupletInfo[tupletIndex.value()];
+            if (next.getEntryInfo().getIndexInFrame() > currentTuplet.endIndex) {
                 // We've already processed the last event of this tuplet
                 // (possibly inside a nested tuplet call) – hand back control.
                 return next;
             }
         }
 
-        auto entry = next.entry->getEntry();
+        auto entry = next.getEntryInfo()->getEntry();
         if (inGrace && !entry->graceNote) {
             return next;
         } else if (!inGrace && entry->graceNote) {
@@ -473,25 +472,25 @@ static EntryInfoPtr::WorkaroundAwareResult addEntryToContent(const MnxMusxMappin
             continue;
         }
 
-        const auto currElapsedDuration = next.entry->elapsedDuration;
+        const auto currElapsedDuration = next.getEntryInfo()->elapsedDuration;
         const auto isEndOfFrame = [&]() -> bool {
-            if (currElapsedDuration > next.entry.getFrame()->measureStaffDuration) {
+            if (currElapsedDuration > next.getEntryInfo().getFrame()->measureStaffDuration) {
                 return true;
             }
-            if (currElapsedDuration < next.entry.getFrame()->measureStaffDuration) {
+            if (currElapsedDuration < next.getEntryInfo().getFrame()->measureStaffDuration) {
                 return false;
             }
-            if (next.entry.findHiddenSourceForBeamOverBarline()) {
+            if (next.getEntryInfo().findHiddenSourceForBeamOverBarline()) {
                 if (entry->graceNote) {
-                    return static_cast<bool>(next.entry.findMainEntryForGraceNote());
+                    return static_cast<bool>(next.getEntryInfo().findMainEntryForGraceNote());
                 }
                 return true;
             }
             return false;
         }();
         if (isEndOfFrame) {
-            if (currElapsedDuration > next.entry.getFrame()->measureStaffDuration) {
-                if (auto prev = next.entry.getPreviousInFrame(); prev->elapsedDuration < next.entry.getFrame()->measureStaffDuration) {
+            if (currElapsedDuration > next.getEntryInfo().getFrame()->measureStaffDuration) {
+                if (auto prev = next.getEntryInfo().getPreviousInFrame(); prev->elapsedDuration < next.getEntryInfo().getFrame()->measureStaffDuration) {
                     context->logMessage(LogMsg() << "Entry " << prev->getEntry()->getEntryNumber() << " at index " << prev.getIndexInFrame()
                         << " exceeds the measure length.", LogSeverity::Warning);
                 }
@@ -499,7 +498,7 @@ static EntryInfoPtr::WorkaroundAwareResult addEntryToContent(const MnxMusxMappin
             if (tupletIndex) { // keep tuplets together, even if they exceed the measure
                 context->logMessage(LogMsg()
                     << "Tuplet exceeds the measure length. This is not supported in MNX. Results may be unpredictable.", LogSeverity::Warning);
-            } else if (next.entry.findHiddenSourceForBeamOverBarline()) {
+            } else if (next.getEntryInfo().findHiddenSourceForBeamOverBarline()) {
                 return {};
             } // allow the extra length in this sequence. Semantic validation catches it.
         }
@@ -513,28 +512,28 @@ static EntryInfoPtr::WorkaroundAwareResult addEntryToContent(const MnxMusxMappin
         }
 
         if (tupletIndex) {
-            auto tuplInfo = next.entry.getFrame()->tupletInfo[tupletIndex.value()];
-            if (tuplInfo.endIndex == next.entry.getIndexInFrame()) {
-                auto thisTupletIndex = next.entry.calcNextTupletIndex(tupletIndex);
-                if (!thisTupletIndex || next.entry.getFrame()->tupletInfo[thisTupletIndex.value()].startIndex != next.entry.getIndexInFrame()) {
-                    createEvent(context, content, next.entry, mnxStaffNumber, next.effectiveHidden);
-                    elapsedInSequence = currElapsedDuration + next.entry->actualDuration;
-                    return next.entry.getNextInVoiceWorkaroundAware(voice);
+            auto tuplInfo = next.getEntryInfo().getFrame()->tupletInfo[tupletIndex.value()];
+            if (tuplInfo.endIndex == next.getEntryInfo().getIndexInFrame()) {
+                auto thisTupletIndex = next.getEntryInfo().calcNextTupletIndex(tupletIndex);
+                if (!thisTupletIndex || next.getEntryInfo().getFrame()->tupletInfo[thisTupletIndex.value()].startIndex != next.getEntryInfo().getIndexInFrame()) {
+                    createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden());
+                    elapsedInSequence = currElapsedDuration + next.getEntryInfo()->actualDuration;
+                    return next.getNext();
                 }
             }
         }
 
         bool skipNext = false;
         if (!inGrace) {
-            auto thisTupletIndex = next.entry.calcNextTupletIndex(tupletIndex);
+            auto thisTupletIndex = next.getEntryInfo().calcNextTupletIndex(tupletIndex);
             if (thisTupletIndex != tupletIndex && thisTupletIndex) {
-                auto tuplInfo = next.entry.getFrame()->tupletInfo[thisTupletIndex.value()];
+                auto tuplInfo = next.getEntryInfo().getFrame()->tupletInfo[thisTupletIndex.value()];
                 if (tuplInfo.calcIsTremolo()) {
-                    auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.entry.calcNumberOfBeams());
+                    auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.getEntryInfo().calcNumberOfBeams());
                     next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
                     continue;
                 } else if (tuplInfo.calcCreatesSingletonBeamLeft()) {
-                    next = next.entry.getNextInVoiceWorkaroundAware(voice);
+                    next = next.getNext();
                     ASSERT_IF (!next) {
                         throw std::logic_error("calcCreatesSingletonLeft returned true, but next in voice was empty.");
                     }
@@ -549,18 +548,18 @@ static EntryInfoPtr::WorkaroundAwareResult addEntryToContent(const MnxMusxMappin
             }
         }
 
-        createEvent(context, content, next.entry, mnxStaffNumber, next.effectiveHidden);
+        createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden());
 
         if (skipNext) {
-            next = next.entry.getNextInVoiceWorkaroundAware(voice);
+            next = next.getNext();
             ASSERT_IF(!next)
             {
                 throw std::logic_error("calcCreatesSingletonRight returned true, but next in voice was empty.");
             }
         }
 
-        elapsedInSequence = currElapsedDuration + next.entry->actualDuration;
-        next = next.entry.getNextInVoiceWorkaroundAware(voice);
+        elapsedInSequence = currElapsedDuration + next.getEntryInfo()->actualDuration;
+        next = next.getNext();
     }
     return next;
 }
@@ -584,7 +583,7 @@ void createSequences(const MnxMusxMappingPtr& context,
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
-                    if (auto firstEntry = entryFrame->getFirstInVoiceWorkaroundAware(voice)) {
+                    if (auto firstEntry = entryFrame->getFirstWorkaroundIterator(voice)) {
                         auto sequence = mnxMeasure.sequences().append();
                         if (mnxStaffNumber) {
                             sequence.set_staff(mnxStaffNumber.value());
