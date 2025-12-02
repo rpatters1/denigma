@@ -402,11 +402,6 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
 
 static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, EntryInfoPtr musxEntryInfo, std::optional<int> mnxStaffNumber, bool effectiveHidden)
 {
-    if (auto display = musxEntryInfo.findDisplayEntryForBeamOverBarline()) {
-        musxEntryInfo = display;
-        effectiveHidden = display->getEntry()->isHidden;
-    }
-
     const auto musxEntry = musxEntryInfo->getEntry();
 
     if (effectiveHidden) {
@@ -474,16 +469,16 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
 
         const auto currElapsedDuration = next.getEffectiveElapsedDuration();
         if (next.calcIsPastLogicalEndOfFrame()) {
-            if (currElapsedDuration > next.getEntryInfo().getFrame()->measureStaffDuration) {
-                if (auto prev = next.getEntryInfo().getPreviousInFrame(); prev->elapsedDuration < next.getEntryInfo().getFrame()->measureStaffDuration) {
-                    context->logMessage(LogMsg() << "Entry " << prev->getEntry()->getEntryNumber() << " at index " << prev.getIndexInFrame()
+            if (currElapsedDuration > next.getEffectiveMeasureStaffDuration()) {
+                if (auto prev = next.getPrevious(); prev.getEffectiveElapsedDuration() < next.getEffectiveMeasureStaffDuration()) {
+                    context->logMessage(LogMsg() << "Entry " << prev.getEntryInfo()->getEntry()->getEntryNumber() << " at index " << prev.getEntryInfo().getIndexInFrame()
                         << " exceeds the measure length.", LogSeverity::Warning);
                 }
             }
             if (tupletIndex) { // keep tuplets together, even if they exceed the measure
                 context->logMessage(LogMsg()
                     << "Tuplet exceeds the measure length. This is not supported in MNX. Results may be unpredictable.", LogSeverity::Warning);
-            } else if (next.getEntryInfo().findHiddenSourceForBeamOverBarline()) {
+            } else if (currElapsedDuration == next.getEffectiveMeasureStaffDuration() && next.getEntryInfo().findHiddenSourceForBeamOverBarline()) {
                 return {};
             } // allow the extra length in this sequence. Semantic validation catches it.
         }
