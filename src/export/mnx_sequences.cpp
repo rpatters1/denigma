@@ -467,10 +467,14 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             continue;
         }
 
-        const auto currElapsedDuration = next.getEffectiveElapsedDuration();
         if (next.calcIsPastLogicalEndOfFrame()) {
-            if (currElapsedDuration > next.getEffectiveMeasureStaffDuration()) {
-                if (auto prev = next.getPrevious(); prev.getEffectiveElapsedDuration() < next.getEffectiveMeasureStaffDuration()) {
+            return {};
+        }
+        const auto currElapsedDuration = next.getEffectiveElapsedDuration();
+        const auto measureDuration = next.getEffectiveMeasureStaffDuration();
+        if (currElapsedDuration >= measureDuration) {
+            if (currElapsedDuration > measureDuration) {
+                if (auto prev = next.getPrevious(); prev && prev.getEffectiveElapsedDuration() < next.getEffectiveMeasureStaffDuration()) {
                     context->logMessage(LogMsg() << "Entry " << prev.getEntryInfo()->getEntry()->getEntryNumber() << " at index " << prev.getEntryInfo().getIndexInFrame()
                         << " exceeds the measure length.", LogSeverity::Warning);
                 }
@@ -478,9 +482,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             if (tupletIndex) { // keep tuplets together, even if they exceed the measure
                 context->logMessage(LogMsg()
                     << "Tuplet exceeds the measure length. This is not supported in MNX. Results may be unpredictable.", LogSeverity::Warning);
-            } else if (currElapsedDuration == next.getEffectiveMeasureStaffDuration() && next.getEntryInfo().findHiddenSourceForBeamOverBarline()) {
-                return {};
-            } // allow the extra length in this sequence. Semantic validation catches it.
+            }
         }
 
         ASSERT_IF(currElapsedDuration < elapsedInSequence) {
