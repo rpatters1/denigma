@@ -472,23 +472,8 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             continue;
         }
 
-        const auto currElapsedDuration = next.getEntryInfo()->elapsedDuration;
-        const auto isEndOfFrame = [&]() -> bool {
-            if (currElapsedDuration > next.getEntryInfo().getFrame()->measureStaffDuration) {
-                return true;
-            }
-            if (currElapsedDuration < next.getEntryInfo().getFrame()->measureStaffDuration) {
-                return false;
-            }
-            if (next.getEntryInfo().findHiddenSourceForBeamOverBarline()) {
-                if (entry->graceNote) {
-                    return static_cast<bool>(next.getEntryInfo().findMainEntryForGraceNote());
-                }
-                return true;
-            }
-            return false;
-        }();
-        if (isEndOfFrame) {
+        const auto currElapsedDuration = next.getEffectiveElapsedDuration();
+        if (next.calcIsPastLogicalEndOfFrame()) {
             if (currElapsedDuration > next.getEntryInfo().getFrame()->measureStaffDuration) {
                 if (auto prev = next.getEntryInfo().getPreviousInFrame(); prev->elapsedDuration < next.getEntryInfo().getFrame()->measureStaffDuration) {
                     context->logMessage(LogMsg() << "Entry " << prev->getEntry()->getEntryNumber() << " at index " << prev.getIndexInFrame()
