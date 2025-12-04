@@ -33,7 +33,7 @@ namespace mnxexp {
 
 static void createBeams(
     [[maybe_unused]] const MnxMusxMappingPtr& context,
-    mnx::part::Measure& mnxMeasure,
+    mnx::part::Measure mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
     StaffCmper staffCmper)
 {
@@ -81,10 +81,18 @@ static void createBeams(
                     const auto& tuplet = entryInfo.getFrame()->tupletInfo[x];
                     if (tuplet.includesEntry(entryInfo)) {
                         if (tuplet.calcIsTremolo()) {
-                            /// @todo this may need to be more sophisticated in the future
+                            /// @todo this may need to be more sophisticated in the future, but Finale can't really put a tremolo inside a beam.
                             return true; // skip any beam that is also a tremolo.
                         }
                     }
+                }
+                if (auto sourceEntry = entryInfo.findHiddenSourceForBeamOverBarline()) {
+                    const auto mnxMeasures = mnxMeasure.parent<mnx::Array<mnx::part::Measure>>();
+                    const auto sourceMeasureId = static_cast<size_t>(sourceEntry.getMeasure());
+                    ASSERT_IF(sourceMeasureId >= mnxMeasures.size() || sourceMeasureId == 0) {
+                        throw std::logic_error("Source entry's measure " + std::to_string(sourceMeasureId) + " is not a valid measure.");
+                    }
+                    mnxMeasure = mnxMeasures.at(sourceMeasureId - 1);
                 }
                 processBeam(mnxMeasure.create_beams(), 1, entryInfo, processBeam);
             }
@@ -261,9 +269,12 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
     for (size_t x = 0; x < context->currPartStaves.size(); x++) {
         prevClefs.push_back(std::nullopt);
     }
+    for (std::size_t i = 0; i < musxMeasures.size(); ++i) {
+        // create measures in one go, so that createBeams can add a beam to any measure
+        mnxMeasures.append();
+    }
     for (const auto& musxMeasure : musxMeasures) {
-        context->currMeas++;
-        auto mnxMeasure = mnxMeasures.append();
+        auto mnxMeasure = mnxMeasures.at(context->currMeas++);
         for (size_t x = 0; x < context->currPartStaves.size(); x++) {
             context->currStaff = context->currPartStaves[x];
             std::optional<int> staffNumber = (context->currPartStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
