@@ -400,26 +400,14 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
     createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, musxEntry->getEntryNumber()));
 }
 
-static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, EntryInfoPtr musxEntryInfo, std::optional<int> mnxStaffNumber)
+static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, EntryInfoPtr musxEntryInfo, std::optional<int> mnxStaffNumber, bool effectiveHidden)
 {
-    if (auto display = musxEntryInfo.findDisplayEntryForBeamOverBarline()) {
-        musxEntryInfo = display;
-    }
     const auto musxEntry = musxEntryInfo->getEntry();
 
-    const bool isRestWorkaroundHiddenEntry = musxEntryInfo.calcIsBeamedRestWorkaroundHiddenRest();
-    const bool hiddenEntry = musxEntry->isHidden && !isRestWorkaroundHiddenEntry;
-    if (hiddenEntry) {
+    if (effectiveHidden) {
         /// @todo include hidden entries perhaps, if MNX starts allowing them.
         content.append<mnx::sequence::Space>(mnxFractionFromEdu(musxEntry->duration));
         return;
-    }
-    MUSX_ASSERT_IF(musxEntryInfo.calcIsBeamedRestWorkaroundVisibleRest()) {
-        throw std::logic_error("cannot create an MNX event for a voice2 entry that is part of a beaming workaround");
-    }
-    if (isRestWorkaroundHiddenEntry) {
-        context->logMessage(LogMsg() << "recognized hidden rest " << musxEntry->getEntryNumber()
-            << " as beaming workaround and converted it to visible.", LogSeverity::Verbose);
     }
 
     auto musxStaff = musxEntryInfo.createCurrentStaff();
@@ -447,24 +435,23 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 }
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
-static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
-    mnx::ContentArray content, const EntryInfoPtr& firstEntryInfo,
+static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingPtr& context,
+    mnx::ContentArray content, const EntryInfoPtr::InterpretedIterator& firstEntryInfo,
     std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt)
 {
     auto next = firstEntryInfo;
-    int voice = next && next->getEntry()->voice2 ? 2 : 1; // firstEntryInfo can be null
     while (next) {
         if (tupletIndex) {
-            const auto& currentTuplet = next.getFrame()->tupletInfo[tupletIndex.value()];
-            if (next.getIndexInFrame() > currentTuplet.endIndex) {
+            const auto& currentTuplet = next.getEntryInfo().getFrame()->tupletInfo[tupletIndex.value()];
+            if (next.getEntryInfo().getIndexInFrame() > currentTuplet.endIndex) {
                 // We've already processed the last event of this tuplet
                 // (possibly inside a nested tuplet call) – hand back control.
                 return next;
             }
         }
 
-        auto entry = next->getEntry();
+        auto entry = next.getEntryInfo()->getEntry();
         if (inGrace && !entry->graceNote) {
             return next;
         } else if (!inGrace && entry->graceNote) {
@@ -480,38 +467,22 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             continue;
         }
 
-        if (next.calcIsBeamedRestWorkaroundVisibleRest()) {
-            continue; // skip any v2 that is part of a beaming workaround
+        if (next.calcIsPastLogicalEndOfFrame()) {
+            return {};
         }
-        const auto currElapsedDuration = next->elapsedDuration;
-        const auto isEndOfFrame = [&]() -> bool {
-            if (currElapsedDuration > next.getFrame()->measureStaffDuration) {
-                return true;
-            }
-            if (currElapsedDuration < next.getFrame()->measureStaffDuration) {
-                return false;
-            }
-            if (next.findHiddenSourceForBeamOverBarline()) {
-                if (entry->graceNote) {
-                    return next.findMainEntryForGraceNote();
-                }
-                return true;
-            }
-            return false;
-        }();
-        if (isEndOfFrame) {
-            if (currElapsedDuration > next.getFrame()->measureStaffDuration) {
-                if (auto prev = next.getPreviousInFrame(); prev->elapsedDuration < next.getFrame()->measureStaffDuration) {
-                    context->logMessage(LogMsg() << "Entry " << prev->getEntry()->getEntryNumber() << " at index " << prev.getIndexInFrame()
+        const auto currElapsedDuration = next.getEffectiveElapsedDuration();
+        const auto measureDuration = next.getEffectiveMeasureStaffDuration();
+        if (currElapsedDuration >= measureDuration) {
+            if (currElapsedDuration > measureDuration) {
+                if (auto prev = next.getPrevious(); prev && prev.getEffectiveElapsedDuration() < next.getEffectiveMeasureStaffDuration()) {
+                    context->logMessage(LogMsg() << "Entry " << prev.getEntryInfo()->getEntry()->getEntryNumber() << " at index " << prev.getEntryInfo().getIndexInFrame()
                         << " exceeds the measure length.", LogSeverity::Warning);
                 }
             }
             if (tupletIndex) { // keep tuplets together, even if they exceed the measure
                 context->logMessage(LogMsg()
                     << "Tuplet exceeds the measure length. This is not supported in MNX. Results may be unpredictable.", LogSeverity::Warning);
-            } else if (next.findHiddenSourceForBeamOverBarline()) {
-                return {};
-            } // allow the extra length in this sequence. Semantic validation catches it.
+            }
         }
 
         ASSERT_IF(currElapsedDuration < elapsedInSequence) {
@@ -523,34 +494,25 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
         }
 
         if (tupletIndex) {
-            auto tuplInfo = next.getFrame()->tupletInfo[tupletIndex.value()];
-            if (tuplInfo.endIndex == next.getIndexInFrame()) {
-                auto thisTupletIndex = next.calcNextTupletIndex(tupletIndex);
-                if (!thisTupletIndex || next.getFrame()->tupletInfo[thisTupletIndex.value()].startIndex != next.getIndexInFrame()) {
-                    createEvent(context, content, next, mnxStaffNumber);
-                    elapsedInSequence = currElapsedDuration + next->actualDuration;
-                    return next.getNextInVoice(voice);
+            auto tuplInfo = next.getEntryInfo().getFrame()->tupletInfo[tupletIndex.value()];
+            if (tuplInfo.endIndex == next.getEntryInfo().getIndexInFrame()) {
+                auto thisTupletIndex = next.getEntryInfo().calcNextTupletIndex(tupletIndex);
+                if (!thisTupletIndex || next.getEntryInfo().getFrame()->tupletInfo[thisTupletIndex.value()].startIndex != next.getEntryInfo().getIndexInFrame()) {
+                    createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden());
+                    elapsedInSequence = currElapsedDuration + next.getEntryInfo()->actualDuration;
+                    return next.getNext();
                 }
             }
         }
 
-        bool skipNext = false;
         if (!inGrace) {
-            auto thisTupletIndex = next.calcNextTupletIndex(tupletIndex);
+            auto thisTupletIndex = next.getEntryInfo().calcNextTupletIndex(tupletIndex);
             if (thisTupletIndex != tupletIndex && thisTupletIndex) {
-                auto tuplInfo = next.getFrame()->tupletInfo[thisTupletIndex.value()];
+                auto tuplInfo = next.getEntryInfo().getFrame()->tupletInfo[thisTupletIndex.value()];
                 if (tuplInfo.calcIsTremolo()) {
-                    auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.calcNumberOfBeams());
+                    auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.getEntryInfo().calcNumberOfBeams());
                     next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
                     continue;
-                } else if (tuplInfo.calcCreatesSingletonBeamLeft()) {
-                    next = next.getNextInVoice(voice);
-                    ASSERT_IF (!next) {
-                        throw std::logic_error("calcCreatesSingletonLeft returned true, but next in voice was empty.");
-                    }
-                    continue;
-                } else if (tuplInfo.calcCreatesSingletonBeamRight()) {
-                    skipNext = true;
                 } else {
                     auto tuplet = createTuplet(content, tuplInfo);
                     next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
@@ -559,17 +521,10 @@ static EntryInfoPtr addEntryToContent(const MnxMusxMappingPtr& context,
             }
         }
 
-        createEvent(context, content, next, mnxStaffNumber);
+        createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden());
 
-        if (skipNext) {
-            next = next.getNextInVoice(voice);
-            ASSERT_IF (!next) {
-                throw std::logic_error("calcCreatesSingletonRight returned true, but next in voice was empty.");
-            }
-        }
-
-        elapsedInSequence = currElapsedDuration + next->actualDuration;
-        next = next.getNextInVoice(voice);
+        elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
+        next = next.getNext();
     }
     return next;
 }
@@ -593,13 +548,7 @@ void createSequences(const MnxMusxMappingPtr& context,
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
                 for (int voice = 1; voice <= 2; voice++) {
-                    if (auto firstEntry = entryFrame->getFirstInVoice(voice)) {
-                        while (voice == 2 && firstEntry && firstEntry.calcIsBeamedRestWorkaroundVisibleRest()) {
-                            firstEntry = firstEntry.getNextInVoice(voice);
-                        }
-                        if (!firstEntry) {
-                            continue;
-                        }
+                    if (auto firstEntry = entryFrame->getFirstInterpretedIterator(voice)) {
                         auto sequence = mnxMeasure.sequences().append();
                         if (mnxStaffNumber) {
                             sequence.set_staff(mnxStaffNumber.value());

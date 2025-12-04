@@ -33,11 +33,12 @@ namespace mnxexp {
 
 static void createBeams(
     [[maybe_unused]] const MnxMusxMappingPtr& context,
-    mnx::part::Measure& mnxMeasure,
+    mnx::part::Measure mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
     StaffCmper staffCmper)
 {
     const auto& musxDocument = musxMeasure->getDocument();
+    const auto mnxMeasures = mnxMeasure.parent<mnx::Array<mnx::part::Measure>>();
     if (auto gfhold = details::GFrameHoldContext(musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper())) {
         if (gfhold.calcIsCuesOnly()) {
             return; // skip cues until MNX spec includes them
@@ -46,10 +47,7 @@ static void createBeams(
             auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
                 assert(firstInBeam.calcLowestBeamStart(/*considerBeamOverBarlines*/true) <= beamNumber);
                 auto beam = mnxBeams.append();
-                for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars(/*includeHidden*/true)) {
-                    if (next->getEntry()->isHidden && !next.calcIsBeamedRestWorkaroundHiddenRest()) {
-                        continue;
-                    }
+                for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars(EntryInfoPtr::BeamIterationMode::Interpreted)) {
                     const EntryNumber entryNumber = next->getEntry()->getEntryNumber();
                     context->beamedEntries.emplace(entryNumber);
                     beam.events().push_back(calcEventId(entryNumber));
@@ -78,19 +76,25 @@ static void createBeams(
             if (context->beamedEntries.find(entryInfo->getEntry()->getEntryNumber()) != context->beamedEntries.end()) {
                 return true; // skip any entry that is already in a primary beam.
             }
-            if (entryInfo.calcIsBeamStart()) {
-                if (entryInfo.calcCreatesSingletonBeamLeft()) {
-                    return true;
-                }
+            if (entryInfo.calcIsBeamStart(EntryInfoPtr::BeamIterationMode::Interpreted)) {
                 const auto tupletIndices = entryInfo.findTupletInfo();
                 for (size_t x : tupletIndices) {
                     const auto& tuplet = entryInfo.getFrame()->tupletInfo[x];
                     if (tuplet.includesEntry(entryInfo)) {
                         if (tuplet.calcIsTremolo()) {
-                            /// @todo this may need to be more sophisticated in the future
+                            /// @todo this may need to be more sophisticated in the future, but Finale can't really put a tremolo inside a beam.
                             return true; // skip any beam that is also a tremolo.
                         }
                     }
+                }
+                if (auto sourceEntry = entryInfo.findHiddenSourceForBeamOverBarline()) {
+                    const auto sourceMeasureId = static_cast<size_t>(sourceEntry.getMeasure());
+                    ASSERT_IF(sourceMeasureId >= mnxMeasures.size() || sourceMeasureId == 0) {
+                        throw std::logic_error("Source entry's measure " + std::to_string(sourceMeasureId) + " is not a valid measure.");
+                    }
+                    mnxMeasure = mnxMeasures.at(sourceMeasureId - 1);
+                } else {
+                    mnxMeasure = mnxMeasures.at(entryInfo.getMeasure() - 1);
                 }
                 processBeam(mnxMeasure.create_beams(), 1, entryInfo, processBeam);
             }
@@ -267,9 +271,12 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
     for (size_t x = 0; x < context->currPartStaves.size(); x++) {
         prevClefs.push_back(std::nullopt);
     }
+    for (std::size_t i = 0; i < musxMeasures.size(); ++i) {
+        // create measures in one go, so that createBeams can add a beam to any measure
+        mnxMeasures.append();
+    }
     for (const auto& musxMeasure : musxMeasures) {
-        context->currMeas++;
-        auto mnxMeasure = mnxMeasures.append();
+        auto mnxMeasure = mnxMeasures.at(context->currMeas++);
         for (size_t x = 0; x < context->currPartStaves.size(); x++) {
             context->currStaff = context->currPartStaves[x];
             std::optional<int> staffNumber = (context->currPartStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
