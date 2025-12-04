@@ -38,6 +38,7 @@ static void createBeams(
     StaffCmper staffCmper)
 {
     const auto& musxDocument = musxMeasure->getDocument();
+    const auto mnxMeasures = mnxMeasure.parent<mnx::Array<mnx::part::Measure>>();
     if (auto gfhold = details::GFrameHoldContext(musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper())) {
         if (gfhold.calcIsCuesOnly()) {
             return; // skip cues until MNX spec includes them
@@ -87,12 +88,13 @@ static void createBeams(
                     }
                 }
                 if (auto sourceEntry = entryInfo.findHiddenSourceForBeamOverBarline()) {
-                    const auto mnxMeasures = mnxMeasure.parent<mnx::Array<mnx::part::Measure>>();
                     const auto sourceMeasureId = static_cast<size_t>(sourceEntry.getMeasure());
                     ASSERT_IF(sourceMeasureId >= mnxMeasures.size() || sourceMeasureId == 0) {
                         throw std::logic_error("Source entry's measure " + std::to_string(sourceMeasureId) + " is not a valid measure.");
                     }
                     mnxMeasure = mnxMeasures.at(sourceMeasureId - 1);
+                } else {
+                    mnxMeasure = mnxMeasures.at(entryInfo.getMeasure() - 1);
                 }
                 processBeam(mnxMeasure.create_beams(), 1, entryInfo, processBeam);
             }
