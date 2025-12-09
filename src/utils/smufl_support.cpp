@@ -19,9 +19,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <unordered_map>
 #include <istream>
+#include <optional>
 #include <string>
+#include <unordered_map>
 
 #include "smufl_support.h"
 

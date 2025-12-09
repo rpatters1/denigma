@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<museScore version="4.50">
+<museScore version="4.60">
     <Style>
         <pageWidth>8.5</pageWidth>
         <pageHeight>11</pageHeight>
@@ -111,15 +111,31 @@
         <showMeasureNumberOne>0</showMeasureNumberOne>
         <measureNumberInterval>0</measureNumberInterval>
         <measureNumberSystem>1</measureNumberSystem>
+        <measureNumberPlacementMode>above-system</measureNumberPlacementMode>
+        <measureNumberAlignToBarline>1</measureNumberAlignToBarline>
         <measureNumberOffsetType>1</measureNumberOffsetType>
         <measureNumberFontFace>Times New Roman</measureNumberFontFace>
         <measureNumberFontSize>8.3333</measureNumberFontSize>
         <measureNumberFontSpatiumDependent>1</measureNumberFontSpatiumDependent>
         <measureNumberFontStyle>2</measureNumberFontStyle>
         <measureNumberVPlacement>0</measureNumberVPlacement>
-        <measureNumberHPlacement>0</measureNumberHPlacement>
+        <measureNumberHPlacement>left</measureNumberHPlacement>
         <measureNumberAlign>left,baseline</measureNumberAlign>
+        <measureNumberPosition>left</measureNumberPosition>
+        <measureNumberPosAbove x="0.25" y="-1.8333"></measureNumberPosAbove>
+        <measureNumberPosBelow x="0.25" y="0"></measureNumberPosBelow>
         <measureNumberFrameType>0</measureNumberFrameType>
+        <measureNumberAlternateFontFace>Times New Roman</measureNumberAlternateFontFace>
+        <measureNumberAlternateFontSize>8.3333</measureNumberAlternateFontSize>
+        <measureNumberAlternateFontSpatiumDependent>1</measureNumberAlternateFontSpatiumDependent>
+        <measureNumberAlternateFontStyle>2</measureNumberAlternateFontStyle>
+        <measureNumberAlternateVPlacement>0</measureNumberAlternateVPlacement>
+        <measureNumberAlternateHPlacement>left</measureNumberAlternateHPlacement>
+        <measureNumberAlternateAlign>left,baseline</measureNumberAlternateAlign>
+        <measureNumberAlternatePosition>left</measureNumberAlternatePosition>
+        <measureNumberAlternatePosAbove x="0.25" y="-1.8333"></measureNumberAlternatePosAbove>
+        <measureNumberAlternatePosBelow x="0.25" y="0"></measureNumberAlternatePosBelow>
+        <measureNumberAlternateFrameType>0</measureNumberAlternateFrameType>
         <mmRestShowMeasureNumberRange>0</mmRestShowMeasureNumberRange>
         <mmRestRangeBracketType>2</mmRestRangeBracketType>
         <mmRestRangeFontFace>Times New Roman</mmRestRangeFontFace>
@@ -127,8 +143,11 @@
         <mmRestRangeFontSpatiumDependent>1</mmRestRangeFontSpatiumDependent>
         <mmRestRangeFontStyle>2</mmRestRangeFontStyle>
         <mmRestRangeVPlacement>1</mmRestRangeVPlacement>
-        <mmRestRangeHPlacement>1</mmRestRangeHPlacement>
+        <mmRestRangeHPlacement>center</mmRestRangeHPlacement>
         <mmRestRangeAlign>center,baseline</mmRestRangeAlign>
+        <mmRestRangePosition>center</mmRestRangePosition>
+        <mmRestRangePosAbove x="0" y="0"></mmRestRangePosAbove>
+        <mmRestRangePosBelow x="0" y="1.8362"></mmRestRangePosBelow>
         <mmRestRangeFrameType>0</mmRestRangeFrameType>
         <createMultiMeasureRests>0</createMultiMeasureRests>
         <minEmptyMeasures>2</minEmptyMeasures>

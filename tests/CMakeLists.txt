@@ -13,6 +13,7 @@ if(denigma_BUILD_TESTING)
     # Add an executable for the test suite
     add_executable(denigma_tests
         denigmatests.cpp
+        xml_compare.cpp
         test_export.cpp
         test_logging.cpp
         test_massage.cpp
