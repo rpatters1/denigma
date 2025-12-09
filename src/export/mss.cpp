@@ -61,6 +61,7 @@ struct FinalePreferences
     //
     MusxInstance<FontInfo> defaultMusicFont;
     std::string musicFontName;
+    double spatiumScaling{};
     //
     MusxInstance<options::AccidentalOptions> accidentalOptions;
     MusxInstance<options::AlternateNotationOptions> alternateNotationOptions;
@@ -171,6 +172,7 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     if (!retval->layerOneAttributes) {
         throw std::invalid_argument("document contains no options for Layer 1");
     }
+    retval->spatiumScaling = retval->pageFormat->calcCombinedSystemScaling().toDouble();
 
     return retval;
 }
@@ -363,7 +365,7 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "firstSystemIndentationValue", double(pagePrefs->firstSysMarginLeft) / EVPU_PER_SPACE);
 
     // Calculate Spatium
-    setElementValue(styleElement, "spatium", (EVPU_PER_SPACE * prefs->pageFormat->calcCombinedSystemScaling().toDouble()) / EVPU_PER_MM);
+    setElementValue(styleElement, "spatium", (EVPU_PER_SPACE * prefs->spatiumScaling) / EVPU_PER_MM);
 
     // Calculate small staff size and small note size from first system, if any is there
     if (const auto& firstSystem = prefs->document->getOthers()->get<others::StaffSystem>(prefs->forPartId, 1)) {
@@ -555,7 +557,8 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         const auto& scorePart = prefs->measNumScorePart;
         setElementValue(styleElement, "showMeasureNumberOne", !scorePart->hideFirstMeasure);
         setElementValue(styleElement, "measureNumberInterval", scorePart->incidence);
-        setElementValue(styleElement, "measureNumberSystem", scorePart->showOnStart && !scorePart->showOnEvery);
+        const bool useShowOnStart = scorePart->showOnStart && !scorePart->showOnEvery;
+        setElementValue(styleElement, "measureNumberSystem", useShowOnStart);
 
         auto justificationString = [](MeasureNumberRegion::AlignJustify justi) -> std::string {
             switch (justi) {
@@ -630,7 +633,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
             setElementValue(styleElement, prefix + "HPlacement", justifyToAlign(alignment));
             setElementValue(styleElement, prefix + "Align", justificationString(justification));
             setElementValue(styleElement, prefix + "Position", justifyToAlign(justification));
-            const double textHeightSp = approximateFontHeightInSpaces(fontInfo.get());
+            const double textHeightSp = approximateFontHeightInSpaces(fontInfo.get()) * prefs->spatiumScaling;
             const double normalStaffHeightSp = 4.0;
             setPointElement(styleElement, prefix + "PosAbove", horizontalSp, std::min(-verticalSp, 0.0));
             setPointElement(styleElement, prefix + "PosBelow", horizontalSp,
@@ -638,7 +641,6 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
             writeFramePrefs(styleElement, prefix, enclosure);
         };
 
-        const bool useShowOnStart = scorePart->showOnStart && !scorePart->showOnEvery;
         auto fontInfo = useShowOnStart ? scorePart->startFont : scorePart->multipleFont;
         auto enclosure = useShowOnStart ? scorePart->startEnclosure : scorePart->multipleEnclosure;
         auto useEnclosure = useShowOnStart ? scorePart->useStartEncl : scorePart->useMultipleEncl;

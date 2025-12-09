@@ -142,7 +142,7 @@ bool compareXmlNodes(const pugi::xml_node& lhs,
                 return false;
             }
             if (!valuesNearlyEqual(value, it->second)) {
-                message = currentPath + ": attribute '" + name + "' differs";
+                message = currentPath + ": attribute '" + name + "' differs: " + value + " vs." + it->second;
                 return false;
             }
         }
@@ -173,14 +173,14 @@ bool compareXmlNodes(const pugi::xml_node& lhs,
 
     if (lhs.type() == pugi::node_pcdata || lhs.type() == pugi::node_cdata) {
         if (!valuesNearlyEqual(lhs.value(), rhs.value())) {
-            message = currentPath + ": text differs";
+            message = currentPath + ": text differs: " + lhs.value() + " vs." + rhs.value();
             return false;
         }
         return true;
     }
 
     if (std::strcmp(lhs.value(), rhs.value()) != 0) {
-        message = currentPath + ": node value differs";
+        message = currentPath + ": node value differs: " + lhs.value() + " vs." + rhs.value();
         return false;
     }
     return true;
