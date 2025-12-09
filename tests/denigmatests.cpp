@@ -19,12 +19,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <iterator>
 #include <filesystem>
 #include <fstream>
+#include <functional>
+#include <iostream>
+#include <iterator>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "test_utils.h"
+#include "xml_compare.h"
 
 // Optional setup/teardown for test suite
 class TestEnvironment : public ::testing::Environment {
@@ -135,9 +141,16 @@ void compareFiles(const std::filesystem::path& path1, const std::filesystem::pat
 {
     ASSERT_TRUE(std::filesystem::is_regular_file(path1)) << "unable to find " << path1.u8string();
     ASSERT_TRUE(std::filesystem::is_regular_file(path2)) << "unable to find " << path2.u8string();
-    std::ifstream file1(path1);
+    const bool compareAsXml = shouldUseXmlComparison(path1) && shouldUseXmlComparison(path2);
+    if (compareAsXml) {
+        std::string message;
+        ASSERT_TRUE(compareXmlFiles(path1, path2, message)) << message;
+        return;
+    }
+
+    std::ifstream file1(path1, std::ios::binary);
     ASSERT_TRUE(file1);
-    std::ifstream file2(path2);
+    std::ifstream file2(path2, std::ios::binary);
     ASSERT_TRUE(file2);
     char c1, c2;
     while (file1.get(c1)) {

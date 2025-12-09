@@ -47,7 +47,7 @@ constexpr static char MSS_VERSION[] = "4.60"; // Do not change this version with
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 constexpr static double POINTS_PER_INCH = 72.0;
 constexpr static double FONT_HEIGHT_SCALE = 0.7;
-constexpr static int MUSE_NUMERIC_PRECISION = 10;
+constexpr static int MUSE_NUMERIC_PRECISION = 5;
 
 // Finale preferences:
 struct FinalePreferences
