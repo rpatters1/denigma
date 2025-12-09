@@ -19,9 +19,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <iostream>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <optional>
 #include <set>
 
 #include "denigma.h"
@@ -41,8 +43,11 @@ using XmlDocument = ::pugi::xml_document;
 using XmlElement = ::pugi::xml_node;
 using XmlAttribute = ::pugi::xml_attribute;
 
-constexpr static char MSS_VERSION[] = "4.50"; // Do not change this version without checking notes on changed values.
+constexpr static char MSS_VERSION[] = "4.60"; // Do not change this version without checking notes on changed values.
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
+constexpr static double POINTS_PER_INCH = 72.0;
+constexpr static double FONT_HEIGHT_SCALE = 0.7;
+constexpr static int MUSE_NUMERIC_PRECISION = 10;
 
 // Finale preferences:
 struct FinalePreferences
@@ -170,6 +175,13 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     return retval;
 }
 
+static std::string formatMuseFloat(double value)
+{
+    char buffer[512];
+    snprintf(buffer, sizeof(buffer), "%.*g", MUSE_NUMERIC_PRECISION, value);
+    return std::string(buffer);
+}
+
 template<typename T>
 static XmlElement setElementValue(XmlElement& styleElement, const std::string& nodeName, const T& value)
 {
@@ -185,9 +197,8 @@ static XmlElement setElementValue(XmlElement& styleElement, const std::string& n
     if constexpr (std::is_same_v<T, std::nullptr_t>) {
         static_assert(std::is_same_v<T, std::nullptr_t>, "Incorrect property.");
     } else if constexpr (std::is_floating_point_v<T>) {
-        char buffer[512];
-        snprintf(buffer, sizeof(buffer), "%.5g", value);
-        element.text().set(buffer);
+        const std::string formatted = formatMuseFloat(value);
+        element.text().set(formatted.c_str());
     } else if constexpr (std::is_same_v<T, std::string>) {
         element.text().set(value.c_str());
     } else if constexpr (std::is_same_v<T, bool>) {
@@ -197,6 +208,43 @@ static XmlElement setElementValue(XmlElement& styleElement, const std::string& n
     }
 
     return element;
+}
+
+static void setPointElement(XmlElement& styleElement, const std::string& nodeName, double x, double y)
+{
+    if (!styleElement) {
+        throw std::invalid_argument("styleElement cannot be null");
+    }
+
+    XmlElement element = styleElement.child(nodeName.c_str());
+    if (!element) {
+        element = styleElement.append_child(nodeName.c_str());
+    }
+
+    auto setAttribute = [&](const char* name, double value) {
+        XmlAttribute attribute = element.attribute(name);
+        if (!attribute) {
+            attribute = element.append_attribute(name);
+        }
+        const std::string formatted = formatMuseFloat(value);
+        attribute.set_value(formatted.c_str());
+    };
+
+    element.text().set("");
+    setAttribute("x", x);
+    setAttribute("y", y);
+}
+
+static double approximateFontHeightInSpaces(const FontInfo* fontInfo)
+{
+    if (!fontInfo) {
+        return 0.0;
+    }
+
+    const double scaledPointSize = double(fontInfo->fontSize)
+                                 * (fontInfo->absolute ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL);
+    const double heightEvpu = (scaledPointSize / POINTS_PER_INCH) * EVPU_PER_INCH * FONT_HEIGHT_SCALE;
+    return heightEvpu / EVPU_PER_SPACE;
 }
 
 static uint16_t museFontEfx(const FontInfo* fontInfo)
@@ -509,60 +557,102 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         setElementValue(styleElement, "measureNumberInterval", scorePart->incidence);
         setElementValue(styleElement, "measureNumberSystem", scorePart->showOnStart && !scorePart->showOnEvery);
 
-        // Helper lambdas for processing justification and alignment
         auto justificationString = [](MeasureNumberRegion::AlignJustify justi) -> std::string {
             switch (justi) {
+                case MeasureNumberRegion::AlignJustify::Right:
+                    return "right,baseline";
+                case MeasureNumberRegion::AlignJustify::Center:
+                    return "center,baseline";
                 default:
-                case MeasureNumberRegion::AlignJustify::Left: return "left,baseline";
-                case MeasureNumberRegion::AlignJustify::Center: return "center,baseline";
-                case MeasureNumberRegion::AlignJustify::Right: return "right,baseline";
+                    return "left,baseline";
             }
         };
-
-        // WARNING: These values changed in MuseScore 4.6 to be AlignH values ("left", "center", "right")
-        auto horizontalAlignment = [](MeasureNumberRegion::AlignJustify align) -> int {
+        auto justifyToAlign = [](MeasureNumberRegion::AlignJustify align) -> std::string {
             switch (align) {
+                case MeasureNumberRegion::AlignJustify::Right:
+                    return "right";
+                case MeasureNumberRegion::AlignJustify::Center:
+                    return "center";
                 default:
-                case MeasureNumberRegion::AlignJustify::Left: return 0;
-                case MeasureNumberRegion::AlignJustify::Center: return 1;
-                case MeasureNumberRegion::AlignJustify::Right: return 2;
+                    return "left";
             }
         };
 
-        auto verticalAlignment = [](Evpu vertical) -> int {
-            return (vertical >= 0) ? 0 : 1;
-        };
+        const auto scrollView = prefs->document->getScrollViewStaves(prefs->forPartId);
+        bool topOn = false;
+        bool bottomOn = false;
+        bool anyInteriorOn = false;
+        bool allStavesOn = !scrollView.empty();
+        for (std::size_t i = 0; i < scrollView.size(); ++i) {
+            if (const auto staff = scrollView[i]->getStaffInstance()) {
+                const bool isOn = !staff->hideMeasNums;
+                allStavesOn = allStavesOn && isOn;
+                if (i == 0) {
+                    topOn = isOn;
+                } else if (i == scrollView.size() - 1) {
+                    bottomOn = isOn;
+                } else if (isOn) {
+                    anyInteriorOn = true;
+                }
+            }
+        }
+        const bool useAbove = scorePart->excludeOthers || (!anyInteriorOn && !bottomOn);
+        const bool useBelow = scorePart->excludeOthers || (!anyInteriorOn && !topOn);
+        auto placementMode = [&]() -> std::string {
+            if (useAbove && scorePart->showOnTop) {
+                return "above-system";
+            }
+            if (useBelow && scorePart->showOnBottom) {
+                return "below-system";
+            }
+            if (allStavesOn) {
+                return "on-all-staves";
+            }
+            if (scorePart->showOnBottom) {
+                prefs->denigmaContext->logMessage(LogMsg() << "Show on Bottom not supported when other staves also show measure numbers.",
+                                                  LogSeverity::Warning);
+            }
+            return "on-so-staves";
+        }();
+        setElementValue(styleElement, "measureNumberPlacementMode", placementMode);
 
-        // Helper function to process segments
         auto processSegment = [&](const MusxInstance<FontInfo>& fontInfo,
-                                  const MusxInstance<others::Enclosure>& enclosure,
-                                  bool useEnclosure,
+                                  const others::Enclosure* enclosure,
                                   MeasureNumberRegion::AlignJustify justification,
                                   MeasureNumberRegion::AlignJustify alignment,
+                                  Evpu horizontal,
                                   Evpu vertical,
                                   const std::string& prefix) {
             writeFontPref(styleElement, prefix, fontInfo.get());
-            setElementValue(styleElement, prefix + "VPlacement", verticalAlignment(vertical));
-            setElementValue(styleElement, prefix + "HPlacement", horizontalAlignment(alignment));
+            const double verticalSp = double(vertical) / EVPU_PER_SPACE;
+            const double horizontalSp = double(horizontal) / EVPU_PER_SPACE;
+            setElementValue(styleElement, prefix + "VPlacement", (vertical >= 0) ? 0 : 1);
+            setElementValue(styleElement, prefix + "HPlacement", justifyToAlign(alignment));
             setElementValue(styleElement, prefix + "Align", justificationString(justification));
-            writeFramePrefs(styleElement, prefix, useEnclosure ? enclosure.get() : nullptr);
+            setElementValue(styleElement, prefix + "Position", justifyToAlign(justification));
+            const double textHeightSp = approximateFontHeightInSpaces(fontInfo.get());
+            const double normalStaffHeightSp = 4.0;
+            setPointElement(styleElement, prefix + "PosAbove", horizontalSp, std::min(-verticalSp, 0.0));
+            setPointElement(styleElement, prefix + "PosBelow", horizontalSp,
+                            std::max(-(verticalSp + normalStaffHeightSp) - textHeightSp, 0.0));
+            writeFramePrefs(styleElement, prefix, enclosure);
         };
 
-        // Determine the source for primary measure number segment
-        auto fontInfo = scorePart->showOnStart ? scorePart->startFont : scorePart->multipleFont;
-        auto enclosure = scorePart->showOnStart ? scorePart->startEnclosure : scorePart->multipleEnclosure;
-        auto useEnclosure = scorePart->showOnStart ? scorePart->useStartEncl : scorePart->useMultipleEncl;
-        auto justification = scorePart->showOnEvery ? scorePart->multipleJustify : scorePart->startJustify;
-        auto alignment = scorePart->showOnEvery ? scorePart->multipleAlign : scorePart->startAlign;
-        auto vertical = scorePart->showOnStart ? scorePart->startYdisp : scorePart->multipleYdisp;
+        const bool useShowOnStart = scorePart->showOnStart && !scorePart->showOnEvery;
+        auto fontInfo = useShowOnStart ? scorePart->startFont : scorePart->multipleFont;
+        auto enclosure = useShowOnStart ? scorePart->startEnclosure : scorePart->multipleEnclosure;
+        auto useEnclosure = useShowOnStart ? scorePart->useStartEncl : scorePart->useMultipleEncl;
+        auto justification = useShowOnStart ? scorePart->startJustify : scorePart->multipleJustify;
+        auto alignment = useShowOnStart ? scorePart->startAlign : scorePart->multipleAlign;
+        auto horizontal = useShowOnStart ? scorePart->startXdisp : scorePart->multipleXdisp;
+        auto vertical = useShowOnStart ? scorePart->startYdisp : scorePart->multipleYdisp;
 
-        // Process primary measure number segment
-        setElementValue(styleElement, "measureNumberOffsetType", 1); // Hardcoded offset type
-        processSegment(fontInfo, enclosure, useEnclosure, justification, alignment, vertical, "measureNumber");
+        setElementValue(styleElement, "measureNumberAlignToBarline", alignment == MeasureNumberRegion::AlignJustify::Left);
+        setElementValue(styleElement, "measureNumberOffsetType", 1);
+        processSegment(fontInfo, useEnclosure ? enclosure.get() : nullptr, justification, alignment, horizontal, vertical, "measureNumber");
+        processSegment(fontInfo, useEnclosure ? enclosure.get() : nullptr, justification, alignment, horizontal, vertical, "measureNumberAlternate");
 
-        // Process multi-measure rest settings
         setElementValue(styleElement, "mmRestShowMeasureNumberRange", scorePart->showMmRange);
-
         if (scorePart->leftMmBracketChar == 0) {
             setElementValue(styleElement, "mmRestRangeBracketType", 2); // None
         } else if (scorePart->leftMmBracketChar == '(') {
@@ -570,16 +660,18 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         } else {
             setElementValue(styleElement, "mmRestRangeBracketType", 0); // Default
         }
-
-        // Process multi-measure rest segment
-        processSegment(scorePart->mmRestFont, scorePart->multipleEnclosure, scorePart->useMultipleEncl,
-                       scorePart->mmRestJustify, scorePart->mmRestAlign, scorePart->mmRestYdisp, "mmRestRange");
+        processSegment(scorePart->mmRestFont,
+                       nullptr,
+                       scorePart->mmRestJustify,
+                       scorePart->mmRestAlign,
+                       scorePart->mmRestXdisp,
+                       scorePart->mmRestYdisp,
+                       "mmRestRange");
     }
     setElementValue(styleElement, "createMultiMeasureRests", prefs->forPartId != 0);
     setElementValue(styleElement, "minEmptyMeasures", prefs->mmRestOptions->numStart);
     setElementValue(styleElement, "minMMRestWidth", prefs->mmRestOptions->measWidth / EVPU_PER_SPACE);
     setElementValue(styleElement, "mmRestNumberPos", (prefs->mmRestOptions->numAdjY / EVPU_PER_SPACE) + 1);
-    // setElementValue(styleElement, "multiMeasureRestMargin", prefs->mmRestOptions->startAdjust / EVPU_PER_SPACE); // Uncomment if margin is required
     setElementValue(styleElement, "oldStyleMultiMeasureRests", prefs->mmRestOptions->useSymbols && prefs->mmRestOptions->useSymsThreshold > 1);
     setElementValue(styleElement, "mmRestOldStyleMaxMeasures", (std::max)(prefs->mmRestOptions->useSymsThreshold - 1, 0));
     setElementValue(styleElement, "mmRestOldStyleSpacing", prefs->mmRestOptions->symSpacing / EVPU_PER_SPACE);
@@ -612,8 +704,7 @@ void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pref
     const auto& tupletOptions = prefs->tupletOptions;
 
     setElementValue(styleElement, "tupletOutOfStaff", tupletOptions->avoidStaff);
-    // tupletNumberRythmicCenter and tupletExtendToEndOfDuration are 4.6 settings, but MuseScore 4.5 should ignore them
-    // while MuseScore 4.6 picks them up even out of a 4.5 file.
+    // tupletNumberRythmicCenter and tupletExtendToEndOfDuration were added in MuseScore 4.6.
     setElementValue(styleElement, "tupletNumberRythmicCenter", tupletOptions->metricCenter); // 4.6 setting
     setElementValue(styleElement, "tupletExtendToEndOfDuration", tupletOptions->fullDura); // 4.6 setting
     setElementValue(styleElement, "tupletStemLeftDistance", tupletOptions->leftHookExt / EVPU_PER_SPACE);
