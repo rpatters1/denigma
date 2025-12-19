@@ -213,7 +213,7 @@ std::vector<EventMarkingType> calcMarkingType(const MusxInstance<others::Articul
 
 mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration)
 {
-    auto [base, dots] = calcNoteInfoFromEdu(duration);
+    auto [base, dots] = calcDurationInfoFromEdu(duration);
     return mnx::NoteValue::Initializer(enumConvert<mnx::NoteValueBase>(base), dots);
 }
 

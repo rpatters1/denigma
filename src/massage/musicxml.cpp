@@ -327,7 +327,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 }
                 return false;
             }
-            auto [entryNoteType, entryNumDots] = entry->calcNoteInfo();
+            auto [entryNoteType, entryNumDots] = entry->calcDurationInfo();
             auto musxNoteType = Edu(entryNoteType);
             auto xmlNoteType = Edu(it->second);
             if (xmlNoteType != musxNoteType) {
