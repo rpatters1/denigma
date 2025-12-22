@@ -551,7 +551,6 @@ void writeSmartShapePrefs(XmlElement& styleElement, const FinalePreferencesPtr& 
 
 void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
-    using MeasureNumberRegion = others::MeasureNumberRegion;
     setElementValue(styleElement, "showMeasureNumber", bool(prefs->measNumScorePart));
     if (prefs->measNumScorePart) {
         const auto& scorePart = prefs->measNumScorePart;
@@ -560,21 +559,21 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         const bool useShowOnStart = scorePart->showOnStart && !scorePart->showOnEvery;
         setElementValue(styleElement, "measureNumberSystem", useShowOnStart);
 
-        auto justificationString = [](MeasureNumberRegion::AlignJustify justi) -> std::string {
+        auto justificationString = [](AlignJustify justi) -> std::string {
             switch (justi) {
-                case MeasureNumberRegion::AlignJustify::Right:
+                case AlignJustify::Right:
                     return "right,baseline";
-                case MeasureNumberRegion::AlignJustify::Center:
+                case AlignJustify::Center:
                     return "center,baseline";
                 default:
                     return "left,baseline";
             }
         };
-        auto justifyToAlign = [](MeasureNumberRegion::AlignJustify align) -> std::string {
+        auto justifyToAlign = [](AlignJustify align) -> std::string {
             switch (align) {
-                case MeasureNumberRegion::AlignJustify::Right:
+                case AlignJustify::Right:
                     return "right";
-                case MeasureNumberRegion::AlignJustify::Center:
+                case AlignJustify::Center:
                     return "center";
                 default:
                     return "left";
@@ -621,8 +620,8 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
 
         auto processSegment = [&](const MusxInstance<FontInfo>& fontInfo,
                                   const others::Enclosure* enclosure,
-                                  MeasureNumberRegion::AlignJustify justification,
-                                  MeasureNumberRegion::AlignJustify alignment,
+                                  AlignJustify justification,
+                                  AlignJustify alignment,
                                   Evpu horizontal,
                                   Evpu vertical,
                                   const std::string& prefix) {
@@ -649,7 +648,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         auto horizontal = useShowOnStart ? scorePart->startXdisp : scorePart->multipleXdisp;
         auto vertical = useShowOnStart ? scorePart->startYdisp : scorePart->multipleYdisp;
 
-        setElementValue(styleElement, "measureNumberAlignToBarline", alignment == MeasureNumberRegion::AlignJustify::Left);
+        setElementValue(styleElement, "measureNumberAlignToBarline", alignment == AlignJustify::Left);
         setElementValue(styleElement, "measureNumberOffsetType", 1);
         processSegment(fontInfo, useEnclosure ? enclosure.get() : nullptr, justification, alignment, horizontal, vertical, "measureNumber");
         processSegment(fontInfo, useEnclosure ? enclosure.get() : nullptr, justification, alignment, horizontal, vertical, "measureNumberAlternate");
@@ -807,9 +806,9 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     }
     auto justifyToAlignment = [](const MusxInstance<others::NamePositioning>& position) {
         switch (position->justify) {
-            case others::NamePositioning::AlignJustify::Left:
+            case AlignJustify::Left:
                 return std::string("left,center");
-            case others::NamePositioning::AlignJustify::Right:
+            case AlignJustify::Right:
                 return std::string("right,center");
             default:
                 return std::string("center,center");
