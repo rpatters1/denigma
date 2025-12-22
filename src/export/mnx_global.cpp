@@ -82,7 +82,7 @@ static musx::util::Fraction calcJumpLocation(const MusxInstance<others::TextRepe
 {
     musx::util::Fraction result{};
     if (const auto def = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, repeatAssign->textRepeatId)) {
-        if (def->justification != others::HorizontalTextJustification::Left) {
+        if (def->justification != AlignJustify::Left) {
             const auto timeSig = musxMeasure->createTimeSignature();
             result = timeSig->calcTotalDuration();
         }
