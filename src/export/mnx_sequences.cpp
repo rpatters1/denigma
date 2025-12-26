@@ -400,7 +400,8 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
     createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, musxEntry->getEntryNumber()));
 }
 
-static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, EntryInfoPtr musxEntryInfo, std::optional<int> mnxStaffNumber, bool effectiveHidden)
+static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, EntryInfoPtr musxEntryInfo, std::optional<int> mnxStaffNumber,
+                        bool effectiveHidden, bool hasVoice1Voice2)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
 
@@ -423,8 +424,13 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     /// @todo orient
     createSlurs(context, mnxEvent, musxEntry);
     const auto [freezeStem, upStem] = musxEntryInfo.calcEntryStemSettings();
-    if (freezeStem && musxEntry->isNote && musxEntry->hasStem()) {
-        mnxEvent.set_stemDirection(upStem ? mnx::StemDirection::Up : mnx::StemDirection::Down);
+    if (musxEntry->isNote && musxEntry->hasStem()) {
+        if (freezeStem) {
+            mnxEvent.set_stemDirection(upStem ? mnx::StemDirection::Up : mnx::StemDirection::Down);
+        } else if (hasVoice1Voice2) {
+            // force all stems in v1v2 contexts due to voices controlling stem direction otherwise.
+            mnxEvent.set_stemDirection(musxEntryInfo.calcUpStem() ? mnx::StemDirection::Up : mnx::StemDirection::Down);
+        }
     }
 
     if (musxEntry->isNote) {
@@ -437,7 +443,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
 static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingPtr& context,
     mnx::ContentArray content, const EntryInfoPtr::InterpretedIterator& firstEntryInfo,
-    std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence,
+    std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence, bool hasVoice1Voice2,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt)
 {
     auto next = firstEntryInfo;
@@ -456,7 +462,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             return next;
         } else if (!inGrace && entry->graceNote) {
             auto grace = content.append<mnx::sequence::Grace>();
-            next = addEntryToContent(context, grace.content(), next, mnxStaffNumber, elapsedInSequence, true);
+            next = addEntryToContent(context, grace.content(), next, mnxStaffNumber, elapsedInSequence, hasVoice1Voice2, true);
             if (grace.content().size() == 1) {
                 auto musxGraceOptions = entry->getDocument()->getOptions()->get<options::GraceNoteOptions>();
                 if (!musxGraceOptions) {
@@ -498,7 +504,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             if (tuplInfo.endIndex == next.getEntryInfo().getIndexInFrame()) {
                 auto thisTupletIndex = next.getEntryInfo().calcNextTupletIndex(tupletIndex);
                 if (!thisTupletIndex || next.getEntryInfo().getFrame()->tupletInfo[thisTupletIndex.value()].startIndex != next.getEntryInfo().getIndexInFrame()) {
-                    createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden());
+                    createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden(), hasVoice1Voice2);
                     elapsedInSequence = currElapsedDuration + next.getEntryInfo()->actualDuration;
                     return next.getNext();
                 }
@@ -511,17 +517,17 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
                 auto tuplInfo = next.getEntryInfo().getFrame()->tupletInfo[thisTupletIndex.value()];
                 if (tuplInfo.calcIsTremolo()) {
                     auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.getEntryInfo().calcNumberOfBeams());
-                    next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                    next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, hasVoice1Voice2, inGrace, thisTupletIndex);
                     continue;
                 } else {
                     auto tuplet = createTuplet(content, tuplInfo);
-                    next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, inGrace, thisTupletIndex);
+                    next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, hasVoice1Voice2, inGrace, thisTupletIndex);
                     continue;
                 }
             }
         }
 
-        createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden());
+        createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden(), hasVoice1Voice2);
 
         elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
         next = next.getNext();
@@ -543,11 +549,14 @@ void createSequences(const MnxMusxMappingPtr& context,
         context->logMessage(LogMsg() << " skipping cues until MNX committee decides how to handle them.", LogSeverity::Verbose);
         return;
     }
-    for (LayerIndex layer = 0; layer < MAX_LAYERS; layer++) {
+    const std::map<LayerIndex, int> layerVoices = gfhold.calcVoices();
+    for (const auto& [layer, numV2] : layerVoices) {
+        const int maxVoices = numV2 ? 2 : 1;
         if (auto entryFrame = gfhold.createEntryFrame(layer)) {
+            const bool usesV1V2 = numV2 && entryFrame->getFirstInterpretedIterator(2); // ignore entries the iterator will skip
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
-                for (int voice = 1; voice <= 2; voice++) {
+                for (int voice = 1; voice <= maxVoices; voice++) {
                     if (auto firstEntry = entryFrame->getFirstInterpretedIterator(voice)) {
                         auto sequence = mnxMeasure.sequences().append();
                         if (mnxStaffNumber) {
@@ -555,8 +564,8 @@ void createSequences(const MnxMusxMappingPtr& context,
                         }
                         context->voice = calcVoice(layer, voice);
                         sequence.set_voice(context->voice);
-                        musx::util::Fraction elapsedInVoice = 0;
-                        addEntryToContent(context, sequence.content(), firstEntry, mnxStaffNumber, elapsedInVoice, false);
+                        auto elapsedInVoice = musx::util::Fraction(0);
+                        addEntryToContent(context, sequence.content(), firstEntry, mnxStaffNumber, elapsedInVoice, usesV1V2, false);
                         context->voice.clear();
                     }
                 }
