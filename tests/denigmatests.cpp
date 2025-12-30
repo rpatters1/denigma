@@ -137,6 +137,14 @@ void copyInputToOutput(const std::string& fileName, std::filesystem::path& outpu
     ASSERT_TRUE(std::filesystem::exists(outputPath));
 }
 
+void readFile(const std::filesystem::path& filePath, std::vector<char>& contents)
+{
+    ASSERT_TRUE(std::filesystem::is_regular_file(filePath)) << pathString(filePath) << " is not a file";
+    std::ifstream file(filePath, std::ios::binary);
+    ASSERT_TRUE(file.is_open()) << "failed to open file: " << pathString(filePath);
+    contents = std::vector<char>((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+}
+
 void compareFiles(const std::filesystem::path& path1, const std::filesystem::path& path2)
 {
     ASSERT_TRUE(std::filesystem::is_regular_file(path1)) << "unable to find " << path1.u8string();

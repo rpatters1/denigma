@@ -263,6 +263,7 @@ int _MAIN(int argc, arg_char* argv[])
     }
 
     denigmaContext.endLogging();
+    musx::util::Logger::setCallback(nullptr); // in case this is call from testing.
 
     return denigmaContext.errorOccurred;
 }

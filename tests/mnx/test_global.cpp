@@ -27,8 +27,11 @@
 #include "gtest/gtest.h"
 #include "denigma.h"
 #include "test_utils.h"
+#include "musx/musx.h"
+#include "export/mnx.h"
 
 using namespace denigma;
+using namespace musx::dom;
 
 TEST(MnxGlobal, Tempos)
 {
@@ -69,6 +72,51 @@ TEST(MnxGlobal, Tempos)
     }
 }
 
+TEST(MnxGlobal, TempoToolChanges)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("tempo_changes.musx", inputPath);
+    {
+        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--enigmaxml" };
+        checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to enigmaxml: " << inputPath.u8string();
+        });
+    }
+    {
+        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+            checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+        });
+    }
+
+    std::vector<char> xmlBuf;
+    readFile(inputPath.parent_path() / "tempo_changes.enigmaxml", xmlBuf);
+    auto musxDoc = musx::factory::DocumentFactory::create<musx::xml::pugi::Document>(xmlBuf);
+    ASSERT_TRUE(musxDoc);
+
+    auto mnxDoc = mnx::Document::create(inputPath.parent_path() / "tempo_changes.mnx");
+    auto measures = mnxDoc.global().measures();
+    ASSERT_GE(measures.size(), 4) << "should be at least 4 measures";
+
+    for (size_t x = 0; x < 4; x++)
+    {
+        auto musxTempoChanges = musxDoc->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, static_cast<MeasCmper>(x) + 1);
+        auto mnxTempoChanges = measures[x].tempos();
+        ASSERT_GT(musxTempoChanges.size(), 0);
+        ASSERT_TRUE(mnxTempoChanges);
+        ASSERT_EQ(musxTempoChanges.size(), mnxTempoChanges->size());
+        for (size_t y = 0; y < musxTempoChanges.size(); y++) {
+            auto musxDura = musx::util::Fraction::fromEdu(musxTempoChanges[y]->eduPosition);
+            musx::util::Fraction mnxDura;
+            if (const auto location = mnxTempoChanges->at(y).location()) {
+                mnxDura = mnxexp::fractionFromMnxFraction(location->fraction());
+            }
+            EXPECT_EQ(musxDura, mnxDura) << "measure positions are not the same";
+        }
+    }
+}
+
 TEST(MnxGlobal, CompositeTime)
 {
     setupTestDataPaths();
@@ -77,7 +125,7 @@ TEST(MnxGlobal, CompositeTime)
     ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
     checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
-        });
+    });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "timesigs_composite.mnx");
     auto measures = doc.global().measures();

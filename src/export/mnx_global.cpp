@@ -193,8 +193,8 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const MusxInstance<ot
             tempo.create_location(mnxFractionFromFraction(pos));
         }    
     };
+    std::map<Edu, MusxInstance<OthersBase>> temposAtPositions; // use OthersBase because it has to accept multiple types
     if (musxMeasure->hasExpression) {
-        std::map<Edu, MusxInstance<OthersBase>> temposAtPositions; // use OthersBase because it has to accept multiple types
         // Search in order of decreasing precedence: text exprs, then shape exprs, then tempo changes. Using emplace keeps the first one.
         // We want text exprs to be chosen over the others, if they coincide at a beat location.
         const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
@@ -206,33 +206,34 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const MusxInstance<ot
                 if (textExpr->playbackType == others::PlaybackType::Tempo && textExpr->auxData1 > 0) {
                     temposAtPositions.emplace(expAssign->eduPosition, textExpr);
                 }
-            } else if (const auto shapeExpr = expAssign->getShapeExpression()) {
+            }
+            else if (const auto shapeExpr = expAssign->getShapeExpression()) {
                 if (shapeExpr->playbackType == others::PlaybackType::Tempo && shapeExpr->auxData1 > 0) {
                     temposAtPositions.emplace(expAssign->eduPosition, shapeExpr);
                 }
             }
         }
-        const auto tempoChanges = musxMeasure->getDocument()->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, musxMeasure->getCmper());
-        std::optional<NoteType> tempoUnit;
-        for (const auto& tempoChange : tempoChanges) {
-            if (!tempoChange->isRelative) {
-                if (!tempoUnit) {
-                    auto [count, unit] = musxMeasure->createTimeSignature()->calcSimplified();
-                    tempoUnit = std::min(unit, NoteType::Quarter);
-                }
-                temposAtPositions.emplace(tempoChange->eduPosition, tempoChange);
+    }
+    const auto tempoChanges = musxMeasure->getDocument()->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, musxMeasure->getCmper());
+    std::optional<NoteType> tempoUnit;
+    for (const auto& tempoChange : tempoChanges) {
+        if (!tempoChange->isRelative) {
+            if (!tempoUnit) {
+                auto [count, unit] = musxMeasure->createTimeSignature()->calcSimplified();
+                tempoUnit = std::min(unit, NoteType::Quarter);
             }
+            temposAtPositions.emplace(tempoChange->eduPosition, tempoChange);
         }
-        for (const auto& it : temposAtPositions) {
-            if (auto textExpr = std::dynamic_pointer_cast<const others::TextExpressionDef>(it.second)) {
-                createTempo(textExpr->value, textExpr->auxData1, it.first);
-            } else if (auto shapeExpr = std::dynamic_pointer_cast<const others::ShapeExpressionDef>(it.second)) {
-                createTempo(shapeExpr->value, shapeExpr->auxData1, it.first);
-            } else if (auto tempoChange = std::dynamic_pointer_cast<const others::TempoChange>(it.second)) {
-                const auto noteType = tempoUnit.value_or(NoteType::Quarter);
-                createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);
-                /// @todo hide this tempo change if MNX ever adds visibility to the tempo object.
-            }
+    }
+    for (const auto& it : temposAtPositions) {
+        if (auto textExpr = std::dynamic_pointer_cast<const others::TextExpressionDef>(it.second)) {
+            createTempo(textExpr->value, textExpr->auxData1, it.first);
+        } else if (auto shapeExpr = std::dynamic_pointer_cast<const others::ShapeExpressionDef>(it.second)) {
+            createTempo(shapeExpr->value, shapeExpr->auxData1, it.first);
+        } else if (auto tempoChange = std::dynamic_pointer_cast<const others::TempoChange>(it.second)) {
+            const auto noteType = tempoUnit.value_or(NoteType::Quarter);
+            createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);
+            /// @todo hide this tempo change if MNX ever adds visibility to the tempo object.
         }
     }
 }
