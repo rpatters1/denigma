@@ -84,7 +84,7 @@ TEST(MnxGlobal, TempoToolChanges)
         });
     }
     {
-        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx", "--include-tempo-tool" };
             checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
         });

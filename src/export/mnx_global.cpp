@@ -183,7 +183,7 @@ static void createSegno(
     }
 }
 
-static void createTempos(mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
+static void createTempos(const MnxMusxMappingPtr& context, mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
     auto createTempo = [&mnxMeasure](int bpm, Edu noteValue, Edu eduPosition) {
         auto mnxTempos = mnxMeasure.create_tempos();
@@ -214,15 +214,17 @@ static void createTempos(mnx::global::Measure& mnxMeasure, const MusxInstance<ot
             }
         }
     }
-    const auto tempoChanges = musxMeasure->getDocument()->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, musxMeasure->getCmper());
     std::optional<NoteType> tempoUnit;
-    for (const auto& tempoChange : tempoChanges) {
-        if (!tempoChange->isRelative) {
-            if (!tempoUnit) {
-                auto [count, unit] = musxMeasure->createTimeSignature()->calcSimplified();
-                tempoUnit = std::min(unit, NoteType::Quarter);
+    if (context->denigmaContext->includeTempoTool) {
+        const auto tempoChanges = musxMeasure->getDocument()->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, musxMeasure->getCmper());
+        for (const auto& tempoChange : tempoChanges) {
+            if (!tempoChange->isRelative) {
+                if (!tempoUnit) {
+                    auto [count, unit] = musxMeasure->createTimeSignature()->calcSimplified();
+                    tempoUnit = std::min(unit, NoteType::Quarter);
+                }
+                temposAtPositions.emplace(tempoChange->eduPosition, tempoChange);
             }
-            temposAtPositions.emplace(tempoChange->eduPosition, tempoChange);
         }
     }
     for (const auto& it : temposAtPositions) {
@@ -284,7 +286,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         assignDisplayNumber(mnxMeasure, musxMeasure);
         assignRepeats(mnxMeasure, musxMeasure);
         createSegno(context, mnxMeasure, musxMeasure);
-        createTempos(mnxMeasure, musxMeasure);
+        createTempos(context, mnxMeasure, musxMeasure);
         assignTimeSignature(context, mnxMeasure, musxMeasure, prevTimeSig);
     }
 }

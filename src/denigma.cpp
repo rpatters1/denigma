@@ -91,6 +91,10 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             fermataWholeRests = true;
         } else if (next == _ARG("--no-fermata-whole-rests")) {
             fermataWholeRests = false;
+        } else if (next == _ARG("--include-tempo-tool")) {
+            includeTempoTool = true;
+        } else if (next == _ARG("--no-include-tempo-tool")) {
+            includeTempoTool = false;
         } else if (next == _ARG("--pretty-print")) {
             try {
                 int value = std::stoi(std::string(_ARG_CONV(getNextArg())));

@@ -179,6 +179,7 @@ public:
     std::optional<int> indentSpaces{ JSON_INDENT_SPACES };
     std::optional<std::filesystem::path> mnxSchemaPath;
     std::optional<std::string> mnxSchema;
+    bool includeTempoTool{};
 
 #ifdef DENIGMA_TEST
     bool testOutput{}; // this may be defined on the command line by the test program
