@@ -30,11 +30,12 @@
 namespace denigma {
 namespace mnxexp {
 
-static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int numberOfBeams)
+static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int marks)
 {
     const auto& musxTuplet = tupletInfo.tuplet;
     const auto entryCount = static_cast<unsigned>(tupletInfo.numEntries());
-    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(numberOfBeams, entryCount, mnxNoteValueFromEdu((musxTuplet->calcReferenceDuration() / entryCount).calcEduDuration()));
+    const Edu eduRefDuration = (musxTuplet->calcReferenceDuration() / entryCount).calcEduDuration();
+    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(marks, entryCount, mnxNoteValueFromEdu(eduRefDuration));
     /// @todo: additional fields (like noteheads) when defined by MNX committee.
     return mnxTremolo;
 }
@@ -400,8 +401,9 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
     createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, musxEntry->getEntryNumber()));
 }
 
-static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, EntryInfoPtr musxEntryInfo, std::optional<int> mnxStaffNumber,
-                        bool effectiveHidden, bool hasVoice1Voice2)
+static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, EntryInfoPtr musxEntryInfo,
+    std::optional<int> mnxStaffNumber, bool effectiveHidden, bool hasVoice1Voice2,
+    const MusxInstance<details::TupletDef>& tupletDef, bool forTremolo)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
 
@@ -416,8 +418,12 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
         throw std::invalid_argument("Entry " + std::to_string(musxEntry->getEntryNumber())
             + " has no staff information for staff " + std::to_string(musxEntryInfo.getStaff()));
     }
-    
-    auto mnxEvent = content.append<mnx::sequence::Event>(mnxNoteValueFromEdu(musxEntry->duration));
+
+    Edu effectiveDura = musxEntry->duration;
+    if (forTremolo && tupletDef) {
+        effectiveDura = tupletDef->calcReferenceDuration().calcEduDuration();
+    }
+    auto mnxEvent = content.append<mnx::sequence::Event>(mnxNoteValueFromEdu(effectiveDura));
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
     createLyrics(context, mnxEvent, musxEntryInfo);
     createMarkings(context, mnxEvent, musxEntry);
@@ -444,7 +450,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingPtr& context,
     mnx::ContentArray content, const EntryInfoPtr::InterpretedIterator& firstEntryInfo,
     std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence, bool hasVoice1Voice2,
-    bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt)
+    bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt, bool inTremolo = false)
 {
     auto next = firstEntryInfo;
     while (next) {
@@ -504,7 +510,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             if (tuplInfo.endIndex == next.getEntryInfo().getIndexInFrame()) {
                 auto thisTupletIndex = next.getEntryInfo().calcNextTupletIndex(tupletIndex);
                 if (!thisTupletIndex || next.getEntryInfo().getFrame()->tupletInfo[thisTupletIndex.value()].startIndex != next.getEntryInfo().getIndexInFrame()) {
-                    createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden(), hasVoice1Voice2);
+                    createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden(), hasVoice1Voice2, tuplInfo.tuplet, inTremolo);
                     elapsedInSequence = currElapsedDuration + next.getEntryInfo()->actualDuration;
                     return next.getNext();
                 }
@@ -516,8 +522,14 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             if (thisTupletIndex != tupletIndex && thisTupletIndex) {
                 auto tuplInfo = next.getEntryInfo().getFrame()->tupletInfo[thisTupletIndex.value()];
                 if (tuplInfo.calcIsTremolo()) {
-                    auto tremolo = createMultiNoteTremolo(content, tuplInfo, next.getEntryInfo().calcNumberOfBeams());
-                    next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, hasVoice1Voice2, inGrace, thisTupletIndex);
+                    const auto numBeams = next.getEntryInfo().calcNumberOfBeams();
+                    const auto numFlagsInRef = calcNumberOfBeamsInEdu(tuplInfo.tuplet->calcReferenceDuration().calcEduDuration());
+                    if (numFlagsInRef >= numBeams) {
+                        context->logMessage(LogMsg() << "not enough flags or beams to create a tremolo. Setting tremolo marks to 1.", LogSeverity::Warning);
+                    }
+                    const int marks = static_cast<int>(numFlagsInRef < numBeams ? numBeams - numFlagsInRef : 0);
+                    auto tremolo = createMultiNoteTremolo(content, tuplInfo, marks);
+                    next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, hasVoice1Voice2, inGrace, thisTupletIndex, /*inTremolo*/true);
                     continue;
                 } else {
                     auto tuplet = createTuplet(content, tuplInfo);
@@ -527,7 +539,13 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             }
         }
 
-        createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden(), hasVoice1Voice2);
+        auto tupletDef = [&]() -> MusxInstance<details::TupletDef> {
+            if (tupletIndex) {
+                return next.getEntryInfo().getFrame()->tupletInfo[tupletIndex.value()].tuplet;
+            }
+            return nullptr;
+        }();
+        createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden(), hasVoice1Voice2, tupletDef, inTremolo);
 
         elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
         next = next.getNext();
