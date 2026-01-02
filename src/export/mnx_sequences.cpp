@@ -452,6 +452,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
     std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence, bool hasVoice1Voice2,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt, bool inTremolo = false)
 {
+    auto musxGraceOptions = context->document->getOptions()->get<options::GraceNoteOptions>();
     auto next = firstEntryInfo;
     while (next) {
         if (tupletIndex) {
@@ -463,19 +464,19 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             }
         }
 
-        auto entry = next.getEntryInfo()->getEntry();
+        auto entryInfo = next.getEntryInfo();
+        auto entry = entryInfo->getEntry();
         if (inGrace && !entry->graceNote) {
             return next;
         } else if (!inGrace && entry->graceNote) {
             auto grace = content.append<mnx::sequence::Grace>();
             next = addEntryToContent(context, grace.content(), next, mnxStaffNumber, elapsedInSequence, hasVoice1Voice2, true);
-            if (grace.content().size() == 1) {
-                auto musxGraceOptions = entry->getDocument()->getOptions()->get<options::GraceNoteOptions>();
-                if (!musxGraceOptions) {
-                    throw std::invalid_argument("Document contains no grace note options!");
-                }
-                grace.set_slash(musxGraceOptions->slashFlaggedGraceNotes);
+            if (!musxGraceOptions) {
+                throw std::invalid_argument("Document contains no grace note options!");
             }
+            bool slash = (entry->slashGrace || musxGraceOptions->slashFlaggedGraceNotes)
+                        && entryInfo.calcCanBeBeamed() && entryInfo.calcUnbeamed();
+            grace.set_or_clear_slash(slash);
             continue;
         }
 
@@ -549,6 +550,14 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
 
         elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
         next = next.getNext();
+        if (inGrace && next) {
+            const auto nextInfo = next.getEntryInfo();
+            if (nextInfo.calcUnbeamed() || nextInfo.calcIsBeamStart()) {
+                // each beam group should be coded as a separate grace note sequence, so that we can control
+                // the slashes.
+                break;
+            }
+        }
     }
     return next;
 }
