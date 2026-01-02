@@ -327,7 +327,8 @@ void createParts(const MnxMusxMappingPtr& context)
         }
         auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
         if (transpositionDisp || transpositionAlt) {
-            auto transposition = part.create_transposition(transpositionDisp, music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt));
+            auto transposition = part.create_transposition(
+                mnx::Interval::Fields({ transpositionDisp, music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt) }));
             if (staff->transposition && !staff->transposition->noSimplifyKey && staff->transposition->keysig) {
                 transposition.set_keyFifthsFlipAt(7 * music_theory::sign(staff->transposition->keysig->adjust));
             }

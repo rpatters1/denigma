@@ -35,7 +35,8 @@ static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray 
     const auto& musxTuplet = tupletInfo.tuplet;
     const auto entryCount = static_cast<unsigned>(tupletInfo.numEntries());
     const Edu eduRefDuration = (musxTuplet->calcReferenceDuration() / entryCount).calcEduDuration();
-    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(marks, entryCount, mnxNoteValueFromEdu(eduRefDuration));
+    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(marks,
+        mnx::NoteValueQuantity::Fields{ entryCount, mnxNoteValueFromEdu(eduRefDuration) });
     /// @todo: additional fields (like noteheads) when defined by MNX committee.
     return mnxTremolo;
 }
@@ -44,8 +45,8 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const musx:
 {
     const auto& musxTuplet = tupletInfo.tuplet;
     auto mnxTuplet = content.append<mnx::sequence::Tuplet>(
-        musxTuplet->displayNumber, mnxNoteValueFromEdu(musxTuplet->displayDuration),
-        musxTuplet->referenceNumber, mnxNoteValueFromEdu(musxTuplet->referenceDuration));
+        mnx::NoteValueQuantity::Fields({ static_cast<unsigned>(musxTuplet->displayNumber), mnxNoteValueFromEdu(musxTuplet->displayDuration) }),
+        mnx::NoteValueQuantity::Fields({ static_cast<unsigned>(musxTuplet->referenceNumber), mnxNoteValueFromEdu(musxTuplet->referenceDuration) }));
 
     mnxTuplet.set_or_clear_bracket([&]() {
         if (musxTuplet->brackStyle == details::TupletDef::BracketStyle::Nothing) {
@@ -214,9 +215,6 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
 mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote)
 {
     auto [noteName, octave, alteration, _] = musxNote.calcNotePropertiesConcert();
-    auto mnxAlter = (alteration == 0 && musxNote->harmAlt == 0 && (!musxNote->showAcci || !musxNote->freezeAcci))
-        ? std::nullopt
-        : std::optional<int>(alteration);
     for (const auto& it : context->ottavasApplicableInMeasure) {
         auto shape = it.second;
         if (shape->calcAppliesTo(musxNote.getEntryInfo())) {
@@ -232,7 +230,7 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
             }
         }
     }
-    auto mnxNote = mnxEvent.create_notes().append(enumConvert<mnx::NoteStep>(noteName), octave, mnxAlter);
+    auto mnxNote = mnxEvent.create_notes().append(mnx::sequence::Pitch::Fields({ enumConvert<mnx::NoteStep>(noteName), octave, alteration }));
     if (musxNote->freezeAcci) {
         auto acciDisp = mnxNote.create_accidentalDisplay(musxNote->showAcci);
         acciDisp.set_force(true);

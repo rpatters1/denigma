@@ -211,13 +211,13 @@ std::vector<EventMarkingType> calcMarkingType(const MusxInstance<others::Articul
     return alt;
 }
 
-mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration)
+mnx::NoteValue::Fields mnxNoteValueFromEdu(Edu duration)
 {
     auto [base, dots] = calcDurationInfoFromEdu(duration);
-    return mnx::NoteValue::Initializer(enumConvert<mnx::NoteValueBase>(base), dots);
+    return { enumConvert<mnx::NoteValueBase>(base), dots };   
 }
 
-std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration)
+mnx::NoteValueQuantity::Fields mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration)
 {
     if (duration <= 0 || (duration.denominator() & (duration.denominator() - 1)) != 0) {
         auto newValue = musx::util::Fraction(duration.calcEduDuration(), Edu(musx::dom::NoteType::Whole));
@@ -226,7 +226,7 @@ std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(con
         duration = newValue;
     }
 
-    return std::make_pair(duration.numerator(), mnxNoteValueFromEdu(musx::util::Fraction(1, duration.denominator()).calcEduDuration()));
+    return { static_cast<unsigned>(duration.numerator()), mnxNoteValueFromEdu(musx::util::Fraction(1, duration.denominator()).calcEduDuration()) };
 }
 
 musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction)

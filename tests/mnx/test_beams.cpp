@@ -54,7 +54,7 @@ static void testNote(const mnx::sequence::Note& note, mnx::NoteStep step, int oc
 {
     EXPECT_EQ(note.pitch().step(), step);
     EXPECT_EQ(note.pitch().octave(), octave);
-    EXPECT_EQ(note.pitch().alter().value_or(0), alter);
+    EXPECT_EQ(note.pitch().alter(), alter);
 }
 
 TEST(MnxBeams, MultiMeasureBeamsToMnxMeasures)
