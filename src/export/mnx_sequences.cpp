@@ -236,17 +236,10 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
         acciDisp.set_force(true);
     }
     const auto musxEntry = musxNote.getEntryInfo()->getEntry();
-    if (musxEntry->noteDetail) {
-        for (const auto& linkedPart : context->musxParts) {
-            if (auto noteAlts = musxEntry->getDocument()->getDetails()->getForNote<details::NoteAlterations>(musxNote, linkedPart->getCmper())) {
-                if (noteAlts->enharmonic) {
-                    auto [enharmonicLev, enharmonicAlt] = musxNote.calcDefaultEnharmonic();
-                    auto mnxWritten = mnxNote.create_written();
-                    mnxWritten.set_diatonicDelta(enharmonicLev - musxNote->harmLev);
-                    break;
-                }
-            }
-        }
+    if (musxNote.calcIsEnharmonicRespellInAnyPart()) {
+        auto [enharmonicLev, enharmonicAlt] = musxNote.calcDefaultEnharmonic();
+        auto mnxWritten = mnxNote.create_written();
+        mnxWritten.set_diatonicDelta(enharmonicLev - musxNote->harmLev);
     }
     return mnxNote;
 }
