@@ -56,6 +56,15 @@ void MnxMusxMapping::logMessage(LogMsg&& msg, LogSeverity severity)
     denigmaContext->logMessage(LogMsg() << logEntry << msg.str(), severity);
 }
 
+std::optional<int> MnxMusxMapping::mnxPartStaffFromStaff(StaffCmper staff) const
+{
+    const auto it = std::find(currPartStaves.begin(), currPartStaves.end(), staff);
+    if (it == currPartStaves.end()) {
+        return std::nullopt;
+    }
+    return static_cast<int>(std::distance(currPartStaves.begin(), it) + 1);
+}
+
 static void createMnx(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;

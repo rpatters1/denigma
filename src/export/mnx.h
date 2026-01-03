@@ -75,6 +75,8 @@ struct MnxMusxMapping
     std::unordered_set<EntryNumber> beamedEntries;
     std::unordered_map<Cmper, MusxInstance<others::SmartShape>> ottavasApplicableInMeasure;
 
+    std::optional<int> mnxPartStaffFromStaff(StaffCmper staff) const;
+
     void clearCounts()
     {
         currMeas = currStaff = 0;

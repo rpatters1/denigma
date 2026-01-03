@@ -275,7 +275,7 @@ mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequ
 
 template <typename MnxNoteType>
 static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote,
-    const MusxInstance<others::Staff>& musxStaff, const MusxInstance<others::PercussionNoteInfo>& percNoteInfo, std::optional<int> mnxStaffNumber)
+    const MusxInstance<others::Staff>& musxStaff, const MusxInstance<others::PercussionNoteInfo>& percNoteInfo)
 {
     static_assert(std::is_base_of_v<mnx::sequence::NoteBase, MnxNoteType>, "MnxNoteType must have base type NoteBase.");
 
@@ -292,19 +292,10 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
         }
     }();
     mnxNote.set_id(calcNoteId(musxNote));
-    if (musxNote->crossStaff) {
+    if (musxNote->crossStaff && !mnxEvent.staff()) { // createEvent already handled cross-staffing if the entire entry is crossed
         StaffCmper noteStaff = musxNote.calcStaff();
-        std::optional<int> mnxNoteStaff;
-        for (size_t y = 0; y < context->currPartStaves.size(); y++) {
-            if (context->currPartStaves[y] == noteStaff) {
-                mnxNoteStaff = int(y + 1);
-                break;
-            }
-        }
-        if (mnxNoteStaff) {
-            if (*mnxNoteStaff != mnxStaffNumber.value_or(1)) {
-                mnxNote.set_staff(*mnxNoteStaff);
-            }
+        if (const auto& mnxNoteStaff = context->mnxPartStaffFromStaff(noteStaff)) {
+            mnxNote.set_staff(mnxNoteStaff.value());
         } else {
             context->logMessage(LogMsg() << " note has cross-staffing to a staff (" << noteStaff
                 << ") that is not included in the MNX part.", LogSeverity::Warning);
@@ -325,16 +316,16 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
 }
 
 static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
-    const MusxInstance<others::Staff>& musxStaff, std::optional<int> mnxStaffNumber)
+    const MusxInstance<others::Staff>& musxStaff)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
 
     for (size_t x = 0; x < musxEntry->notes.size(); x++) {
         const auto mnxNote = NoteInfoPtr(musxEntryInfo, x);
         if (const auto percNoteInfo = mnxNote.calcPercussionNoteInfo()) {
-            createNote<mnx::sequence::KitNote>(context, mnxEvent, mnxNote, musxStaff, percNoteInfo, mnxStaffNumber);
+            createNote<mnx::sequence::KitNote>(context, mnxEvent, mnxNote, musxStaff, percNoteInfo);
         } else {
-            createNote<mnx::sequence::Note>(context, mnxEvent, mnxNote, musxStaff, nullptr, mnxStaffNumber);
+            createNote<mnx::sequence::Note>(context, mnxEvent, mnxNote, musxStaff, nullptr);
         }
     }
 }
@@ -392,8 +383,8 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
     createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, musxEntry->getEntryNumber()));
 }
 
-static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content, EntryInfoPtr musxEntryInfo,
-    std::optional<int> mnxStaffNumber, bool effectiveHidden, bool hasVoice1Voice2,
+static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content,
+    EntryInfoPtr musxEntryInfo, bool effectiveHidden, bool hasVoice1Voice2,
     const MusxInstance<details::TupletDef>& tupletDef, bool forTremolo)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
@@ -420,6 +411,14 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     createMarkings(context, mnxEvent, musxEntry);
     /// @todo orient
     createSlurs(context, mnxEvent, musxEntry);
+    if (const auto& crossedStaffId = musxEntryInfo.calcCrossedStaffForAll()) {
+        if (const auto& mnxPartStaff = context->mnxPartStaffFromStaff(crossedStaffId.value())) {
+            mnxEvent.set_staff(mnxPartStaff.value());
+        } else {
+            context->logMessage(LogMsg() << " entry has cross-staffing to a staff (" << crossedStaffId.value()
+                << ") that is not included in the MNX part.", LogSeverity::Warning);
+        }
+    }
     const auto [freezeStem, upStem] = musxEntryInfo.calcEntryStemSettings();
     if (musxEntry->isNote && musxEntry->hasStem()) {
         if (freezeStem) {
@@ -431,7 +430,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     }
 
     if (musxEntry->isNote) {
-        createNotes(context, mnxEvent, musxEntryInfo, musxStaff, mnxStaffNumber);
+        createNotes(context, mnxEvent, musxEntryInfo, musxStaff);
     } else {
         createRest(context, mnxEvent, musxEntryInfo, musxStaff);
     }
@@ -440,7 +439,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
 static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingPtr& context,
     mnx::ContentArray content, const EntryInfoPtr::InterpretedIterator& firstEntryInfo,
-    std::optional<int> mnxStaffNumber, musx::util::Fraction& elapsedInSequence, bool hasVoice1Voice2,
+    musx::util::Fraction& elapsedInSequence, bool hasVoice1Voice2,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt, bool inTremolo = false)
 {
     auto musxGraceOptions = context->document->getOptions()->get<options::GraceNoteOptions>();
@@ -461,7 +460,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             return next;
         } else if (!inGrace && entry->graceNote) {
             auto grace = content.append<mnx::sequence::Grace>();
-            next = addEntryToContent(context, grace.content(), next, mnxStaffNumber, elapsedInSequence, hasVoice1Voice2, true);
+            next = addEntryToContent(context, grace.content(), next, elapsedInSequence, hasVoice1Voice2, true);
             if (!musxGraceOptions) {
                 throw std::invalid_argument("Document contains no grace note options!");
             }
@@ -502,7 +501,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             if (tuplInfo.endIndex == next.getEntryInfo().getIndexInFrame()) {
                 auto thisTupletIndex = next.getEntryInfo().calcNextTupletIndex(tupletIndex);
                 if (!thisTupletIndex || next.getEntryInfo().getFrame()->tupletInfo[thisTupletIndex.value()].startIndex != next.getEntryInfo().getIndexInFrame()) {
-                    createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden(), hasVoice1Voice2, tuplInfo.tuplet, inTremolo);
+                    createEvent(context, content, next.getEntryInfo(), next.getEffectiveHidden(), hasVoice1Voice2, tuplInfo.tuplet, inTremolo);
                     elapsedInSequence = currElapsedDuration + next.getEntryInfo()->actualDuration;
                     return next.getNext();
                 }
@@ -521,11 +520,11 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
                     }
                     const int marks = static_cast<int>(numFlagsInRef < numBeams ? numBeams - numFlagsInRef : 0);
                     auto tremolo = createMultiNoteTremolo(content, tuplInfo, marks);
-                    next = addEntryToContent(context, tremolo.content(), next, mnxStaffNumber, elapsedInSequence, hasVoice1Voice2, inGrace, thisTupletIndex, /*inTremolo*/true);
+                    next = addEntryToContent(context, tremolo.content(), next, elapsedInSequence, hasVoice1Voice2, inGrace, thisTupletIndex, /*inTremolo*/true);
                     continue;
                 } else {
                     auto tuplet = createTuplet(content, tuplInfo);
-                    next = addEntryToContent(context, tuplet.content(), next, mnxStaffNumber, elapsedInSequence, hasVoice1Voice2, inGrace, thisTupletIndex);
+                    next = addEntryToContent(context, tuplet.content(), next, elapsedInSequence, hasVoice1Voice2, inGrace, thisTupletIndex);
                     continue;
                 }
             }
@@ -537,7 +536,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             }
             return nullptr;
         }();
-        createEvent(context, content, next.getEntryInfo(), mnxStaffNumber, next.getEffectiveHidden(), hasVoice1Voice2, tupletDef, inTremolo);
+        createEvent(context, content, next.getEntryInfo(), next.getEffectiveHidden(), hasVoice1Voice2, tupletDef, inTremolo);
 
         elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
         next = next.getNext();
@@ -583,7 +582,7 @@ void createSequences(const MnxMusxMappingPtr& context,
                         context->voice = calcVoice(layer, voice);
                         sequence.set_voice(context->voice);
                         auto elapsedInVoice = musx::util::Fraction(0);
-                        addEntryToContent(context, sequence.content(), firstEntry, mnxStaffNumber, elapsedInVoice, usesV1V2, false);
+                        addEntryToContent(context, sequence.content(), firstEntry, elapsedInVoice, usesV1V2, false);
                         context->voice.clear();
                     }
                 }
