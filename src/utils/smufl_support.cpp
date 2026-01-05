@@ -85,6 +85,7 @@ static std::optional<std::string> smuflGlyphNameForFont(const std::filesystem::p
     }
     return std::nullopt;
 }
+
 std::optional<std::string> smuflGlyphNameForFont(const MusxInstance<FontInfo>& fontInfo, char32_t codepoint)
 {
     if (auto metaDataPath = fontInfo->calcSMuFLMetaDataPath()) {
