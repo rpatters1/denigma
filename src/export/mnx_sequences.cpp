@@ -80,8 +80,33 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const musx:
     return mnxTuplet;
 }
 
-static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const MusxInstance<Entry>& musxEntry)
+static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase& mnxNote, const NoteInfoPtr& musxNote)
 {
+    if (musxNote->tieStart) {
+        auto mnxTies = mnxNote.create_ties();
+        auto tiedTo = musxNote.calcTieTo();
+        auto mnxTie = (tiedTo && tiedTo->tieEnd && !tiedTo.getEntryInfo()->getEntry()->isHidden)
+            ? mnxTies.append(calcNoteId(tiedTo))
+            : mnxTies.append();
+        if (auto tieAlter = context->document->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {
+            if (tieAlter->freezeDirection) {
+                mnxTie.set_side(tieAlter->down ? mnx::SlurTieSide::Down : mnx::SlurTieSide::Up);
+            }
+        }
+    }
+    std::optional<bool> arpeggTieIsOver;
+    if (const auto tiedTo = musxNote.calcArpeggiatedTieToNote(&arpeggTieIsOver)) {
+        auto mnxTies = mnxNote.create_ties();
+        auto mnxTie = mnxTies.append(calcNoteId(tiedTo));
+        if (arpeggTieIsOver.has_value()) {
+            mnxTie.set_side(*arpeggTieIsOver ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+        }
+    }
+}
+
+static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
+{
+    const auto musxEntry = musxEntryInfo->getEntry();
     auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
         auto mnxSlurs = mnxEvent.create_slurs();
         return mnxSlurs.append(calcEventId(targetEntry));
@@ -301,18 +326,7 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
                 << ") that is not included in the MNX part.", LogSeverity::Warning);
         }
     }
-    if (musxNote->tieStart) {
-        auto mnxTies = mnxNote.create_ties();
-        auto tiedTo = musxNote.calcTieTo();
-        auto mnxTie = (tiedTo && tiedTo->tieEnd && !tiedTo.getEntryInfo()->getEntry()->isHidden)
-            ? mnxTies.append(calcNoteId(tiedTo))
-            : mnxTies.append();
-        if (auto tieAlter = musxEntry->getDocument()->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {
-            if (tieAlter->freezeDirection) {
-                mnxTie.set_side(tieAlter->down ? mnx::SlurTieSide::Down : mnx::SlurTieSide::Up);
-            }
-        }
-    }
+    createTies(context, mnxNote, musxNote);
 }
 
 static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
@@ -410,7 +424,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     createLyrics(context, mnxEvent, musxEntryInfo);
     createMarkings(context, mnxEvent, musxEntry);
     /// @todo orient
-    createSlurs(context, mnxEvent, musxEntry);
+    createSlurs(context, mnxEvent, musxEntryInfo);
     if (const auto& crossedStaffId = musxEntryInfo.calcCrossedStaffForAll()) {
         if (const auto& mnxPartStaff = context->mnxPartStaffFromStaff(crossedStaffId.value())) {
             mnxEvent.set_staff(mnxPartStaff.value());
