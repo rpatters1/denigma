@@ -243,20 +243,20 @@ TEST(MnxBeams, BeamRestWorkarounds)
         EXPECT_EQ(beam.beams().value()[0].direction(), mnx::BeamHookDirection::Left);
     }
 
-    doc.buildIdMapping();
+    doc.buildEntityMap();
 
-    auto ev6 = doc.getIdMapping().get<mnx::sequence::Event>("ev6");
+    auto ev6 = doc.getEntityMap().get<mnx::sequence::Event>("ev6");
     ASSERT_TRUE(ev6.rest().has_value());
     EXPECT_FALSE(ev6.rest().value().staffPosition().has_value());
     EXPECT_FALSE(ev6.stemDirection().has_value());
 
-    auto ev20 = doc.getIdMapping().get<mnx::sequence::Event>("ev20");
+    auto ev20 = doc.getEntityMap().get<mnx::sequence::Event>("ev20");
     ASSERT_TRUE(ev20.rest().has_value());
     EXPECT_FALSE(ev20.rest().value().staffPosition().has_value());
     EXPECT_FALSE(ev20.stemDirection().has_value());
 
     EXPECT_THROW(
-        auto evNonExist = doc.getIdMapping().get<mnx::sequence::Event>("badId"),
+        auto evNonExist = doc.getEntityMap().get<mnx::sequence::Event>("badId"),
         mnx::util::mapping_error
     );
 }
