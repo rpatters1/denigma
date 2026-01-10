@@ -106,8 +106,7 @@ TEST(MnxBeams, MultiMeasureBeams)
     auto doc = mnx::Document::create(inputPath.parent_path() / "multimeas_beam.mnx");
     auto parts = doc.parts();
     ASSERT_FALSE(parts.empty()) << "no parts in document";
-    ASSERT_TRUE(parts[0].measures().has_value());
-    auto measures = parts[0].measures().value();
+    auto measures = parts[0].measures();
     ASSERT_GE(measures.size(), 7);
 
     // meas 1 (index 0)
@@ -143,9 +142,8 @@ TEST(MnxBeams, BeamHooksAndInner)
     auto parts = doc.parts();
     ASSERT_FALSE(parts.empty()) << "no parts in document";
     auto measures = parts[0].measures();
-    ASSERT_TRUE(measures);
-    ASSERT_GE(measures.value().size(), 1);
-    auto measure = measures.value()[0];
+    ASSERT_GE(measures.size(), 1);
+    auto measure = measures[0];
 
     // top level
     ASSERT_TRUE(measure.beams().has_value());
@@ -198,9 +196,8 @@ TEST(MnxBeams, BeamRestWorkarounds)
     auto parts = doc.parts();
     ASSERT_FALSE(parts.empty()) << "no parts in document";
     auto measures = parts[0].measures();
-    ASSERT_TRUE(measures);
-    ASSERT_GE(measures.value().size(), 2);
-    auto measure = measures.value()[0];
+    ASSERT_GE(measures.size(), 2);
+    auto measure = measures[0];
 
     // top level
     ASSERT_TRUE(measure.beams().has_value());
@@ -226,7 +223,7 @@ TEST(MnxBeams, BeamRestWorkarounds)
         EXPECT_FALSE(beam.beams().has_value());
     }
 
-    auto measure2 = measures.value()[1];
+    auto measure2 = measures[1];
 
     // top level
     ASSERT_TRUE(measure2.beams().has_value());
@@ -275,11 +272,10 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
     auto parts = doc.parts();
     ASSERT_FALSE(parts.empty()) << "no parts in document";
     auto measures = parts[0].measures();
-    ASSERT_TRUE(measures);
-    ASSERT_GE(measures.value().size(), 7);
+    ASSERT_GE(measures.size(), 7);
 
     {
-        auto measure = measures.value()[0];
+        auto measure = measures[0];
         ASSERT_TRUE(measure.beams().has_value());
         auto beams = measure.beams().value();
         ASSERT_GE(beams.size(), 1);
@@ -290,7 +286,7 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
         EXPECT_EQ(beam.events()[2], "ev130");
     }
     {
-        auto measure = measures.value()[1];
+        auto measure = measures[1];
         ASSERT_TRUE(measure.beams().has_value());
         auto beams = measure.beams().value();
         ASSERT_GE(beams.size(), 1);
@@ -301,7 +297,7 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
         EXPECT_EQ(beam.events()[2], "ev173");
     }
     {
-        auto measure = measures.value()[2];
+        auto measure = measures[2];
         ASSERT_TRUE(measure.beams().has_value());
         auto beams = measure.beams().value();
         ASSERT_GE(beams.size(), 1);
@@ -330,7 +326,7 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
         EXPECT_EQ(beam.events()[3], "ev149");
     }
     {
-        auto measure = measures.value()[3];
+        auto measure = measures[3];
         ASSERT_TRUE(measure.beams().has_value());
         auto beams = measure.beams().value();
         ASSERT_GE(beams.size(), 1);
@@ -370,7 +366,7 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
         EXPECT_EQ(beam.events()[3], "ev159");
     }
     {
-        auto measure = measures.value()[4];
+        auto measure = measures[4];
         ASSERT_TRUE(measure.beams().has_value());
         auto beams = measure.beams().value();
         ASSERT_GE(beams.size(), 1);
@@ -402,7 +398,7 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
         EXPECT_EQ(beam.events()[1], "ev164");
     }
     {
-        auto measure = measures.value()[5];
+        auto measure = measures[5];
         ASSERT_TRUE(measure.beams().has_value());
         auto beams = measure.beams().value();
         ASSERT_GE(beams.size(), 1);

@@ -43,8 +43,7 @@ TEST(MnxOttavasTest, OverlappingOttavas)
     auto doc = mnx::Document::create(inputPath.parent_path() / "ottavas.mnx");
     auto parts = doc.parts();
     ASSERT_FALSE(parts.empty()) << "no parts in document";
-    ASSERT_TRUE(parts[0].measures().has_value());
-    auto measures = parts[0].measures().value();
+    auto measures = parts[0].measures();
     ASSERT_GE(measures.size(), 2);
 
     // measure 1
@@ -114,8 +113,7 @@ TEST(MnxOttavasTest, EndOfBar)
     auto doc = mnx::Document::create(inputPath.parent_path() / "ottava_end_of_bar.mnx");
     auto parts = doc.parts();
     ASSERT_FALSE(parts.empty()) << "no parts in document";
-    ASSERT_TRUE(parts[0].measures().has_value());
-    auto measures = parts[0].measures().value();
+    auto measures = parts[0].measures();
 
     // check to see that ottava at the end of m1 in musx is at end of m1 and ends at beginning of m2
     ASSERT_GE(measures.size(), 2);
