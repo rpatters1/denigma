@@ -246,7 +246,7 @@ mnx::FractionValue mnxFractionFromEdu(Edu eduValue)
 
 mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& endPoint)
 {
-    if (auto entryInfo = endPoint->calcAssociatedEntry(SCORE_PARTID)) {
+    if (auto entryInfo = endPoint->calcAssociatedEntry()) {
         return mnxFractionFromFraction(entryInfo->elapsedDuration);
     }
     return mnxFractionFromFraction(endPoint->calcPosition()); 
