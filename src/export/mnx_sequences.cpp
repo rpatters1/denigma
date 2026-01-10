@@ -94,12 +94,19 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
             }
         }
     }
-    std::optional<bool> arpeggTieIsOver;
-    if (const auto tiedTo = musxNote.calcArpeggiatedTieToNote(&arpeggTieIsOver)) {
+    std::optional<bool> tieIsOver;
+    if (const auto tiedTo = musxNote.calcArpeggiatedTieToNote(&tieIsOver)) {
         auto mnxTies = mnxNote.create_ties();
         auto mnxTie = mnxTies.append(calcNoteId(tiedTo));
-        if (arpeggTieIsOver.has_value()) {
-            mnxTie.set_side(*arpeggTieIsOver ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+        if (tieIsOver.has_value()) {
+            mnxTie.set_side(*tieIsOver ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+        }
+    }
+    if (musxNote.calcHasPseudoLvTie(&tieIsOver)) {
+        auto mnxTies = mnxNote.create_ties();
+        auto mnxTie = mnxTies.append();
+        if (tieIsOver.has_value()) {
+            mnxTie.set_side(*tieIsOver ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
     }
 }
