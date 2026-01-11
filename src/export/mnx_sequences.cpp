@@ -94,19 +94,20 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
             }
         }
     }
-    std::optional<bool> tieIsOver;
-    if (const auto tiedTo = musxNote.calcArpeggiatedTieToNote(&tieIsOver)) {
+    using Curve = CurveContourDirection;
+    Curve tieDirection{};
+    if (const auto tiedTo = musxNote.calcArpeggiatedTieToNote(&tieDirection)) {
         auto mnxTies = mnxNote.create_ties();
         auto mnxTie = mnxTies.append(calcNoteId(tiedTo));
-        if (tieIsOver.has_value()) {
-            mnxTie.set_side(*tieIsOver ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+        if (tieDirection != Curve::Auto) {
+            mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
     }
-    if (musxNote.calcHasPseudoLvTie(&tieIsOver)) {
+    if (musxNote.calcHasPseudoLvTie(&tieDirection)) {
         auto mnxTies = mnxNote.create_ties();
         auto mnxTie = mnxTies.append();
-        if (tieIsOver.has_value()) {
-            mnxTie.set_side(*tieIsOver ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+        if (tieDirection != Curve::Auto) {
+            mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
     }
 }
