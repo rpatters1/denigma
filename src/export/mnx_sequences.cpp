@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "mnx.h"
 #include "utils/smufl_support.h"
@@ -120,6 +121,44 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
         if (tieDirection != Curve::Auto) {
             mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
+    }
+}
+
+static void deferJumpTies(const MnxMusxMappingPtr& context, const NoteInfoPtr& musxNote)
+{
+    if (musxNote.getEntryInfo().getMeasure() == 4) {
+        int x = 0;
+        static_cast<void>(x);
+    }
+    if (musxNote.getEntryInfo()->getEntry()->isHidden) {
+        return;
+    }
+
+    const auto jumpTies = musxNote.calcJumpTieContinuationsFrom();
+    if (jumpTies.empty()) {
+        return;
+    }
+
+    const auto endNoteId = calcNoteId(musxNote);
+    for (const auto& [startNote, direction] : jumpTies) {
+        if (!startNote || startNote.getEntryInfo()->getEntry()->isHidden) {
+            continue;
+        }
+        const auto startNoteId = calcNoteId(startNote);
+        const std::string key = startNoteId + "->" + endNoteId;
+        if (!context->deferredJumpTieKeys.emplace(key).second) {
+            continue;
+        }
+
+        MnxMusxMapping::DeferredJumpTie deferred{
+            startNoteId,
+            endNoteId,
+            std::nullopt
+        };
+        if (direction != CurveContourDirection::Auto) {
+            deferred.side = (direction == CurveContourDirection::Up) ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down;
+        }
+        context->deferredJumpTies.push_back(std::move(deferred));
     }
 }
 
@@ -335,7 +374,9 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
             return createKitNote(context, mnxEvent, percNoteInfo, musxStaff);
         }
     }();
-    mnxNote.set_id(calcNoteId(musxNote));
+    const auto noteId = calcNoteId(musxNote);
+    mnxNote.set_id(noteId);
+    context->noteJsonById.emplace(noteId, mnxNote.pointer());
     if (musxNote->crossStaff && !mnxEvent.staff()) { // createEvent already handled cross-staffing if the entire entry is crossed
         StaffCmper noteStaff = musxNote.calcStaff();
         if (const auto& mnxNoteStaff = context->mnxPartStaffFromStaff(noteStaff)) {
@@ -346,6 +387,7 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
         }
     }
     createTies(context, mnxNote, musxNote);
+    deferJumpTies(context, musxNote);
 }
 
 static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
@@ -620,6 +662,92 @@ void createSequences(const MnxMusxMappingPtr& context,
                     }
                 }
             }
+        }
+    }
+}
+
+void finalizeJumpTies(const MnxMusxMappingPtr& context)
+{
+    if (context->deferredJumpTies.empty()) {
+        return;
+    }
+
+    std::unordered_set<std::string> clearedLvTies;
+    std::unordered_map<std::string, std::optional<mnx::SlurTieSide>> consensusSides;
+    for (const auto& deferred : context->deferredJumpTies) {
+        const auto noteIt = context->noteJsonById.find(deferred.startNoteId);
+        if (noteIt == context->noteJsonById.end()) {
+            continue;
+        }
+
+        mnx::sequence::NoteBase startNote(context->mnxDocument->root(), noteIt->second);
+        const auto consensusSide = [&]() -> std::optional<mnx::SlurTieSide> {
+            if (const auto cached = consensusSides.find(deferred.startNoteId); cached != consensusSides.end()) {
+                return cached->second;
+            }
+            std::optional<mnx::SlurTieSide> side;
+            bool hasNonLv = false;
+            if (auto tiesOpt = startNote.ties()) {
+                auto ties = tiesOpt.value();
+                for (size_t i = 0; i < ties.size(); i++) {
+                    auto tie = ties.at(i);
+                    if (tie.lv()) {
+                        continue;
+                    }
+                    hasNonLv = true;
+                    if (!tie.side()) {
+                        side.reset();
+                        hasNonLv = false;
+                        break;
+                    }
+                    if (!side) {
+                        side = tie.side().value();
+                    } else if (side.value() != tie.side().value()) {
+                        side.reset();
+                        hasNonLv = false;
+                        break;
+                    }
+                }
+            }
+            if (!hasNonLv) {
+                side.reset();
+            }
+            consensusSides.emplace(deferred.startNoteId, side);
+            return side;
+        }();
+        if (clearedLvTies.insert(deferred.startNoteId).second) {
+            if (auto tiesOpt = startNote.ties()) {
+                auto ties = tiesOpt.value();
+                for (size_t i = ties.size(); i-- > 0;) {
+                    if (ties.at(i).lv()) {
+                        ties.erase(i);
+                    }
+                }
+                if (ties.size() == 0) {
+                    startNote.clear_ties();
+                }
+            }
+        }
+
+        auto mnxTies = startNote.create_ties();
+        bool alreadyLinked = false;
+        for (size_t i = 0; i < mnxTies.size(); i++) {
+            auto tie = mnxTies.at(i);
+            if (tie.target() && tie.target().value() == deferred.endNoteId) {
+                alreadyLinked = true;
+                break;
+            }
+        }
+        if (alreadyLinked) {
+            continue;
+        }
+
+        auto mnxTie = mnxTies.append(deferred.endNoteId);
+        mnxTie.set_targetType(mnx::TieTargetType::CrossJump);
+        if (deferred.side) {
+            mnxTie.set_side(deferred.side.value());
+        } else if (consensusSide) {
+            mnxTie.set_side(consensusSide.value());
         }
     }
 }

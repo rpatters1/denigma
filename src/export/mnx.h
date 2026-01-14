@@ -24,6 +24,8 @@
 #include <filesystem>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include "denigma.h"
 #include "musx/musx.h"
@@ -67,6 +69,16 @@ struct MnxMusxMapping
 
     // musx mappings
     std::unordered_map<Cmper, JumpType> textRepeat2Jump;
+    std::unordered_map<std::string, mnx::json_pointer> noteJsonById;
+
+    struct DeferredJumpTie {
+        std::string startNoteId;
+        std::string endNoteId;
+        std::optional<mnx::SlurTieSide> side;
+    };
+
+    std::vector<DeferredJumpTie> deferredJumpTies;
+    std::unordered_set<std::string> deferredJumpTieKeys;
 
     MeasCmper currMeas{};
     StaffCmper currStaff{};
@@ -154,6 +166,7 @@ void createSequences(const MnxMusxMappingPtr& context,
     std::optional<int> mnxStaffNumber,
     const MusxInstance<others::Measure>& musxMeasure,
     StaffCmper staffCmper);
+void finalizeJumpTies(const MnxMusxMappingPtr& context);
 
 void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
 void exportMnx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);

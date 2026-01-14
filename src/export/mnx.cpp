@@ -145,6 +145,7 @@ void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer
     createMnx(context);
     createGlobal(context);
     createParts(context);
+    finalizeJumpTies(context);
     createLayouts(context); // must come after createParts
     createScores(context); // must come after createLayouts
 
