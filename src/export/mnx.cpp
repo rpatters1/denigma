@@ -68,7 +68,7 @@ std::optional<int> MnxMusxMapping::mnxPartStaffFromStaff(StaffCmper staff) const
 static void createMnx(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-    auto support = mnxDocument->mnx().create_support();
+    auto support = mnxDocument->mnx().ensure_support();
     support.set_useBeams(true);
 }
 
@@ -77,7 +77,7 @@ static void createScores(const MnxMusxMappingPtr& context)
     auto& mnxDocument = context->mnxDocument;
     for (const auto& linkedPart : context->musxParts) {
         auto partGlobals = context->document->getOthers()->get<others::PartGlobals>(linkedPart->getCmper(), MUSX_GLOBALS_CMPER);
-        auto mnxScore = mnxDocument->create_scores().append(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
+        auto mnxScore = mnxDocument->ensure_scores().append(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
         if (mnxScore.name().empty()) {
             mnxScore.set_name(linkedPart->isScore()
                               ? std::string("Score")
@@ -86,14 +86,14 @@ static void createScores(const MnxMusxMappingPtr& context)
         mnxScore.set_layout(calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID));
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
-            auto mnxMmRest = mnxScore.create_multimeasureRests().append(mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
+            auto mnxMmRest = mnxScore.ensure_multimeasureRests().append(mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
             if (!mmRest->calcIsNumberVisible()) {
                 mnxMmRest.set_label("");
             }
         }
         auto pages = context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper());
         for (size_t x = 0; x < pages.size(); x++) {
-            auto mnxPage = mnxScore.create_pages().append();
+            auto mnxPage = mnxScore.ensure_pages().append();
             auto mnxSystems = mnxPage.systems();
             auto page = pages[x];
             if (!page->isBlank() && page->lastSystemId.has_value()) {

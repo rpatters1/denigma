@@ -85,7 +85,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
 {
     bool tieCreated = false;
     if (musxNote->tieStart) {
-        auto mnxTies = mnxNote.create_ties();
+        auto mnxTies = mnxNote.ensure_ties();
         auto tiedTo = musxNote.calcTieTo();
         auto mnxTie = (tiedTo && tiedTo->tieEnd && !tiedTo.getEntryInfo()->getEntry()->isHidden)
             ? mnxTies.append(calcNoteId(tiedTo))
@@ -107,7 +107,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
     using Curve = CurveContourDirection;
     Curve tieDirection{};
     if (const auto tiedTo = musxNote.calcArpeggiatedTieToNote(&tieDirection)) {
-        auto mnxTies = mnxNote.create_ties();
+        auto mnxTies = mnxNote.ensure_ties();
         auto mnxTie = mnxTies.append(calcNoteId(tiedTo));
         mnxTie.set_targetType(mnx::TieTargetType::Arpeggio);
         if (tieDirection != Curve::Auto) {
@@ -116,7 +116,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
         tieCreated = true;
     }
     if (!tieCreated && musxNote.calcHasPseudoLvTie(&tieDirection)) {
-        auto mnxTies = mnxNote.create_ties();
+        auto mnxTies = mnxNote.ensure_ties();
         auto mnxTie = mnxTies.append();
         if (tieDirection != Curve::Auto) {
             mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
@@ -166,7 +166,7 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
 {
     const auto musxEntry = musxEntryInfo->getEntry();
     auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
-        auto mnxSlurs = mnxEvent.create_slurs();
+        auto mnxSlurs = mnxEvent.ensure_slurs();
         return mnxSlurs.append(calcEventId(targetEntry));
     };
     if (musxEntry->smartShapeDetail) {
@@ -224,16 +224,16 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
                 std::optional<mnx::BreathMarkSymbol> breathMark;
                 auto marks = calcMarkingType(artic, numMarks, breathMark);
                 for (auto mark : marks) {
-                    auto mnxMarkings = mnxEvent.create_markings();
+                    auto mnxMarkings = mnxEvent.ensure_markings();
                     switch (mark) {
                         case EventMarkingType::Accent:
                             if (!mnxMarkings.accent().has_value()) {
-                                mnxMarkings.create_accent();
+                                mnxMarkings.ensure_accent();
                             }
                             break;
                         case EventMarkingType::Breath:
                             if (!mnxMarkings.breath().has_value()) {
-                                mnxMarkings.create_breath();
+                                mnxMarkings.ensure_breath();
                             }
                             if (breathMark.has_value()) {
                                 mnxMarkings.breath().value().set_symbol(breathMark.value());
@@ -241,47 +241,47 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
                             break;
                         case EventMarkingType::SoftAccent:
                             if (!mnxMarkings.softAccent().has_value()) {
-                                mnxMarkings.create_softAccent();
+                                mnxMarkings.ensure_softAccent();
                             }
                             break;
                         case EventMarkingType::Spiccato:
                             if (!mnxMarkings.spiccato().has_value()) {
-                                mnxMarkings.create_spiccato();
+                                mnxMarkings.ensure_spiccato();
                             }
                             break;
                         case EventMarkingType::Staccatissimo:
                             if (!mnxMarkings.staccatissimo().has_value()) {
-                                mnxMarkings.create_staccatissimo();
+                                mnxMarkings.ensure_staccatissimo();
                             }
                             break;
                         case EventMarkingType::Staccato:
                             if (!mnxMarkings.staccato().has_value()) {
-                                mnxMarkings.create_staccato();
+                                mnxMarkings.ensure_staccato();
                             }
                             break;
                         case EventMarkingType::Stress:
                             if (!mnxMarkings.stress().has_value()) {
-                                mnxMarkings.create_stress();
+                                mnxMarkings.ensure_stress();
                             }
                             break;
                         case EventMarkingType::StrongAccent:
                             if (!mnxMarkings.strongAccent().has_value()) {
-                                mnxMarkings.create_strongAccent();
+                                mnxMarkings.ensure_strongAccent();
                             }
                             break;
                         case EventMarkingType::Tenuto:
                             if (!mnxMarkings.tenuto().has_value()) {
-                                mnxMarkings.create_tenuto();
+                                mnxMarkings.ensure_tenuto();
                             }
                             break;
                         case EventMarkingType::Tremolo:
                             if (!mnxMarkings.tremolo().has_value()) {
-                                mnxMarkings.create_tremolo(numMarks.value_or(0));
+                                mnxMarkings.ensure_tremolo(numMarks.value_or(0));
                             }
                             break;
                         case EventMarkingType::Unstress:
                             if (!mnxMarkings.unstress().has_value()) {
-                                mnxMarkings.create_unstress();
+                                mnxMarkings.ensure_unstress();
                             }
                             break;
                         default:
@@ -313,15 +313,15 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
             }
         }
     }
-    auto mnxNote = mnxEvent.create_notes().append(mnx::sequence::Pitch::Fields({ enumConvert<mnx::NoteStep>(noteName), octave, alteration }));
+    auto mnxNote = mnxEvent.ensure_notes().append(mnx::sequence::Pitch::Fields({ enumConvert<mnx::NoteStep>(noteName), octave, alteration }));
     if (musxNote->freezeAcci) {
-        auto acciDisp = mnxNote.create_accidentalDisplay(musxNote->showAcci);
+        auto acciDisp = mnxNote.ensure_accidentalDisplay(musxNote->showAcci);
         acciDisp.set_force(true);
     }
     const auto musxEntry = musxNote.getEntryInfo()->getEntry();
     if (musxNote.calcIsEnharmonicRespellInAnyPart()) {
         auto [enharmonicLev, enharmonicAlt] = musxNote.calcDefaultEnharmonic();
-        auto mnxWritten = mnxNote.create_written();
+        auto mnxWritten = mnxNote.ensure_written();
         mnxWritten.set_diatonicDelta(enharmonicLev - musxNote->harmLev);
     }
     return mnxNote;
@@ -330,19 +330,19 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
 mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const MusxInstance<others::PercussionNoteInfo>& percNoteInfo,
     const MusxInstance<others::Staff>& musxStaff)
 {
-    auto mnxNote = mnxEvent.create_kitNotes().append(calcPercussionKitId(percNoteInfo));
+    auto mnxNote = mnxEvent.ensure_kitNotes().append(calcPercussionKitId(percNoteInfo));
     auto part = mnxNote.getEnclosingElement<mnx::Part>();
     MNX_ASSERT_IF(!part.has_value()) {
         throw std::logic_error("Note created without a part.");
     }
-    part->create_kit();
+    part->ensure_kit();
     if (!part->kit()->contains(mnxNote.kitComponent())) {
         auto kitElement = part->kit()->append(mnxNote.kitComponent(), mnxStaffPosition(musxStaff, percNoteInfo->calcStaffReferencePosition()));
         const auto& percNoteType = percNoteInfo->getNoteType();
         if (percNoteType.instrumentId != 0) {
             kitElement.set_name(percNoteType.createName(percNoteInfo->getNoteTypeOrderId()));
             kitElement.set_sound(calcPercussionSoundId(percNoteInfo));
-            auto sounds = context->mnxDocument->global().create_sounds();
+            auto sounds = context->mnxDocument->global().ensure_sounds();
             if (!sounds.contains(kitElement.sound().value())) {
                 auto sound = sounds.append(kitElement.sound().value());
                 sound.set_name(kitElement.name().value());
@@ -410,7 +410,7 @@ static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnx::s
 {
     const auto musxEntry = musxEntryInfo->getEntry();
 
-    auto mnxRest = mnxEvent.create_rest();
+    auto mnxRest = mnxEvent.ensure_rest();
     if (musxEntryInfo.calcIsFullMeasureRest()) {
         mnxEvent.clear_duration();
         mnxEvent.set_measure(true);
@@ -441,8 +441,8 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
                         << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
                         << lyr->syllable << ").", LogSeverity::Warning);
                 } else {
-                    auto mnxLyrics = mnxEvent.create_lyrics();
-                    auto mnxLyricsLines = mnxLyrics.create_lines();
+                    auto mnxLyrics = mnxEvent.ensure_lyrics();
+                    auto mnxLyricsLines = mnxLyrics.ensure_lines();
                     const size_t sylIndex = size_t(lyr->syllable - 1); // Finale syllable numbers are 1-based.
                     auto mnxLyricLine = mnxLyricsLines.append(
                         calcLyricLineId(std::string(T::TextType::XmlNodeName), lyr->lyricNumber),
@@ -729,7 +729,7 @@ void finalizeJumpTies(const MnxMusxMappingPtr& context)
             }
         }
 
-        auto mnxTies = startNote.create_ties();
+        auto mnxTies = startNote.ensure_ties();
         bool alreadyLinked = false;
         for (size_t i = 0; i < mnxTies.size(); i++) {
             auto tie = mnxTies.at(i);

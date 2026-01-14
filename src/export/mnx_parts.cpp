@@ -55,7 +55,7 @@ static void createBeams(
                         unsigned nextBeamNumber = beamNumber + 1;
                         unsigned lowestBeamStub = next.calcLowestBeamStub();
                         if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
-                            auto hookBeam = beam.create_beams().append();
+                            auto hookBeam = beam.ensure_beams().append();
                             hookBeam.events().push_back(calcEventId(entryNumber));
                             /// @todo only specify direction if hookDir is manually overridden
                             mnx::BeamHookDirection hookDir = next.calcBeamStubIsLeft()
@@ -63,7 +63,7 @@ static void createBeams(
                                 : mnx::BeamHookDirection::Right;
                             hookBeam.set_direction(hookDir);
                         } else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
-                            self(beam.create_beams(), nextBeamNumber, next, self);
+                            self(beam.ensure_beams(), nextBeamNumber, next, self);
                         }
                     }
                     if (unsigned lowestBeamEnd = next.calcLowestBeamEndAcrossBarlines()) {
@@ -96,7 +96,7 @@ static void createBeams(
                 } else {
                     mnxMeasure = mnxMeasures.at(entryInfo.getMeasure() - 1);
                 }
-                processBeam(mnxMeasure.create_beams(), 1, entryInfo, processBeam);
+                processBeam(mnxMeasure.ensure_beams(), 1, entryInfo, processBeam);
             }
             return true;
         });
@@ -135,9 +135,9 @@ static void createClefs(
         if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, glyphName)) {
             auto [clefSign, octave, hideOctave] = clefInfo.value();
             int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
-            auto mnxClef = mnxMeasure.create_clefs().append(clefSign, staffPosition, octave);
+            auto mnxClef = mnxMeasure.ensure_clefs().append(clefSign, staffPosition, octave);
             if (location) {
-                mnxClef.create_position(mnxFractionFromFraction(location));
+                mnxClef.ensure_position(mnxFractionFromFraction(location));
             }
             if (hideOctave) {
                 mnxClef.clef().set_showOctave(false);
@@ -191,7 +191,7 @@ static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<
                                     /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
                                     auto fontInfo = rawTextCtx.parseFirstFontInfo();
                                     std::string dynamicText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-                                    auto mnxDynamic = mnxMeasure.create_dynamics().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
+                                    auto mnxDynamic = mnxMeasure.ensure_dynamics().append(dynamicText, mnxFractionFromEdu(asgn->eduPosition));
                                     if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText)) {
                                         mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
                                     }
@@ -234,7 +234,7 @@ static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<o
                     }
                     context->ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
                     if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
-                        auto mnxOttava = mnxMeasure.create_ottavas().append(
+                        auto mnxOttava = mnxMeasure.ensure_ottavas().append(
                             enumConvert<mnx::OttavaAmount>(shape->shapeType),
                             mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
                             shape->endTermSeg->endPoint->measId,
@@ -327,7 +327,7 @@ void createParts(const MnxMusxMappingPtr& context)
         }
         auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
         if (transpositionDisp || transpositionAlt) {
-            auto transposition = part.create_transposition(
+            auto transposition = part.ensure_transposition(
                 mnx::Interval::Fields({ transpositionDisp, music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt) }));
             if (staff->transposition && !staff->transposition->noSimplifyKey && staff->transposition->keysig) {
                 transposition.set_keyFifthsFlipAt(7 * music_theory::sign(staff->transposition->keysig->adjust));

@@ -180,7 +180,7 @@ void createLayouts(const MnxMusxMappingPtr& context)
                 continue;
             }
             if (!mnxDocument->layouts()) {
-                mnxDocument->create_layouts();
+                mnxDocument->ensure_layouts();
             }
             auto layout = mnxDocument->layouts().value().append();
             layout.set_id(calcSystemLayoutId(linkedPart->getCmper(), sysId));
