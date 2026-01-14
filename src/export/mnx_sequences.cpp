@@ -82,28 +82,39 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const musx:
 
 static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase& mnxNote, const NoteInfoPtr& musxNote)
 {
+    bool tieCreated = false;
     if (musxNote->tieStart) {
         auto mnxTies = mnxNote.create_ties();
         auto tiedTo = musxNote.calcTieTo();
         auto mnxTie = (tiedTo && tiedTo->tieEnd && !tiedTo.getEntryInfo()->getEntry()->isHidden)
             ? mnxTies.append(calcNoteId(tiedTo))
             : mnxTies.append();
+        if (!mnxTie.lv()) {
+            if (tiedTo.getEntryInfo().getVoice() == musxNote.getEntryInfo().getVoice()) {
+                mnxTie.set_targetType(mnx::TieTargetType::NextNote);
+            } else {
+                mnxTie.set_targetType(mnx::TieTargetType::CrossVoice);
+            }
+        }
         if (auto tieAlter = context->document->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {
             if (tieAlter->freezeDirection) {
                 mnxTie.set_side(tieAlter->down ? mnx::SlurTieSide::Down : mnx::SlurTieSide::Up);
             }
         }
+        tieCreated = true;
     }
     using Curve = CurveContourDirection;
     Curve tieDirection{};
     if (const auto tiedTo = musxNote.calcArpeggiatedTieToNote(&tieDirection)) {
         auto mnxTies = mnxNote.create_ties();
         auto mnxTie = mnxTies.append(calcNoteId(tiedTo));
+        mnxTie.set_targetType(mnx::TieTargetType::Arpeggio);
         if (tieDirection != Curve::Auto) {
             mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
+        tieCreated = true;
     }
-    if (musxNote.calcHasPseudoLvTie(&tieDirection)) {
+    if (!tieCreated && musxNote.calcHasPseudoLvTie(&tieDirection)) {
         auto mnxTies = mnxNote.create_ties();
         auto mnxTie = mnxTies.append();
         if (tieDirection != Curve::Auto) {
