@@ -64,9 +64,8 @@ TEST(MnxParts, ForcedClef)
     auto doc = mnx::Document::create(inputPath.parent_path() / "forced_bass_clef_smufl.mnx");
     auto parts = doc.parts();
     ASSERT_GE(parts.size(), 1);
-    ASSERT_TRUE(parts[0].measures().has_value());
 
-    auto measures = parts[0].measures().value();
+    auto measures = parts[0].measures();
     ASSERT_GE(measures.size(), 2);
     auto measure2 = measures[1];
 

@@ -128,6 +128,7 @@ static void buildOrderedContent(
                 switch (group.group->bracket->style) {
                 case details::Bracket::BracketStyle::None:
                     break;
+                case details::Bracket::BracketStyle::DeskBracket: // until mnx provides a proper desk bracket.
                 case details::Bracket::BracketStyle::PianoBrace:
                     mnxGroup.set_symbol(mnx::LayoutSymbol::Brace);
                     break;
@@ -179,7 +180,7 @@ void createLayouts(const MnxMusxMappingPtr& context)
                 continue;
             }
             if (!mnxDocument->layouts()) {
-                mnxDocument->create_layouts();
+                mnxDocument->ensure_layouts();
             }
             auto layout = mnxDocument->layouts().value().append();
             layout.set_id(calcSystemLayoutId(linkedPart->getCmper(), sysId));

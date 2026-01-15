@@ -98,9 +98,16 @@ inline std::filesystem::path getOutputPath()
 void setupTestDataPaths();
 void copyInputToOutput(const std::string& fileName, std::filesystem::path& outputPath);
 void compareFiles(const std::filesystem::path& path1, const std::filesystem::path& path2);
+void readFile(const std::filesystem::path& filePath, std::vector<char>& contents);
 
 void assertStringsInFile(const std::vector<std::string>& targets, const std::filesystem::path& filePath, const std::filesystem::path& extension = {});
 inline void assertStringInFile(const std::string& target, const std::filesystem::path& filePath, const std::filesystem::path& extension = {})
 { assertStringsInFile(std::vector<std::string>({ target }), filePath, extension); }
 
 void openJson(const std::filesystem::path& path, nlohmann::json& result);
+
+inline std::string pathString(const std::filesystem::path& path)
+{
+    auto s = path.u8string();
+    return std::string(reinterpret_cast<const char*>(s.data()), s.size());
+}

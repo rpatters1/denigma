@@ -72,8 +72,8 @@ std::vector<EventMarkingType> calcMarkingType(const MusxInstance<others::Articul
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark);
 
-mnx::NoteValue::Initializer mnxNoteValueFromEdu(Edu duration);
-std::pair<int, mnx::NoteValue::Initializer> mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
+mnx::NoteValue::Fields mnxNoteValueFromEdu(Edu duration);
+mnx::NoteValueQuantity::Fields mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
 mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl);
 std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
     const MusxInstance<options::ClefOptions::ClefDef>& clefDef,
