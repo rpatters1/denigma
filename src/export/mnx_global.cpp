@@ -45,21 +45,22 @@ static void assignBarline(
             case others::Measure::BarlineType::Normal:
                 if (isForFinalMeasure && !musxBarlineOptions->drawFinalBarlineOnLastMeas) {
                     // force normal on final bar
-                    mnxMeasure.ensure_barline(mnx::BarlineType::Regular);
+                    mnxMeasure.ensure_barline(mnx::global::Barline::from(mnx::BarlineType::Regular));
                 } else if (!isForFinalMeasure && musxBarlineOptions->drawDoubleBarlineBeforeKeyChanges) {
                     if (const auto& nextMeasure = musxMeasure->getDocument()->getOthers()->get<others::Measure>(SCORE_PARTID, musxMeasure->getCmper() + 1)) {
                         if (!musxMeasure->createKeySignature()->isSame(*nextMeasure->createKeySignature().get())) {
-                            mnxMeasure.ensure_barline(mnx::BarlineType::Double);
+                            mnxMeasure.ensure_barline(mnx::global::Barline::from(mnx::BarlineType::Double));
                         }
                     }
                 }
                 break;
             default:
-                mnxMeasure.ensure_barline(enumConvert<mnx::BarlineType>(musxMeasure->barlineType));
+                mnxMeasure.ensure_barline(
+                    mnx::global::Barline::from(enumConvert<mnx::BarlineType>(musxMeasure->barlineType)));
                 break;
         }
     } else {
-        mnxMeasure.ensure_barline(mnx::BarlineType::NoBarline);
+        mnxMeasure.ensure_barline(mnx::global::Barline::from(mnx::BarlineType::NoBarline));
     }
 }
 
@@ -67,7 +68,7 @@ static void createEnding(mnx::global::Measure& mnxMeasure, const MusxInstance<ot
 {
     if (musxMeasure->hasEnding) {
         if (auto musxEnding = musxMeasure->getDocument()->getOthers()->get<others::RepeatEndingStart>(SCORE_PARTID, musxMeasure->getCmper())) {
-            auto mnxEnding = mnxMeasure.ensure_ending(musxEnding->calcEndingLength());
+            auto mnxEnding = mnxMeasure.ensure_ending(mnx::global::Ending::from(musxEnding->calcEndingLength()));
             mnxEnding.set_open(musxEnding->calcIsOpen());
             if (auto musxNumbers = musxMeasure->getDocument()->getOthers()->get<others::RepeatPassList>(SCORE_PARTID, musxMeasure->getCmper())) {
                 for (int value : musxNumbers->values) {
@@ -111,7 +112,7 @@ static void createFine(
 {
     if (auto repeatAssign = searchForJump(context, JumpType::Fine, musxMeasure)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
-        mnxMeasure.ensure_fine(mnxFractionFromFraction(location));        
+        mnxMeasure.ensure_fine(mnx::global::Fine::from(mnxFractionFromFraction(location)));        
     }
 }
 
@@ -128,7 +129,7 @@ static void createJump(
     for (const auto mapping : jumpMapping) {
         if (auto repeatAssign = searchForJump(context, mapping.first, musxMeasure)) {
             auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
-            mnxMeasure.ensure_jump(mapping.second, mnxFractionFromFraction(location));        
+            mnxMeasure.ensure_jump(mnx::global::Jump::from(mapping.second, mnxFractionFromFraction(location)));        
         }            
     }
 }
@@ -140,7 +141,7 @@ static void assignKey(
 {
     auto keyFifths = musxMeasure->createKeySignature()->getAlteration(KeySignature::KeyContext::Concert);
     if (keyFifths != prevKeyFifths) {
-        mnxMeasure.ensure_key(keyFifths);
+        mnxMeasure.ensure_key(mnx::KeySignature::from(keyFifths));
         prevKeyFifths = keyFifths;
     }
 }
@@ -172,7 +173,7 @@ static void createSegno(
 {
     if (auto repeatAssign = searchForJump(context, JumpType::Segno, musxMeasure)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
-        auto segno = mnxMeasure.ensure_segno(mnxFractionFromFraction(location));
+        auto segno = mnxMeasure.ensure_segno(mnx::global::Segno::from(mnxFractionFromFraction(location)));
         if (auto repeatText = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
             if (auto repeatDef = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
                 if (auto glyphName = utils::smuflGlyphNameForFont(repeatDef->font, repeatText->text)) {
@@ -187,10 +188,10 @@ static void createTempos(const MnxMusxMappingPtr& context, mnx::global::Measure&
 {
     auto createTempo = [&mnxMeasure](int bpm, Edu noteValue, Edu eduPosition) {
         auto mnxTempos = mnxMeasure.ensure_tempos();
-        auto tempo = mnxTempos.append(bpm, mnxNoteValueFromEdu(noteValue));
+        auto tempo = mnxTempos.append(mnx::global::Tempo::from(bpm, mnxNoteValueFromEdu(noteValue)));
         if (eduPosition) {
             auto pos = Fraction::fromEdu(eduPosition);
-            tempo.ensure_location(mnxFractionFromFraction(pos));
+            tempo.ensure_location(mnx::RhythmicPosition::from(mnxFractionFromFraction(pos)));
         }    
     };
     std::map<Edu, MusxInstance<OthersBase>> temposAtPositions; // use OthersBase because it has to accept multiple types
@@ -259,7 +260,9 @@ static void assignTimeSignature(
                     << " has fractional portion that could not be reduced.", LogSeverity::Warning);
             }
         }
-        mnxMeasure.ensure_time(count.quotient(), enumConvert<mnx::TimeSignatureUnit>(noteType));
+        mnxMeasure.ensure_time(mnx::TimeSignature::from(
+            count.quotient(),
+            enumConvert<mnx::TimeSignatureUnit>(noteType)));
         prevTimeSig = timeSig;
     }
 }

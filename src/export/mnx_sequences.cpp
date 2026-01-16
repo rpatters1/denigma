@@ -36,8 +36,10 @@ static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray 
     const auto& musxTuplet = tupletInfo.tuplet;
     const auto entryCount = static_cast<unsigned>(tupletInfo.numEntries());
     const Edu eduRefDuration = (musxTuplet->calcReferenceDuration() / entryCount).calcEduDuration();
-    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(marks,
-        mnx::NoteValueQuantity::Fields{ entryCount, mnxNoteValueFromEdu(eduRefDuration) });
+    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(
+        mnx::sequence::MultiNoteTremolo::from(
+            marks,
+            mnx::NoteValueQuantity::from(entryCount, mnxNoteValueFromEdu(eduRefDuration))));
     /// @todo: additional fields (like noteheads) when defined by MNX committee.
     return mnxTremolo;
 }
@@ -46,8 +48,13 @@ static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const musx:
 {
     const auto& musxTuplet = tupletInfo.tuplet;
     auto mnxTuplet = content.append<mnx::sequence::Tuplet>(
-        mnx::NoteValueQuantity::Fields({ static_cast<unsigned>(musxTuplet->displayNumber), mnxNoteValueFromEdu(musxTuplet->displayDuration) }),
-        mnx::NoteValueQuantity::Fields({ static_cast<unsigned>(musxTuplet->referenceNumber), mnxNoteValueFromEdu(musxTuplet->referenceDuration) }));
+        mnx::sequence::Tuplet::from(
+            mnx::NoteValueQuantity::from(
+                static_cast<unsigned>(musxTuplet->displayNumber),
+                mnxNoteValueFromEdu(musxTuplet->displayDuration)),
+            mnx::NoteValueQuantity::from(
+                static_cast<unsigned>(musxTuplet->referenceNumber),
+                mnxNoteValueFromEdu(musxTuplet->referenceDuration))));
 
     mnxTuplet.set_or_clear_bracket([&]() {
         if (musxTuplet->brackStyle == details::TupletDef::BracketStyle::Nothing) {
@@ -88,8 +95,8 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
         auto mnxTies = mnxNote.ensure_ties();
         auto tiedTo = musxNote.calcTieTo();
         auto mnxTie = (tiedTo && tiedTo->tieEnd && !tiedTo.getEntryInfo()->getEntry()->isHidden)
-            ? mnxTies.append(calcNoteId(tiedTo))
-            : mnxTies.append();
+            ? mnxTies.append(mnx::sequence::Tie::from(calcNoteId(tiedTo)))
+            : mnxTies.append(mnx::sequence::Tie::from());
         if (!mnxTie.lv()) {
             if (tiedTo.getEntryInfo().getVoice() == musxNote.getEntryInfo().getVoice()) {
                 mnxTie.set_targetType(mnx::TieTargetType::NextNote);
@@ -108,7 +115,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
     Curve tieDirection{};
     if (const auto tiedTo = musxNote.calcArpeggiatedTieToNote(&tieDirection)) {
         auto mnxTies = mnxNote.ensure_ties();
-        auto mnxTie = mnxTies.append(calcNoteId(tiedTo));
+        auto mnxTie = mnxTies.append(mnx::sequence::Tie::from(calcNoteId(tiedTo)));
         mnxTie.set_targetType(mnx::TieTargetType::Arpeggio);
         if (tieDirection != Curve::Auto) {
             mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
@@ -117,7 +124,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
     }
     if (!tieCreated && musxNote.calcHasPseudoLvTie(&tieDirection)) {
         auto mnxTies = mnxNote.ensure_ties();
-        auto mnxTie = mnxTies.append();
+        auto mnxTie = mnxTies.append(mnx::sequence::Tie::from());
         if (tieDirection != Curve::Auto) {
             mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
@@ -167,7 +174,7 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
     const auto musxEntry = musxEntryInfo->getEntry();
     auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
         auto mnxSlurs = mnxEvent.ensure_slurs();
-        return mnxSlurs.append(calcEventId(targetEntry));
+        return mnxSlurs.append(mnx::sequence::Slur::from(calcEventId(targetEntry)));
     };
     if (musxEntry->smartShapeDetail) {
         auto shapeAssigns = musxEntry->getDocument()->getDetails()->getArray<details::SmartShapeEntryAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
@@ -276,7 +283,8 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
                             break;
                         case EventMarkingType::Tremolo:
                             if (!mnxMarkings.tremolo().has_value()) {
-                                mnxMarkings.ensure_tremolo(numMarks.value_or(0));
+                                mnxMarkings.ensure_tremolo(
+                                    mnx::sequence::SingleNoteTremolo::from(numMarks.value_or(0)));
                             }
                             break;
                         case EventMarkingType::Unstress:
@@ -313,9 +321,12 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
             }
         }
     }
-    auto mnxNote = mnxEvent.ensure_notes().append(mnx::sequence::Pitch::Fields({ enumConvert<mnx::NoteStep>(noteName), octave, alteration }));
+    auto mnxNote = mnxEvent.ensure_notes().append(
+        mnx::sequence::Note::from(
+            mnx::sequence::Pitch::from(enumConvert<mnx::NoteStep>(noteName), octave, alteration)));
     if (musxNote->freezeAcci) {
-        auto acciDisp = mnxNote.ensure_accidentalDisplay(musxNote->showAcci);
+        auto acciDisp = mnxNote.ensure_accidentalDisplay(
+            mnx::sequence::AccidentalDisplay::from(musxNote->showAcci));
         acciDisp.set_force(true);
     }
     const auto musxEntry = musxNote.getEntryInfo()->getEntry();
@@ -330,14 +341,18 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
 mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const MusxInstance<others::PercussionNoteInfo>& percNoteInfo,
     const MusxInstance<others::Staff>& musxStaff)
 {
-    auto mnxNote = mnxEvent.ensure_kitNotes().append(calcPercussionKitId(percNoteInfo));
+    auto mnxNote = mnxEvent.ensure_kitNotes().append(
+        mnx::sequence::KitNote::from(calcPercussionKitId(percNoteInfo)));
     auto part = mnxNote.getEnclosingElement<mnx::Part>();
     MNX_ASSERT_IF(!part.has_value()) {
         throw std::logic_error("Note created without a part.");
     }
     part->ensure_kit();
     if (!part->kit()->contains(mnxNote.kitComponent())) {
-        auto kitElement = part->kit()->append(mnxNote.kitComponent(), mnxStaffPosition(musxStaff, percNoteInfo->calcStaffReferencePosition()));
+        auto kitElement = part->kit()->append(
+            mnxNote.kitComponent(),
+            mnx::part::KitComponent::from(
+                mnxStaffPosition(musxStaff, percNoteInfo->calcStaffReferencePosition())));
         const auto& percNoteType = percNoteInfo->getNoteType();
         if (percNoteType.instrumentId != 0) {
             kitElement.set_name(percNoteType.createName(percNoteInfo->getNoteTypeOrderId()));
@@ -446,8 +461,7 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
                     const size_t sylIndex = size_t(lyr->syllable - 1); // Finale syllable numbers are 1-based.
                     auto mnxLyricLine = mnxLyricsLines.append(
                         calcLyricLineId(std::string(T::TextType::XmlNodeName), lyr->lyricNumber),
-                        lyrText->syllables[sylIndex]->syllable 
-                    );
+                        mnx::sequence::EventLyricLine::from(lyrText->syllables[sylIndex]->syllable));
                     mnxLyricLine.set_type(mnxLineTypeFromLyric(lyrText->syllables[sylIndex]));
                 }
             }
@@ -466,7 +480,8 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
 
     if (effectiveHidden) {
         /// @todo include hidden entries perhaps, if MNX starts allowing them.
-        content.append<mnx::sequence::Space>(mnxFractionFromEdu(musxEntry->duration));
+        content.append<mnx::sequence::Space>(
+            mnx::sequence::Space::from(mnxFractionFromEdu(musxEntry->duration)));
         return;
     }
 
@@ -480,7 +495,8 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     if (forTremolo && tupletDef) {
         effectiveDura = tupletDef->calcReferenceDuration().calcEduDuration();
     }
-    auto mnxEvent = content.append<mnx::sequence::Event>(mnxNoteValueFromEdu(effectiveDura));
+    auto mnxEvent = content.append<mnx::sequence::Event>(
+        mnx::sequence::Event::from(mnxNoteValueFromEdu(effectiveDura)));
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
     createLyrics(context, mnxEvent, musxEntryInfo);
     createMarkings(context, mnxEvent, musxEntry);
@@ -567,7 +583,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             throw std::logic_error("Next entry's elapsed duration value is smaller than tracked duration for sequence.");
         }
         if (currElapsedDuration > elapsedInSequence) {
-            content.append<mnx::sequence::Space>(mnxFractionFromFraction(currElapsedDuration - elapsedInSequence));
+            content.append<mnx::sequence::Space>(mnx::sequence::Space::from(mnxFractionFromFraction(currElapsedDuration - elapsedInSequence)));
             elapsedInSequence = currElapsedDuration;
         }
 
@@ -742,7 +758,7 @@ void finalizeJumpTies(const MnxMusxMappingPtr& context)
             continue;
         }
 
-        auto mnxTie = mnxTies.append(deferred.endNoteId);
+        auto mnxTie = mnxTies.append(mnx::sequence::Tie::from(deferred.endNoteId));
         mnxTie.set_targetType(mnx::TieTargetType::CrossJump);
         if (deferred.side) {
             mnxTie.set_side(deferred.side.value());

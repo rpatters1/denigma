@@ -43,7 +43,7 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
     if (!staff) {
         throw std::logic_error("Staff id " + std::to_string(staffSlot->staffId) + " does not have a Staff instance.");
     }
-    auto mnxSource = mnxStaff.sources().append(it->second);
+    auto mnxSource = mnxStaff.sources().append(mnx::layout::StaffSource::from(it->second));
     const auto& instInfo = meas->getDocument()->getInstrumentForStaff(staffSlot->staffId);
     if (instInfo.staves.size() > 0) {
         if (const auto& staffIt = instInfo.staves.find(staffSlot->staffId); staffIt != instInfo.staves.end()) {
