@@ -135,10 +135,9 @@ static void createClefs(
         if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, glyphName)) {
             auto [clefSign, octave, hideOctave] = clefInfo.value();
             int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
-            auto mnxClef = mnxMeasure.ensure_clefs().append(
-                mnx::part::PositionedClef::from(clefSign, staffPosition, octave));
+            auto mnxClef = mnxMeasure.ensure_clefs().append(clefSign, staffPosition, octave);
             if (location) {
-                mnxClef.ensure_position(mnx::RhythmicPosition::from(mnxFractionFromFraction(location)));
+                mnxClef.ensure_position(mnxFractionFromFraction(location));
             }
             if (hideOctave) {
                 mnxClef.clef().set_showOctave(false);
@@ -193,7 +192,7 @@ static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<
                                     auto fontInfo = rawTextCtx.parseFirstFontInfo();
                                     std::string dynamicText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
                                     auto mnxDynamic = mnxMeasure.ensure_dynamics().append(
-                                        mnx::part::Dynamic::from(dynamicText, mnxFractionFromEdu(asgn->eduPosition)));
+                                        dynamicText, mnxFractionFromEdu(asgn->eduPosition));
                                     if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText)) {
                                         mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
                                     }
@@ -237,11 +236,10 @@ static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<o
                     context->ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
                     if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
                         auto mnxOttava = mnxMeasure.ensure_ottavas().append(
-                            mnx::part::Ottava::from(
-                                enumConvert<mnx::OttavaAmount>(shape->shapeType),
-                                mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
-                                shape->endTermSeg->endPoint->measId,
-                                mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint)));
+                            enumConvert<mnx::OttavaAmount>(shape->shapeType),
+                            mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
+                            shape->endTermSeg->endPoint->measId,
+                            mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint));
                         mnxOttava.end().position().set_graceIndex(0);   // guarantees inclusion of any grace notes at the end of the ottava
                         if (mnxStaffNumber) {
                             mnxOttava.set_staff(mnxStaffNumber.value());
@@ -330,9 +328,8 @@ void createParts(const MnxMusxMappingPtr& context)
         auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
         if (transpositionDisp || transpositionAlt) {
             auto transposition = part.ensure_transposition(
-                mnx::part::PartTransposition::from(
-                    mnx::Interval::from(transpositionDisp,
-                                        music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt))));
+                mnx::Interval::make(transpositionDisp,
+                                    music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt)));
             if (staff->transposition && !staff->transposition->noSimplifyKey && staff->transposition->keysig) {
                 transposition.set_keyFifthsFlipAt(7 * music_theory::sign(staff->transposition->keysig->adjust));
             }

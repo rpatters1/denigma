@@ -78,7 +78,7 @@ static void createScores(const MnxMusxMappingPtr& context)
     for (const auto& linkedPart : context->musxParts) {
         auto partGlobals = context->document->getOthers()->get<others::PartGlobals>(linkedPart->getCmper(), MUSX_GLOBALS_CMPER);
         auto mnxScore = mnxDocument->ensure_scores().append(
-            mnx::Score::from(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode)));
+            linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
         if (mnxScore.name().empty()) {
             mnxScore.set_name(linkedPart->isScore()
                               ? std::string("Score")
@@ -88,7 +88,7 @@ static void createScores(const MnxMusxMappingPtr& context)
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
             auto mnxMmRest = mnxScore.ensure_multimeasureRests().append(
-                mnx::score::MultimeasureRest::from(mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures()));
+                mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
             if (!mmRest->calcIsNumberVisible()) {
                 mnxMmRest.set_label("");
             }
@@ -105,7 +105,7 @@ static void createScores(const MnxMusxMappingPtr& context)
                         throw std::logic_error("System " + std::to_string(sysId) + " on page " + std::to_string(page->getCmper())
                             + " in part " + linkedPart->getName() + " does not exist.");
                     }
-                    auto mnxSystem = mnxSystems.append(mnx::score::System::from(system->startMeas));
+                    auto mnxSystem = mnxSystems.append(system->startMeas);
                     mnxSystem.set_layout(calcSystemLayoutId(linkedPart->getCmper(), sysId));
                 }
             }
