@@ -495,8 +495,8 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     if (forTremolo && tupletDef) {
         effectiveDura = tupletDef->calcReferenceDuration().calcEduDuration();
     }
-    auto mnxEvent = content.append<mnx::sequence::Event>(
-        mnx::sequence::Event::from(mnxNoteValueFromEdu(effectiveDura)));
+    auto mnxEvent = content.append<mnx::sequence::Event>();
+    mnxEvent.ensure_duration(mnxNoteValueFromEdu(effectiveDura));
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
     createLyrics(context, mnxEvent, musxEntryInfo);
     createMarkings(context, mnxEvent, musxEntry);
