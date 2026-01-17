@@ -111,7 +111,7 @@ static void createFine(
 {
     if (auto repeatAssign = searchForJump(context, JumpType::Fine, musxMeasure)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
-        mnxMeasure.ensure_fine(mnxFractionFromFraction(location));        
+        mnxMeasure.ensure_fine(mnxFractionFromFraction(location));
     }
 }
 
@@ -128,7 +128,7 @@ static void createJump(
     for (const auto mapping : jumpMapping) {
         if (auto repeatAssign = searchForJump(context, mapping.first, musxMeasure)) {
             auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
-            mnxMeasure.ensure_jump(mapping.second, mnxFractionFromFraction(location));        
+            mnxMeasure.ensure_jump(mapping.second, mnxFractionFromFraction(location));
         }            
     }
 }

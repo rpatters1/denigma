@@ -77,7 +77,8 @@ static void createScores(const MnxMusxMappingPtr& context)
     auto& mnxDocument = context->mnxDocument;
     for (const auto& linkedPart : context->musxParts) {
         auto partGlobals = context->document->getOthers()->get<others::PartGlobals>(linkedPart->getCmper(), MUSX_GLOBALS_CMPER);
-        auto mnxScore = mnxDocument->ensure_scores().append(linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
+        auto mnxScore = mnxDocument->ensure_scores().append(
+            linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
         if (mnxScore.name().empty()) {
             mnxScore.set_name(linkedPart->isScore()
                               ? std::string("Score")
@@ -86,7 +87,8 @@ static void createScores(const MnxMusxMappingPtr& context)
         mnxScore.set_layout(calcSystemLayoutId(linkedPart->getCmper(), BASE_SYSTEM_ID));
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
-            auto mnxMmRest = mnxScore.ensure_multimeasureRests().append(mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
+            auto mnxMmRest = mnxScore.ensure_multimeasureRests().append(
+                mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
             if (!mmRest->calcIsNumberVisible()) {
                 mnxMmRest.set_label("");
             }
