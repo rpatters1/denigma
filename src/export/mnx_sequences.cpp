@@ -668,7 +668,7 @@ void createSequences(const MnxMusxMappingPtr& context,
                         if (mnxStaffNumber) {
                             sequence.set_staff(mnxStaffNumber.value());
                         }
-                        context->voice = calcVoice(layer, voice);
+                        context->voice = calcVoice(mnxStaffNumber.value_or(1), layer, voice);
                         sequence.set_voice(context->voice);
                         auto elapsedInVoice = musx::util::Fraction(0);
                         addEntryToContent(context, sequence.content(), firstEntry, elapsedInVoice, usesV1V2, false);

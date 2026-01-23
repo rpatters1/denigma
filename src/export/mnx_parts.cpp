@@ -200,7 +200,7 @@ static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<
                                         mnxDynamic.set_staff(mnxStaffNumber.value());
                                     }
                                     if (asgn->layer > 0) {
-                                        mnxDynamic.set_voice(calcVoice(asgn->layer - 1, 1));
+                                        mnxDynamic.set_voice(calcVoice(mnxStaffNumber.value_or(1), asgn->layer - 1, 1));
                                     }
                                 } else {
                                     context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, LogSeverity::Warning);
