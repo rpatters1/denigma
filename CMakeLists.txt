@@ -59,6 +59,11 @@ if(MSVC)
     add_compile_options(/bigobj) # stoopid Microsoft can't handle industrial size without holding its hand
 endif()
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
+    # Surface mnxdom warnings and fail fast so we can fix them upstream.
+    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
+
 add_compile_definitions(
     DENIGMA_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
     DENIGMA_VERSION_MINOR=${PROJECT_VERSION_MINOR}
