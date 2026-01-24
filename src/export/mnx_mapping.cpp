@@ -248,7 +248,8 @@ mnx::FractionValue mnxFractionFromEdu(Edu eduValue)
 
 mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& endPoint)
 {
-    if (auto entryInfo = endPoint->calcAssociatedEntry()) {
+    // findExact true needed for ottavas. revisit as we add other items.
+    if (auto entryInfo = endPoint->calcAssociatedEntry(/*findExact*/ true)) {
         return mnxFractionFromFraction(entryInfo->elapsedDuration);
     }
     return mnxFractionFromFraction(endPoint->calcPosition()); 
