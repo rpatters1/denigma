@@ -657,7 +657,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         if (scorePart->leftMmBracketChar == 0) {
             setElementValue(styleElement, "mmRestRangeBracketType", 2); // None
         } else if (scorePart->leftMmBracketChar == '(') {
-            setElementValue(styleElement, "mmRestRangeBracketType", 1); // Parenthesis
+            setElementValue(styleElement, "mmRestRangeBracketType", 1); // Parentheses
         } else {
             setElementValue(styleElement, "mmRestRangeBracketType", 0); // Default
         }

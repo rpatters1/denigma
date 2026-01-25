@@ -325,9 +325,12 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
     }
     auto mnxNote = mnxEvent.ensure_notes().append(
         mnx::sequence::Pitch::make(enumConvert<mnx::NoteStep>(noteName), octave, alteration));
-    if (musxNote->freezeAcci) {
+    if (musxNote->freezeAcci || musxNote->parenAcci) {
         auto acciDisp = mnxNote.ensure_accidentalDisplay(musxNote->showAcci);
-        acciDisp.set_force(true);
+        acciDisp.set_or_clear_force(musxNote->freezeAcci);
+        if (musxNote->parenAcci) {
+            acciDisp.ensure_enclosure(mnx::AccidentalEnclosureSymbol::Parentheses);
+        }
     }
     const auto musxEntry = musxNote.getEntryInfo()->getEntry();
     if (musxNote.calcIsEnharmonicRespellInAnyPart()) {
