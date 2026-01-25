@@ -163,8 +163,10 @@ static void createClefs(
             addClef(gfhold->clefId.value(), 0);
         } else {
             auto clefList = musxDocument->getOthers()->getArray<others::ClefList>(musxMeasure->getRequestedPartId(), gfhold->clefListId);
+            const auto ctx = details::GFrameHoldContext(gfhold);
             for (const auto& clefItem : clefList) {
-                addClef(clefItem->clefIndex, musx::util::Fraction::fromEdu(clefItem->xEduPos));
+                const auto location = ctx.snapLocationToEntryOrKeep(musx::util::Fraction::fromEdu(clefItem->xEduPos), /*findExact*/ true);
+                addClef(clefItem->clefIndex, location);
             }
         }
     } else if (musxMeasure->getCmper() == 1) {
