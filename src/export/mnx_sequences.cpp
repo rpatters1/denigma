@@ -31,6 +31,50 @@
 namespace denigma {
 namespace mnxexp {
 
+static void appendMeasureRemainderSpaces(mnx::ContentArray content,
+    const musx::util::Fraction& elapsedInVoice,
+    const musx::util::Fraction& measureDuration)
+{
+    const auto remaining = measureDuration - elapsedInVoice;
+    const int denom = remaining.denominator();
+    ASSERT_IF(denom <= 0) {
+        throw std::logic_error("Remaining duration has non-positive denominator.");
+    }
+    if (remaining <= 0 || (EDU_PER_WHOLE_NOTE % denom) != 0) {
+        return;
+    }
+
+    const auto eduRemaining = remaining.calcEduDuration();
+
+    std::vector<Edu> groups;
+    int mask = 1;
+    while (mask <= eduRemaining) {
+        mask <<= 1;
+    }
+    mask >>= 1;
+
+    bool inGroup = false;
+    long long groupValue = 0;
+    while (mask > 0) {
+        if (eduRemaining & mask) {
+            groupValue += mask;
+            inGroup = true;
+        } else if (inGroup) {
+            groups.push_back(static_cast<Edu>(groupValue));
+            groupValue = 0;
+            inGroup = false;
+        }
+        mask >>= 1;
+    }
+    if (inGroup) {
+        groups.push_back(static_cast<Edu>(groupValue));
+    }
+
+    for (auto it = groups.rbegin(); it != groups.rend(); ++it) {
+        content.append<mnx::sequence::Space>(mnxFractionFromEdu(*it));
+    }
+}
+
 static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int marks)
 {
     const auto& musxTuplet = tupletInfo.tuplet;
@@ -473,7 +517,7 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
     createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, musxEntry->getEntryNumber()));
 }
 
-static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content,
+static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content,
     EntryInfoPtr musxEntryInfo, bool effectiveHidden, bool hasVoice1Voice2,
     const MusxInstance<details::TupletDef>& tupletDef, bool forTremolo)
 {
@@ -482,7 +526,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     if (effectiveHidden) {
         /// @todo include hidden entries perhaps, if MNX starts allowing them.
         content.append<mnx::sequence::Space>(mnxFractionFromEdu(musxEntry->duration));
-        return;
+        return std::nullopt;
     }
 
     auto musxStaff = musxEntryInfo.createCurrentStaff();
@@ -526,6 +570,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     } else {
         createRest(context, mnxEvent, musxEntryInfo, musxStaff);
     }
+    return mnxEvent;
 }
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
@@ -628,9 +673,14 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             }
             return nullptr;
         }();
-        createEvent(context, content, next.getEntryInfo(), next.getEffectiveHidden(), hasVoice1Voice2, tupletDef, inTremolo);
 
-        elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
+        const auto addedEvent = createEvent(context, content, next.getEntryInfo(), next.getEffectiveHidden(), hasVoice1Voice2, tupletDef, inTremolo);
+
+        if (addedEvent && addedEvent->measure()) {
+            elapsedInSequence = currElapsedDuration + next.getEffectiveMeasureStaffDuration();
+        } else {
+            elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
+        }
         next = next.getNext();
         if (inGrace && next) {
             const auto nextInfo = next.getEntryInfo();
@@ -658,6 +708,7 @@ void createSequences(const MnxMusxMappingPtr& context,
         context->logMessage(LogMsg() << " skipping cues until MNX committee decides how to handle them.", LogSeverity::Verbose);
         return;
     }
+    const auto measureDuration = musxMeasure->calcDuration(staffCmper);
     const std::map<LayerIndex, int> layerVoices = gfhold.calcVoices();
     for (const auto& [layer, numV2] : layerVoices) {
         const int maxVoices = numV2 ? 2 : 1;
@@ -675,6 +726,7 @@ void createSequences(const MnxMusxMappingPtr& context,
                         sequence.set_voice(context->voice);
                         auto elapsedInVoice = musx::util::Fraction(0);
                         addEntryToContent(context, sequence.content(), firstEntry, elapsedInVoice, usesV1V2, false);
+                        appendMeasureRemainderSpaces(sequence.content(), elapsedInVoice, measureDuration);
                         context->voice.clear();
                     }
                 }
