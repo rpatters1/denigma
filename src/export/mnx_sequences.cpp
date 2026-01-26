@@ -230,38 +230,12 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
                 if (shape->startTermSeg->endPoint->entryNumber != musxEntry->getEntryNumber()) {
                     continue;
                 }
-                std::optional<mnx::SlurTieSide> side;
-                mnx::LineType lineType = mnx::LineType::Solid;
-                switch (shape->shapeType) {
-                    default:
-                        continue;
-                    case others::SmartShape::ShapeType::SlurAuto:
-                        break;
-                    case others::SmartShape::ShapeType::DashSlurAuto:
-                    case others::SmartShape::ShapeType::DashContourSlurAuto:
-                        lineType = mnx::LineType::Dashed;
-                        break;
-                    case others::SmartShape::ShapeType::SlurUp:
-                        side = mnx::SlurTieSide::Up;
-                        break;
-                    case others::SmartShape::ShapeType::DashSlurUp:
-                    case others::SmartShape::ShapeType::DashContourSlurUp:
-                        lineType = mnx::LineType::Dashed;
-                        side = mnx::SlurTieSide::Up;
-                        break;
-                    case others::SmartShape::ShapeType::SlurDown:
-                        side = mnx::SlurTieSide::Down;
-                        break;
-                    case others::SmartShape::ShapeType::DashSlurDown:
-                    case others::SmartShape::ShapeType::DashContourSlurDown:
-                        lineType = mnx::LineType::Dashed;
-                        side = mnx::SlurTieSide::Down;
-                        break;
-                }
-                auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
-                mnxSlur.set_lineType(lineType);
-                if (side) {
-                    mnxSlur.set_side(side.value());
+                if (shape->calcIsSlur()) {
+                    auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
+                    mnxSlur.set_lineType(shape->calcIsDashed() ? mnx::LineType::Dashed : mnx::LineType::Solid);
+                    if (auto contourDir = shape->calcContourDirection(); contourDir != CurveContourDirection::Auto) {
+                        mnxSlur.set_side(contourDir == CurveContourDirection::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+                    }
                 }
             }
         }
