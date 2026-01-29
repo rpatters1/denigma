@@ -39,7 +39,8 @@ static void createBeams(
 {
     const auto& musxDocument = musxMeasure->getDocument();
     const auto mnxMeasures = mnxMeasure.parent<mnx::Array<mnx::part::Measure>>();
-    if (auto gfhold = details::GFrameHoldContext(musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper())) {
+    const auto partId = musxMeasure->getRequestedPartId();
+    if (auto gfhold = details::GFrameHoldContext(musxDocument, partId, staffCmper, musxMeasure->getCmper())) {
         if (gfhold.calcIsCuesOnly()) {
             return; // skip cues until MNX spec includes them
         }
@@ -48,7 +49,8 @@ static void createBeams(
                 assert(firstInBeam.calcLowestBeamStart(/*considerBeamOverBarlines*/true) <= beamNumber);
                 auto beam = mnxBeams.append();
                 for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars(EntryInfoPtr::BeamIterationMode::Interpreted)) {
-                    const EntryNumber entryNumber = next->getEntry()->getEntryNumber();
+                    const auto entry = next->getEntry();
+                    const EntryNumber entryNumber = entry->getEntryNumber();
                     context->beamedEntries.emplace(entryNumber);
                     beam.events().push_back(calcEventId(entryNumber));
                     if (unsigned lowestBeamStart = next.calcLowestBeamStart(/*considerBeamOverBarlines*/true)) {
@@ -57,11 +59,14 @@ static void createBeams(
                         if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
                             auto hookBeam = beam.ensure_beams().append();
                             hookBeam.events().push_back(calcEventId(entryNumber));
-                            /// @todo only specify direction if hookDir is manually overridden
-                            mnx::BeamHookDirection hookDir = next.calcBeamStubIsLeft()
-                                ? mnx::BeamHookDirection::Left
-                                : mnx::BeamHookDirection::Right;
-                            hookBeam.set_direction(hookDir);
+                            if (entry->stemDetail) {
+                                if (auto manual = musxDocument->getDetails()->get<details::BeamStubDirection>(partId, entryNumber)) {
+                                    mnx::BeamHookDirection hookDir = manual->isLeft()
+                                                                     ? mnx::BeamHookDirection::Left
+                                                                     : mnx::BeamHookDirection::Right;
+                                    hookBeam.set_direction(hookDir);
+                                }
+                            }
                         } else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
                             self(beam.ensure_beams(), nextBeamNumber, next, self);
                         }
