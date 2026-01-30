@@ -163,7 +163,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
         auto mnxTie = mnxTies.append();
         mnxTie.set_target(calcNoteId(tiedTo));
         mnxTie.set_targetType(mnx::TieTargetType::Arpeggio);
-        if (tieDirection != Curve::Auto) {
+        if (tieDirection != Curve::Unspecified) {
             mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
         tieCreated = true;
@@ -172,7 +172,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
         auto mnxTies = mnxNote.ensure_ties();
         auto mnxTie = mnxTies.append();
         mnxTie.set_lv(true);
-        if (tieDirection != Curve::Auto) {
+        if (tieDirection != Curve::Unspecified) {
             mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
     }
@@ -209,7 +209,7 @@ static void deferJumpTies(const MnxMusxMappingPtr& context, const NoteInfoPtr& m
             endNoteId,
             std::nullopt
         };
-        if (direction != CurveContourDirection::Auto) {
+        if (direction != CurveContourDirection::Unspecified) {
             deferred.side = (direction == CurveContourDirection::Up) ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down;
         }
         context->deferredJumpTies.push_back(std::move(deferred));
@@ -233,7 +233,7 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
                 if (shape->calcIsSlur()) {
                     auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
                     mnxSlur.set_lineType(shape->calcIsDashed() ? mnx::LineType::Dashed : mnx::LineType::Solid);
-                    if (auto contourDir = shape->calcContourDirection(); contourDir != CurveContourDirection::Auto) {
+                    if (auto contourDir = shape->calcContourDirection(); contourDir != CurveContourDirection::Unspecified) {
                         mnxSlur.set_side(contourDir == CurveContourDirection::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
                     }
                 }
