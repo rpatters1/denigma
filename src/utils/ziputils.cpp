@@ -44,6 +44,11 @@ struct ZipEntryInfo {
     unz_file_info64 info{};
 };
 
+static std::string toUtf8String(const std::filesystem::path& path)
+{
+    return path.u8string();
+}
+
 static unzFile openZipForRead(const std::filesystem::path& zipFilePath, const DenigmaContext& denigmaContext)
 {
 #ifdef _WIN32
@@ -52,7 +57,7 @@ static unzFile openZipForRead(const std::filesystem::path& zipFilePath, const De
     const std::wstring widePath = zipFilePath.wstring();
     unzFile zip = unzOpen2_64(widePath.c_str(), &fileFuncs);
 #else
-    const std::string utf8Path = zipFilePath.u8string();
+    const std::string utf8Path = toUtf8String(zipFilePath);
     unzFile zip = unzOpen64(utf8Path.c_str());
 #endif
 
@@ -71,7 +76,7 @@ static zipFile openZipForWrite(const std::filesystem::path& outputPath)
     const std::wstring widePath = outputPath.wstring();
     return zipOpen2_64(widePath.c_str(), APPEND_STATUS_CREATE, nullptr, &fileFuncs);
 #else
-    const std::string utf8Path = outputPath.u8string();
+    const std::string utf8Path = toUtf8String(outputPath);
     return zipOpen64(utf8Path.c_str(), APPEND_STATUS_CREATE);
 #endif
 }
