@@ -57,13 +57,6 @@ if(MSVC)
     add_compile_options(/Zc:__cplusplus) # force MSVC to report correct c++ version
     add_compile_options(/DNOMINMAX) # do not use min and max macros from Win32
     add_compile_options(/bigobj) # stoopid Microsoft can't handle industrial size without holding its hand
-else()
-    add_compile_options(-Wno-c++20-extensions)
-endif()
-
-if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
-    # Surface mnxdom warnings and fail fast so we can fix them upstream.
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
 add_compile_definitions(
@@ -275,6 +268,11 @@ target_link_libraries(denigma PRIVATE
     musx
     smufl_mapping
 )
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
+    # Keep strict warnings for denigma code without applying them to fetched dependencies.
+    target_compile_options(denigma PRIVATE -Wno-c++20-extensions -Wall -Wextra -Wpedantic -Werror)
+endif()
 
 # Define an interface library for precompiled headers
 add_library(denigma_pch INTERFACE)
