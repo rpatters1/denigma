@@ -56,6 +56,7 @@ constexpr auto outputProcessors = []() {
     };
 
     return to_array<OutputProcessor>({
+            { MUSX_EXTENSION, enigmaxml::writeMusx },
             { ENIGMAXML_EXTENSION, enigmaxml::write },
             { MSS_EXTENSION, mss::convert },
             { MNX_EXTENSION, mnxexp::exportMnx },
@@ -69,9 +70,12 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     // Print usage
     std::cout << indentSpaces << "Exports other formats from Finale files. This is the default command." << std::endl;
     std::cout << indentSpaces << "Currently it can export" << std::endl;
+    std::cout << indentSpaces << "  musx:       Finale-readable musx file from enigmaxml" << std::endl;
     std::cout << indentSpaces << "  enigmaxml:  the internal xml representation of musx" << std::endl;
     std::cout << indentSpaces << "  mss:        the Styles format for MuseScore" << std::endl;
     std::cout << indentSpaces << "  mnx:        MNX open standard files (currently in development)" << std::endl;
+    std::cout << indentSpaces << "Note: reverse export to musx is intended for small test cases" << std::endl;
+    std::cout << indentSpaces << "      and does not restore ancillary files (for example embedded graphics or audio)." << std::endl;
     std::cout << std::endl;
     std::cout << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
     std::cout << std::endl;

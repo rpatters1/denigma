@@ -159,6 +159,18 @@ TEST(Options, ParseOptions)
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
         });
     }
+    {
+        static const std::string fileName = "notAscii-其れ";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".enigmaxml" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".enigmaxml") << "utf-8 encoding check";
+        EXPECT_FALSE(ctx.logFilePath.has_value());
+        checkStderr({ "Reading " + fileName + ".enigmaxml", "Writing", fileName + ".musx" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "default enigmaxml output format";
+        });
+    }
 }
 
 TEST(Options, MassageOptions)

@@ -20,12 +20,14 @@
  * THE SOFTWARE.
  */
 #include <string>
+#include <ctime>
 #include <filesystem>
 #include <iterator>
 
 #include "gtest/gtest.h"
 #include "denigma.h"
 #include "test_utils.h"
+#include "unzip.h"
 
 using namespace denigma;
 
@@ -252,4 +254,80 @@ TEST(Export, NoCommandSimplestForm)
     checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputPath.u8string();
     });
+}
+
+TEST(Export, ReverseMusxTimestamp)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputMusxPath;
+    copyInputToOutput("pageDiffThanOpts.musx", inputMusxPath);
+
+    std::filesystem::path enigmaxmlPath = getOutputPath() / "pageDiffThanOpts.enigmaxml";
+    {
+        ArgList args = { DENIGMA_NAME, "export", inputMusxPath.u8string(), "--enigmaxml", "--force" };
+        checkStderr({ "Processing", inputMusxPath.filename().u8string() }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << inputMusxPath.u8string();
+        });
+    }
+
+    std::filesystem::path reverseMusxPath = getOutputPath() / "-exports" / "pageDiffThanOpts.rev.musx";
+    {
+        ArgList args = { DENIGMA_NAME, "export", enigmaxmlPath.u8string(), "--musx", "-exports/pageDiffThanOpts.rev.musx", "--force" };
+        checkStderr({ "Processing", enigmaxmlPath.filename().u8string() }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << reverseMusxPath.u8string();
+        });
+    }
+
+    ASSERT_TRUE(std::filesystem::exists(reverseMusxPath));
+
+    const std::string zipPath = reverseMusxPath.u8string();
+    unzFile zip = unzOpen64(zipPath.c_str());
+    ASSERT_NE(zip, nullptr) << "unable to open " << zipPath;
+
+    int rc = unzLocateFile(zip, "score.dat", 1);
+    ASSERT_EQ(rc, UNZ_OK) << "unable to locate score.dat in " << zipPath;
+
+    unz_file_info64 fileInfo{};
+    rc = unzGetCurrentFileInfo64(zip, &fileInfo, nullptr, 0, nullptr, 0, nullptr, 0);
+    ASSERT_EQ(rc, UNZ_OK) << "unable to read score.dat metadata in " << zipPath;
+    unzClose(zip);
+
+    std::time_t now = std::time(nullptr);
+    std::tm localNow{};
+#ifdef _WIN32
+    localtime_s(&localNow, &now);
+#else
+    localtime_r(&now, &localNow);
+#endif
+
+    EXPECT_GE(fileInfo.tmu_date.tm_year, localNow.tm_year + 1900 - 1);
+    EXPECT_LE(fileInfo.tmu_date.tm_year, localNow.tm_year + 1900 + 1);
+    EXPECT_GE(fileInfo.tmu_date.tm_mon, 0);
+    EXPECT_LE(fileInfo.tmu_date.tm_mon, 11);
+    EXPECT_GE(fileInfo.tmu_date.tm_mday, 1);
+    EXPECT_LE(fileInfo.tmu_date.tm_mday, 31);
+}
+
+TEST(Export, ReverseDefaultOutputMusx)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputEnigmaxmlPath;
+    copyInputToOutput("reference/notAscii-其れ.enigmaxml", inputEnigmaxmlPath);
+
+    std::filesystem::path defaultMusxOutputPath = inputEnigmaxmlPath;
+    defaultMusxOutputPath.replace_extension(".musx");
+    {
+        ArgList args = { DENIGMA_NAME, inputEnigmaxmlPath.u8string(), "--force" };
+        checkStderr({ "Processing", inputEnigmaxmlPath.filename().u8string(), defaultMusxOutputPath.filename().u8string() }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "default reverse output from " << inputEnigmaxmlPath.u8string();
+        });
+    }
+    ASSERT_TRUE(std::filesystem::exists(defaultMusxOutputPath));
+    {
+        ArgList args = { DENIGMA_NAME, defaultMusxOutputPath.u8string(), "--force" };
+        checkStderr({ "Processing", defaultMusxOutputPath.filename().u8string(), inputEnigmaxmlPath.filename().u8string() }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "default forward output from " << defaultMusxOutputPath.u8string();
+        });
+    }
+    ASSERT_TRUE(std::filesystem::exists(inputEnigmaxmlPath));
 }

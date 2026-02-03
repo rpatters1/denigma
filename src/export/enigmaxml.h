@@ -33,6 +33,7 @@ namespace enigmaxml {
 Buffer extract(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
 Buffer read(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
 void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
+void writeMusx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
 
 } // namespace enigmaxml
 } // namespace denigma
