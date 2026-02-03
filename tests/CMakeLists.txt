@@ -46,14 +46,13 @@ if(denigma_BUILD_TESTING)
     target_include_directories(denigma_tests PRIVATE
         ${CMAKE_SOURCE_DIR}/src       # Source files
         ${CMAKE_CURRENT_SOURCE_DIR}   # base test directory
-        ${FETCHCONTENT_BASE_DIR}/ezgz-src
-        ${FETCHCONTENT_BASE_DIR}/miniz-cpp-src
         ${GENERATED_DIR}              # Generated files
     )
 
     # Link libraries used by denigma
     target_link_libraries(denigma_tests PRIVATE
         denigma_pch                   # Precompiled headers
+        denigma_minizip
         pugixml
         mnxdom
         musx

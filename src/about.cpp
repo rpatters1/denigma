@@ -25,12 +25,8 @@ namespace denigma {
 #include "denigma_license.xxd"
 }
 
-namespace ezgz {
-#include "ezgz_license.xxd"
-}
-
-namespace miniz_cpp {
-#include "miniz_cpp_license.xxd"
+namespace zlib {
+#include "zlib_license.xxd"
 }
 
 namespace mnxdom {
@@ -50,20 +46,18 @@ namespace pugixml {
 }
 
 static const std::basic_string_view<unsigned char> denigmaLicense(denigma::LICENSE, denigma::LICENSE_len);
-static const std::basic_string_view<unsigned char> ezgzLicense(ezgz::LICENSE, ezgz::LICENSE_len);
-static const std::basic_string_view<unsigned char> minizLicense(miniz_cpp::LICENSE_md, miniz_cpp::LICENSE_md_len);
+static const std::basic_string_view<unsigned char> zlibLicense(zlib::LICENSE, zlib::LICENSE_len);
 static const std::basic_string_view<unsigned char> mnxLicense(mnxdom::LICENSE, mnxdom::LICENSE_len);
 static const std::basic_string_view<unsigned char> musxLicense(musx::LICENSE, musx::LICENSE_len);
 static const std::basic_string_view<unsigned char> smuflLicense(smufl_mapping::LICENSE, smufl_mapping::LICENSE_len);
 static const std::basic_string_view<unsigned char> pugixmlLicense(pugixml::LICENSE_md, pugixml::LICENSE_md_len);
 
-static const std::array<std::pair<std::string_view, std::basic_string_view<unsigned char>>, 7> licenses = {{
+static const std::array<std::pair<std::string_view, std::basic_string_view<unsigned char>>, 6> licenses = {{
     { "denigma", denigmaLicense },
     { "musx object model", musxLicense },
     { "mnx object model", mnxLicense },
     { "SMuFL mapping", smuflLicense },
-    { "EzGz", ezgzLicense },
-    { "miniz-cpp", minizLicense },
+    { "zlib", zlibLicense },
     { "pugixml", pugixmlLicense }
 }};
 

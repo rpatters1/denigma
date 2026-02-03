@@ -90,16 +90,6 @@ set(BUILD_TESTING OFF CACHE BOOL "Disable testing for external dependencies" FOR
 set(_original_WARN_DEPRECATED ${CMAKE_WARN_DEPRECATED})
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Suppress deprecation warnings for external projects" FORCE)
 
-# Fetch EzGz
-FetchContent_Declare(
-    EzGz
-    GIT_REPOSITORY https://github.com/Dugy/EzGz.git
-    GIT_TAG 9229cb8fabe28470eb0b74798cadcdbdb5e72c6d
-    SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
-    # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
-)
-FetchContent_MakeAvailable(EzGz)
-
 # Disable building tests for pugixml
 set(PUGIXML_BUILD_TESTS OFF CACHE BOOL "Do not build tests for pugixml")
 # Fetch pugixml
@@ -110,16 +100,39 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pugixml)
 
-# Fetch miniz-cpp
+# Fetch zlib
+set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "Do not build zlib examples")
 FetchContent_Declare(
-    miniz-cpp
-    GIT_REPOSITORY https://github.com/rpatters1/miniz-cpp.git  #Use my fork until/unless PR #27 is merged on the upstream repo
-    GIT_TAG        3097a4b80528ebad5a51cd9315a39a9b5fa12e54
+    zlib
+    URL https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
+    URL_HASH SHA256=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    SOURCE_SUBDIR not_a_directory # this is a hack to prevent FetchContent_Declare from running the fetched content cmake.
-    # see https://stackoverflow.com/questions/79261625/cmake-fetchcontent-with-header-only-project/79261858#79261858
 )
-FetchContent_MakeAvailable(miniz-cpp)
+FetchContent_MakeAvailable(zlib)
+
+if(TARGET zlibstatic)
+    set(_denigma_zlib_target zlibstatic)
+elseif(TARGET zlib)
+    set(_denigma_zlib_target zlib)
+elseif(TARGET ZLIB::ZLIB)
+    set(_denigma_zlib_target ZLIB::ZLIB)
+else()
+    message(FATAL_ERROR "Unable to determine zlib target name after FetchContent_MakeAvailable(zlib).")
+endif()
+message(STATUS "Using zlib target: ${_denigma_zlib_target}")
+
+set(_denigma_minizip_sources
+    "${zlib_SOURCE_DIR}/contrib/minizip/ioapi.c"
+    "${zlib_SOURCE_DIR}/contrib/minizip/unzip.c"
+    "${zlib_SOURCE_DIR}/contrib/minizip/zip.c"
+)
+if(WIN32)
+    list(APPEND _denigma_minizip_sources "${zlib_SOURCE_DIR}/contrib/minizip/iowin32.c")
+endif()
+
+add_library(denigma_minizip STATIC ${_denigma_minizip_sources})
+target_include_directories(denigma_minizip PUBLIC "${zlib_SOURCE_DIR}/contrib/minizip")
+target_link_libraries(denigma_minizip PUBLIC ${_denigma_zlib_target})
 
 include(cmake/Dependencies.cmake) # GitHub branches/tags for MNX and MUSX
 
@@ -261,13 +274,13 @@ endif()
 
 # Ensure the include directories are added
 add_dependencies(denigma GenerateLicenseXxd)
-target_include_directories(denigma PRIVATE  "${FETCHCONTENT_BASE_DIR}/ezgz-src")
-target_include_directories(denigma SYSTEM PRIVATE  "${FETCHCONTENT_BASE_DIR}/miniz-cpp-src")
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
 target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # Ensure the libraries are added
 target_link_libraries(denigma PRIVATE
+    denigma_minizip
+    ${_denigma_zlib_target}
     pugixml
     mnxdom
     musx
