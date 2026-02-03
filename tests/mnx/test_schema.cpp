@@ -34,7 +34,8 @@ TEST(Schema, InputSchemaValid)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("notAscii-其れ.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx", "--mnx-schema", (getInputPath() / "mnx" / "mnx-schema.json").u8string() };
+    const std::filesystem::path schemaPath = MNX_W3C_SCHEMA_PATH;
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx", "--mnx-schema", schemaPath.u8string() };
     checkStderr({ "Processing", inputPath.filename().u8string(), "!Schema validation errors" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "validate " << inputPath.u8string();
     });

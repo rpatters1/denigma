@@ -39,7 +39,8 @@ static void createBeams(
 {
     const auto& musxDocument = musxMeasure->getDocument();
     const auto mnxMeasures = mnxMeasure.parent<mnx::Array<mnx::part::Measure>>();
-    if (auto gfhold = details::GFrameHoldContext(musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper())) {
+    const auto partId = musxMeasure->getRequestedPartId();
+    if (auto gfhold = details::GFrameHoldContext(musxDocument, partId, staffCmper, musxMeasure->getCmper())) {
         if (gfhold.calcIsCuesOnly()) {
             return; // skip cues until MNX spec includes them
         }
@@ -48,7 +49,8 @@ static void createBeams(
                 assert(firstInBeam.calcLowestBeamStart(/*considerBeamOverBarlines*/true) <= beamNumber);
                 auto beam = mnxBeams.append();
                 for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars(EntryInfoPtr::BeamIterationMode::Interpreted)) {
-                    const EntryNumber entryNumber = next->getEntry()->getEntryNumber();
+                    const auto entry = next->getEntry();
+                    const EntryNumber entryNumber = entry->getEntryNumber();
                     context->beamedEntries.emplace(entryNumber);
                     beam.events().push_back(calcEventId(entryNumber));
                     if (unsigned lowestBeamStart = next.calcLowestBeamStart(/*considerBeamOverBarlines*/true)) {
@@ -57,11 +59,14 @@ static void createBeams(
                         if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
                             auto hookBeam = beam.ensure_beams().append();
                             hookBeam.events().push_back(calcEventId(entryNumber));
-                            /// @todo only specify direction if hookDir is manually overridden
-                            mnx::BeamHookDirection hookDir = next.calcBeamStubIsLeft()
-                                ? mnx::BeamHookDirection::Left
-                                : mnx::BeamHookDirection::Right;
-                            hookBeam.set_direction(hookDir);
+                            if (entry->stemDetail) {
+                                if (auto manual = musxDocument->getDetails()->get<details::BeamStubDirection>(partId, entryNumber)) {
+                                    mnx::BeamHookDirection hookDir = manual->isLeft()
+                                                                     ? mnx::BeamHookDirection::Left
+                                                                     : mnx::BeamHookDirection::Right;
+                                    hookBeam.set_direction(hookDir);
+                                }
+                            }
                         } else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
                             self(beam.ensure_beams(), nextBeamNumber, next, self);
                         }
@@ -163,8 +168,10 @@ static void createClefs(
             addClef(gfhold->clefId.value(), 0);
         } else {
             auto clefList = musxDocument->getOthers()->getArray<others::ClefList>(musxMeasure->getRequestedPartId(), gfhold->clefListId);
+            const auto ctx = details::GFrameHoldContext(gfhold);
             for (const auto& clefItem : clefList) {
-                addClef(clefItem->clefIndex, musx::util::Fraction::fromEdu(clefItem->xEduPos));
+                const auto location = ctx.snapLocationToEntryOrKeep(musx::util::Fraction::fromEdu(clefItem->xEduPos), /*findExact*/ true);
+                addClef(clefItem->clefIndex, location);
             }
         }
     } else if (musxMeasure->getCmper() == 1) {
@@ -200,7 +207,7 @@ static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<
                                         mnxDynamic.set_staff(mnxStaffNumber.value());
                                     }
                                     if (asgn->layer > 0) {
-                                        mnxDynamic.set_voice(calcVoice(asgn->layer - 1, 1));
+                                        mnxDynamic.set_voice(calcVoice(mnxStaffNumber.value_or(1), asgn->layer - 1, 1));
                                     }
                                 } else {
                                     context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, LogSeverity::Warning);

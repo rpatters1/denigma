@@ -121,9 +121,9 @@ inline std::string calcNoteId(const NoteInfoPtr& noteInfo)
     return calcEventId(noteInfo.getEntryInfo()->getEntry()->getEntryNumber()) + "n" + std::to_string(noteInfo->getNoteId());
 }
 
-inline std::string calcVoice(LayerIndex idx, int voice)
+inline std::string calcVoice(int partStaffNum, LayerIndex idx, int voice)
 {
-    std::string result = "layer" + std::to_string(idx + 1);
+    std::string result = "s" + std::to_string(partStaffNum) + "layer" + std::to_string(idx + 1);
     if (voice > 1) {
         result += "v" + std::to_string(voice);
     }

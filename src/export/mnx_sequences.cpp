@@ -31,6 +31,50 @@
 namespace denigma {
 namespace mnxexp {
 
+static void appendMeasureRemainderSpaces(mnx::ContentArray content,
+    const musx::util::Fraction& elapsedInVoice,
+    const musx::util::Fraction& measureDuration)
+{
+    const auto remaining = measureDuration - elapsedInVoice;
+    const int denom = remaining.denominator();
+    ASSERT_IF(denom <= 0) {
+        throw std::logic_error("Remaining duration has non-positive denominator.");
+    }
+    if (remaining <= 0 || (EDU_PER_WHOLE_NOTE % denom) != 0) {
+        return;
+    }
+
+    const auto eduRemaining = remaining.calcEduDuration();
+
+    std::vector<Edu> groups;
+    int mask = 1;
+    while (mask <= eduRemaining) {
+        mask <<= 1;
+    }
+    mask >>= 1;
+
+    bool inGroup = false;
+    long long groupValue = 0;
+    while (mask > 0) {
+        if (eduRemaining & mask) {
+            groupValue += mask;
+            inGroup = true;
+        } else if (inGroup) {
+            groups.push_back(static_cast<Edu>(groupValue));
+            groupValue = 0;
+            inGroup = false;
+        }
+        mask >>= 1;
+    }
+    if (inGroup) {
+        groups.push_back(static_cast<Edu>(groupValue));
+    }
+
+    for (auto it = groups.rbegin(); it != groups.rend(); ++it) {
+        content.append<mnx::sequence::Space>(mnxFractionFromEdu(*it));
+    }
+}
+
 static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int marks)
 {
     const auto& musxTuplet = tupletInfo.tuplet;
@@ -119,7 +163,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
         auto mnxTie = mnxTies.append();
         mnxTie.set_target(calcNoteId(tiedTo));
         mnxTie.set_targetType(mnx::TieTargetType::Arpeggio);
-        if (tieDirection != Curve::Auto) {
+        if (tieDirection != Curve::Unspecified) {
             mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
         tieCreated = true;
@@ -128,7 +172,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
         auto mnxTies = mnxNote.ensure_ties();
         auto mnxTie = mnxTies.append();
         mnxTie.set_lv(true);
-        if (tieDirection != Curve::Auto) {
+        if (tieDirection != Curve::Unspecified) {
             mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
     }
@@ -165,7 +209,7 @@ static void deferJumpTies(const MnxMusxMappingPtr& context, const NoteInfoPtr& m
             endNoteId,
             std::nullopt
         };
-        if (direction != CurveContourDirection::Auto) {
+        if (direction != CurveContourDirection::Unspecified) {
             deferred.side = (direction == CurveContourDirection::Up) ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down;
         }
         context->deferredJumpTies.push_back(std::move(deferred));
@@ -186,38 +230,12 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
                 if (shape->startTermSeg->endPoint->entryNumber != musxEntry->getEntryNumber()) {
                     continue;
                 }
-                std::optional<mnx::SlurTieSide> side;
-                mnx::LineType lineType = mnx::LineType::Solid;
-                switch (shape->shapeType) {
-                    default:
-                        continue;
-                    case others::SmartShape::ShapeType::SlurAuto:
-                        break;
-                    case others::SmartShape::ShapeType::DashSlurAuto:
-                    case others::SmartShape::ShapeType::DashContourSlurAuto:
-                        lineType = mnx::LineType::Dashed;
-                        break;
-                    case others::SmartShape::ShapeType::SlurUp:
-                        side = mnx::SlurTieSide::Up;
-                        break;
-                    case others::SmartShape::ShapeType::DashSlurUp:
-                    case others::SmartShape::ShapeType::DashContourSlurUp:
-                        lineType = mnx::LineType::Dashed;
-                        side = mnx::SlurTieSide::Up;
-                        break;
-                    case others::SmartShape::ShapeType::SlurDown:
-                        side = mnx::SlurTieSide::Down;
-                        break;
-                    case others::SmartShape::ShapeType::DashSlurDown:
-                    case others::SmartShape::ShapeType::DashContourSlurDown:
-                        lineType = mnx::LineType::Dashed;
-                        side = mnx::SlurTieSide::Down;
-                        break;
-                }
-                auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
-                mnxSlur.set_lineType(lineType);
-                if (side) {
-                    mnxSlur.set_side(side.value());
+                if (shape->calcIsSlur()) {
+                    auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
+                    mnxSlur.set_lineType(shape->calcIsDashed() ? mnx::LineType::Dashed : mnx::LineType::Solid);
+                    if (auto contourDir = shape->calcContourDirection(); contourDir != CurveContourDirection::Unspecified) {
+                        mnxSlur.set_side(contourDir == CurveContourDirection::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+                    }
                 }
             }
         }
@@ -325,9 +343,12 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
     }
     auto mnxNote = mnxEvent.ensure_notes().append(
         mnx::sequence::Pitch::make(enumConvert<mnx::NoteStep>(noteName), octave, alteration));
-    if (musxNote->freezeAcci) {
+    if (musxNote->freezeAcci || musxNote->parenAcci) {
         auto acciDisp = mnxNote.ensure_accidentalDisplay(musxNote->showAcci);
-        acciDisp.set_force(true);
+        acciDisp.set_or_clear_force(musxNote->freezeAcci);
+        if (musxNote->parenAcci) {
+            acciDisp.ensure_enclosure(mnx::AccidentalEnclosureSymbol::Parentheses);
+        }
     }
     const auto musxEntry = musxNote.getEntryInfo()->getEntry();
     if (musxNote.calcIsEnharmonicRespellInAnyPart()) {
@@ -470,7 +491,7 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
     createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, musxEntry->getEntryNumber()));
 }
 
-static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content,
+static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content,
     EntryInfoPtr musxEntryInfo, bool effectiveHidden, bool hasVoice1Voice2,
     const MusxInstance<details::TupletDef>& tupletDef, bool forTremolo)
 {
@@ -479,7 +500,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     if (effectiveHidden) {
         /// @todo include hidden entries perhaps, if MNX starts allowing them.
         content.append<mnx::sequence::Space>(mnxFractionFromEdu(musxEntry->duration));
-        return;
+        return std::nullopt;
     }
 
     auto musxStaff = musxEntryInfo.createCurrentStaff();
@@ -523,6 +544,7 @@ static void createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray cont
     } else {
         createRest(context, mnxEvent, musxEntryInfo, musxStaff);
     }
+    return mnxEvent;
 }
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
@@ -625,9 +647,14 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             }
             return nullptr;
         }();
-        createEvent(context, content, next.getEntryInfo(), next.getEffectiveHidden(), hasVoice1Voice2, tupletDef, inTremolo);
 
-        elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
+        const auto addedEvent = createEvent(context, content, next.getEntryInfo(), next.getEffectiveHidden(), hasVoice1Voice2, tupletDef, inTremolo);
+
+        if (addedEvent && addedEvent->measure()) {
+            elapsedInSequence = currElapsedDuration + next.getEffectiveMeasureStaffDuration();
+        } else {
+            elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
+        }
         next = next.getNext();
         if (inGrace && next) {
             const auto nextInfo = next.getEntryInfo();
@@ -655,6 +682,7 @@ void createSequences(const MnxMusxMappingPtr& context,
         context->logMessage(LogMsg() << " skipping cues until MNX committee decides how to handle them.", LogSeverity::Verbose);
         return;
     }
+    const auto measureDuration = musxMeasure->calcDuration(staffCmper);
     const std::map<LayerIndex, int> layerVoices = gfhold.calcVoices();
     for (const auto& [layer, numV2] : layerVoices) {
         const int maxVoices = numV2 ? 2 : 1;
@@ -668,10 +696,11 @@ void createSequences(const MnxMusxMappingPtr& context,
                         if (mnxStaffNumber) {
                             sequence.set_staff(mnxStaffNumber.value());
                         }
-                        context->voice = calcVoice(layer, voice);
+                        context->voice = calcVoice(mnxStaffNumber.value_or(1), layer, voice);
                         sequence.set_voice(context->voice);
                         auto elapsedInVoice = musx::util::Fraction(0);
                         addEntryToContent(context, sequence.content(), firstEntry, elapsedInVoice, usesV1V2, false);
+                        appendMeasureRemainderSpaces(sequence.content(), elapsedInVoice, measureDuration);
                         context->voice.clear();
                     }
                 }
