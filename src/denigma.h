@@ -99,8 +99,15 @@ using LogMsg = std::stringstream;
 
 struct CommandInputData
 {
+    struct EmbeddedGraphicFile
+    {
+        std::string filename;
+        std::string blob;
+    };
+
     Buffer primaryBuffer;
     std::optional<Buffer> notationMetadata;
+    std::vector<EmbeddedGraphicFile> embeddedGraphics;
 };
 
 // Function to find the appropriate processor

@@ -906,11 +906,7 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
     }
 #endif
 
-    musx::factory::DocumentFactory::CreateOptions createOptions;
-    if (inputData.notationMetadata.has_value()) {
-        createOptions.setNotationMetadata(*inputData.notationMetadata);
-    }
-    auto document = musx::factory::DocumentFactory::create<MusxReader>(inputData.primaryBuffer, createOptions);
+    auto document = musx::factory::DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
         processPart(outputPath, document, denigmaContext); // process the score
     }

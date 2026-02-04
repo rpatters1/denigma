@@ -141,7 +141,18 @@ void exportJson(const std::filesystem::path& outputPath, const CommandInputData&
     if (inputData.notationMetadata.has_value()) {
         createOptions.setNotationMetadata(*inputData.notationMetadata);
     }
-    auto document = musx::factory::DocumentFactory::create<MusxReader>(inputData.primaryBuffer, createOptions);
+    if (!inputData.embeddedGraphics.empty()) {
+        musx::factory::DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
+        embeddedGraphicFiles.reserve(inputData.embeddedGraphics.size());
+        for (const auto& graphic : inputData.embeddedGraphics) {
+            musx::factory::DocumentFactory::CreateOptions::EmbeddedGraphicFile file;
+            file.filename = graphic.filename;
+            file.bytes.assign(graphic.blob.begin(), graphic.blob.end());
+            embeddedGraphicFiles.emplace_back(std::move(file));
+        }
+        createOptions.setEmbeddedGraphics(std::move(embeddedGraphicFiles));
+    }
+    auto document = musx::factory::DocumentFactory::create<MusxReader>(inputData.primaryBuffer, std::move(createOptions));
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
     context->musxParts = others::PartDefinition::getInUserOrder(document);

@@ -42,7 +42,65 @@ namespace {
 struct ZipEntryInfo {
     std::string filename;
     unz_file_info64 info{};
+    bool isDirectory{};
+    bool isFile{};
+    bool isSymLink{};
 };
+
+enum HostOS : unsigned {
+    HostFAT = 0,
+    HostUnix = 3,
+    HostHPFS = 6,
+    HostNTFS = 11,
+    HostVFAT = 14,
+    HostOSX = 19
+};
+
+namespace WindowsFileAttributes {
+enum : unsigned {
+    Dir = 0x10,
+    TypeMask = 0x90
+};
+}
+
+namespace UnixFileAttributes {
+enum : unsigned {
+    Dir = 0040000,
+    SymLink = 0120000,
+    TypeMask = 0170000
+};
+}
+
+static unsigned zipEntryHostOS(const unz_file_info64& info)
+{
+    return (info.version >> 8) & 0xffU;
+}
+
+static void determineEntryType(ZipEntryInfo& entry)
+{
+    const unsigned hostOS = zipEntryHostOS(entry.info);
+    unsigned mode = static_cast<unsigned>(entry.info.external_fa);
+    switch (hostOS) {
+    case HostUnix:
+    case HostOSX:
+        mode = (mode >> 16) & 0xffffU;
+        entry.isDirectory = (mode & UnixFileAttributes::TypeMask) == UnixFileAttributes::Dir;
+        entry.isSymLink = (mode & UnixFileAttributes::TypeMask) == UnixFileAttributes::SymLink;
+        break;
+    case HostFAT:
+    case HostNTFS:
+    case HostHPFS:
+    case HostVFAT:
+        entry.isDirectory = (mode & WindowsFileAttributes::TypeMask) == WindowsFileAttributes::Dir;
+        entry.isSymLink = false;
+        break;
+    default:
+        entry.isDirectory = !entry.filename.empty() && (entry.filename.back() == '/' || entry.filename.back() == '\\');
+        entry.isSymLink = false;
+        break;
+    }
+    entry.isFile = !entry.isDirectory && !entry.isSymLink;
+}
 
 static unzFile openZipForRead(const std::filesystem::path& zipFilePath, const DenigmaContext& denigmaContext)
 {
@@ -100,6 +158,7 @@ static ZipEntryInfo getCurrentEntryInfo(unzFile zip)
     }
 
     entry.filename = std::move(fileName);
+    determineEntryType(entry);
     return entry;
 }
 
@@ -266,23 +325,40 @@ MusxArchiveFiles readMusxArchiveFiles(const std::filesystem::path& zipFilePath, 
 {
     static constexpr char kScoreDatName[] = "score.dat";
     static constexpr char kNotationMetadataName[] = "NotationMetadata.xml";
+    static constexpr char kGraphicsDirName[] = "graphics";
 
     unzFile zip = openZipForRead(zipFilePath, denigmaContext);
     try {
-        const int scoreRc = unzLocateFile(zip, kScoreDatName, 1);
-        if (scoreRc != UNZ_OK) {
-            throw std::runtime_error("unable to locate file in zip archive: " + std::string(kScoreDatName));
-        }
-        std::string scoreDat = readCurrentFile(zip);
-
         MusxArchiveFiles result;
-        result.scoreDat = std::move(scoreDat);
+        bool foundScoreDat = false;
+        iterateFiles(zip, std::nullopt, [&](const ZipEntryInfo& fileInfo) {
+            if (fileInfo.filename == kScoreDatName) {
+                result.scoreDat = readCurrentFile(zip);
+                foundScoreDat = true;
+                return true;
+            }
 
-        const int metadataRc = unzLocateFile(zip, kNotationMetadataName, 1);
-        if (metadataRc == UNZ_OK) {
-            result.notationMetadata = readCurrentFile(zip);
-        } else if (metadataRc != UNZ_END_OF_LIST_OF_FILE) {
-            throw std::runtime_error("unable to locate file in zip archive: " + std::string(kNotationMetadataName));
+            if (fileInfo.filename == kNotationMetadataName) {
+                result.notationMetadata = readCurrentFile(zip);
+                return true;
+            }
+
+            const std::filesystem::path entryPath = utils::utf8ToPath(fileInfo.filename);
+            if (!fileInfo.isFile
+                || entryPath.parent_path().u8string() != kGraphicsDirName
+                || !entryPath.has_filename()) {
+                return true;
+            }
+
+            denigma::CommandInputData::EmbeddedGraphicFile graphicFile;
+            graphicFile.filename = entryPath.filename().u8string();
+            graphicFile.blob = readCurrentFile(zip);
+            result.embeddedGraphics.emplace_back(std::move(graphicFile));
+            return true;
+        });
+
+        if (!foundScoreDat) {
+            throw std::runtime_error("unable to locate file in zip archive: " + std::string(kScoreDatName));
         }
 
         unzClose(zip);
@@ -317,6 +393,9 @@ bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const de
     try {
         const std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
         bool retval = iterateFiles(zip, std::nullopt, [&](const ZipEntryInfo& fileInfo) {
+            if (!fileInfo.isFile) {
+                return true;
+            }
             if (scoreName == fileInfo.filename) {
                 return true; // skip score
             }
@@ -350,12 +429,13 @@ bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const s
     try {
         const std::string scoreName = getMusicXmlScoreName(zipFilePath, inputZip, denigmaContext);
         bool retval = iterateFiles(inputZip, std::nullopt, [&](const ZipEntryInfo& fileInfo) {
+            if (!fileInfo.isFile) {
+                return true;
+            }
             std::filesystem::path nextPath = utils::utf8ToPath(fileInfo.filename);
-            if (nextPath.has_filename()) {
-                std::string buffer = readCurrentFile(inputZip);
-                if (iterator(nextPath, buffer, scoreName == fileInfo.filename)) {
-                    writeEntryToZip(outputZip, fileInfo, buffer);
-                }
+            std::string buffer = readCurrentFile(inputZip);
+            if (iterator(nextPath, buffer, scoreName == fileInfo.filename)) {
+                writeEntryToZip(outputZip, fileInfo, buffer);
             }
             return true;
         });

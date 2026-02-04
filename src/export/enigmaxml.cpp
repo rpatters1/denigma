@@ -252,6 +252,7 @@ static CommandInputData readMusxArchive(const std::filesystem::path& musxPath, c
             archiveFiles.notationMetadata->begin(),
             archiveFiles.notationMetadata->end());
     }
+    result.embeddedGraphics = std::move(archiveFiles.embeddedGraphics);
     return result;
 }
 
@@ -287,7 +288,7 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
 
 CommandInputData readInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
-    return CommandInputData{ read(inputPath, denigmaContext), std::nullopt };
+    return CommandInputData{ read(inputPath, denigmaContext), std::nullopt, {} };
 }
 
 Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)

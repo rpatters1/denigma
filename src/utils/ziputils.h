@@ -33,6 +33,7 @@ struct MusxArchiveFiles
 {
     std::string scoreDat;
     std::optional<std::string> notationMetadata;
+    std::vector<denigma::CommandInputData::EmbeddedGraphicFile> embeddedGraphics;
 };
 
 /**
