@@ -262,6 +262,37 @@ std::string readFile(const std::filesystem::path& zipFilePath, const std::string
     }
 }
 
+MusxArchiveFiles readMusxArchiveFiles(const std::filesystem::path& zipFilePath, const DenigmaContext& denigmaContext)
+{
+    static constexpr char kScoreDatName[] = "score.dat";
+    static constexpr char kNotationMetadataName[] = "NotationMetadata.xml";
+
+    unzFile zip = openZipForRead(zipFilePath, denigmaContext);
+    try {
+        const int scoreRc = unzLocateFile(zip, kScoreDatName, 1);
+        if (scoreRc != UNZ_OK) {
+            throw std::runtime_error("unable to locate file in zip archive: " + std::string(kScoreDatName));
+        }
+        std::string scoreDat = readCurrentFile(zip);
+
+        MusxArchiveFiles result;
+        result.scoreDat = std::move(scoreDat);
+
+        const int metadataRc = unzLocateFile(zip, kNotationMetadataName, 1);
+        if (metadataRc == UNZ_OK) {
+            result.notationMetadata = readCurrentFile(zip);
+        } else if (metadataRc != UNZ_END_OF_LIST_OF_FILE) {
+            throw std::runtime_error("unable to locate file in zip archive: " + std::string(kNotationMetadataName));
+        }
+
+        unzClose(zip);
+        return result;
+    } catch (...) {
+        unzClose(zip);
+        throw;
+    }
+}
+
 std::string getMusicXmlScoreFile(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext)
 {
     unzFile zip = openZipForRead(zipFilePath, denigmaContext);

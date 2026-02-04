@@ -33,9 +33,14 @@
 
 namespace denigma {
 
-static Buffer nullFunc(const std::filesystem::path&, const DenigmaContext&)
+static CommandInputData nullFunc(const std::filesystem::path&, const DenigmaContext&)
 {
-    return {};
+    return CommandInputData{};
+}
+
+static CommandInputData readMusicXml(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
+{
+    return CommandInputData{ enigmaxml::read(inputPath, denigmaContext), std::nullopt };
 }
 
 // Input format processors
@@ -43,12 +48,12 @@ constexpr auto inputProcessors = []() {
     struct InputProcessor
     {
         const char* extension;
-        Buffer(*processor)(const std::filesystem::path&, const DenigmaContext&);
+        CommandInputData(*processor)(const std::filesystem::path&, const DenigmaContext&);
     };
 
     return to_array<InputProcessor>({
             { MXL_EXTENSION, nullFunc },
-            { MUSICXML_EXTENSION, enigmaxml::read },
+            { MUSICXML_EXTENSION, readMusicXml },
         });
     }();
 
@@ -129,16 +134,16 @@ bool MassageCommand::canProcess(const std::filesystem::path& inputPath) const
     return false;
 }
 
-Buffer MassageCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
+CommandInputData MassageCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
     auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
     return inputProcessor(inputPath, denigmaContext);
 }
 
-void MassageCommand::processOutput(const Buffer& musicXml, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
+void MassageCommand::processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
-    outputProcessor(inputPath, outputPath, musicXml, denigmaContext);
+    outputProcessor(inputPath, outputPath, inputData.primaryBuffer, denigmaContext);
 }
 
 } // namespace denigma

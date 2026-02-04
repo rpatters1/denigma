@@ -301,7 +301,7 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
         logMessage(LogMsg() << delimiter, true);
         this->inputFilePath = inpFilePath; // assign after logging the header
 
-        const auto xmlBuffer = currentCommand->processInput(inputFilePath, *this);
+        const auto inputData = currentCommand->processInput(inputFilePath, *this);
 
         auto calcOutpuFilePath = [&](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
             std::filesystem::path retval = path;
@@ -331,14 +331,14 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
                 std::filesystem::path outputFilePath = (i + 1 < args.size() && arg_string(args[i + 1]).rfind(_ARG("--"), 0) != 0)
                                                      ? std::filesystem::path(args[++i])
                                                      : inputFilePath.parent_path();
-                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(outputFilePath, outputFormat), inputFilePath, *this);
+                currentCommand->processOutput(inputData, calcOutpuFilePath(outputFilePath, outputFormat), inputFilePath, *this);
                 outputFormatSpecified = true;
             }
         }
         if (!outputFormatSpecified) {
             const auto& defaultFormat = currentCommand->defaultOutputFormat(inputFilePath);
             if (defaultFormat.has_value()) {
-                currentCommand->processOutput(xmlBuffer, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), inputFilePath, *this);
+                currentCommand->processOutput(inputData, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), inputFilePath, *this);
             }
         }
     } catch (const musx::xml::load_error& ex) {

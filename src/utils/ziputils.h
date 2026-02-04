@@ -29,6 +29,12 @@
 
 namespace utils {
 
+struct MusxArchiveFiles
+{
+    std::string scoreDat;
+    std::optional<std::string> notationMetadata;
+};
+
 /**
  * @brief Reads a specific filename from the input zip archive.
  * @param zipFilePath [in] the zip archive to search.
@@ -36,6 +42,7 @@ namespace utils {
  * @param denigmaContext [in] the DenigmaContext (for logging).
  */
 std::string readFile(const std::filesystem::path& zipFilePath, const std::string& fileName, const denigma::DenigmaContext& denigmaContext);
+MusxArchiveFiles readMusxArchiveFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext);
 
 /// @brief iterator func that feeds the next filename and xmldata
 using IteratorFunc = std::function<bool(const std::filesystem::path& fileName, const std::string& xmlData)>;

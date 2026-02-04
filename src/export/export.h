@@ -32,8 +32,8 @@ struct ExportCommand : public ICommand
     int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) const override;
     
     bool canProcess(const std::filesystem::path& inputPath) const override;
-    Buffer processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
-    void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const override;
+    CommandInputData processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
+    void processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const override;
 
     std::optional<std::string_view> defaultInputFormat() const override { return MUSX_EXTENSION; };
     std::optional<std::string> defaultOutputFormat(const std::filesystem::path& inputPath) const override

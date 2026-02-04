@@ -168,8 +168,8 @@ void createSequences(const MnxMusxMappingPtr& context,
     StaffCmper staffCmper);
 void finalizeJumpTies(const MnxMusxMappingPtr& context);
 
-void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
-void exportMnx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
+void exportJson(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+void exportMnx(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
 template <typename ToEnum, typename FromEnum>
 ToEnum enumConvert(FromEnum value);

@@ -127,7 +127,7 @@ static void createMappings(const MnxMusxMappingPtr& context)
     }
 }
 
-void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+void exportJson(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.testOutput) {
@@ -137,7 +137,11 @@ void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer
 #endif
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
-    auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
+    musx::factory::DocumentFactory::CreateOptions createOptions;
+    if (inputData.notationMetadata.has_value()) {
+        createOptions.setNotationMetadata(*inputData.notationMetadata);
+    }
+    auto document = musx::factory::DocumentFactory::create<MusxReader>(inputData.primaryBuffer, createOptions);
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
     context->musxParts = others::PartDefinition::getInUserOrder(document);
@@ -175,11 +179,11 @@ void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer
     }
 }
 
-void exportMnx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+void exportMnx(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
     // for now mnx and json both export as JSON text files.
     // the final plan is that the Mnx export will export a zip archive, similar to mxl for musicxml
-    exportJson(outputPath, xmlBuffer, denigmaContext);
+    exportJson(outputPath, inputData, denigmaContext);
 }
 
 } // namespace mnxexp

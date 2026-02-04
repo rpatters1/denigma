@@ -240,6 +240,21 @@ static std::pair<int, int> extractFileVersionFromEnigmaXml(const Buffer& xmlBuff
     return { 27, 4 };
 }
 
+static CommandInputData readMusxArchive(const std::filesystem::path& musxPath, const DenigmaContext& denigmaContext)
+{
+    auto archiveFiles = utils::readMusxArchiveFiles(musxPath, denigmaContext);
+    musx::encoder::ScoreFileEncoder::recodeBuffer(archiveFiles.scoreDat);
+
+    CommandInputData result;
+    result.primaryBuffer = gunzipBuffer(archiveFiles.scoreDat);
+    if (archiveFiles.notationMetadata.has_value()) {
+        result.notationMetadata = Buffer(
+            archiveFiles.notationMetadata->begin(),
+            archiveFiles.notationMetadata->end());
+    }
+    return result;
+}
+
 Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
@@ -270,6 +285,11 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
     };
 }
 
+CommandInputData readInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
+{
+    return CommandInputData{ read(inputPath, denigmaContext), std::nullopt };
+}
+
 Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
@@ -289,7 +309,24 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& den
     }
 }
 
-void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+CommandInputData extractInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.testOutput) {
+        denigmaContext.logMessage(LogMsg() << "Extracting " << inputPath.u8string());
+        return {};
+    }
+#endif
+    try {
+        return readMusxArchive(inputPath, denigmaContext);
+    } catch (const std::exception& ex) {
+        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        throw;
+    }
+}
+
+void write(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.testOutput) {
@@ -301,6 +338,7 @@ void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, con
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
     try	{
+        const Buffer& xmlBuffer = inputData.primaryBuffer;
         std::ifstream inFile;
 
         size_t uncompressedSize = xmlBuffer.size();
@@ -321,7 +359,7 @@ void write(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, con
     }
 }
 
-void writeMusx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+void writeMusx(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.testOutput) {
@@ -333,6 +371,7 @@ void writeMusx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer,
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
     try {
+        const Buffer& xmlBuffer = inputData.primaryBuffer;
         std::string encodedBuffer = gzipBuffer(xmlBuffer);
         musx::encoder::ScoreFileEncoder::recodeBuffer(encodedBuffer);
         const auto [fileVersionMajor, fileVersionMinor] = extractFileVersionFromEnigmaXml(xmlBuffer);

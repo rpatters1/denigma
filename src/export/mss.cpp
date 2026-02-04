@@ -897,7 +897,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     file.close();
 }
 
-void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.testOutput) {
@@ -906,7 +906,11 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     }
 #endif
 
-    auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
+    musx::factory::DocumentFactory::CreateOptions createOptions;
+    if (inputData.notationMetadata.has_value()) {
+        createOptions.setNotationMetadata(*inputData.notationMetadata);
+    }
+    auto document = musx::factory::DocumentFactory::create<MusxReader>(inputData.primaryBuffer, createOptions);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
         processPart(outputPath, document, denigmaContext); // process the score
     }

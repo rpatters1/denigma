@@ -38,12 +38,12 @@ constexpr auto inputProcessors = []() {
     struct InputProcessor
     {
         const char* extension;
-        Buffer(*processor)(const std::filesystem::path&, const DenigmaContext&);
+        CommandInputData(*processor)(const std::filesystem::path&, const DenigmaContext&);
     };
 
     return to_array<InputProcessor>({
-            { MUSX_EXTENSION, enigmaxml::extract },
-            { ENIGMAXML_EXTENSION, enigmaxml::read },
+            { MUSX_EXTENSION, enigmaxml::extractInputData },
+            { ENIGMAXML_EXTENSION, enigmaxml::readInputData },
         });
     }();
 
@@ -52,7 +52,7 @@ constexpr auto outputProcessors = []() {
     struct OutputProcessor
     {
         const char* extension;
-        void(*processor)(const std::filesystem::path&, const Buffer&, const DenigmaContext&);
+        void(*processor)(const std::filesystem::path&, const CommandInputData&, const DenigmaContext&);
     };
 
     return to_array<OutputProcessor>({
@@ -128,16 +128,16 @@ bool ExportCommand::canProcess(const std::filesystem::path& inputPath) const
     return false;
 }
 
-Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
+CommandInputData ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
     auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
     return inputProcessor(inputPath, denigmaContext);
 }
 
-void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const
+void ExportCommand::processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const
 {
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
-    outputProcessor(outputPath, enigmaXml, denigmaContext);
+    outputProcessor(outputPath, inputData, denigmaContext);
 }
 
 } // namespace denigma
