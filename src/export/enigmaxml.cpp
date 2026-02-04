@@ -216,20 +216,25 @@ static void writeZipEntry(zipFile outputZip, const char* name, const std::string
 
 static std::pair<int, int> extractFileVersionFromEnigmaXml(const Buffer& xmlBuffer)
 {
-    const std::string xmlText(xmlBuffer.begin(), xmlBuffer.end());
-    std::smatch match;
+    std::match_results<Buffer::const_iterator> match;
     const std::regex modifiedFileVersion(
         R"(<modified>[\s\S]*?<fileVersion>[\s\S]*?<major>(\d+)</major>[\s\S]*?<minor>(\d+)</minor>)"
     );
-    if (std::regex_search(xmlText, match, modifiedFileVersion) && match.size() >= 3) {
-        return { std::stoi(match[1].str()), std::stoi(match[2].str()) };
+    if (std::regex_search(xmlBuffer.cbegin(), xmlBuffer.cend(), match, modifiedFileVersion) && match.size() >= 3) {
+        return {
+            std::stoi(std::string(match[1].first, match[1].second)),
+            std::stoi(std::string(match[2].first, match[2].second))
+        };
     }
 
     const std::regex createdFileVersion(
         R"(<created>[\s\S]*?<fileVersion>[\s\S]*?<major>(\d+)</major>[\s\S]*?<minor>(\d+)</minor>)"
     );
-    if (std::regex_search(xmlText, match, createdFileVersion) && match.size() >= 3) {
-        return { std::stoi(match[1].str()), std::stoi(match[2].str()) };
+    if (std::regex_search(xmlBuffer.cbegin(), xmlBuffer.cend(), match, createdFileVersion) && match.size() >= 3) {
+        return {
+            std::stoi(std::string(match[1].first, match[1].second)),
+            std::stoi(std::string(match[2].first, match[2].second))
+        };
     }
 
     return { 27, 4 };
