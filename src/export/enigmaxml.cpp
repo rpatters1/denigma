@@ -20,31 +20,15 @@
  * THE SOFTWARE.
  */
 #include <string>
+#include <array>
 #include <filesystem>
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <limits>
+#include <stdexcept>
 
-#if defined(__clang__)
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wc++20-extensions"
-#elif defined(__GNUC__)
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wattributes"
-#elif defined(_MSC_VER)
-    #pragma warning(push)
-    #pragma warning(disable : 5051)
-#endif
-
-#include "ezgz.hpp"			// ezgz submodule (for gzip)
-
-#if defined(__clang__)
-    #pragma clang diagnostic pop
-#elif defined(__GNUC__)
-    #pragma GCC diagnostic pop
-#elif defined(_MSC_VER)
-    #pragma warning(pop)
-#endif
+#include "zlib.h"
 
 #include "musx/musx.h"
 
@@ -57,6 +41,56 @@ constexpr char SCORE_DAT_NAME[] = "score.dat";
 
 namespace denigma {
 namespace enigmaxml {
+
+static Buffer gunzipBuffer(const std::string& compressedData)
+{
+    z_stream stream{};
+    int rc = inflateInit2(&stream, 16 + MAX_WBITS); // 16 + MAX_WBITS = gzip stream
+    if (rc != Z_OK) {
+        throw std::runtime_error("unable to initialize zlib inflate");
+    }
+
+    Buffer output;
+    output.reserve(compressedData.size());
+    std::array<char, 16384> chunk{};
+
+    const auto* nextInput = reinterpret_cast<const Bytef*>(compressedData.data());
+    std::size_t remainingInput = compressedData.size();
+    int inflateRc = Z_OK;
+    while (true) {
+        if (stream.avail_in == 0 && remainingInput > 0) {
+            const std::size_t inputChunk = std::min<std::size_t>(remainingInput, std::numeric_limits<uInt>::max());
+            stream.next_in = const_cast<Bytef*>(nextInput);
+            stream.avail_in = static_cast<uInt>(inputChunk);
+            nextInput += inputChunk;
+            remainingInput -= inputChunk;
+        }
+
+        stream.next_out = reinterpret_cast<Bytef*>(chunk.data());
+        stream.avail_out = static_cast<uInt>(chunk.size());
+        inflateRc = inflate(&stream, Z_NO_FLUSH);
+
+        if (inflateRc != Z_OK && inflateRc != Z_STREAM_END) {
+            inflateEnd(&stream);
+            throw std::runtime_error("unable to decompress gzip stream");
+        }
+
+        const auto written = static_cast<std::size_t>(chunk.size() - stream.avail_out);
+        output.insert(output.end(), chunk.data(), chunk.data() + written);
+
+        if (inflateRc == Z_STREAM_END) {
+            break;
+        }
+
+        if (stream.avail_in == 0 && remainingInput == 0 && written == 0) {
+            inflateEnd(&stream);
+            throw std::runtime_error("unexpected end of gzip stream");
+        }
+    }
+
+    inflateEnd(&stream);
+    return output;
+}
 
 Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
@@ -99,7 +133,7 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& den
     try {
         std::string buffer = utils::readFile(inputPath, SCORE_DAT_NAME, denigmaContext);
         musx::encoder::ScoreFileEncoder::recodeBuffer(buffer);
-        return EzGz::IGzFile<>({ reinterpret_cast<uint8_t*>(buffer.data()), buffer.size() }).readAll();
+        return gunzipBuffer(buffer);
     } catch (const std::exception &ex) {
         denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);

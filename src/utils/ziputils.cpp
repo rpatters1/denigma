@@ -19,111 +19,212 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <cstring>
+#include <array>
+#include <limits>
+#include <stdexcept>
 
 #include "utils/ziputils.h"
 
- // NOTE: This namespace is necessary because zip_file.hpp is poorly implemented and
-//          can only be included once in the entire project.
-#ifdef __GNUC__
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wall"
-    #pragma GCC diagnostic ignored "-Wextra"
-    #pragma GCC diagnostic ignored "-Wpedantic"
-    #pragma GCC diagnostic ignored "-Wmisleading-indentation"
+#include "pugixml.hpp"
+#include "unzip.h"
+#include "zip.h"
+
+#ifdef _WIN32
+#include "iowin32.h"
 #endif
-
-#include "zip_file.hpp"
-
-#ifdef __GNUC__
-    #pragma GCC diagnostic pop
-#endif
-
 
 namespace utils {
 
 using namespace denigma;
 
-/// @brief Opens zip file using std::ifstream, which works with utf16 paths on Windows
-/// @param zipFilePath zip archive
-/// @return zip_file instance
-static miniz_cpp::zip_file openZip(const std::filesystem::path& zipFilePath, const DenigmaContext& denigmaContext)
+namespace {
+
+struct ZipEntryInfo {
+    std::string filename;
+    unz_file_info64 info{};
+};
+
+static unzFile openZipForRead(const std::filesystem::path& zipFilePath, const DenigmaContext& denigmaContext)
 {
-    try {
-        std::ifstream zipReader;
-        zipReader.exceptions(std::ios::failbit | std::ios::badbit);
-        zipReader.open(zipFilePath, std::ios::binary);
-        return miniz_cpp::zip_file(zipReader);
-    } catch (const std::exception &ex) {
+#ifdef _WIN32
+    zlib_filefunc64_def fileFuncs{};
+    fill_win32_filefunc64W(&fileFuncs);
+    const std::wstring widePath = zipFilePath.wstring();
+    unzFile zip = unzOpen2_64(widePath.c_str(), &fileFuncs);
+#else
+    const std::string utf8Path = zipFilePath.u8string();
+    unzFile zip = unzOpen64(utf8Path.c_str());
+#endif
+
+    if (!zip) {
         denigmaContext.logMessage(LogMsg() << "unable to extract data from file " << zipFilePath.u8string(), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
-        throw;
+        throw std::runtime_error("unable to open zip archive");
     }
+    return zip;
 }
 
-std::string readFile(const std::filesystem::path& zipFilePath, const std::string& fileName, const DenigmaContext& denigmaContext)
+static zipFile openZipForWrite(const std::filesystem::path& outputPath)
 {
-    auto zip = openZip(zipFilePath, denigmaContext);
-    return zip.read(fileName);
+#ifdef _WIN32
+    zlib_filefunc64_def fileFuncs{};
+    fill_win32_filefunc64W(&fileFuncs);
+    const std::wstring widePath = outputPath.wstring();
+    return zipOpen2_64(widePath.c_str(), APPEND_STATUS_CREATE, nullptr, &fileFuncs);
+#else
+    const std::string utf8Path = outputPath.u8string();
+    return zipOpen64(utf8Path.c_str(), APPEND_STATUS_CREATE);
+#endif
 }
 
-std::string readFile(const std::vector<unsigned char>& buffer, const std::string& fileName, const denigma::DenigmaContext&)
+static ZipEntryInfo getCurrentEntryInfo(unzFile zip)
 {
-    miniz_cpp::zip_file zip(buffer);
-    return zip.read(fileName);
+    ZipEntryInfo entry{};
+    int rc = unzGetCurrentFileInfo64(zip, &entry.info, nullptr, 0, nullptr, 0, nullptr, 0);
+    if (rc != UNZ_OK) {
+        throw std::runtime_error("unable to read zip entry metadata");
+    }
+
+    std::string fileName(entry.info.size_filename, '\0');
+    rc = unzGetCurrentFileInfo64(
+        zip,
+        &entry.info,
+        fileName.empty() ? nullptr : fileName.data(),
+        static_cast<uLong>(fileName.size()),
+        nullptr,
+        0,
+        nullptr,
+        0
+    );
+    if (rc != UNZ_OK) {
+        throw std::runtime_error("unable to read zip entry filename");
+    }
+
+    entry.filename = std::move(fileName);
+    return entry;
 }
 
-static bool iterateFiles(miniz_cpp::zip_file& zip, std::optional<std::string> searchForFile,
-    std::function<bool(const miniz_cpp::zip_info&)> iterator)
+static std::string readCurrentFile(unzFile zip)
 {
-    bool calledIterator = false;
-    for (auto& fileInfo : zip.infolist()) {
-        /*
-        std::cout << "Unzipping " << outputDir << "/" << fileInfo.filename << " ";
-        std::cout << std::setfill('0')
-                    << fileInfo.date_time.year << '-'
-                    << std::setw(2) << fileInfo.date_time.month << '-'
-                    << std::setw(2) << fileInfo.date_time.day << ' '
-                    << std::setw(2) << fileInfo.date_time.hours << ':'
-                    << std::setw(2) << fileInfo.date_time.minutes << ':'
-                    << std::setw(2) << fileInfo.date_time.seconds << std::endl
-                    << std::setfill(' ');
-        std::cout << "-----------\n create_version " << fileInfo.create_version
-                    << "\n extract_version " << fileInfo.extract_version
-                    << "\n flag " << fileInfo.flag_bits
-                    << "\n compressed_size " << fileInfo.compress_size
-                    << "\n crc " << fileInfo.crc
-                    << "\n compress_size " << fileInfo.compress_size
-                    << "\n file_size " << fileInfo.file_size
-                    << "\n extra " << fileInfo.extra
-                    << "\n comment " << fileInfo.comment
-                    << "\n header_offset " << fileInfo.header_offset;
-        std::cout << std::showbase << std::hex
-                    << "\n internal_attr " << fileInfo.internal_attr
-                    << "\n external_attr " << fileInfo.external_attr << "\n\n"
-                    << std::noshowbase << std::dec;
-        */
-        if (searchForFile.has_value() && searchForFile.value() != fileInfo.filename) {
-            continue;
+    int rc = unzOpenCurrentFile(zip);
+    if (rc != UNZ_OK) {
+        throw std::runtime_error("unable to open entry in zip archive");
+    }
+
+    std::string output;
+    std::array<char, 16384> chunk{};
+
+    while (true) {
+        int readRc = unzReadCurrentFile(zip, chunk.data(), static_cast<unsigned>(chunk.size()));
+        if (readRc < 0) {
+            unzCloseCurrentFile(zip);
+            throw std::runtime_error("unable to read entry from zip archive");
         }
-        calledIterator = true;
-        if (!iterator(fileInfo)) {
+        if (readRc == 0) {
             break;
         }
+        output.append(chunk.data(), static_cast<std::size_t>(readRc));
     }
+
+    rc = unzCloseCurrentFile(zip);
+    if (rc != UNZ_OK) {
+        throw std::runtime_error("unable to close entry in zip archive");
+    }
+
+    return output;
+}
+
+static bool iterateFiles(unzFile zip, const std::optional<std::string>& searchForFile,
+    const std::function<bool(const ZipEntryInfo&)>& iterator)
+{
+    int rc = unzGoToFirstFile(zip);
+    if (rc == UNZ_END_OF_LIST_OF_FILE) {
+        return false;
+    }
+    if (rc != UNZ_OK) {
+        throw std::runtime_error("unable to enumerate zip archive entries");
+    }
+
+    bool calledIterator = false;
+    while (true) {
+        ZipEntryInfo fileInfo = getCurrentEntryInfo(zip);
+        if (!searchForFile.has_value() || searchForFile.value() == fileInfo.filename) {
+            calledIterator = true;
+            if (!iterator(fileInfo)) {
+                break;
+            }
+        }
+
+        rc = unzGoToNextFile(zip);
+        if (rc == UNZ_END_OF_LIST_OF_FILE) {
+            break;
+        }
+        if (rc != UNZ_OK) {
+            throw std::runtime_error("unable to advance zip archive cursor");
+        }
+    }
+
     return calledIterator;
 }
 
-static std::string getMusicXmlScoreName(const std::filesystem::path& zipFilePath, miniz_cpp::zip_file& zip, const denigma::DenigmaContext& denigmaContext)
+static void writeEntryToZip(zipFile outputZip, const ZipEntryInfo& fileInfo, const std::string& fileContents)
+{
+    zip_fileinfo zipInfo{};
+    zipInfo.tmz_date.tm_sec = fileInfo.info.tmu_date.tm_sec;
+    zipInfo.tmz_date.tm_min = fileInfo.info.tmu_date.tm_min;
+    zipInfo.tmz_date.tm_hour = fileInfo.info.tmu_date.tm_hour;
+    zipInfo.tmz_date.tm_mday = fileInfo.info.tmu_date.tm_mday;
+    zipInfo.tmz_date.tm_mon = fileInfo.info.tmu_date.tm_mon;
+    zipInfo.tmz_date.tm_year = fileInfo.info.tmu_date.tm_year;
+    zipInfo.internal_fa = fileInfo.info.internal_fa;
+    zipInfo.external_fa = fileInfo.info.external_fa;
+
+    const int method = (fileInfo.info.compression_method == 0) ? 0 : Z_DEFLATED;
+    const int useZip64 = fileContents.size() >= 0xffffffffULL ? 1 : 0;
+    int rc = zipOpenNewFileInZip64(
+        outputZip,
+        fileInfo.filename.c_str(),
+        &zipInfo,
+        nullptr,
+        0,
+        nullptr,
+        0,
+        nullptr,
+        method,
+        Z_DEFAULT_COMPRESSION,
+        useZip64
+    );
+    if (rc != ZIP_OK) {
+        throw std::runtime_error("unable to create entry in output zip archive");
+    }
+
+    std::size_t offset = 0;
+    while (offset < fileContents.size()) {
+        const std::size_t chunkSize = std::min<std::size_t>(fileContents.size() - offset, std::numeric_limits<unsigned>::max());
+        rc = zipWriteInFileInZip(outputZip, fileContents.data() + offset, static_cast<unsigned>(chunkSize));
+        if (rc < 0) {
+            zipCloseFileInZip(outputZip);
+            throw std::runtime_error("unable to write entry data to output zip archive");
+        }
+        offset += chunkSize;
+    }
+
+    rc = zipCloseFileInZip(outputZip);
+    if (rc != ZIP_OK) {
+        throw std::runtime_error("unable to finalize entry in output zip archive");
+    }
+}
+
+static std::string getMusicXmlScoreName(const std::filesystem::path& zipFilePath, unzFile zip, const denigma::DenigmaContext& denigmaContext)
 {
     std::filesystem::path defaultName = zipFilePath.filename();
     defaultName.replace_extension(MUSICXML_EXTENSION);
     std::string fileName = defaultName.filename().u8string();
     try {
-        iterateFiles(zip, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
-            if (fileInfo.filename == "META-INF/container.xml") {
+        iterateFiles(zip, std::nullopt, [&](const ZipEntryInfo& entry) {
+            if (entry.filename == "META-INF/container.xml") {
                 pugi::xml_document containerXml;
-                auto parseResult = containerXml.load_string(zip.read(fileInfo).c_str());
+                const std::string xmlBuffer = readCurrentFile(zip);
+                auto parseResult = containerXml.load_buffer(xmlBuffer.data(), xmlBuffer.size());
                 if (!parseResult) {
                     throw std::runtime_error("Error parsing container.xml: " + std::string(parseResult.description()));
                 }
@@ -135,64 +236,109 @@ static std::string getMusicXmlScoreName(const std::filesystem::path& zipFilePath
             return true;
         });
         return fileName;
-    } catch (const std::exception &ex) {
+    } catch (const std::exception& ex) {
         denigmaContext.logMessage(LogMsg() << "unable to extract META-INF/container.xml from file " << zipFilePath.u8string(), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         throw;
     }
 }
 
+} // namespace
+
+std::string readFile(const std::filesystem::path& zipFilePath, const std::string& fileName, const DenigmaContext& denigmaContext)
+{
+    unzFile zip = openZipForRead(zipFilePath, denigmaContext);
+    try {
+        const int rc = unzLocateFile(zip, fileName.c_str(), 1);
+        if (rc != UNZ_OK) {
+            throw std::runtime_error("unable to locate file in zip archive: " + fileName);
+        }
+        std::string output = readCurrentFile(zip);
+        unzClose(zip);
+        return output;
+    } catch (...) {
+        unzClose(zip);
+        throw;
+    }
+}
+
 std::string getMusicXmlScoreFile(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext)
 {
-    auto zip = openZip(zipFilePath, denigmaContext);
-    return zip.read(getMusicXmlScoreName(zipFilePath, zip, denigmaContext));
+    unzFile zip = openZipForRead(zipFilePath, denigmaContext);
+    try {
+        std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
+        const int rc = unzLocateFile(zip, scoreName.c_str(), 1);
+        if (rc != UNZ_OK) {
+            throw std::runtime_error("unable to locate score in zip archive: " + scoreName);
+        }
+        std::string output = readCurrentFile(zip);
+        unzClose(zip);
+        return output;
+    } catch (...) {
+        unzClose(zip);
+        throw;
+    }
 }
 
 bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext, const std::optional<std::string>& fileName, IteratorFunc iterator)
 {
-    auto zip = openZip(zipFilePath, denigmaContext);
-    std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
-    return iterateFiles(zip, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
-        if (scoreName == fileInfo.filename) {
-            return true; // skip score
-        }
-        if (fileName.has_value() && fileName.value() != fileInfo.filename) {
-            return true; // skip parts that aren't the one we are looking for
-        }
-        std::filesystem::path nextPath = utils::utf8ToPath(fileInfo.filename);
-        if (nextPath.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
-            return iterator(nextPath, zip.read(fileInfo.filename));
-        }
-        return true;
-    });
+    unzFile zip = openZipForRead(zipFilePath, denigmaContext);
+    try {
+        const std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
+        bool retval = iterateFiles(zip, std::nullopt, [&](const ZipEntryInfo& fileInfo) {
+            if (scoreName == fileInfo.filename) {
+                return true; // skip score
+            }
+            if (fileName.has_value() && fileName.value() != fileInfo.filename) {
+                return true; // skip parts that aren't the one we are looking for
+            }
+            std::filesystem::path nextPath = utils::utf8ToPath(fileInfo.filename);
+            if (nextPath.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
+                return iterator(nextPath, readCurrentFile(zip));
+            }
+            return true;
+        });
+        unzClose(zip);
+        return retval;
+    } catch (...) {
+        unzClose(zip);
+        throw;
+    }
 }
 
 bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const std::filesystem::path& outputPath, const denigma::DenigmaContext& denigmaContext, ModifyIteratorFunc iterator)
 {
-    auto zip = openZip(zipFilePath, denigmaContext);
-    miniz_cpp::zip_file outputZip;
-    std::string scoreName = getMusicXmlScoreName(zipFilePath, zip, denigmaContext);
-    bool retval = iterateFiles(zip, std::nullopt, [&](const miniz_cpp::zip_info& fileInfo) {
-        std::filesystem::path nextPath = utils::utf8ToPath(fileInfo.filename);
-        if (nextPath.has_filename()) {
-            std::string buffer = zip.read(fileInfo);
-            if (iterator(nextPath, buffer, scoreName == fileInfo.filename)) {
-                outputZip.writestr(fileInfo, buffer);
-            }
-        }
-        return true;
-    });
+    unzFile inputZip = openZipForRead(zipFilePath, denigmaContext);
+    zipFile outputZip = openZipForWrite(outputPath);
+    if (!outputZip) {
+        unzClose(inputZip);
+        denigmaContext.logMessage(LogMsg() << "unable to save data to file " << outputPath.u8string(), LogSeverity::Error);
+        throw std::runtime_error("unable to create output zip archive");
+    }
+
     try {
-        std::ofstream zipWriter;
-        zipWriter.exceptions(std::ios::failbit | std::ios::badbit);
-        zipWriter.open(outputPath, std::ios::binary);
-        outputZip.save(zipWriter);
-    } catch (const std::exception &ex) {
+        const std::string scoreName = getMusicXmlScoreName(zipFilePath, inputZip, denigmaContext);
+        bool retval = iterateFiles(inputZip, std::nullopt, [&](const ZipEntryInfo& fileInfo) {
+            std::filesystem::path nextPath = utils::utf8ToPath(fileInfo.filename);
+            if (nextPath.has_filename()) {
+                std::string buffer = readCurrentFile(inputZip);
+                if (iterator(nextPath, buffer, scoreName == fileInfo.filename)) {
+                    writeEntryToZip(outputZip, fileInfo, buffer);
+                }
+            }
+            return true;
+        });
+
+        zipClose(outputZip, nullptr);
+        unzClose(inputZip);
+        return retval;
+    } catch (const std::exception& ex) {
         denigmaContext.logMessage(LogMsg() << "unable to save data to file " << outputPath.u8string(), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        zipClose(outputZip, nullptr);
+        unzClose(inputZip);
         throw;
     }
-    return retval;
 }
 
 } // namespace utils

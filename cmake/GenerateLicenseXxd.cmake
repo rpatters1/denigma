@@ -7,9 +7,8 @@ set(LICENSE_FILES
     "${musx_SOURCE_DIR}/LICENSE"
     "${mnxdom_SOURCE_DIR}/LICENSE"
     "${smufl_mapping_SOURCE_DIR}/LICENSE"
-    "${ezgz_SOURCE_DIR}/LICENSE"
     "${pugixml_SOURCE_DIR}/LICENSE.md"
-    "${miniz-cpp_SOURCE_DIR}/LICENSE.md"
+    "${zlib_SOURCE_DIR}/LICENSE"
 )
 
 set(LICENSE_PREFIXES
@@ -17,9 +16,8 @@ set(LICENSE_PREFIXES
     musx
     mnxdom
     smufl_mapping
-    ezgz
     pugixml
-    miniz_cpp
+    zlib
 )
 
 # Ensure both lists have the same length
