@@ -28,6 +28,7 @@
 #include "denigma.h"
 #include "test_utils.h"
 #include "unzip.h"
+#include "utils/ziputils.h"
 
 using namespace denigma;
 
@@ -330,4 +331,60 @@ TEST(Export, ReverseDefaultOutputMusx)
         });
     }
     ASSERT_TRUE(std::filesystem::exists(inputEnigmaxmlPath));
+}
+
+TEST(ZipUtils, ReadMusxArchiveFiles)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("pageDiffThanOpts.musx", inputPath);
+
+    auto archiveFiles = utils::readMusxArchiveFiles(inputPath, DenigmaContext(DENIGMA_NAME));
+    EXPECT_FALSE(archiveFiles.scoreDat.empty());
+    ASSERT_TRUE(archiveFiles.notationMetadata.has_value());
+    EXPECT_NE(archiveFiles.notationMetadata->find("<metadata"), std::string::npos);
+}
+
+TEST(Export, MnxFromEnigmaxmlNoMetadataStillWorks)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("reference/notAscii-其れ.enigmaxml", inputPath);
+
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    });
+
+    std::filesystem::path mnxOutput = inputPath;
+    mnxOutput.replace_extension(".mnx");
+    ASSERT_TRUE(std::filesystem::exists(mnxOutput));
+    nlohmann::json mnxJson;
+    openJson(mnxOutput, mnxJson);
+    ASSERT_FALSE(mnxJson.empty());
+}
+
+TEST(Export, MultiOutputMnxAndMssFromMusx)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("pageDiffThanOpts.musx", inputPath);
+
+    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx", "--mss" };
+    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx and mss: " << inputPath.u8string();
+    });
+
+    std::filesystem::path mnxOutput = inputPath;
+    mnxOutput.replace_extension(".mnx");
+    ASSERT_TRUE(std::filesystem::exists(mnxOutput));
+    nlohmann::json mnxJson;
+    openJson(mnxOutput, mnxJson);
+    ASSERT_FALSE(mnxJson.empty());
+
+    std::filesystem::path mssOutput = inputPath;
+    mssOutput.replace_extension(".mss");
+    std::filesystem::path mssReference = getInputPath() / "reference" / "pageDiffThanOpts.mss";
+    ASSERT_TRUE(std::filesystem::exists(mssOutput));
+    compareFiles(mssReference, mssOutput);
 }
