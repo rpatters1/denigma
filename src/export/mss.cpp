@@ -871,7 +871,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
 
     // extract document to mss
     XmlDocument mssDoc; // output
-    auto declaration = mssDoc.append_child(pugi::node_declaration);
+    auto declaration = mssDoc.append_child(::pugi::node_declaration);
     declaration.append_attribute("version") = "1.0";
     declaration.append_attribute("encoding") = "UTF-8";
     auto museScoreElement = mssDoc.append_child("museScore");
