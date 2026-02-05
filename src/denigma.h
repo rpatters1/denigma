@@ -97,6 +97,19 @@ using MusxReader = ::musx::xml::pugi::Document;
 using Buffer = std::vector<char>;
 using LogMsg = std::stringstream;
 
+struct CommandInputData
+{
+    struct EmbeddedGraphicFile
+    {
+        std::string filename;
+        std::string blob;
+    };
+
+    Buffer primaryBuffer;
+    std::optional<Buffer> notationMetadata;
+    std::vector<EmbeddedGraphicFile> embeddedGraphics;
+};
+
 // Function to find the appropriate processor
 template <typename Processors>
 inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, const std::string& extension)
@@ -238,8 +251,8 @@ public:
     virtual int showHelpPage(const std::string_view& programName, const std::string& indentSpaces = {}) const = 0;
 
     virtual bool canProcess(const std::filesystem::path& inputPath) const = 0;
-    virtual Buffer processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
-    virtual void processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
+    virtual CommandInputData processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
+    virtual void processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
     virtual std::optional<std::string_view> defaultInputFormat() const { return std::nullopt; }
     virtual std::optional<std::string> defaultOutputFormat(const std::filesystem::path&) const { return std::nullopt; }
 

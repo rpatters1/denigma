@@ -38,12 +38,12 @@ constexpr auto inputProcessors = []() {
     struct InputProcessor
     {
         const char* extension;
-        Buffer(*processor)(const std::filesystem::path&, const DenigmaContext&);
+        CommandInputData(*processor)(const std::filesystem::path&, const DenigmaContext&);
     };
 
     return to_array<InputProcessor>({
-            { MUSX_EXTENSION, enigmaxml::extract },
-            { ENIGMAXML_EXTENSION, enigmaxml::read },
+            { MUSX_EXTENSION, enigmaxml::extractInputData },
+            { ENIGMAXML_EXTENSION, enigmaxml::readInputData },
         });
     }();
 
@@ -52,10 +52,11 @@ constexpr auto outputProcessors = []() {
     struct OutputProcessor
     {
         const char* extension;
-        void(*processor)(const std::filesystem::path&, const Buffer&, const DenigmaContext&);
+        void(*processor)(const std::filesystem::path&, const CommandInputData&, const DenigmaContext&);
     };
 
     return to_array<OutputProcessor>({
+            { MUSX_EXTENSION, enigmaxml::writeMusx },
             { ENIGMAXML_EXTENSION, enigmaxml::write },
             { MSS_EXTENSION, mss::convert },
             { MNX_EXTENSION, mnxexp::exportMnx },
@@ -69,9 +70,12 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     // Print usage
     std::cout << indentSpaces << "Exports other formats from Finale files. This is the default command." << std::endl;
     std::cout << indentSpaces << "Currently it can export" << std::endl;
+    std::cout << indentSpaces << "  musx:       Finale-readable musx file from enigmaxml" << std::endl;
     std::cout << indentSpaces << "  enigmaxml:  the internal xml representation of musx" << std::endl;
     std::cout << indentSpaces << "  mss:        the Styles format for MuseScore" << std::endl;
     std::cout << indentSpaces << "  mnx:        MNX open standard files (currently in development)" << std::endl;
+    std::cout << indentSpaces << "Note: reverse export to musx is intended for small test cases" << std::endl;
+    std::cout << indentSpaces << "      and does not restore ancillary files (for example embedded graphics or audio)." << std::endl;
     std::cout << std::endl;
     std::cout << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
     std::cout << std::endl;
@@ -124,16 +128,16 @@ bool ExportCommand::canProcess(const std::filesystem::path& inputPath) const
     return false;
 }
 
-Buffer ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
+CommandInputData ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
     auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
     return inputProcessor(inputPath, denigmaContext);
 }
 
-void ExportCommand::processOutput(const Buffer& enigmaXml, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const
+void ExportCommand::processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const
 {
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
-    outputProcessor(outputPath, enigmaXml, denigmaContext);
+    outputProcessor(outputPath, inputData, denigmaContext);
 }
 
 } // namespace denigma

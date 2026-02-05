@@ -28,7 +28,7 @@
 #include "utils/smufl_support.h"
 
 using namespace musx::dom;
-using namespace musx::util;
+using namespace musx::factory;
 
 namespace denigma {
 namespace mnxexp {
@@ -127,7 +127,7 @@ static void createMappings(const MnxMusxMappingPtr& context)
     }
 }
 
-void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+void exportJson(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.testOutput) {
@@ -137,7 +137,22 @@ void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer
 #endif
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
-    auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
+    DocumentFactory::CreateOptions createOptions;
+    if (inputData.notationMetadata.has_value()) {
+        createOptions.setNotationMetadata(*inputData.notationMetadata);
+    }
+    if (!inputData.embeddedGraphics.empty()) {
+        DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
+        embeddedGraphicFiles.reserve(inputData.embeddedGraphics.size());
+        for (const auto& graphic : inputData.embeddedGraphics) {
+            DocumentFactory::CreateOptions::EmbeddedGraphicFile file;
+            file.filename = graphic.filename;
+            file.bytes.assign(graphic.blob.begin(), graphic.blob.end());
+            embeddedGraphicFiles.emplace_back(std::move(file));
+        }
+        createOptions.setEmbeddedGraphics(std::move(embeddedGraphicFiles));
+    }
+    auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer, std::move(createOptions));
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
     context->musxParts = others::PartDefinition::getInUserOrder(document);
@@ -175,11 +190,11 @@ void exportJson(const std::filesystem::path& outputPath, const Buffer& xmlBuffer
     }
 }
 
-void exportMnx(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+void exportMnx(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
     // for now mnx and json both export as JSON text files.
     // the final plan is that the Mnx export will export a zip archive, similar to mxl for musicxml
-    exportJson(outputPath, xmlBuffer, denigmaContext);
+    exportJson(outputPath, inputData, denigmaContext);
 }
 
 } // namespace mnxexp

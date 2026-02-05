@@ -38,6 +38,7 @@ namespace denigma {
 namespace mss {
 
 using namespace ::musx::dom;
+using namespace ::musx::factory;
 
 using XmlDocument = ::pugi::xml_document;
 using XmlElement = ::pugi::xml_node;
@@ -870,7 +871,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
 
     // extract document to mss
     XmlDocument mssDoc; // output
-    auto declaration = mssDoc.append_child(pugi::node_declaration);
+    auto declaration = mssDoc.append_child(::pugi::node_declaration);
     declaration.append_attribute("version") = "1.0";
     declaration.append_attribute("encoding") = "UTF-8";
     auto museScoreElement = mssDoc.append_child("museScore");
@@ -897,7 +898,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     file.close();
 }
 
-void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
+void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.testOutput) {
@@ -906,7 +907,7 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     }
 #endif
 
-    auto document = musx::factory::DocumentFactory::create<MusxReader>(xmlBuffer);
+    auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
         processPart(outputPath, document, denigmaContext); // process the score
     }
@@ -914,7 +915,7 @@ void convert(const std::filesystem::path& outputPath, const Buffer& xmlBuffer, c
     if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
         auto parts = document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
         for (const auto& part : parts) {
-            if (part->getCmper()) {
+            if (part->getCmper() != SCORE_PARTID) {
                 if (denigmaContext.allPartsAndScore) {
                     processPart(outputPath, document, denigmaContext, part);
                 } else if (denigmaContext.partName->empty() || part->getName().rfind(denigmaContext.partName.value(), 0) == 0) {

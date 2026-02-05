@@ -31,7 +31,7 @@
 namespace denigma {
 namespace mss {
 
-void convert(const std::filesystem::path& file, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext);
+void convert(const std::filesystem::path& file, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
 } // namespace mss
 } // namespace denigma
