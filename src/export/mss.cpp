@@ -38,6 +38,7 @@ namespace denigma {
 namespace mss {
 
 using namespace ::musx::dom;
+using namespace ::musx::factory;
 
 using XmlDocument = ::pugi::xml_document;
 using XmlElement = ::pugi::xml_node;
@@ -906,7 +907,7 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
     }
 #endif
 
-    auto document = musx::factory::DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
+    auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
         processPart(outputPath, document, denigmaContext); // process the score
     }
@@ -914,7 +915,7 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
     if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
         auto parts = document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
         for (const auto& part : parts) {
-            if (part->getCmper()) {
+            if (part->getCmper() != SCORE_PARTID) {
                 if (denigmaContext.allPartsAndScore) {
                     processPart(outputPath, document, denigmaContext, part);
                 } else if (denigmaContext.partName->empty() || part->getName().rfind(denigmaContext.partName.value(), 0) == 0) {

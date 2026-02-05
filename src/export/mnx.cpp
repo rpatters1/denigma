@@ -28,7 +28,7 @@
 #include "utils/smufl_support.h"
 
 using namespace musx::dom;
-using namespace musx::util;
+using namespace musx::factory;
 
 namespace denigma {
 namespace mnxexp {
@@ -137,22 +137,22 @@ void exportJson(const std::filesystem::path& outputPath, const CommandInputData&
 #endif
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
-    musx::factory::DocumentFactory::CreateOptions createOptions;
+    DocumentFactory::CreateOptions createOptions;
     if (inputData.notationMetadata.has_value()) {
         createOptions.setNotationMetadata(*inputData.notationMetadata);
     }
     if (!inputData.embeddedGraphics.empty()) {
-        musx::factory::DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
+        DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
         embeddedGraphicFiles.reserve(inputData.embeddedGraphics.size());
         for (const auto& graphic : inputData.embeddedGraphics) {
-            musx::factory::DocumentFactory::CreateOptions::EmbeddedGraphicFile file;
+            DocumentFactory::CreateOptions::EmbeddedGraphicFile file;
             file.filename = graphic.filename;
             file.bytes.assign(graphic.blob.begin(), graphic.blob.end());
             embeddedGraphicFiles.emplace_back(std::move(file));
         }
         createOptions.setEmbeddedGraphics(std::move(embeddedGraphicFiles));
     }
-    auto document = musx::factory::DocumentFactory::create<MusxReader>(inputData.primaryBuffer, std::move(createOptions));
+    auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer, std::move(createOptions));
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
     context->musxParts = others::PartDefinition::getInUserOrder(document);
