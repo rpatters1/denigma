@@ -259,7 +259,7 @@ static CommandInputData readMusxArchive(const std::filesystem::path& musxPath, c
 Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
-    if (denigmaContext.testOutput) {
+    if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Reading " << inputPath.u8string());
         return {};
     }
@@ -294,7 +294,7 @@ CommandInputData readInputData(const std::filesystem::path& inputPath, const Den
 Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
-    if (denigmaContext.testOutput) {
+    if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Extracting " << inputPath.u8string());
         return {};
     }
@@ -313,7 +313,7 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& den
 CommandInputData extractInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
-    if (denigmaContext.testOutput) {
+    if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Extracting " << inputPath.u8string());
         return {};
     }
@@ -330,7 +330,7 @@ CommandInputData extractInputData(const std::filesystem::path& inputPath, const 
 void write(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
-    if (denigmaContext.testOutput) {
+    if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Writing " << outputPath.u8string());
         return;
     }
@@ -363,7 +363,7 @@ void write(const std::filesystem::path& outputPath, const CommandInputData& inpu
 void writeMusx(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
-    if (denigmaContext.testOutput) {
+    if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Writing " << outputPath.u8string());
         return;
     }
