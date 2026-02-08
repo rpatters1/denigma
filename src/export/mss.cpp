@@ -33,6 +33,7 @@
 #include "pugixml.hpp"
 #include "utils/stringutils.h"
 #include "utils/smufl_support.h"
+#include "utils/textmetrics.h"
 
 namespace denigma {
 namespace mss {
@@ -238,7 +239,7 @@ static void setPointElement(XmlElement& styleElement, const std::string& nodeNam
     setAttribute("y", y);
 }
 
-static double approximateFontHeightInSpaces(const FontInfo* fontInfo)
+static double approximateFontHeightInSpaces(const FontInfo* fontInfo, const DenigmaContext& denigmaContext)
 {
     if (!fontInfo) {
         return 0.0;
@@ -246,6 +247,9 @@ static double approximateFontHeightInSpaces(const FontInfo* fontInfo)
 
     const double scaledPointSize = double(fontInfo->fontSize)
                                  * (fontInfo->absolute ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL);
+    if (auto measuredHeightEvpu = textmetrics::measureFontHeightEvpu(*fontInfo, scaledPointSize, denigmaContext)) {
+        return *measuredHeightEvpu / EVPU_PER_SPACE;
+    }
     const double heightEvpu = (scaledPointSize / POINTS_PER_INCH) * EVPU_PER_INCH * FONT_HEIGHT_SCALE;
     return heightEvpu / EVPU_PER_SPACE;
 }
@@ -633,7 +637,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
             setElementValue(styleElement, prefix + "HPlacement", justifyToAlign(alignment));
             setElementValue(styleElement, prefix + "Align", justificationString(justification));
             setElementValue(styleElement, prefix + "Position", justifyToAlign(justification));
-            const double textHeightSp = approximateFontHeightInSpaces(fontInfo.get()) * prefs->spatiumScaling;
+            const double textHeightSp = approximateFontHeightInSpaces(fontInfo.get(), *prefs->denigmaContext) * prefs->spatiumScaling;
             const double normalStaffHeightSp = 4.0;
             setPointElement(styleElement, prefix + "PosAbove", horizontalSp, std::min(-verticalSp, 0.0));
             setPointElement(styleElement, prefix + "PosBelow", horizontalSp,

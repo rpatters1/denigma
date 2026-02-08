@@ -45,20 +45,26 @@ namespace pugixml {
 #include "pugixml_license.xxd"
 }
 
+namespace freetype {
+#include "freetype_license.xxd"
+}
+
 static const std::basic_string_view<unsigned char> denigmaLicense(denigma::LICENSE, denigma::LICENSE_len);
 static const std::basic_string_view<unsigned char> zlibLicense(zlib::LICENSE, zlib::LICENSE_len);
 static const std::basic_string_view<unsigned char> mnxLicense(mnxdom::LICENSE, mnxdom::LICENSE_len);
 static const std::basic_string_view<unsigned char> musxLicense(musx::LICENSE, musx::LICENSE_len);
 static const std::basic_string_view<unsigned char> smuflLicense(smufl_mapping::LICENSE, smufl_mapping::LICENSE_len);
 static const std::basic_string_view<unsigned char> pugixmlLicense(pugixml::LICENSE_md, pugixml::LICENSE_md_len);
+static const std::basic_string_view<unsigned char> freetypeLicense(freetype::FTL_TXT, freetype::FTL_TXT_len);
 
-static const std::array<std::pair<std::string_view, std::basic_string_view<unsigned char>>, 6> licenses = {{
+static const std::array<std::pair<std::string_view, std::basic_string_view<unsigned char>>, 7> licenses = {{
     { "denigma", denigmaLicense },
     { "musx object model", musxLicense },
     { "mnx object model", mnxLicense },
     { "SMuFL mapping", smuflLicense },
     { "zlib", zlibLicense },
-    { "pugixml", pugixmlLicense }
+    { "pugixml", pugixmlLicense },
+    { "FreeType (FTL)", freetypeLicense }
 }};
 
 namespace denigma {
