@@ -901,7 +901,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
 void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
-    if (denigmaContext.testOutput) {
+    if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Converting to " << outputPath.u8string());
         return;
     }

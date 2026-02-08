@@ -130,19 +130,15 @@ static void createMappings(const MnxMusxMappingPtr& context)
 void exportJson(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
-    if (denigmaContext.testOutput) {
+    if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Converting to " << outputPath.u8string());
         return;
     }
 #endif
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
-    DocumentFactory::CreateOptions createOptions;
-    if (inputData.notationMetadata.has_value()) {
-        createOptions.setNotationMetadata(*inputData.notationMetadata);
-    }
+    DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
     if (!inputData.embeddedGraphics.empty()) {
-        DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
         embeddedGraphicFiles.reserve(inputData.embeddedGraphics.size());
         for (const auto& graphic : inputData.embeddedGraphics) {
             DocumentFactory::CreateOptions::EmbeddedGraphicFile file;
@@ -150,8 +146,11 @@ void exportJson(const std::filesystem::path& outputPath, const CommandInputData&
             file.bytes.assign(graphic.blob.begin(), graphic.blob.end());
             embeddedGraphicFiles.emplace_back(std::move(file));
         }
-        createOptions.setEmbeddedGraphics(std::move(embeddedGraphicFiles));
     }
+    DocumentFactory::CreateOptions createOptions(
+        denigmaContext.inputFilePath,
+        inputData.notationMetadata.value_or(Buffer{}),
+        std::move(embeddedGraphicFiles));
     auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer, std::move(createOptions));
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();

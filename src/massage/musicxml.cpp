@@ -707,7 +707,7 @@ pugi::xml_document openXmlDocument(const T& xmlData)
 void massage(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
-    if (denigmaContext.testOutput) {
+    if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Massaging " << inputPath.u8string() << " to " << outputPath.u8string());
         return;
     }
@@ -775,7 +775,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
     }
 
 #ifdef DENIGMA_TEST
-    if (denigmaContext.testOutput) {
+    if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Massaging " << inputPath.u8string() << " to " << outputPath.u8string());
         return;
     }
