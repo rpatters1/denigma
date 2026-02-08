@@ -39,7 +39,13 @@ struct TextMetricsEvpu
 
 std::optional<TextMetricsEvpu> measureTextEvpu(const musx::dom::FontInfo& fontInfo,
                                                std::u32string_view text,
+                                               std::optional<double> pointSizeOverride,
                                                const DenigmaContext& denigmaContext);
+
+std::optional<double> measureGlyphWidthEvpu(const musx::dom::FontInfo& fontInfo,
+                                            char32_t codePoint,
+                                            std::optional<double> pointSizeOverride,
+                                            const DenigmaContext& denigmaContext);
 
 std::optional<double> measureFontHeightEvpu(const musx::dom::FontInfo& fontInfo,
                                             double pointSize,

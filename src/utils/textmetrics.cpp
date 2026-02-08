@@ -159,10 +159,13 @@ public:
 
     std::optional<TextMetricsEvpu> measureText(const musx::dom::FontInfo& fontInfo,
                                                std::u32string_view text,
+                                               std::optional<double> pointSizeOverride,
                                                const DenigmaContext& denigmaContext)
     {
         std::scoped_lock<std::mutex> lock(m_mutex);
-        auto face = resolveFaceLocked(fontInfo, static_cast<double>(fontInfo.fontSize), denigmaContext);
+        auto face = resolveFaceLocked(fontInfo,
+                                      pointSizeOverride.value_or(static_cast<double>(fontInfo.fontSize)),
+                                      denigmaContext);
         if (!face) {
             return std::nullopt;
         }
@@ -192,6 +195,29 @@ public:
         }
 
         return result;
+    }
+
+    std::optional<double> measureGlyphWidth(const musx::dom::FontInfo& fontInfo,
+                                            char32_t codePoint,
+                                            std::optional<double> pointSizeOverride,
+                                            const DenigmaContext& denigmaContext)
+    {
+        std::scoped_lock<std::mutex> lock(m_mutex);
+        auto face = resolveFaceLocked(fontInfo,
+                                      pointSizeOverride.value_or(static_cast<double>(fontInfo.fontSize)),
+                                      denigmaContext);
+        if (!face) {
+            return std::nullopt;
+        }
+
+        const FT_UInt glyphIndex = FT_Get_Char_Index(*face, static_cast<FT_ULong>(codePoint));
+        if (!glyphIndex) {
+            return std::nullopt;
+        }
+        if (FT_Load_Glyph(*face, glyphIndex, FT_LOAD_DEFAULT) != 0) {
+            return std::nullopt;
+        }
+        return (std::max)(0.0, static_cast<double>((*face)->glyph->metrics.width) / 64.0 * EVPU_PER_POINT);
     }
 
     std::optional<double> measureHeight(const musx::dom::FontInfo& fontInfo,
@@ -603,13 +629,31 @@ FreeTypeTextMetricsBackend& backend()
 
 std::optional<TextMetricsEvpu> measureTextEvpu(const musx::dom::FontInfo& fontInfo,
                                                std::u32string_view text,
+                                               std::optional<double> pointSizeOverride,
                                                const DenigmaContext& denigmaContext)
 {
 #if defined(DENIGMA_USE_FREETYPE)
-    return backend().measureText(fontInfo, text, denigmaContext);
+    return backend().measureText(fontInfo, text, pointSizeOverride, denigmaContext);
 #else
     (void)fontInfo;
     (void)text;
+    (void)pointSizeOverride;
+    warnMissingBackend(denigmaContext);
+    return std::nullopt;
+#endif
+}
+
+std::optional<double> measureGlyphWidthEvpu(const musx::dom::FontInfo& fontInfo,
+                                            char32_t codePoint,
+                                            std::optional<double> pointSizeOverride,
+                                            const DenigmaContext& denigmaContext)
+{
+#if defined(DENIGMA_USE_FREETYPE)
+    return backend().measureGlyphWidth(fontInfo, codePoint, pointSizeOverride, denigmaContext);
+#else
+    (void)fontInfo;
+    (void)codePoint;
+    (void)pointSizeOverride;
     warnMissingBackend(denigmaContext);
     return std::nullopt;
 #endif
@@ -637,7 +681,7 @@ musx::util::SvgConvert::GlyphMetricsFn makeSvgGlyphMetricsCallback(const Denigma
         if (!contextPtr) {
             return std::nullopt;
         }
-        auto measured = measureTextEvpu(font, text, *contextPtr);
+        auto measured = measureTextEvpu(font, text, std::nullopt, *contextPtr);
         if (!measured) {
             return std::nullopt;
         }
