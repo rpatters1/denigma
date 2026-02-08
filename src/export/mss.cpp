@@ -48,7 +48,7 @@ using XmlAttribute = ::pugi::xml_attribute;
 constexpr static char MSS_VERSION[] = "4.60"; // Do not change this version without checking notes on changed values.
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 constexpr static double POINTS_PER_INCH = 72.0;
-constexpr static double FONT_HEIGHT_SCALE = 0.7;
+constexpr static double FONT_ASCENT_SCALE = 0.7;
 constexpr static int MUSE_NUMERIC_PRECISION = 5;
 
 // Finale preferences:
@@ -241,7 +241,7 @@ static void setPointElement(XmlElement& styleElement, const std::string& nodeNam
     setAttribute("y", y);
 }
 
-static double approximateFontHeightInSpaces(const FontInfo* fontInfo, const DenigmaContext& denigmaContext)
+static double approximateFontAscentInSpaces(const FontInfo* fontInfo, const DenigmaContext& denigmaContext)
 {
     if (!fontInfo) {
         return 0.0;
@@ -249,11 +249,11 @@ static double approximateFontHeightInSpaces(const FontInfo* fontInfo, const Deni
 
     const double scaledPointSize = double(fontInfo->fontSize)
                                  * (fontInfo->absolute ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL);
-    if (auto measuredHeightEvpu = textmetrics::measureFontHeightEvpu(*fontInfo, scaledPointSize, denigmaContext)) {
-        return *measuredHeightEvpu / EVPU_PER_SPACE;
+    if (auto measuredMetricsEvpu = textmetrics::measureTextEvpu(*fontInfo, U"0123456789", scaledPointSize, denigmaContext)) {
+        return measuredMetricsEvpu->ascent / EVPU_PER_SPACE;
     }
-    const double heightEvpu = (scaledPointSize / POINTS_PER_INCH) * EVPU_PER_INCH * FONT_HEIGHT_SCALE;
-    return heightEvpu / EVPU_PER_SPACE;
+    const double ascentEvpu = (scaledPointSize / POINTS_PER_INCH) * EVPU_PER_INCH * FONT_ASCENT_SCALE;
+    return ascentEvpu / EVPU_PER_SPACE;
 }
 
 static uint16_t museFontEfx(const FontInfo* fontInfo)
@@ -656,7 +656,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
             setElementValue(styleElement, prefix + "HPlacement", justifyToAlign(alignment));
             setElementValue(styleElement, prefix + "Align", justificationString(justification));
             setElementValue(styleElement, prefix + "Position", justifyToAlign(justification));
-            const double textHeightSp = approximateFontHeightInSpaces(fontInfo.get(), *prefs->denigmaContext) * prefs->spatiumScaling;
+            const double textHeightSp = approximateFontAscentInSpaces(fontInfo.get(), *prefs->denigmaContext) * prefs->spatiumScaling;
             const double normalStaffHeightSp = 4.0;
             setPointElement(styleElement, prefix + "PosAbove", horizontalSp, std::min(-verticalSp, 0.0));
             setPointElement(styleElement, prefix + "PosBelow", horizontalSp,

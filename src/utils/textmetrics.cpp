@@ -171,8 +171,13 @@ public:
         }
 
         TextMetricsEvpu result;
-        result.ascent = (std::max)(0.0, static_cast<double>((*face)->size->metrics.ascender) / 64.0 * EVPU_PER_POINT);
-        result.descent = (std::max)(0.0, -static_cast<double>((*face)->size->metrics.descender) / 64.0 * EVPU_PER_POINT);
+        bool hasMeasuredGlyphBounds = false;
+        bool loadedAnyGlyph = false;
+        FT_Pos penX26d6 = 0;
+        FT_Pos boundsMinX26d6 = 0;
+        FT_Pos boundsMaxX26d6 = 0;
+        FT_Pos boundsMinY26d6 = 0;
+        FT_Pos boundsMaxY26d6 = 0;
 
         FT_UInt previousGlyph = 0;
         const bool hasKerning = FT_HAS_KERNING(*face);
@@ -185,13 +190,46 @@ public:
             if (hasKerning && previousGlyph && glyphIndex) {
                 FT_Vector kerning{};
                 if (FT_Get_Kerning(*face, previousGlyph, glyphIndex, FT_KERNING_DEFAULT, &kerning) == 0) {
-                    result.advance += static_cast<double>(kerning.x) / 64.0 * EVPU_PER_POINT;
+                    penX26d6 += kerning.x;
                 }
             }
             if (FT_Load_Glyph(*face, glyphIndex, FT_LOAD_DEFAULT) == 0) {
-                result.advance += static_cast<double>((*face)->glyph->advance.x) / 64.0 * EVPU_PER_POINT;
+                loadedAnyGlyph = true;
+                const auto& glyphMetrics = (*face)->glyph->metrics;
+                const FT_Pos glyphMinX = penX26d6 + glyphMetrics.horiBearingX;
+                const FT_Pos glyphMaxX = glyphMinX + glyphMetrics.width;
+                const FT_Pos glyphMaxY = glyphMetrics.horiBearingY;
+                const FT_Pos glyphMinY = glyphMaxY - glyphMetrics.height;
+                if (glyphMetrics.width > 0 || glyphMetrics.height > 0) {
+                    if (!hasMeasuredGlyphBounds) {
+                        boundsMinX26d6 = glyphMinX;
+                        boundsMaxX26d6 = glyphMaxX;
+                        boundsMinY26d6 = glyphMinY;
+                        boundsMaxY26d6 = glyphMaxY;
+                        hasMeasuredGlyphBounds = true;
+                    } else {
+                        boundsMinX26d6 = (std::min)(boundsMinX26d6, glyphMinX);
+                        boundsMaxX26d6 = (std::max)(boundsMaxX26d6, glyphMaxX);
+                        boundsMinY26d6 = (std::min)(boundsMinY26d6, glyphMinY);
+                        boundsMaxY26d6 = (std::max)(boundsMaxY26d6, glyphMaxY);
+                    }
+                }
+                penX26d6 += (*face)->glyph->advance.x;
             }
             previousGlyph = glyphIndex;
+        }
+
+        if (hasMeasuredGlyphBounds) {
+            result.advance = (std::max)(0.0, static_cast<double>(boundsMaxX26d6 - boundsMinX26d6) / 64.0 * EVPU_PER_POINT);
+            result.ascent = (std::max)(0.0, static_cast<double>(boundsMaxY26d6) / 64.0 * EVPU_PER_POINT);
+            result.descent = (std::max)(0.0, -static_cast<double>(boundsMinY26d6) / 64.0 * EVPU_PER_POINT);
+        } else if (loadedAnyGlyph) {
+            // No glyph ink box was produced (e.g. whitespace-only text); preserve logical advance.
+            result.advance = (std::max)(0.0, static_cast<double>(penX26d6) / 64.0 * EVPU_PER_POINT);
+        } else if (!text.empty()) {
+            // Fallback only when glyph loading failed for the whole run.
+            result.ascent = (std::max)(0.0, static_cast<double>((*face)->size->metrics.ascender) / 64.0 * EVPU_PER_POINT);
+            result.descent = (std::max)(0.0, -static_cast<double>((*face)->size->metrics.descender) / 64.0 * EVPU_PER_POINT);
         }
 
         return result;

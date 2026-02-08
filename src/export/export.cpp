@@ -30,6 +30,7 @@
 #include "export/enigmaxml.h"
 #include "export/mss.h"
 #include "export/mnx.h"
+#include "export/svg.h"
 
 namespace denigma {
 
@@ -59,6 +60,7 @@ constexpr auto outputProcessors = []() {
             { MUSX_EXTENSION, enigmaxml::writeMusx },
             { ENIGMAXML_EXTENSION, enigmaxml::write },
             { MSS_EXTENSION, mss::convert },
+            { SVG_EXTENSION, svgexp::convert },
             { MNX_EXTENSION, mnxexp::exportMnx },
             { JSON_EXTENSION, mnxexp::exportJson },
         });
@@ -73,6 +75,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "  musx:       Finale-readable musx file from enigmaxml" << std::endl;
     std::cout << indentSpaces << "  enigmaxml:  the internal xml representation of musx" << std::endl;
     std::cout << indentSpaces << "  mss:        the Styles format for MuseScore" << std::endl;
+    std::cout << indentSpaces << "  svg:        Shape Designer shapes as SVG files" << std::endl;
     std::cout << indentSpaces << "  mnx:        MNX open standard files (currently in development)" << std::endl;
     std::cout << indentSpaces << "Note: reverse export to musx is intended for small test cases" << std::endl;
     std::cout << indentSpaces << "      and does not restore ancillary files (for example embedded graphics or audio)." << std::endl;
@@ -85,6 +88,11 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "  --no-include-tempo-tool         Exclude tempo changes created with the Tempo Tool (default: exclude)." << std::endl;
     std::cout << indentSpaces << "  --pretty-print [indent-spaces]  Print human readable format (default: on, " << JSON_INDENT_SPACES << " indent spaces)." << std::endl;
     std::cout << indentSpaces << "  --no-pretty-print               Print compact json with no indentions or new lines." << std::endl;
+    std::cout << indentSpaces << "  --shape-def <id[,id...]>        Export only specific ShapeDef cmper IDs (repeatable)." << std::endl;
+    std::cout << indentSpaces << "  --svg-unit <none|px|pt|pc|cm|mm|in>  Unit suffix for SVG width/height (default: mm)." << std::endl;
+    std::cout << indentSpaces << "  --svg-page-scale                Use page-format scaling for SVG output (default: on)." << std::endl;
+    std::cout << indentSpaces << "  --no-svg-page-scale             Disable page-format scaling for SVG output." << std::endl;
+    std::cout << indentSpaces << "  --svg-scale <positive-float>    Extra SVG scaling multiplier (default: 1.0)." << std::endl;
 
     // Supported input formats
     std::cout << indentSpaces << "Supported input formats:" << std::endl;
@@ -115,6 +123,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mss --part" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mnx --mss" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " input.musx --svg --shape-def 3,7 --svg-unit px" << std::endl;
 
     return 1;
 }

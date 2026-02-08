@@ -72,6 +72,18 @@ TEST(Options, IncorrectOptions)
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid output format";
         });
     }
+    {
+        ArgList args = { DENIGMA_NAME, "--testing", "export", "input.musx", "--svg", "--svg-unit", "yards" };
+        checkStderr("Invalid value for --svg-unit: yards", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid svg unit";
+        });
+    }
+    {
+        ArgList args = { DENIGMA_NAME, "--testing", "export", "input.musx", "--svg", "--svg-scale", "0" };
+        checkStderr("Invalid value for --svg-scale: 0 (must be > 0)", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid svg scale";
+        });
+    }
 }
 
 TEST(Options, ParseOptions)
@@ -170,6 +182,23 @@ TEST(Options, ParseOptions)
         checkStderr({ "Reading " + fileName + ".enigmaxml", "Writing", fileName + ".musx" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "default enigmaxml output format";
         });
+    }
+    {
+        static const std::string fileName = "notAscii-其れ";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx", "--svg", "--shape-def", "3,5", "--shape-def", "5,7",
+                         "--svg-unit", "px", "--no-svg-page-scale", "--svg-scale", "1.25" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 3);
+        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".musx");
+        EXPECT_EQ(std::filesystem::path(newArgs[2]).u8string(), "--svg");
+        ASSERT_EQ(ctx.svgShapeDefs.size(), 3u);
+        EXPECT_EQ(ctx.svgShapeDefs[0], 3);
+        EXPECT_EQ(ctx.svgShapeDefs[1], 5);
+        EXPECT_EQ(ctx.svgShapeDefs[2], 7);
+        EXPECT_EQ(ctx.svgUnit, musx::util::SvgConvert::SvgUnit::Pixels);
+        EXPECT_FALSE(ctx.svgUsePageScale);
+        EXPECT_DOUBLE_EQ(ctx.svgScale, 1.25);
     }
 }
 

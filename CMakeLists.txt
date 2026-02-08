@@ -312,6 +312,7 @@ add_executable(denigma
     src/export/mnx_parts.cpp
     src/export/mnx_sequences.cpp
     src/export/mss.cpp
+    src/export/svg.cpp
     src/export/mnx_mapping.cpp
     src/massage/massage.cpp
     src/massage/musicxml.cpp

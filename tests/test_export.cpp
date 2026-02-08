@@ -138,6 +138,35 @@ TEST(Export, OutputFilename)
     }
 }
 
+TEST(Export, SvgOutput)
+{
+    setupTestDataPaths();
+    std::string inputFile = "notAscii-其れ";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".musx", inputPath);
+    {
+        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--svg", "--shape-def", "3" };
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "default svg output";
+        });
+        auto outputFilename = utils::utf8ToPath(inputFile + ".shape-3.svg");
+        auto outputPath = getOutputPath() / outputFilename;
+        EXPECT_TRUE(std::filesystem::exists(outputPath));
+        assertStringInFile("<svg", outputPath);
+    }
+    {
+        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--svg", "-exports/output.svg", "--shape-def", "3" };
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "explicit svg output filename";
+        });
+        auto explicitFile = getOutputPath() / utils::utf8ToPath("-exports/output.svg");
+        auto suffixedFile = getOutputPath() / utils::utf8ToPath("-exports/output.shape-3.svg");
+        EXPECT_TRUE(std::filesystem::exists(explicitFile));
+        EXPECT_FALSE(std::filesystem::exists(suffixedFile));
+        assertStringInFile("<svg", explicitFile);
+    }
+}
+
 TEST(Export, Parts)
 {
     setupTestDataPaths();
