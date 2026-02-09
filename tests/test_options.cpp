@@ -84,6 +84,12 @@ TEST(Options, IncorrectOptions)
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid svg scale";
         });
     }
+    {
+        ArgList args = { DENIGMA_NAME, "--testing", "export", "input.musx", "--svg", "--svg-page-scale", "--svg-scale", "1.25" };
+        checkStderr("Cannot combine --svg-scale with page-format scaling. Use --no-svg-page-scale with --svg-scale.", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "svg scale conflicts with page scale";
+        });
+    }
 }
 
 TEST(Options, ParseOptions)
@@ -182,6 +188,17 @@ TEST(Options, ParseOptions)
         checkStderr({ "Reading " + fileName + ".enigmaxml", "Writing", fileName + ".musx" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "default enigmaxml output format";
         });
+    }
+    {
+        static const std::string fileName = "notAscii-其れ";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx", "--svg", "--svg-scale", "1.25" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 3);
+        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".musx");
+        EXPECT_EQ(std::filesystem::path(newArgs[2]).u8string(), "--svg");
+        EXPECT_FALSE(ctx.svgUsePageScale);
+        EXPECT_DOUBLE_EQ(ctx.svgScale, 1.25);
     }
     {
         static const std::string fileName = "notAscii-其れ";

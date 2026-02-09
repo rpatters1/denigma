@@ -38,7 +38,6 @@
 #include <vector>
 
 #include "denigma.h"
-#include "utils/smufl_support.h"
 
 #if defined(DENIGMA_USE_DIRECTWRITE)
 #ifndef NOMINMAX
@@ -173,8 +172,9 @@ public:
                                                const DenigmaContext& denigmaContext)
     {
         std::scoped_lock<std::mutex> lock(m_mutex);
+        const double pointSize = pointSizeOverride.value_or(static_cast<double>(fontInfo.fontSize));
         auto face = resolveFaceLocked(fontInfo,
-                                      pointSizeOverride.value_or(static_cast<double>(fontInfo.fontSize)),
+                                      pointSize,
                                       denigmaContext);
         if (!face) {
             return std::nullopt;
@@ -239,8 +239,9 @@ public:
             result.advance = (std::max)(0.0, penXEvpu);
         } else if (!text.empty()) {
             // Fallback only when glyph loading failed for the whole run.
-            result.ascent = (std::max)(0.0, static_cast<double>((*face)->size->metrics.ascender) / 64.0 * EVPU_PER_POINT);
-            result.descent = (std::max)(0.0, -static_cast<double>((*face)->size->metrics.descender) / 64.0 * EVPU_PER_POINT);
+            const auto vertical = calcFaceVerticalMetricsEvpu(*face, pointSize);
+            result.ascent = vertical.ascent;
+            result.descent = vertical.descent;
         }
 
         return result;
@@ -278,9 +279,8 @@ public:
         if (!face) {
             return std::nullopt;
         }
-        const double ascent = (std::max)(0.0, static_cast<double>((*face)->size->metrics.ascender) / 64.0 * EVPU_PER_POINT);
-        const double descent = (std::max)(0.0, -static_cast<double>((*face)->size->metrics.descender) / 64.0 * EVPU_PER_POINT);
-        return ascent + descent;
+        const auto vertical = calcFaceVerticalMetricsEvpu(*face, pointSize);
+        return vertical.ascent + vertical.descent;
     }
 
     std::optional<TextMetricsEvpu> measureAscentDescent(const musx::dom::FontInfo& fontInfo,
@@ -288,20 +288,42 @@ public:
                                                         const DenigmaContext& denigmaContext)
     {
         std::scoped_lock<std::mutex> lock(m_mutex);
+        const double pointSize = pointSizeOverride.value_or(static_cast<double>(fontInfo.fontSize));
         auto face = resolveFaceLocked(fontInfo,
-                                      pointSizeOverride.value_or(static_cast<double>(fontInfo.fontSize)),
+                                      pointSize,
                                       denigmaContext);
         if (!face) {
             return std::nullopt;
         }
 
-        TextMetricsEvpu result;
-        result.ascent = (std::max)(0.0, static_cast<double>((*face)->size->metrics.ascender) / 64.0 * EVPU_PER_POINT);
-        result.descent = (std::max)(0.0, -static_cast<double>((*face)->size->metrics.descender) / 64.0 * EVPU_PER_POINT);
-        return result;
+        return calcFaceVerticalMetricsEvpu(*face, pointSize);
     }
 
 private:
+    static TextMetricsEvpu calcFaceVerticalMetricsEvpu(FT_Face face, double pointSize)
+    {
+        TextMetricsEvpu result;
+        if (!face || !face->size) {
+            return result;
+        }
+
+        // Use design-space metrics from font units to avoid pixel-grid rounding.
+        if (FT_IS_SCALABLE(face) && face->units_per_EM > 0) {
+            const double effectivePointSize = pointSize > 0.0 ? pointSize : 12.0;
+            const double emUnits = static_cast<double>(face->units_per_EM);
+            result.ascent = (std::max)(0.0, (static_cast<double>(face->ascender) / emUnits) * effectivePointSize * EVPU_PER_POINT);
+            result.descent = (std::max)(0.0, (-static_cast<double>(face->descender) / emUnits) * effectivePointSize * EVPU_PER_POINT);
+            if (result.ascent > 0.0 || result.descent > 0.0) {
+                return result;
+            }
+        }
+
+        // Fallback path for non-scalable fonts or unexpected empty design metrics.
+        result.ascent = (std::max)(0.0, static_cast<double>(face->size->metrics.ascender) / 64.0 * EVPU_PER_POINT);
+        result.descent = (std::max)(0.0, -static_cast<double>(face->size->metrics.descender) / 64.0 * EVPU_PER_POINT);
+        return result;
+    }
+
     template <typename T>
     static void safeRelease(T*& value)
     {
@@ -1012,23 +1034,36 @@ musx::util::SvgConvert::GlyphMetricsFn makeSvgGlyphMetricsCallback(const Denigma
         if (!contextPtr) {
             return std::nullopt;
         }
-        if (text.size() == 1) {
-            if (auto smuflMetrics = utils::smuflGlyphMetricsForFont(font, text.front())) {
-                return musx::util::SvgConvert::GlyphMetrics{
-                    smuflMetrics->advance,
-                    (std::max)(0.0, static_cast<double>(smuflMetrics->top)),
-                    (std::min)(0.0, static_cast<double>(smuflMetrics->bottom))
-                };
-            }
-        }
         auto measured = measureTextEvpu(font, text, std::nullopt, *contextPtr);
         if (!measured) {
             return std::nullopt;
         }
         auto verticalMetrics = measureFontAscentDescentEvpu(font, std::nullopt, *contextPtr);
-        const double glyphTop = verticalMetrics ? verticalMetrics->ascent : measured->ascent;
-        const double glyphBottom = verticalMetrics ? -verticalMetrics->descent : -measured->descent;
-        return musx::util::SvgConvert::GlyphMetrics{ measured->advance, glyphTop, glyphBottom };
+        const bool useMeasuredVerticals = (measured->ascent != 0.0) || (measured->descent != 0.0);
+        const double glyphAscent = useMeasuredVerticals
+            ? measured->ascent
+            : (verticalMetrics ? verticalMetrics->ascent : measured->ascent);
+        const double glyphDescent = useMeasuredVerticals
+            ? measured->descent
+            : (verticalMetrics ? verticalMetrics->descent : measured->descent);
+        std::string fontName;
+        try {
+            fontName = font.getName();
+        } catch (...) {
+            fontName.clear();
+        }
+        const uint32_t cp = text.empty() ? 0 : static_cast<uint32_t>(text.front());
+        contextPtr->logMessage(LogMsg() << "SVG metrics callback [freetype]"
+                                        << " font=\"" << fontName << "\""
+                                        << " sizePt=" << font.fontSize
+                                        << " cpDec=" << cp
+                                        << " measuredAdvance=" << measured->advance
+                                        << " measuredAscent=" << measured->ascent
+                                        << " measuredDescent=" << measured->descent
+                                        << " finalAscent=" << glyphAscent
+                                        << " finalDescent=" << glyphDescent,
+                             LogSeverity::Verbose);
+        return musx::util::SvgConvert::GlyphMetrics{ measured->advance, glyphAscent, glyphDescent };
     };
 }
 

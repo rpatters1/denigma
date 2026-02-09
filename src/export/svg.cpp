@@ -61,22 +61,6 @@ DocumentPtr createDocument(const CommandInputData& inputData, const DenigmaConte
     return DocumentFactory::create<MusxReader>(inputData.primaryBuffer, std::move(options));
 }
 
-double calcBaseScaling(const DocumentPtr& document, bool usePageScale)
-{
-    if (!usePageScale) {
-        return 1.0;
-    }
-    auto pageFormatOptions = document->getOptions()->get<options::PageFormatOptions>();
-    if (!pageFormatOptions) {
-        throw std::invalid_argument("PageFormatOptions are not available on this Document.");
-    }
-    auto pageFormat = pageFormatOptions->calcPageFormatForPart(SCORE_PARTID);
-    if (!pageFormat) {
-        throw std::invalid_argument("PageFormatOptions could not resolve a score page format.");
-    }
-    return pageFormat->calcCombinedSystemScaling().toDouble();
-}
-
 std::filesystem::path appendShapeSuffix(const std::filesystem::path& outputPath, Cmper shapeCmper)
 {
     std::filesystem::path result = outputPath;
@@ -148,9 +132,14 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
         return;
     }
 
-    const double scaling = calcBaseScaling(document, denigmaContext.svgUsePageScale) * denigmaContext.svgScale;
+    const bool usePageFormatScaling = denigmaContext.svgUsePageScale;
+    const double svgScale = denigmaContext.svgScale;
     const bool multipleShapes = shapes.size() > 1;
     const auto glyphMetrics = textmetrics::makeSvgGlyphMetricsCallback(denigmaContext);
+    denigmaContext.logMessage(LogMsg() << "SVG scaling pageScale=" << (usePageFormatScaling ? "on" : "off")
+                                       << " user=" << svgScale
+                                       << " path=" << (usePageFormatScaling ? "toSvgWithPageFormatScaling" : "toSvg"),
+                              LogSeverity::Verbose);
 
     size_t generatedCount = 0;
     for (const auto& shape : shapes) {
@@ -158,7 +147,9 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
         if (!denigmaContext.validatePathsAndOptions(resolvedOutputPath)) {
             continue;
         }
-        const std::string svgData = musx::util::SvgConvert::toSvg(*shape, scaling, denigmaContext.svgUnit, glyphMetrics);
+        const std::string svgData = usePageFormatScaling
+            ? musx::util::SvgConvert::toSvgWithPageFormatScaling(*shape, denigmaContext.svgUnit, glyphMetrics)
+            : musx::util::SvgConvert::toSvg(*shape, svgScale, denigmaContext.svgUnit, glyphMetrics);
         if (svgData.empty()) {
             denigmaContext.logMessage(LogMsg() << "ShapeDef cmper " << shape->getCmper()
                                                << " could not be converted to SVG (likely unresolved external graphic).",

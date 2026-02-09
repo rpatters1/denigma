@@ -185,7 +185,7 @@ TEST(Export, SvgPageScaledShapeRefs)
         const std::string cmperText = std::to_string(shapeCmper);
         const std::filesystem::path outputSvg = getOutputPath() / utils::utf8ToPath(cmperText + "-test.svg");
         ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--svg", outputSvg.u8string(),
-                         "--shape-def", cmperText, "--svg-page-scale", "--svg-scale", "1", "--force" };
+                         "--shape-def", cmperText, "--svg-page-scale", "--force" };
         checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "svg export for shape cmper " << cmperText;
         });

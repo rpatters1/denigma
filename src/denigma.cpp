@@ -83,6 +83,8 @@ void appendShapeDefIds(const std::string& list, std::vector<musx::dom::Cmper>& o
 std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* argv[])
 {
     std::vector<const arg_char*> args;
+    bool svgScaleSpecified = false;
+    bool svgPageScaleExplicitlyEnabled = false;
     for (int x = 1; x < argc; x++) {
         auto getNextArg = [&]() -> arg_view {
                 if (x + 1 < argc) {
@@ -177,6 +179,7 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             svgUnit = parseSvgUnitOption(unitValue);
         } else if (next == _ARG("--svg-page-scale")) {
             svgUsePageScale = true;
+            svgPageScaleExplicitlyEnabled = true;
         } else if (next == _ARG("--no-svg-page-scale")) {
             svgUsePageScale = false;
         } else if (next == _ARG("--svg-scale")) {
@@ -192,6 +195,7 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             if (svgScale <= 0.0) {
                 throw std::invalid_argument("Invalid value for --svg-scale: " + scaleValue + " (must be > 0)");
             }
+            svgScaleSpecified = true;
 #ifdef DENIGMA_TEST // this is defined on the command line by the test program
         } else if (next == _ARG("--testing")) {
             testOutput = true;
@@ -199,6 +203,12 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
         } else {
             args.push_back(argv[x]);
         }
+    }
+    if (svgScaleSpecified && !svgPageScaleExplicitlyEnabled) {
+        svgUsePageScale = false;
+    }
+    if (svgScaleSpecified && svgPageScaleExplicitlyEnabled) {
+        throw std::invalid_argument("Cannot combine --svg-scale with page-format scaling. Use --no-svg-page-scale with --svg-scale.");
     }
     return args;
 }
