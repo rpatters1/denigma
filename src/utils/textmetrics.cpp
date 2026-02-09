@@ -349,8 +349,8 @@ private:
         if (!m_warnedUnresolvedFamilies.insert(key).second) {
             return;
         }
-        denigmaContext.logMessage(LogMsg() << "Unable to resolve font \"" << key
-                                           << "\" for FreeType metrics. Falling back to heuristic text metrics.",
+        denigmaContext.logMessage(LogMsg() << "Unable to resolve/load a font file for \"" << key
+                                           << "\". Falling back to heuristic text metrics.",
                                   LogSeverity::Warning);
     }
 
@@ -1043,7 +1043,6 @@ private:
         const double sizePoints = pointSize > 0.0 ? pointSize : 12.0;
         const auto size26d6 = static_cast<FT_F26Dot6>(std::llround(sizePoints * 64.0));
         if (FT_Set_Char_Size(face, 0, size26d6, 72, 72) != 0) {
-            warnUnresolvedFamilyLocked(denigmaContext, familyName);
             return std::nullopt;
         }
         return face;
