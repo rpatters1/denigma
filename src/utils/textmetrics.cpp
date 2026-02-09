@@ -38,6 +38,7 @@
 #include <vector>
 
 #include "denigma.h"
+#include "utils/stringutils.h"
 
 #if defined(DENIGMA_USE_DIRECTWRITE)
 #ifndef NOMINMAX
@@ -367,22 +368,22 @@ private:
 #if defined(MUSX_RUNNING_ON_MACOS)
         append("/System/Library/Fonts");
         append("/Library/Fonts");
-        if (const char* home = std::getenv("HOME")) {
-            append(std::filesystem::path(home) / "Library/Fonts");
+        if (const auto home = utils::getEnvironmentValue("HOME")) {
+            append(std::filesystem::path(*home) / "Library/Fonts");
         }
 #elif defined(MUSX_RUNNING_ON_WINDOWS)
-        if (const char* windir = std::getenv("WINDIR")) {
-            append(std::filesystem::path(windir) / "Fonts");
+        if (const auto windir = utils::getEnvironmentValue("WINDIR")) {
+            append(std::filesystem::path(*windir) / "Fonts");
         }
-        if (const char* localAppData = std::getenv("LOCALAPPDATA")) {
-            append(std::filesystem::path(localAppData) / "Microsoft/Windows/Fonts");
+        if (const auto localAppData = utils::getEnvironmentValue("LOCALAPPDATA")) {
+            append(std::filesystem::path(*localAppData) / "Microsoft/Windows/Fonts");
         }
 #elif defined(MUSX_RUNNING_ON_LINUX_UNIX)
         append("/usr/share/fonts");
         append("/usr/local/share/fonts");
-        if (const char* home = std::getenv("HOME")) {
-            append(std::filesystem::path(home) / ".local/share/fonts");
-            append(std::filesystem::path(home) / ".fonts");
+        if (const auto home = utils::getEnvironmentValue("HOME")) {
+            append(std::filesystem::path(*home) / ".local/share/fonts");
+            append(std::filesystem::path(*home) / ".fonts");
         }
 #endif
 

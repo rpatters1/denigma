@@ -26,6 +26,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <optional>
+#include <cstdlib>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -98,6 +99,34 @@ inline std::string utf8ToAcp(const std::string& utf8)
     }   
 #endif
     return utf8;
+}
+
+inline std::optional<std::string> getEnvironmentValue(const char* name)
+{
+    if (!name || !*name) {
+        return std::nullopt;
+    }
+#ifdef _WIN32
+    char* value = nullptr;
+    size_t len = 0;
+    if (_dupenv_s(&value, &len, name) != 0 || !value || len == 0) {
+        if (value) {
+            std::free(value);
+        }
+        return std::nullopt;
+    }
+    std::string result(value);
+    std::free(value);
+    if (result.empty()) {
+        return std::nullopt;
+    }
+    return result;
+#else
+    if (const char* value = std::getenv(name)) {
+        return std::string(value);
+    }
+    return std::nullopt;
+#endif
 }
 
 inline std::filesystem::path utf8ToPath(const std::string& str)
