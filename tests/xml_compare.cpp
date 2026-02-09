@@ -221,6 +221,15 @@ bool compareXmlFiles(const std::filesystem::path& path1,
                      const std::filesystem::path& path2,
                      std::string& message)
 {
+    auto lowerExtension = [](const std::filesystem::path& path) {
+        std::string extension = path.extension().u8string();
+        std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+        return extension;
+    };
+    const bool isMssComparison = (lowerExtension(path1) == ".mss" && lowerExtension(path2) == ".mss");
+
     pugi::xml_document document1;
     pugi::xml_document document2;
     const auto result1 = document1.load_file(path1.c_str(), pugi::parse_default | pugi::parse_trim_pcdata);
@@ -251,12 +260,3 @@ bool shouldUseXmlComparison(const std::filesystem::path& path)
     });
     return extension == ".mss" || extension == ".xml";
 }
-    auto lowerExtension = [](const std::filesystem::path& path) {
-        std::string extension = path.extension().u8string();
-        std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
-            return static_cast<char>(std::tolower(c));
-        });
-        return extension;
-    };
-    const bool isMssComparison = (lowerExtension(path1) == ".mss" && lowerExtension(path2) == ".mss");
-
