@@ -61,7 +61,8 @@ double numericToleranceForComparison(bool isMssComparison,
 {
     if (isMssComparison
         && (currentPath == "/museScore/Style/measureNumberPosBelow"
-            || currentPath == "/museScore/Style/measureNumberAlternatePosBelow")
+            || currentPath == "/museScore/Style/measureNumberAlternatePosBelow"
+            || currentPath == "/museScore/Style/mmRestRangePosBelow")
         && attributeName == "y") {
         return MSS_MEASURE_NUMBER_POS_BELOW_Y_TOLERANCE;
     }
