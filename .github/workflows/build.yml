@@ -36,10 +36,10 @@ jobs:
         run: |
           cmake --version
 
-      # Install Ninja (if needed)
-      - name: Install Ninja on Ubuntu
+      # Install Ubuntu build dependencies
+      - name: Install build dependencies on Ubuntu
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y ninja-build
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libfontconfig1-dev
 
       - name: Install Ninja on macOS
         if: matrix.os == 'macos-latest'
