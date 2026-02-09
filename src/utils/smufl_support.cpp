@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  */
 #include <istream>
+#include <array>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -35,6 +36,15 @@
 using namespace musx::dom;
 
 namespace utils {
+
+namespace {
+
+struct SmuflFontMetadata
+{
+    std::unordered_map<char32_t, std::string> optionalGlyphNames;
+    std::unordered_map<std::string, EvpuFloat> glyphAdvanceWidths;
+    std::unordered_map<std::string, std::array<EvpuFloat, 4>> glyphBBoxes;
+};
 
 static char32_t ucodeToCodePoint(const std::string& ucode)
 {
@@ -52,35 +62,74 @@ static std::unordered_map<char32_t, std::string> createGlyphMap(const nlohmann::
     return result;
 }
 
+static SmuflFontMetadata parseSmuflMetadata(std::istream& jsonFile)
+{
+    nlohmann::json json;
+    jsonFile >> json;
+
+    SmuflFontMetadata metadata;
+    if (json.contains("optionalGlyphs")) {
+        metadata.optionalGlyphNames = createGlyphMap(json["optionalGlyphs"]);
+    }
+    if (json.contains("glyphAdvanceWidths") && json["glyphAdvanceWidths"].is_object()) {
+        for (const auto& item : json["glyphAdvanceWidths"].items()) {
+            if (item.value().is_number()) {
+                metadata.glyphAdvanceWidths.emplace(item.key(), item.value().get<EvpuFloat>());
+            }
+        }
+    }
+    if (json.contains("glyphBBoxes") && json["glyphBBoxes"].is_object()) {
+        for (const auto& item : json["glyphBBoxes"].items()) {
+            const auto& bbox = item.value();
+            if (!bbox.contains("bBoxSW") || !bbox.contains("bBoxNE")) {
+                continue;
+            }
+            const auto& sw = bbox["bBoxSW"];
+            const auto& ne = bbox["bBoxNE"];
+            if (!sw.is_array() || !ne.is_array() || sw.size() < 2 || ne.size() < 2) {
+                continue;
+            }
+            metadata.glyphBBoxes.emplace(item.key(),
+                                         std::array<EvpuFloat, 4>{ sw[0].get<EvpuFloat>(),
+                                                                   sw[1].get<EvpuFloat>(),
+                                                                   ne[0].get<EvpuFloat>(),
+                                                                   ne[1].get<EvpuFloat>() });
+        }
+    }
+    return metadata;
+}
+
+static const SmuflFontMetadata* metadataForFont(const std::filesystem::path& fontMetadataPath)
+{
+    static std::unordered_map<std::string, SmuflFontMetadata> metadataCache;
+    const std::string cacheKey = fontMetadataPath.u8string();
+    auto it = metadataCache.find(cacheKey);
+    if (it != metadataCache.end()) {
+        return &it->second;
+    }
+
+    std::ifstream jsonFile;
+    jsonFile.exceptions(std::ios::failbit | std::ios::badbit);
+    jsonFile.open(fontMetadataPath);
+    if (!jsonFile.is_open()) {
+        throw std::runtime_error("Unable to open JSON file: " + fontMetadataPath.u8string());
+    }
+    auto [newIt, _] = metadataCache.emplace(cacheKey, parseSmuflMetadata(jsonFile));
+    return &newIt->second;
+}
+
+} // namespace
+
 static std::optional<std::string> smuflGlyphNameForFont(const std::filesystem::path& fontMetadataPath, char32_t codepoint)
 {
-    static std::unordered_map<std::string, const std::unordered_map<char32_t, std::string>> fontMaps;
-
     if (auto glyphName = smufl_mapping::getGlyphName(codepoint)) {
         return std::string(*glyphName);
     }
-    auto it = fontMaps.find(fontMetadataPath.u8string());
-    if (it == fontMaps.end()) {
-        auto [newIt, _] = fontMaps.emplace(fontMetadataPath.u8string(), [&]() {
-            std::ifstream jsonFile;
-            jsonFile.exceptions(std::ios::failbit | std::ios::badbit);
-            jsonFile.open(fontMetadataPath);
-            if (!jsonFile.is_open()) {
-                throw std::runtime_error("Unable to open JSON file: " + fontMetadataPath.u8string());
-            }
-            nlohmann::json json;
-            jsonFile >> json;
-            if (json.contains("optionalGlyphs")) {
-                return createGlyphMap(json["optionalGlyphs"]);
-            }
-            return std::unordered_map<char32_t, std::string>();
-        }());
-        it = newIt;
-    }
-    if (it != fontMaps.end()) {
-        auto mapIt = it->second.find(codepoint);
-        if (mapIt != it->second.end()) {
-            return mapIt->second;
+
+    if (const auto* metadata = metadataForFont(fontMetadataPath)) {
+        auto it = metadata->optionalGlyphNames.find(codepoint);
+        if (it != metadata->optionalGlyphNames.end()) {
+            return it->second;
         }
     }
     return std::nullopt;
@@ -110,22 +159,55 @@ std::optional<std::string> smuflGlyphNameForFont(const MusxInstance<FontInfo>& f
 std::optional<EvpuFloat> smuflGlyphWidthForFont(const std::string& fontName, const std::string& glyphName)
 {
     if (auto metaDataPath = FontInfo::calcSMuFLMetaDataPath(fontName)) {
-        std::ifstream jsonFile;
-        jsonFile.exceptions(std::ios::failbit | std::ios::badbit);
-        jsonFile.open(metaDataPath.value());
-        if (!jsonFile.is_open()) {
-            throw std::runtime_error("Unable to open JSON file: " + metaDataPath.value().u8string());
-        }
-        nlohmann::json json;
-        jsonFile >> json;
-        if (json.contains("glyphBBoxes") && json["glyphBBoxes"].contains(glyphName)) {
-            nlohmann::json glyphBox = json["glyphBBoxes"][glyphName];
-            return (glyphBox["bBoxNE"][0].get<EvpuFloat>() - glyphBox["bBoxSW"][0].get<EvpuFloat>()) * EVPU_PER_SPACE;
-        } else if (json.contains("glyphAdvanceWidths") && json["glyphAdvanceWidths"].contains(glyphName)) {
-            return json["glyphAdvanceWidths"][glyphName].get<EvpuFloat>() * EVPU_PER_SPACE;
+        if (const auto* metadata = metadataForFont(metaDataPath.value())) {
+            auto bboxIt = metadata->glyphBBoxes.find(glyphName);
+            if (bboxIt != metadata->glyphBBoxes.end()) {
+                const auto& bbox = bboxIt->second;
+                return (bbox[2] - bbox[0]) * EVPU_PER_SPACE;
+            }
+            auto advIt = metadata->glyphAdvanceWidths.find(glyphName);
+            if (advIt != metadata->glyphAdvanceWidths.end()) {
+                return advIt->second * EVPU_PER_SPACE;
+            }
         }
     }
     return std::nullopt;
+}
+
+std::optional<SmuflGlyphMetricsEvpu> smuflGlyphMetricsForFont(const FontInfo& fontInfo, char32_t codepoint)
+{
+    auto metadataPath = fontInfo.calcSMuFLMetaDataPath();
+    if (!metadataPath) {
+        return std::nullopt;
+    }
+
+    auto glyphName = smuflGlyphNameForFont(metadataPath.value(), codepoint);
+    if (!glyphName) {
+        return std::nullopt;
+    }
+
+    const auto* metadata = metadataForFont(metadataPath.value());
+    if (!metadata) {
+        return std::nullopt;
+    }
+    auto bboxIt = metadata->glyphBBoxes.find(glyphName.value());
+    if (bboxIt == metadata->glyphBBoxes.end()) {
+        return std::nullopt;
+    }
+
+    const EvpuFloat pointSize = fontInfo.fontSize > 0 ? static_cast<EvpuFloat>(fontInfo.fontSize) : 12.0;
+    const EvpuFloat evpuPerSpaceAtSize = pointSize * EVPU_PER_POINT / 4.0;
+    const auto& bbox = bboxIt->second;
+
+    SmuflGlyphMetricsEvpu result;
+    auto advanceIt = metadata->glyphAdvanceWidths.find(glyphName.value());
+    const EvpuFloat advanceInSpaces = (advanceIt != metadata->glyphAdvanceWidths.end())
+                                      ? advanceIt->second
+                                      : (bbox[2] - bbox[0]);
+    result.advance = advanceInSpaces * evpuPerSpaceAtSize;
+    result.top = bbox[3] * evpuPerSpaceAtSize;
+    result.bottom = bbox[1] * evpuPerSpaceAtSize;
+    return result;
 }
 
 } // namespace utils

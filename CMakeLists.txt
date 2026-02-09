@@ -188,6 +188,10 @@ elseif(APPLE)
     list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_CORETEXT=1)
     list(APPEND DENIGMA_TEXT_METRICS_LIBS ${DENIGMA_CORETEXT_FRAMEWORK} ${DENIGMA_COREFOUNDATION_FRAMEWORK})
     message(STATUS "Text metrics resolver enabled: CoreText")
+elseif(WIN32)
+    list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_DIRECTWRITE=1)
+    list(APPEND DENIGMA_TEXT_METRICS_LIBS dwrite)
+    message(STATUS "Text metrics resolver enabled: DirectWrite")
 endif()
 
 # Define a cache variable for the local Musx C++ DOM path relative to the source directory.

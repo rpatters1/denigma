@@ -26,6 +26,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <limits>
 #include <mutex>
 #include <optional>
 #include <set>
@@ -37,6 +38,15 @@
 #include <vector>
 
 #include "denigma.h"
+#include "utils/smufl_support.h"
+
+#if defined(DENIGMA_USE_DIRECTWRITE)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <dwrite.h>
+#endif
 
 #if defined(DENIGMA_USE_FREETYPE)
 #include <ft2build.h>
@@ -173,11 +183,12 @@ public:
         TextMetricsEvpu result;
         bool hasMeasuredGlyphBounds = false;
         bool loadedAnyGlyph = false;
-        FT_Pos penX26d6 = 0;
-        FT_Pos boundsMinX26d6 = 0;
-        FT_Pos boundsMaxX26d6 = 0;
-        FT_Pos boundsMinY26d6 = 0;
-        FT_Pos boundsMaxY26d6 = 0;
+        double penXEvpu = 0.0;
+        double boundsMinXEvpu = 0.0;
+        double boundsMaxXEvpu = 0.0;
+        double boundsMinYEvpu = 0.0;
+        double boundsMaxYEvpu = 0.0;
+        constexpr FT_Int32 glyphLoadFlags = FT_LOAD_DEFAULT | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP;
 
         FT_UInt previousGlyph = 0;
         const bool hasKerning = FT_HAS_KERNING(*face);
@@ -189,43 +200,43 @@ public:
             const FT_UInt glyphIndex = FT_Get_Char_Index(*face, static_cast<FT_ULong>(codePoint));
             if (hasKerning && previousGlyph && glyphIndex) {
                 FT_Vector kerning{};
-                if (FT_Get_Kerning(*face, previousGlyph, glyphIndex, FT_KERNING_DEFAULT, &kerning) == 0) {
-                    penX26d6 += kerning.x;
+                if (FT_Get_Kerning(*face, previousGlyph, glyphIndex, FT_KERNING_UNFITTED, &kerning) == 0) {
+                    penXEvpu += (static_cast<double>(kerning.x) / 64.0) * EVPU_PER_POINT;
                 }
             }
-            if (FT_Load_Glyph(*face, glyphIndex, FT_LOAD_DEFAULT) == 0) {
+            if (FT_Load_Glyph(*face, glyphIndex, glyphLoadFlags) == 0) {
                 loadedAnyGlyph = true;
                 const auto& glyphMetrics = (*face)->glyph->metrics;
-                const FT_Pos glyphMinX = penX26d6 + glyphMetrics.horiBearingX;
-                const FT_Pos glyphMaxX = glyphMinX + glyphMetrics.width;
-                const FT_Pos glyphMaxY = glyphMetrics.horiBearingY;
-                const FT_Pos glyphMinY = glyphMaxY - glyphMetrics.height;
+                const double glyphMinX = penXEvpu + (static_cast<double>(glyphMetrics.horiBearingX) / 64.0) * EVPU_PER_POINT;
+                const double glyphMaxX = glyphMinX + (static_cast<double>(glyphMetrics.width) / 64.0) * EVPU_PER_POINT;
+                const double glyphMaxY = (static_cast<double>(glyphMetrics.horiBearingY) / 64.0) * EVPU_PER_POINT;
+                const double glyphMinY = glyphMaxY - (static_cast<double>(glyphMetrics.height) / 64.0) * EVPU_PER_POINT;
                 if (glyphMetrics.width > 0 || glyphMetrics.height > 0) {
                     if (!hasMeasuredGlyphBounds) {
-                        boundsMinX26d6 = glyphMinX;
-                        boundsMaxX26d6 = glyphMaxX;
-                        boundsMinY26d6 = glyphMinY;
-                        boundsMaxY26d6 = glyphMaxY;
+                        boundsMinXEvpu = glyphMinX;
+                        boundsMaxXEvpu = glyphMaxX;
+                        boundsMinYEvpu = glyphMinY;
+                        boundsMaxYEvpu = glyphMaxY;
                         hasMeasuredGlyphBounds = true;
                     } else {
-                        boundsMinX26d6 = (std::min)(boundsMinX26d6, glyphMinX);
-                        boundsMaxX26d6 = (std::max)(boundsMaxX26d6, glyphMaxX);
-                        boundsMinY26d6 = (std::min)(boundsMinY26d6, glyphMinY);
-                        boundsMaxY26d6 = (std::max)(boundsMaxY26d6, glyphMaxY);
+                        boundsMinXEvpu = (std::min)(boundsMinXEvpu, glyphMinX);
+                        boundsMaxXEvpu = (std::max)(boundsMaxXEvpu, glyphMaxX);
+                        boundsMinYEvpu = (std::min)(boundsMinYEvpu, glyphMinY);
+                        boundsMaxYEvpu = (std::max)(boundsMaxYEvpu, glyphMaxY);
                     }
                 }
-                penX26d6 += (*face)->glyph->advance.x;
+                penXEvpu += (static_cast<double>((*face)->glyph->linearHoriAdvance) / 65536.0) * EVPU_PER_POINT;
             }
             previousGlyph = glyphIndex;
         }
 
         if (hasMeasuredGlyphBounds) {
-            result.advance = (std::max)(0.0, static_cast<double>(boundsMaxX26d6 - boundsMinX26d6) / 64.0 * EVPU_PER_POINT);
-            result.ascent = (std::max)(0.0, static_cast<double>(boundsMaxY26d6) / 64.0 * EVPU_PER_POINT);
-            result.descent = (std::max)(0.0, -static_cast<double>(boundsMinY26d6) / 64.0 * EVPU_PER_POINT);
+            result.advance = (std::max)(0.0, penXEvpu);
+            result.ascent = (std::max)(0.0, boundsMaxYEvpu);
+            result.descent = (std::max)(0.0, -boundsMinYEvpu);
         } else if (loadedAnyGlyph) {
             // No glyph ink box was produced (e.g. whitespace-only text); preserve logical advance.
-            result.advance = (std::max)(0.0, static_cast<double>(penX26d6) / 64.0 * EVPU_PER_POINT);
+            result.advance = (std::max)(0.0, penXEvpu);
         } else if (!text.empty()) {
             // Fallback only when glyph loading failed for the whole run.
             result.ascent = (std::max)(0.0, static_cast<double>((*face)->size->metrics.ascender) / 64.0 * EVPU_PER_POINT);
@@ -272,7 +283,34 @@ public:
         return ascent + descent;
     }
 
+    std::optional<TextMetricsEvpu> measureAscentDescent(const musx::dom::FontInfo& fontInfo,
+                                                        std::optional<double> pointSizeOverride,
+                                                        const DenigmaContext& denigmaContext)
+    {
+        std::scoped_lock<std::mutex> lock(m_mutex);
+        auto face = resolveFaceLocked(fontInfo,
+                                      pointSizeOverride.value_or(static_cast<double>(fontInfo.fontSize)),
+                                      denigmaContext);
+        if (!face) {
+            return std::nullopt;
+        }
+
+        TextMetricsEvpu result;
+        result.ascent = (std::max)(0.0, static_cast<double>((*face)->size->metrics.ascender) / 64.0 * EVPU_PER_POINT);
+        result.descent = (std::max)(0.0, -static_cast<double>((*face)->size->metrics.descender) / 64.0 * EVPU_PER_POINT);
+        return result;
+    }
+
 private:
+    template <typename T>
+    static void safeRelease(T*& value)
+    {
+        if (value) {
+            value->Release();
+            value = nullptr;
+        }
+    }
+
     void warnBackendUnavailableLocked(const DenigmaContext& denigmaContext)
     {
         if (m_warnedBackendUnavailable) {
@@ -443,6 +481,161 @@ private:
     }
 #endif
 
+#if defined(DENIGMA_USE_DIRECTWRITE)
+    static std::wstring utf8ToWide(const std::string& value)
+    {
+        if (value.empty()) {
+            return {};
+        }
+        const int chars = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.c_str(), -1, nullptr, 0);
+        if (chars <= 1) {
+            return {};
+        }
+        std::wstring output(static_cast<size_t>(chars), L'\0');
+        if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.c_str(), -1, output.data(), chars) <= 0) {
+            return {};
+        }
+        output.resize(static_cast<size_t>(chars - 1));
+        return output;
+    }
+
+    static std::string wideToUtf8(const std::wstring& value)
+    {
+        if (value.empty()) {
+            return {};
+        }
+        const int bytes = WideCharToMultiByte(CP_UTF8, 0, value.c_str(), -1, nullptr, 0, nullptr, nullptr);
+        if (bytes <= 1) {
+            return {};
+        }
+        std::string output(static_cast<size_t>(bytes), '\0');
+        if (WideCharToMultiByte(CP_UTF8, 0, value.c_str(), -1, output.data(), bytes, nullptr, nullptr) <= 0) {
+            return {};
+        }
+        output.resize(static_cast<size_t>(bytes - 1));
+        return output;
+    }
+
+    std::optional<ResolvedFace> resolveWithDirectWriteLocked(const std::string& familyName,
+                                                             bool bold,
+                                                             bool italic) const
+    {
+        const std::wstring familyWide = utf8ToWide(familyName);
+        if (familyWide.empty()) {
+            return std::nullopt;
+        }
+
+        IDWriteFactory* factory = nullptr;
+        if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&factory))) || !factory) {
+            return std::nullopt;
+        }
+
+        IDWriteFontCollection* collection = nullptr;
+        if (FAILED(factory->GetSystemFontCollection(&collection, FALSE)) || !collection) {
+            safeRelease(factory);
+            return std::nullopt;
+        }
+
+        UINT32 familyIndex = 0;
+        BOOL familyExists = FALSE;
+        if (FAILED(collection->FindFamilyName(familyWide.c_str(), &familyIndex, &familyExists)) || !familyExists) {
+            safeRelease(collection);
+            safeRelease(factory);
+            return std::nullopt;
+        }
+
+        IDWriteFontFamily* family = nullptr;
+        if (FAILED(collection->GetFontFamily(familyIndex, &family)) || !family) {
+            safeRelease(collection);
+            safeRelease(factory);
+            return std::nullopt;
+        }
+
+        IDWriteFont* font = nullptr;
+        if (FAILED(family->GetFirstMatchingFont(bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_REGULAR,
+                                                DWRITE_FONT_STRETCH_NORMAL,
+                                                italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
+                                                &font))
+            || !font) {
+            safeRelease(family);
+            safeRelease(collection);
+            safeRelease(factory);
+            return std::nullopt;
+        }
+
+        IDWriteFontFace* fontFace = nullptr;
+        if (FAILED(font->CreateFontFace(&fontFace)) || !fontFace) {
+            safeRelease(font);
+            safeRelease(family);
+            safeRelease(collection);
+            safeRelease(factory);
+            return std::nullopt;
+        }
+
+        UINT32 fileCount = 0;
+        if (FAILED(fontFace->GetFiles(&fileCount, nullptr)) || fileCount == 0) {
+            safeRelease(fontFace);
+            safeRelease(font);
+            safeRelease(family);
+            safeRelease(collection);
+            safeRelease(factory);
+            return std::nullopt;
+        }
+
+        std::vector<IDWriteFontFile*> files(fileCount, nullptr);
+        if (FAILED(fontFace->GetFiles(&fileCount, files.data())) || files.empty() || !files.front()) {
+            for (auto* file : files) {
+                safeRelease(file);
+            }
+            safeRelease(fontFace);
+            safeRelease(font);
+            safeRelease(family);
+            safeRelease(collection);
+            safeRelease(factory);
+            return std::nullopt;
+        }
+
+        IDWriteFontFileLoader* fileLoader = nullptr;
+        IDWriteLocalFontFileLoader* localLoader = nullptr;
+        const void* referenceKey = nullptr;
+        UINT32 referenceKeySize = 0;
+        std::optional<ResolvedFace> resolved = std::nullopt;
+
+        if (SUCCEEDED(files.front()->GetLoader(&fileLoader)) && fileLoader) {
+            if (SUCCEEDED(fileLoader->QueryInterface(__uuidof(IDWriteLocalFontFileLoader), reinterpret_cast<void**>(&localLoader)))
+                && localLoader) {
+                files.front()->GetReferenceKey(&referenceKey, &referenceKeySize);
+                if (referenceKey && referenceKeySize > 0) {
+                    UINT32 pathLength = 0;
+                    if (SUCCEEDED(localLoader->GetFilePathLengthFromKey(referenceKey, referenceKeySize, &pathLength))) {
+                        std::wstring filePath(static_cast<size_t>(pathLength), L'\0');
+                        if (SUCCEEDED(localLoader->GetFilePathFromKey(referenceKey, referenceKeySize, filePath.data(), pathLength + 1))) {
+                            ResolvedFace value;
+                            value.filePath = wideToUtf8(filePath);
+                            value.faceIndex = static_cast<int>(fontFace->GetIndex());
+                            if (!value.filePath.empty()) {
+                                resolved = value;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        safeRelease(localLoader);
+        safeRelease(fileLoader);
+        for (auto* file : files) {
+            safeRelease(file);
+        }
+        safeRelease(fontFace);
+        safeRelease(font);
+        safeRelease(family);
+        safeRelease(collection);
+        safeRelease(factory);
+        return resolved;
+    }
+#endif
+
 #if defined(DENIGMA_USE_CORETEXT)
     static std::string cfStringToStdString(CFStringRef value)
     {
@@ -459,6 +652,78 @@ private:
             return std::string(buffer.data());
         }
         return {};
+    }
+
+    std::optional<int> resolveFaceIndexInFileLocked(const std::string& filePath,
+                                                    const std::string& postScriptName,
+                                                    const std::string& familyName,
+                                                    bool bold,
+                                                    bool italic) const
+    {
+        if (!m_library || filePath.empty()) {
+            return std::nullopt;
+        }
+
+        FT_Face probeFace = nullptr;
+        if (FT_New_Face(m_library, filePath.c_str(), 0, &probeFace) != 0 || !probeFace) {
+            return std::nullopt;
+        }
+        const long numFaces = (std::max)(1L, static_cast<long>(probeFace->num_faces));
+        FT_Done_Face(probeFace);
+
+        const std::string targetPostScript = normalizeName(postScriptName);
+        const std::string targetFamily = normalizeName(familyName);
+        int bestScore = (std::numeric_limits<int>::min)();
+        std::optional<int> bestIndex = std::nullopt;
+
+        for (long faceIndex = 0; faceIndex < numFaces; ++faceIndex) {
+            FT_Face face = nullptr;
+            if (FT_New_Face(m_library, filePath.c_str(), faceIndex, &face) != 0 || !face) {
+                continue;
+            }
+
+            int score = 0;
+            const std::string candidateFamily = normalizeName(face->family_name ? std::string(face->family_name) : std::string{});
+            if (!targetFamily.empty()) {
+                if (candidateFamily == targetFamily) {
+                    score += 100;
+                } else if (candidateFamily.find(targetFamily) != std::string::npos
+                           || targetFamily.find(candidateFamily) != std::string::npos) {
+                    score += 40;
+                } else {
+                    score -= 40;
+                }
+            }
+
+            const char* postScript = FT_Get_Postscript_Name(face);
+            if (!targetPostScript.empty()) {
+                const std::string candidatePostScript = normalizeName(postScript ? std::string(postScript) : std::string{});
+                if (candidatePostScript == targetPostScript) {
+                    score += 1000;
+                } else if (!candidatePostScript.empty()
+                        && (candidatePostScript.find(targetPostScript) != std::string::npos
+                            || targetPostScript.find(candidatePostScript) != std::string::npos)) {
+                    score += 300;
+                } else {
+                    score -= 80;
+                }
+            }
+
+            const std::string style = face->style_name ? std::string(face->style_name) : std::string{};
+            const bool candidateBold = (face->style_flags & FT_STYLE_FLAG_BOLD) != 0 || styleLooksBold(style);
+            const bool candidateItalic = (face->style_flags & FT_STYLE_FLAG_ITALIC) != 0 || styleLooksItalic(style);
+            score += (candidateBold == bold) ? 20 : -20;
+            score += (candidateItalic == italic) ? 20 : -10;
+
+            if (!bestIndex || score > bestScore) {
+                bestScore = score;
+                bestIndex = static_cast<int>(faceIndex);
+            }
+
+            FT_Done_Face(face);
+        }
+
+        return bestIndex;
     }
 
     std::optional<ResolvedFace> resolveWithCoreTextLocked(const std::string& familyName,
@@ -516,6 +781,15 @@ private:
         }
 
         std::optional<ResolvedFace> resolved = std::nullopt;
+        std::string postScriptName;
+        CFTypeRef postScriptAttr = CTFontDescriptorCopyAttribute(matched, kCTFontNameAttribute);
+        if (postScriptAttr && CFGetTypeID(postScriptAttr) == CFStringGetTypeID()) {
+            postScriptName = cfStringToStdString(static_cast<CFStringRef>(postScriptAttr));
+        }
+        if (postScriptAttr) {
+            CFRelease(postScriptAttr);
+        }
+
         CFTypeRef urlAttr = CTFontDescriptorCopyAttribute(matched, kCTFontURLAttribute);
         if (urlAttr && CFGetTypeID(urlAttr) == CFURLGetTypeID()) {
             CFStringRef pathRef = CFURLCopyFileSystemPath(static_cast<CFURLRef>(urlAttr), kCFURLPOSIXPathStyle);
@@ -524,7 +798,7 @@ private:
                 value.filePath = cfStringToStdString(pathRef);
                 CFRelease(pathRef);
                 if (!value.filePath.empty()) {
-                    value.faceIndex = 0;
+                    value.faceIndex = resolveFaceIndexInFileLocked(value.filePath, postScriptName, familyName, bold, italic).value_or(0);
                     resolved = value;
                 }
             }
@@ -541,6 +815,11 @@ private:
                                                         bool bold,
                                                         bool italic) const
     {
+#if defined(MUSX_RUNNING_ON_WINDOWS) && defined(DENIGMA_USE_DIRECTWRITE)
+        if (auto resolved = resolveWithDirectWriteLocked(familyName, bold, italic)) {
+            return resolved;
+        }
+#endif
 #if defined(MUSX_RUNNING_ON_LINUX_UNIX) && defined(DENIGMA_USE_FONTCONFIG)
         if (auto resolved = resolveWithFontconfigLocked(familyName, bold, italic)) {
             return resolved;
@@ -711,6 +990,20 @@ std::optional<double> measureFontHeightEvpu(const musx::dom::FontInfo& fontInfo,
 #endif
 }
 
+std::optional<TextMetricsEvpu> measureFontAscentDescentEvpu(const musx::dom::FontInfo& fontInfo,
+                                                            std::optional<double> pointSizeOverride,
+                                                            const DenigmaContext& denigmaContext)
+{
+#if defined(DENIGMA_USE_FREETYPE)
+    return backend().measureAscentDescent(fontInfo, pointSizeOverride, denigmaContext);
+#else
+    (void)fontInfo;
+    (void)pointSizeOverride;
+    warnMissingBackend(denigmaContext);
+    return std::nullopt;
+#endif
+}
+
 musx::util::SvgConvert::GlyphMetricsFn makeSvgGlyphMetricsCallback(const DenigmaContext& denigmaContext)
 {
     const DenigmaContext* contextPtr = &denigmaContext;
@@ -719,11 +1012,23 @@ musx::util::SvgConvert::GlyphMetricsFn makeSvgGlyphMetricsCallback(const Denigma
         if (!contextPtr) {
             return std::nullopt;
         }
+        if (text.size() == 1) {
+            if (auto smuflMetrics = utils::smuflGlyphMetricsForFont(font, text.front())) {
+                return musx::util::SvgConvert::GlyphMetrics{
+                    smuflMetrics->advance,
+                    (std::max)(0.0, static_cast<double>(smuflMetrics->top)),
+                    (std::min)(0.0, static_cast<double>(smuflMetrics->bottom))
+                };
+            }
+        }
         auto measured = measureTextEvpu(font, text, std::nullopt, *contextPtr);
         if (!measured) {
             return std::nullopt;
         }
-        return musx::util::SvgConvert::GlyphMetrics{ measured->advance, measured->ascent, measured->descent };
+        auto verticalMetrics = measureFontAscentDescentEvpu(font, std::nullopt, *contextPtr);
+        const double glyphTop = verticalMetrics ? verticalMetrics->ascent : measured->ascent;
+        const double glyphBottom = verticalMetrics ? -verticalMetrics->descent : -measured->descent;
+        return musx::util::SvgConvert::GlyphMetrics{ measured->advance, glyphTop, glyphBottom };
     };
 }
 

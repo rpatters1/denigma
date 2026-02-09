@@ -124,7 +124,7 @@
         <measureNumberAlign>center,baseline</measureNumberAlign>
         <measureNumberPosition>center</measureNumberPosition>
         <measureNumberPosAbove x="0" y="0"></measureNumberPosAbove>
-        <measureNumberPosBelow x="0" y="0.875"></measureNumberPosBelow>
+        <measureNumberPosBelow x="0" y="1.0354"></measureNumberPosBelow>
         <measureNumberFrameType>0</measureNumberFrameType>
         <measureNumberAlternateFontFace>Times</measureNumberAlternateFontFace>
         <measureNumberAlternateFontSize>10</measureNumberAlternateFontSize>
@@ -135,7 +135,7 @@
         <measureNumberAlternateAlign>center,baseline</measureNumberAlternateAlign>
         <measureNumberAlternatePosition>center</measureNumberAlternatePosition>
         <measureNumberAlternatePosAbove x="0" y="0"></measureNumberAlternatePosAbove>
-        <measureNumberAlternatePosBelow x="0" y="0.875"></measureNumberAlternatePosBelow>
+        <measureNumberAlternatePosBelow x="0" y="1.0354"></measureNumberAlternatePosBelow>
         <measureNumberAlternateFrameType>0</measureNumberAlternateFrameType>
         <mmRestShowMeasureNumberRange>1</mmRestShowMeasureNumberRange>
         <mmRestRangeBracketType>0</mmRestRangeBracketType>
@@ -148,7 +148,7 @@
         <mmRestRangeAlign>center,baseline</mmRestRangeAlign>
         <mmRestRangePosition>center</mmRestRangePosition>
         <mmRestRangePosAbove x="0" y="0"></mmRestRangePosAbove>
-        <mmRestRangePosBelow x="0" y="0.875"></mmRestRangePosBelow>
+        <mmRestRangePosBelow x="0" y="1.0354"></mmRestRangePosBelow>
         <mmRestRangeFrameType>0</mmRestRangeFrameType>
         <createMultiMeasureRests>0</createMultiMeasureRests>
         <minEmptyMeasures>2</minEmptyMeasures>

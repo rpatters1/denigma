@@ -21,6 +21,7 @@
  */
 #include <string>
 #include <ctime>
+#include <array>
 #include <filesystem>
 #include <iterator>
 
@@ -164,6 +165,35 @@ TEST(Export, SvgOutput)
         EXPECT_TRUE(std::filesystem::exists(explicitFile));
         EXPECT_FALSE(std::filesystem::exists(suffixedFile));
         assertStringInFile("<svg", explicitFile);
+    }
+}
+
+TEST(Export, SvgPageScaledShapeRefs)
+{
+    setupTestDataPaths();
+#if !defined(MUSX_RUNNING_ON_MACOS)
+    GTEST_SKIP() << "SVG reference set is currently validated on macOS only.";
+#endif
+    std::string inputFile = "pageDiffThanOpts";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".musx", inputPath);
+
+    const std::filesystem::path referenceDir = getInputPath() / "pageDiffThanOpts_page_scaled";
+
+    const std::array<int, 6> shapeCmpers{ 2, 3, 4, 5, 6, 7 };
+    for (const int shapeCmper : shapeCmpers) {
+        const std::string cmperText = std::to_string(shapeCmper);
+        const std::filesystem::path outputSvg = getOutputPath() / utils::utf8ToPath(cmperText + "-test.svg");
+        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--svg", outputSvg.u8string(),
+                         "--shape-def", cmperText, "--svg-page-scale", "--svg-scale", "1", "--force" };
+        checkStderr({ "Processing", inputPath.filename().u8string() }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "svg export for shape cmper " << cmperText;
+        });
+
+        const std::filesystem::path referenceSvg = referenceDir / utils::utf8ToPath(cmperText + ".svg");
+        EXPECT_TRUE(std::filesystem::exists(referenceSvg));
+        EXPECT_TRUE(std::filesystem::exists(outputSvg));
+        assertStringInFile("<svg", outputSvg);
     }
 }
 

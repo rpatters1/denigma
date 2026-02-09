@@ -51,6 +51,10 @@ std::optional<double> measureFontHeightEvpu(const musx::dom::FontInfo& fontInfo,
                                             double pointSize,
                                             const DenigmaContext& denigmaContext);
 
+std::optional<TextMetricsEvpu> measureFontAscentDescentEvpu(const musx::dom::FontInfo& fontInfo,
+                                                            std::optional<double> pointSizeOverride,
+                                                            const DenigmaContext& denigmaContext);
+
 musx::util::SvgConvert::GlyphMetricsFn makeSvgGlyphMetricsCallback(const DenigmaContext& denigmaContext);
 
 } // namespace textmetrics
