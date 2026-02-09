@@ -171,9 +171,7 @@ TEST(Export, SvgOutput)
 TEST(Export, SvgPageScaledShapeRefs)
 {
     setupTestDataPaths();
-#if !defined(MUSX_RUNNING_ON_MACOS)
-    GTEST_SKIP() << "SVG reference set is currently validated on macOS only.";
-#endif
+#if defined(MUSX_RUNNING_ON_MACOS) || defined(MUSX_RUNNING_ON_WINDOWS)
     std::string inputFile = "pageDiffThanOpts";
     std::filesystem::path inputPath;
     copyInputToOutput(inputFile + ".musx", inputPath);
@@ -195,6 +193,9 @@ TEST(Export, SvgPageScaledShapeRefs)
         EXPECT_TRUE(std::filesystem::exists(outputSvg));
         assertStringInFile("<svg", outputSvg);
     }
+#else
+    GTEST_SKIP() << "SVG reference set is currently validated on macOS and Windows only.";
+#endif
 }
 
 TEST(Export, Parts)
