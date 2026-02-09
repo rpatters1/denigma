@@ -539,6 +539,53 @@ private:
         return output;
     }
 
+    static std::optional<std::wstring> resolveWithGdiSubstituteFamily(const std::wstring& familyName,
+                                                                       bool bold,
+                                                                       bool italic)
+    {
+        if (familyName.empty()) {
+            return std::nullopt;
+        }
+
+        HDC dc = CreateCompatibleDC(nullptr);
+        if (!dc) {
+            return std::nullopt;
+        }
+
+        LOGFONTW logFont{};
+        logFont.lfWeight = bold ? FW_BOLD : FW_NORMAL;
+        logFont.lfItalic = italic ? TRUE : FALSE;
+        logFont.lfCharSet = DEFAULT_CHARSET;
+        wcsncpy_s(logFont.lfFaceName, familyName.c_str(), _TRUNCATE);
+
+        HFONT font = CreateFontIndirectW(&logFont);
+        if (!font) {
+            DeleteDC(dc);
+            return std::nullopt;
+        }
+
+        const HGDIOBJ old = SelectObject(dc, font);
+        std::optional<std::wstring> resolvedFamily = std::nullopt;
+        const int nameLength = GetTextFaceW(dc, 0, nullptr);
+        if (nameLength > 0) {
+            std::wstring faceName(static_cast<size_t>(nameLength + 1), L'\0');
+            const int copied = GetTextFaceW(dc, nameLength + 1, faceName.data());
+            if (copied > 0) {
+                faceName.resize(static_cast<size_t>(copied));
+                if (!faceName.empty()) {
+                    resolvedFamily = faceName;
+                }
+            }
+        }
+
+        if (old && old != HGDI_ERROR) {
+            SelectObject(dc, old);
+        }
+        DeleteObject(font);
+        DeleteDC(dc);
+        return resolvedFamily;
+    }
+
     std::optional<ResolvedFace> resolveWithDirectWriteLocked(const std::string& familyName,
                                                              bool bold,
                                                              bool italic) const
@@ -562,9 +609,18 @@ private:
         UINT32 familyIndex = 0;
         BOOL familyExists = FALSE;
         if (FAILED(collection->FindFamilyName(familyWide.c_str(), &familyIndex, &familyExists)) || !familyExists) {
-            safeRelease(collection);
-            safeRelease(factory);
-            return std::nullopt;
+            if (const auto mappedFamily = resolveWithGdiSubstituteFamily(familyWide, bold, italic)) {
+                familyExists = FALSE;
+                if (FAILED(collection->FindFamilyName(mappedFamily->c_str(), &familyIndex, &familyExists)) || !familyExists) {
+                    safeRelease(collection);
+                    safeRelease(factory);
+                    return std::nullopt;
+                }
+            } else {
+                safeRelease(collection);
+                safeRelease(factory);
+                return std::nullopt;
+            }
         }
 
         IDWriteFontFamily* family = nullptr;
