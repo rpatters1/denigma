@@ -137,6 +137,7 @@ include(cmake/Dependencies.cmake) # GitHub branches/tags for MNX and MUSX
 
 set(DENIGMA_TEXT_METRICS_DEFINES "")
 set(DENIGMA_TEXT_METRICS_LIBS "")
+set(DENIGMA_TEXT_METRICS_INCLUDE_DIRS "")
 
 # Build FreeType from source so we do not require external package installation.
 set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "Disable HarfBuzz support in FreeType" FORCE)
@@ -170,17 +171,21 @@ if(TARGET freetype AND CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang")
 endif()
 
 if(UNIX AND NOT APPLE)
-    find_package(PkgConfig QUIET)
-    if(PkgConfig_FOUND)
-        pkg_check_modules(Fontconfig QUIET IMPORTED_TARGET fontconfig)
-    endif()
+    find_path(DENIGMA_FONTCONFIG_INCLUDE_DIR fontconfig/fontconfig.h)
+    find_library(DENIGMA_FONTCONFIG_LIBRARY NAMES fontconfig)
 
-    if(TARGET PkgConfig::Fontconfig)
+    if(DENIGMA_FONTCONFIG_INCLUDE_DIR AND DENIGMA_FONTCONFIG_LIBRARY)
         list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_FONTCONFIG=1)
-        list(APPEND DENIGMA_TEXT_METRICS_LIBS PkgConfig::Fontconfig)
-        message(STATUS "Text metrics resolver enabled: fontconfig")
+        list(APPEND DENIGMA_TEXT_METRICS_LIBS ${DENIGMA_FONTCONFIG_LIBRARY})
+        list(APPEND DENIGMA_TEXT_METRICS_INCLUDE_DIRS ${DENIGMA_FONTCONFIG_INCLUDE_DIR})
+        message(STATUS "Text metrics resolver enabled: fontconfig (find_path/find_library)")
+        message(STATUS "  fontconfig include: ${DENIGMA_FONTCONFIG_INCLUDE_DIR}")
+        message(STATUS "  fontconfig library: ${DENIGMA_FONTCONFIG_LIBRARY}")
     else()
-        message(STATUS "Text metrics resolver disabled: fontconfig not found")
+        message(STATUS "Text metrics resolver disabled: fontconfig not found (find_path/find_library)")
+        message(STATUS "  fontconfig include: ${DENIGMA_FONTCONFIG_INCLUDE_DIR}")
+        message(STATUS "  fontconfig library: ${DENIGMA_FONTCONFIG_LIBRARY}")
+        message(STATUS "Text metrics resolver fallback: FreeType directory-index lookup")
     endif()
 elseif(APPLE)
     find_library(DENIGMA_CORETEXT_FRAMEWORK CoreText REQUIRED)
@@ -336,6 +341,7 @@ endif()
 add_dependencies(denigma GenerateLicenseXxd)
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
 target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(denigma PRIVATE ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS})
 
 # Ensure the libraries are added
 target_link_libraries(denigma PRIVATE
