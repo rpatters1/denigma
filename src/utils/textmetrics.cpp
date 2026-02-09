@@ -24,6 +24,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cwchar>
+#include <cwctype>
 #include <cstdlib>
 #include <filesystem>
 #include <limits>
@@ -536,6 +538,105 @@ private:
         return output;
     }
 
+    static std::wstring trimWide(const std::wstring& value)
+    {
+        size_t first = 0;
+        size_t last = value.size();
+        while (first < last && std::iswspace(static_cast<wint_t>(value[first]))) {
+            ++first;
+        }
+        while (last > first && std::iswspace(static_cast<wint_t>(value[last - 1]))) {
+            --last;
+        }
+        return value.substr(first, last - first);
+    }
+
+    static std::wstring normalizeSubstituteFamilyName(const std::wstring& value)
+    {
+        std::wstring trimmed = trimWide(value);
+        const size_t comma = trimmed.find(L',');
+        if (comma != std::wstring::npos) {
+            trimmed = trimWide(trimmed.substr(0, comma));
+        }
+        return trimmed;
+    }
+
+    static std::optional<std::wstring> queryFontSubstituteRegistry(HKEY root, const std::wstring& valueName)
+    {
+        if (valueName.empty()) {
+            return std::nullopt;
+        }
+
+        constexpr wchar_t keyPath[] = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\FontSubstitutes";
+        HKEY key = nullptr;
+        if (RegOpenKeyExW(root, keyPath, 0, KEY_READ, &key) != ERROR_SUCCESS || !key) {
+            return std::nullopt;
+        }
+
+        DWORD type = 0;
+        DWORD bytes = 0;
+        LSTATUS status = RegQueryValueExW(key, valueName.c_str(), nullptr, &type, nullptr, &bytes);
+        if (status != ERROR_SUCCESS || (type != REG_SZ && type != REG_EXPAND_SZ) || bytes < sizeof(wchar_t)) {
+            RegCloseKey(key);
+            return std::nullopt;
+        }
+
+        std::wstring buffer(bytes / sizeof(wchar_t), L'\0');
+        status = RegQueryValueExW(key, valueName.c_str(), nullptr, &type, reinterpret_cast<LPBYTE>(buffer.data()), &bytes);
+        RegCloseKey(key);
+        if (status != ERROR_SUCCESS) {
+            return std::nullopt;
+        }
+
+        if (!buffer.empty() && buffer.back() == L'\0') {
+            buffer.pop_back();
+        }
+        std::wstring normalized = normalizeSubstituteFamilyName(buffer);
+        if (normalized.empty()) {
+            return std::nullopt;
+        }
+        return normalized;
+    }
+
+    static std::optional<std::wstring> lookupFontSubstitute(const std::wstring& requestedFamily)
+    {
+        if (requestedFamily.empty()) {
+            return std::nullopt;
+        }
+
+        auto querySubstitute = [](const std::wstring& valueName) -> std::optional<std::wstring> {
+            if (auto fromUser = queryFontSubstituteRegistry(HKEY_CURRENT_USER, valueName)) {
+                return fromUser;
+            }
+            return queryFontSubstituteRegistry(HKEY_LOCAL_MACHINE, valueName);
+        };
+
+        std::wstring candidate = requestedFamily;
+        std::unordered_set<std::wstring> visited;
+        for (int depth = 0; depth < 8; ++depth) {
+            const std::wstring normalizedCandidate = normalizeSubstituteFamilyName(candidate);
+            if (normalizedCandidate.empty() || !visited.insert(normalizedCandidate).second) {
+                break;
+            }
+
+            std::optional<std::wstring> next = querySubstitute(normalizedCandidate);
+            if (!next) {
+                next = querySubstitute(normalizedCandidate + L",0");
+            }
+            if (!next || _wcsicmp(next->c_str(), normalizedCandidate.c_str()) == 0) {
+                break;
+            }
+            candidate = *next;
+        }
+
+        const std::wstring normalizedRequested = normalizeSubstituteFamilyName(requestedFamily);
+        const std::wstring normalizedResolved = normalizeSubstituteFamilyName(candidate);
+        if (normalizedResolved.empty() || _wcsicmp(normalizedResolved.c_str(), normalizedRequested.c_str()) == 0) {
+            return std::nullopt;
+        }
+        return normalizedResolved;
+    }
+
     std::optional<ResolvedFace> resolveWithDirectWriteLocked(const std::string& familyName,
                                                              bool bold,
                                                              bool italic) const
@@ -558,30 +659,17 @@ private:
 
         IDWriteFontFamily* family = nullptr;
         IDWriteFont* font = nullptr;
-        IDWriteGdiInterop* gdiInterop = nullptr;
-        if (SUCCEEDED(factory->GetGdiInterop(&gdiInterop)) && gdiInterop) {
-            LOGFONTW logFont{};
-            logFont.lfWeight = bold ? FW_BOLD : FW_NORMAL;
-            logFont.lfItalic = italic ? TRUE : FALSE;
-            logFont.lfCharSet = DEFAULT_CHARSET;
-            wcsncpy_s(logFont.lfFaceName, familyWide.c_str(), _TRUNCATE);
-            (void)gdiInterop->CreateFontFromLOGFONT(&logFont, &font);
-        }
-        safeRelease(gdiInterop);
-
-        if (!font) {
+        auto tryFindFontInCollection = [&](const std::wstring& familyToFind) -> bool {
+            safeRelease(family);
+            safeRelease(font);
             UINT32 familyIndex = 0;
             BOOL familyExists = FALSE;
-            if (FAILED(collection->FindFamilyName(familyWide.c_str(), &familyIndex, &familyExists)) || !familyExists) {
-                safeRelease(collection);
-                safeRelease(factory);
-                return std::nullopt;
+            if (FAILED(collection->FindFamilyName(familyToFind.c_str(), &familyIndex, &familyExists)) || !familyExists) {
+                return false;
             }
 
             if (FAILED(collection->GetFontFamily(familyIndex, &family)) || !family) {
-                safeRelease(collection);
-                safeRelease(factory);
-                return std::nullopt;
+                return false;
             }
 
             if (FAILED(family->GetFirstMatchingFont(bold ? DWRITE_FONT_WEIGHT_BOLD : DWRITE_FONT_WEIGHT_REGULAR,
@@ -589,7 +677,16 @@ private:
                                                     italic ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
                                                     &font))
                 || !font) {
+                return false;
+            }
+            return true;
+        };
+
+        if (!tryFindFontInCollection(familyWide)) {
+            const auto substitutedFamily = lookupFontSubstitute(familyWide);
+            if (!substitutedFamily || !tryFindFontInCollection(*substitutedFamily)) {
                 safeRelease(family);
+                safeRelease(font);
                 safeRelease(collection);
                 safeRelease(factory);
                 return std::nullopt;
