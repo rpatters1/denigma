@@ -89,9 +89,9 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "  --pretty-print [indent-spaces]  Print human readable format (default: on, " << JSON_INDENT_SPACES << " indent spaces)." << std::endl;
     std::cout << indentSpaces << "  --no-pretty-print               Print compact json with no indentions or new lines." << std::endl;
     std::cout << indentSpaces << "  --shape-def <id[,id...]>        Export only specific ShapeDef cmper IDs (repeatable)." << std::endl;
-    std::cout << indentSpaces << "  --svg-unit <none|px|pt|pc|cm|mm|in>  Unit suffix for SVG width/height (default: mm)." << std::endl;
-    std::cout << indentSpaces << "  --svg-page-scale                Use page-format scaling for SVG output (default: on)." << std::endl;
-    std::cout << indentSpaces << "  --no-svg-page-scale             Disable page-format scaling for SVG output." << std::endl;
+    std::cout << indentSpaces << "  --svg-unit <none|px|pt|pc|cm|mm|in>  Unit suffix for SVG width/height (default: pt)." << std::endl;
+    std::cout << indentSpaces << "  --svg-page-scale                Use page-format scaling for SVG output (default: off)." << std::endl;
+    std::cout << indentSpaces << "  --no-svg-page-scale             Disable page-format scaling for SVG output (default)." << std::endl;
     std::cout << indentSpaces << "  --svg-scale <positive-float>    Extra SVG scaling multiplier (default: 1.0)." << std::endl;
 
     // Supported input formats

@@ -197,8 +197,8 @@ public:
 
     // Specific options for `export --svg` command
     std::vector<musx::dom::Cmper> svgShapeDefs;
-    musx::util::SvgConvert::SvgUnit svgUnit{ musx::util::SvgConvert::SvgUnit::Millimeters };
-    bool svgUsePageScale{ true };
+    musx::util::SvgConvert::SvgUnit svgUnit{ musx::util::SvgConvert::SvgUnit::Points };
+    bool svgUsePageScale{ false };
     double svgScale{ 1.0 };
 
 #ifdef DENIGMA_TEST
