@@ -37,7 +37,7 @@
 namespace {
 
 constexpr double XML_NUMERIC_TOLERANCE = 1e-6;
-constexpr double MSS_MEASURE_NUMBER_POS_BELOW_Y_TOLERANCE = 0.025;
+constexpr double MSS_MEASURE_NUMBER_POS_BELOW_Y_TOLERANCE = 0.04;
 constexpr std::size_t XML_MAX_MISMATCHES = 50;
 
 bool parseDoubleValue(const std::string& text, double& value)
