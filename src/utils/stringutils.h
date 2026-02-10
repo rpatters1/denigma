@@ -167,6 +167,15 @@ inline std::string pathToString(const std::filesystem::path& path)
     return utf8ToString(path.u8string());
 }
 
+inline bool pathExtensionEquals(const std::filesystem::path& path, std::u8string_view extensionWithoutDot)
+{
+    const auto extension = path.extension().u8string();
+    if (extension.size() != extensionWithoutDot.size() + 1 || extension.empty() || extension.front() != u8'.') {
+        return false;
+    }
+    return std::equal(extensionWithoutDot.begin(), extensionWithoutDot.end(), extension.begin() + 1);
+}
+
 inline std::optional<char32_t> utf8ToCodepoint(const std::string& utf8) {
     size_t len = utf8.size();
     if (len == 0 || len > 4) {

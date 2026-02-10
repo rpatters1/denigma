@@ -66,7 +66,8 @@ std::filesystem::path appendShapeSuffix(const std::filesystem::path& outputPath,
     std::filesystem::path result = outputPath;
     auto extension = outputPath.extension().u8string();
     if (extension.empty()) {
-        extension = std::u8string(u8".") + SVG_EXTENSION;
+        extension.push_back(u8'.');
+        extension.append(SVG_EXTENSION);
     }
     const auto stem = outputPath.stem().u8string();
     result.replace_filename(std::filesystem::path(stem + utils::stringToUtf8(".shape-" + std::to_string(shapeCmper)) + extension));

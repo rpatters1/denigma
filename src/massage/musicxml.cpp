@@ -21,6 +21,7 @@
  */
 #include <string>
 #include <filesystem>
+#include <array>
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -36,8 +37,8 @@
 #include "export/enigmaxml.h"
 #include "utils/ziputils.h"
 
-constexpr static double EDU_PER_QUARTER = 1024.0;
-constexpr static char INDENT_SPACES[] = "  ";
+constexpr double EDU_PER_QUARTER = 1024.0;
+constexpr char INDENT_SPACES[] = "  ";
 
 namespace denigma {
 namespace musicxml {
@@ -252,22 +253,32 @@ static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_pt
 }
 
 // this table maps musicxml note types to enigma note types
-static const std::unordered_map<std::string, NoteType> durationTypeMap = {
-    {"maxima", NoteType::Maxima},
-    {"long", NoteType::Longa},
-    {"breve", NoteType::Breve},
-    {"whole", NoteType::Whole},
-    {"half", NoteType::Half},
-    {"quarter", NoteType::Quarter},
-    {"eighth", NoteType::Eighth},
-    {"16th", NoteType::Note16th},
-    {"32nd", NoteType::Note32nd},
-    {"64th", NoteType::Note64th},
-    {"128th", NoteType::Note128th},
-    {"256th", NoteType::Note256th},
-    {"512th", NoteType::Note512th},
-    {"1024th", NoteType::Note1024th}
-};
+constexpr auto durationTypeMap = std::to_array<std::pair<std::string_view, NoteType>>({
+    { "maxima", NoteType::Maxima },
+    { "long", NoteType::Longa },
+    { "breve", NoteType::Breve },
+    { "whole", NoteType::Whole },
+    { "half", NoteType::Half },
+    { "quarter", NoteType::Quarter },
+    { "eighth", NoteType::Eighth },
+    { "16th", NoteType::Note16th },
+    { "32nd", NoteType::Note32nd },
+    { "64th", NoteType::Note64th },
+    { "128th", NoteType::Note128th },
+    { "256th", NoteType::Note256th },
+    { "512th", NoteType::Note512th },
+    { "1024th", NoteType::Note1024th }
+});
+
+static const std::pair<std::string_view, NoteType>* findDurationType(std::string_view typeName)
+{
+    for (const auto& value : durationTypeMap) {
+        if (value.first == typeName) {
+            return &value;
+        }
+    }
+    return nullptr;
+}
 
 static int log2_exact(uint32_t value)
 {
@@ -319,8 +330,8 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 return false;
             }
 
-            auto it = durationTypeMap.find(nextNote.child("type").text().get());
-            if (it == durationTypeMap.end()) {
+            auto* durationType = findDurationType(nextNote.child("type").text().get());
+            if (!durationType) {
                 if (!nextNote.child("rest")) { // this is valid for full measure rests
                     context->logMessage(LogMsg() << "xml note node has no type", LogSeverity::Warning);
                     context->logXmlNode(nextNote);
@@ -329,7 +340,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
             }
             auto [entryNoteType, entryNumDots] = entry->calcDurationInfo();
             auto musxNoteType = Edu(entryNoteType);
-            auto xmlNoteType = Edu(it->second);
+            auto xmlNoteType = Edu(durationType->second);
             if (xmlNoteType != musxNoteType) {
                 // correct for tremolos
                 if (auto tremolo = nextNote.child("notations").child("ornaments").child("tremolo")) {
@@ -341,7 +352,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 }
             }
             if (xmlNoteType != musxNoteType) {
-                context->logMessage(LogMsg() << "xml durations do not match Finale file: [" << Edu(entryNoteType) << ", " << it->first << "]", LogSeverity::Warning);
+                context->logMessage(LogMsg() << "xml durations do not match Finale file: [" << Edu(entryNoteType) << ", " << durationType->first << "]", LogSeverity::Warning);
                 context->logXmlNode(nextNote);
                 return false;
             }
@@ -678,9 +689,9 @@ static std::shared_ptr<MassageMusicXmlContext> createContext(const std::filesyst
         auto xmlBuffer = [&]() -> Buffer {
             Buffer retval;
             const auto& path = finaleFilePath.value();
-            if (path.extension().u8string() == std::u8string(u8".") + MUSX_EXTENSION) {
+            if (utils::pathExtensionEquals(path, MUSX_EXTENSION)) {
                 return enigmaxml::extract(path, denigmaContext);
-            } else if (path.extension().u8string() == std::u8string(u8".") + ENIGMAXML_EXTENSION) {
+            } else if (utils::pathExtensionEquals(path, ENIGMAXML_EXTENSION)) {
                 return enigmaxml::read(path, denigmaContext);
             }
             assert(false); // bug in findFinaleFile if here
@@ -715,7 +726,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 
     auto context = createContext(inputPath, denigmaContext);
 
-    if ((inputPath.extension().u8string() != std::u8string(u8".") + MXL_EXTENSION) || !xmlBuffer.empty()) {
+    if ((!utils::pathExtensionEquals(inputPath, MXL_EXTENSION)) || !xmlBuffer.empty()) {
         processFile(openXmlDocument(xmlBuffer), outputPath, context);
         return;
     }
@@ -769,7 +780,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 
 void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext)
 {
-    if (inputPath.extension().u8string() != std::u8string(u8".") + MXL_EXTENSION) {
+    if (!utils::pathExtensionEquals(inputPath, MXL_EXTENSION)) {
         denigmaContext.logMessage(LogMsg() << utils::asUtf8Bytes(inputPath) << " is not a .mxl file.", LogSeverity::Error);
         return;
     }
@@ -791,7 +802,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
 
     auto context = createContext(inputPath, denigmaContext);
     utils::iterateModifyFilesInPlace(inputPath, qualifiedOutputPath, denigmaContext, [&](const std::filesystem::path& fileName, std::string& fileContents, bool isScore) {
-        if (fileName.extension().u8string() == std::u8string(u8".") + MUSICXML_EXTENSION) {
+        if (utils::pathExtensionEquals(fileName, MUSICXML_EXTENSION)) {
             context->musxPartId = !isScore ? getMusxPartIdFromPartFileName(utils::utf8ToString(fileName.u8string()), context) : 0;
             auto partName = [&]() -> std::string {
                 std::string retval;

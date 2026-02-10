@@ -42,8 +42,8 @@ namespace musx::encoder {
 class ScoreFileEncoder
 {
     // These two values were determined empirically and must not be changed.
-    constexpr static uint32_t INITIAL_STATE = 0x28006D45; // arbitrary initial value for algorithm
-    constexpr static uint32_t RESET_LIMIT = 0x20000; // reset value corresponding (probably) to an internal Finale buffer size
+    static constexpr uint32_t INITIAL_STATE = 0x28006D45; // arbitrary initial value for algorithm
+    static constexpr uint32_t RESET_LIMIT = 0x20000; // reset value corresponding (probably) to an internal Finale buffer size
 
 public:
     /** @brief Encodes or decodes a `score.dat` file extracted

@@ -33,16 +33,16 @@
 #include "musx/musx.h"
 #include "utils/stringutils.h"
 
-inline constexpr char8_t MUSX_EXTENSION[]      = u8"musx";
-inline constexpr char8_t ENIGMAXML_EXTENSION[] = u8"enigmaxml";
-inline constexpr char8_t MNX_EXTENSION[]       = u8"mnx";
-inline constexpr char8_t JSON_EXTENSION[]      = u8"json";
-inline constexpr char8_t MSS_EXTENSION[]       = u8"mss";
-inline constexpr char8_t SVG_EXTENSION[]       = u8"svg";
-inline constexpr char8_t MXL_EXTENSION[]       = u8"mxl";
-inline constexpr char8_t MUSICXML_EXTENSION[]  = u8"musicxml";
+constexpr char8_t MUSX_EXTENSION[]      = u8"musx";
+constexpr char8_t ENIGMAXML_EXTENSION[] = u8"enigmaxml";
+constexpr char8_t MNX_EXTENSION[]       = u8"mnx";
+constexpr char8_t JSON_EXTENSION[]      = u8"json";
+constexpr char8_t MSS_EXTENSION[]       = u8"mss";
+constexpr char8_t SVG_EXTENSION[]       = u8"svg";
+constexpr char8_t MXL_EXTENSION[]       = u8"mxl";
+constexpr char8_t MUSICXML_EXTENSION[]  = u8"musicxml";
 
-inline constexpr int JSON_INDENT_SPACES     = 4;
+constexpr int JSON_INDENT_SPACES     = 4;
 
 #ifdef _WIN32
 #define _ARG(S) L##S

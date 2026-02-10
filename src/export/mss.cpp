@@ -45,11 +45,11 @@ using XmlDocument = ::pugi::xml_document;
 using XmlElement = ::pugi::xml_node;
 using XmlAttribute = ::pugi::xml_attribute;
 
-constexpr static char MSS_VERSION[] = "4.60"; // Do not change this version without checking notes on changed values.
-constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
-constexpr static double POINTS_PER_INCH = 72.0;
-constexpr static double FONT_ASCENT_SCALE = 0.7;
-constexpr static int MUSE_NUMERIC_PRECISION = 5;
+constexpr char MSS_VERSION[] = "4.60"; // Do not change this version without checking notes on changed values.
+constexpr double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
+constexpr double POINTS_PER_INCH = 72.0;
+constexpr double FONT_ASCENT_SCALE = 0.7;
+constexpr int MUSE_NUMERIC_PRECISION = 5;
 
 // Finale preferences:
 struct FinalePreferences
