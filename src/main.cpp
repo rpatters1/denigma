@@ -190,7 +190,9 @@ int _MAIN(int argc, arg_char* argv[])
             if (std::filesystem::is_directory(inputFilePattern)) {
                 isSpecificFile = false;
                 if (currentCommand->defaultInputFormat().has_value()) {
-                    inputFilePattern /= "*." + std::string(currentCommand->defaultInputFormat().value());
+                    std::u8string wildcardPattern = u8"*.";
+                    wildcardPattern.append(currentCommand->defaultInputFormat().value());
+                    inputFilePattern /= std::filesystem::path(wildcardPattern);
                 } else {
                     inputFilePattern /= ""; // assure parent_path returns inputFilePattern
                 }

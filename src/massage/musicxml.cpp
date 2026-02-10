@@ -520,7 +520,7 @@ static std::filesystem::path calcQualifiedOutputPath(const std::filesystem::path
         return outputPath;
     }
     std::filesystem::path qualifiedOutputPath = outputPath;
-    qualifiedOutputPath.replace_extension(utils::utf8ToPath(std::string(".massaged") + utils::utf8ToString(outputPath.extension().u8string())));
+    qualifiedOutputPath.replace_extension(u8".massaged" + outputPath.extension().u8string());
     return qualifiedOutputPath;
 }
 
@@ -604,14 +604,14 @@ std::optional<std::filesystem::path> findFinaleFile(const std::filesystem::path&
     };
 
     // Helper function to construct a candidate file path by replacing the extension
-    auto constructPath = [](const std::filesystem::path& basePath, const char* ext) -> std::filesystem::path {
+    auto constructPath = [](const std::filesystem::path& basePath, std::u8string_view ext) -> std::filesystem::path {
         std::filesystem::path candidate = basePath;
         candidate.replace_extension(ext);
         return candidate;
     };
 
     // Helper function to search for a specific extension in a directory
-    auto findWithExtension = [&](const std::filesystem::path& dir, const std::filesystem::path& baseName, const char* ext) -> std::filesystem::path {
+    auto findWithExtension = [&](const std::filesystem::path& dir, const std::filesystem::path& baseName, std::u8string_view ext) -> std::filesystem::path {
         auto candidate = constructPath(dir / baseName, ext);
         if (fileExists(candidate)) {
             return candidate;
@@ -678,9 +678,9 @@ static std::shared_ptr<MassageMusicXmlContext> createContext(const std::filesyst
         auto xmlBuffer = [&]() -> Buffer {
             Buffer retval;
             const auto& path = finaleFilePath.value();
-            if (path.extension().u8string() == (std::u8string(u8".") + utils::stringToUtf8(MUSX_EXTENSION))) {
+            if (path.extension().u8string() == std::u8string(u8".") + MUSX_EXTENSION) {
                 return enigmaxml::extract(path, denigmaContext);
-            } else if (path.extension().u8string() == (std::u8string(u8".") + utils::stringToUtf8(ENIGMAXML_EXTENSION))) {
+            } else if (path.extension().u8string() == std::u8string(u8".") + ENIGMAXML_EXTENSION) {
                 return enigmaxml::read(path, denigmaContext);
             }
             assert(false); // bug in findFinaleFile if here
@@ -715,7 +715,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 
     auto context = createContext(inputPath, denigmaContext);
 
-    if ((inputPath.extension() != std::string(".") + MXL_EXTENSION) || !xmlBuffer.empty()) {
+    if ((inputPath.extension().u8string() != std::u8string(u8".") + MXL_EXTENSION) || !xmlBuffer.empty()) {
         processFile(openXmlDocument(xmlBuffer), outputPath, context);
         return;
     }
@@ -769,7 +769,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 
 void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext)
 {
-    if (inputPath.extension().u8string() != (std::u8string(u8".") + utils::stringToUtf8(MXL_EXTENSION))) {
+    if (inputPath.extension().u8string() != std::u8string(u8".") + MXL_EXTENSION) {
         denigmaContext.logMessage(LogMsg() << utils::asUtf8Bytes(inputPath) << " is not a .mxl file.", LogSeverity::Error);
         return;
     }
@@ -791,7 +791,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
 
     auto context = createContext(inputPath, denigmaContext);
     utils::iterateModifyFilesInPlace(inputPath, qualifiedOutputPath, denigmaContext, [&](const std::filesystem::path& fileName, std::string& fileContents, bool isScore) {
-        if (fileName.extension().u8string() == (std::u8string(u8".") + utils::stringToUtf8(MUSICXML_EXTENSION))) {
+        if (fileName.extension().u8string() == std::u8string(u8".") + MUSICXML_EXTENSION) {
             context->musxPartId = !isScore ? getMusxPartIdFromPartFileName(utils::utf8ToString(fileName.u8string()), context) : 0;
             auto partName = [&]() -> std::string {
                 std::string retval;

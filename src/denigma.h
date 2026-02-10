@@ -33,14 +33,14 @@
 #include "musx/musx.h"
 #include "utils/stringutils.h"
 
-inline constexpr char MUSX_EXTENSION[]      = "musx";
-inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
-inline constexpr char MNX_EXTENSION[]       = "mnx";
-inline constexpr char JSON_EXTENSION[]      = "json";
-inline constexpr char MSS_EXTENSION[]       = "mss";
-inline constexpr char SVG_EXTENSION[]       = "svg";
-inline constexpr char MXL_EXTENSION[]       = "mxl";
-inline constexpr char MUSICXML_EXTENSION[]  = "musicxml";
+inline constexpr char8_t MUSX_EXTENSION[]      = u8"musx";
+inline constexpr char8_t ENIGMAXML_EXTENSION[] = u8"enigmaxml";
+inline constexpr char8_t MNX_EXTENSION[]       = u8"mnx";
+inline constexpr char8_t JSON_EXTENSION[]      = u8"json";
+inline constexpr char8_t MSS_EXTENSION[]       = u8"mss";
+inline constexpr char8_t SVG_EXTENSION[]       = u8"svg";
+inline constexpr char8_t MXL_EXTENSION[]       = u8"mxl";
+inline constexpr char8_t MUSICXML_EXTENSION[]  = u8"musicxml";
 
 inline constexpr int JSON_INDENT_SPACES     = 4;
 
@@ -124,21 +124,6 @@ struct CommandInputData
 
 // Function to find the appropriate processor
 template <typename Processors>
-inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, const std::string& extension)
-{
-    std::string key = utils::toLowerCase(extension);
-    if (key.rfind(".", 0) == 0) {
-        key = extension.substr(1);
-    }
-    for (const auto& p : processors) {
-        if (key == p.extension) {
-            return p.processor;
-        }
-    }
-    throw std::invalid_argument("Unsupported format: " + key);
-}
-
-template <typename Processors>
 inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, std::u8string_view extension)
 {
     std::u8string key(extension);
@@ -149,7 +134,7 @@ inline decltype(Processors::value_type::processor) findProcessor(const Processor
         key = key.substr(1);
     }
     for (const auto& p : processors) {
-        if (key == utils::stringToUtf8(p.extension)) {
+        if (key == p.extension) {
             return p.processor;
         }
     }
@@ -289,8 +274,8 @@ public:
     virtual bool canProcess(const std::filesystem::path& inputPath) const = 0;
     virtual CommandInputData processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
     virtual void processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
-    virtual std::optional<std::string_view> defaultInputFormat() const { return std::nullopt; }
-    virtual std::optional<std::string> defaultOutputFormat(const std::filesystem::path&) const { return std::nullopt; }
+    virtual std::optional<std::u8string_view> defaultInputFormat() const { return std::nullopt; }
+    virtual std::optional<std::u8string> defaultOutputFormat(const std::filesystem::path&) const { return std::nullopt; }
 
     virtual const std::string_view commandName() const = 0;
 };

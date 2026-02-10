@@ -399,7 +399,7 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
 
         const auto inputData = currentCommand->processInput(inputFilePath, *this);
 
-        auto calcOutpuFilePath = [&](const std::filesystem::path& path, const std::string& format) -> std::filesystem::path {
+        auto calcOutpuFilePath = [&](const std::filesystem::path& path, std::u8string_view format) -> std::filesystem::path {
             std::filesystem::path retval = path;
             if (retval.is_relative()) {
                 retval = inputFilePath.parent_path() / retval;
@@ -423,7 +423,7 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
         for (size_t i = 0; i < args.size(); ++i) {
             arg_string option = args[i];
             if (option.rfind(_ARG("--"), 0) == 0) {  // Options start with "--"
-                arg_string outputFormat = option.substr(2);
+                const auto outputFormat = static_cast<std::u8string>(arg_string(option.substr(2)));
                 std::filesystem::path outputFilePath = (i + 1 < args.size() && arg_string(args[i + 1]).rfind(_ARG("--"), 0) != 0)
                                                      ? std::filesystem::path(args[++i])
                                                      : inputFilePath.parent_path();
@@ -434,7 +434,7 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
         if (!outputFormatSpecified) {
             const auto& defaultFormat = currentCommand->defaultOutputFormat(inputFilePath);
             if (defaultFormat.has_value()) {
-                currentCommand->processOutput(inputData, calcOutpuFilePath(inputFilePath.parent_path(), std::string(defaultFormat.value())), inputFilePath, *this);
+                currentCommand->processOutput(inputData, calcOutpuFilePath(inputFilePath.parent_path(), defaultFormat.value()), inputFilePath, *this);
             }
         }
     } catch (const musx::xml::load_error& ex) {

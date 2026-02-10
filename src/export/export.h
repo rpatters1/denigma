@@ -35,10 +35,10 @@ struct ExportCommand : public ICommand
     CommandInputData processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
     void processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const override;
 
-    std::optional<std::string_view> defaultInputFormat() const override { return MUSX_EXTENSION; };
-    std::optional<std::string> defaultOutputFormat(const std::filesystem::path& inputPath) const override
+    std::optional<std::u8string_view> defaultInputFormat() const override { return MUSX_EXTENSION; };
+    std::optional<std::u8string> defaultOutputFormat(const std::filesystem::path& inputPath) const override
     {
-        if (inputPath.extension() == std::string(".") + ENIGMAXML_EXTENSION) {
+        if (inputPath.extension().u8string() == std::u8string(u8".") + ENIGMAXML_EXTENSION) {
             return MUSX_EXTENSION;
         }
         return ENIGMAXML_EXTENSION;

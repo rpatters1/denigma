@@ -403,7 +403,7 @@ bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const de
                 return true; // skip parts that aren't the one we are looking for
             }
             std::filesystem::path nextPath = utils::utf8ToPath(fileInfo.filename);
-            if (nextPath.extension().u8string() == (std::u8string(u8".") + utils::stringToUtf8(MUSICXML_EXTENSION))) {
+            if (nextPath.extension().u8string() == std::u8string(u8".") + MUSICXML_EXTENSION) {
                 return iterator(nextPath, readCurrentFile(zip));
             }
             return true;

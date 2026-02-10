@@ -129,16 +129,6 @@ inline std::string wstringToString([[maybe_unused]]const std::wstring& wide, [[m
 #endif
 }
 
-inline std::string utf8ToAcp(const std::string& utf8)
-{
-#ifdef _WIN32
-    if (::GetACP() != CP_UTF8) {
-        return wstringToString(stringToWstring(utf8), CP_ACP);
-    }   
-#endif
-    return utf8;
-}
-
 inline std::optional<std::string> getEnvironmentValue(const char* name)
 {
     if (!name || !*name) {
@@ -167,14 +157,9 @@ inline std::optional<std::string> getEnvironmentValue(const char* name)
 #endif
 }
 
-inline std::filesystem::path utf8ToPath(std::u8string_view str)
-{
-    return std::filesystem::path(str);
-}
-
 inline std::filesystem::path utf8ToPath(std::string_view str)
 {
-    return utf8ToPath(stringToUtf8(str));
+    return std::filesystem::path(stringToUtf8(str));
 }
 
 inline std::string pathToString(const std::filesystem::path& path)
