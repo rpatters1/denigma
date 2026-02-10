@@ -167,19 +167,14 @@ inline std::optional<std::string> getEnvironmentValue(const char* name)
 #endif
 }
 
-inline std::filesystem::path utf8ToPath(const std::string& str)
-{
-#ifdef _WIN32
-    if (::GetACP() != CP_UTF8) {
-        return stringToWstring(str, CP_UTF8);
-    }
-#endif
-    return str;
-}
-
-inline std::filesystem::path utf8ToPath(const std::u8string& str)
+inline std::filesystem::path utf8ToPath(std::u8string_view str)
 {
     return std::filesystem::path(str);
+}
+
+inline std::filesystem::path utf8ToPath(std::string_view str)
+{
+    return utf8ToPath(stringToUtf8(str));
 }
 
 inline std::string pathToString(const std::filesystem::path& path)
