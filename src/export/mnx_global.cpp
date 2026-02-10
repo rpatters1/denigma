@@ -120,12 +120,13 @@ static void createJump(
     mnx::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    static const std::unordered_map<JumpType, mnx::JumpType> jumpMapping = {
+    constexpr auto jumpMapping = std::to_array<std::pair<JumpType, mnx::JumpType>>(
+    {
         {JumpType::DalSegno, mnx::JumpType::Segno},
         {JumpType::DsAlFine, mnx::JumpType::DsAlFine},
-    };
+    });
 
-    for (const auto mapping : jumpMapping) {
+    for (const auto& mapping : jumpMapping) {
         if (auto repeatAssign = searchForJump(context, mapping.first, musxMeasure)) {
             auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
             mnxMeasure.ensure_jump(mapping.second, mnxFractionFromFraction(location));

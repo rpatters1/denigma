@@ -64,12 +64,12 @@ DocumentPtr createDocument(const CommandInputData& inputData, const DenigmaConte
 std::filesystem::path appendShapeSuffix(const std::filesystem::path& outputPath, Cmper shapeCmper)
 {
     std::filesystem::path result = outputPath;
-    std::string extension = outputPath.extension().u8string();
+    std::u8string extension = outputPath.extension().u8string();
     if (extension.empty()) {
-        extension = std::string(".") + SVG_EXTENSION;
+        extension = std::u8string(u8".") + utils::stringToUtf8(SVG_EXTENSION);
     }
-    const std::string stem = outputPath.stem().u8string();
-    result.replace_filename(utils::utf8ToPath(stem + ".shape-" + std::to_string(shapeCmper) + extension));
+    const std::u8string stem = outputPath.stem().u8string();
+    result.replace_filename(utils::utf8ToPath(stem + utils::stringToUtf8(".shape-" + std::to_string(shapeCmper)) + extension));
     return result;
 }
 
@@ -120,7 +120,7 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Converting to " << outputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
         return;
     }
 #endif

@@ -184,7 +184,8 @@ int _MAIN(int argc, arg_char* argv[])
             std::filesystem::path inputFilePattern = rawInputPattern;
 
             // collect inputs
-            const bool isSpecificFileOrDirectory = inputFilePattern.u8string().find('*') == std::string::npos && inputFilePattern.u8string().find('?') == std::string::npos;
+            const std::u8string inputPatternUtf8 = inputFilePattern.u8string();
+            const bool isSpecificFileOrDirectory = inputPatternUtf8.find(u8'*') == std::u8string::npos && inputPatternUtf8.find(u8'?') == std::u8string::npos;
             bool isSpecificFile = isSpecificFileOrDirectory && inputFilePattern.has_filename();
             if (std::filesystem::is_directory(inputFilePattern)) {
                 isSpecificFile = false;
@@ -230,7 +231,7 @@ int _MAIN(int argc, arg_char* argv[])
                         }
                     }
                     if (!entry.is_directory()) {
-                        denigmaContext.logMessage(LogMsg() << "considered file " << entry.path().u8string(), LogSeverity::Verbose);
+                        denigmaContext.logMessage(LogMsg() << "considered file " << utils::asUtf8Bytes(entry.path()), LogSeverity::Verbose);
                     }
                     if (entry.is_regular_file() && std::regex_match(entry.path().filename().native(), regex)) {
                         auto inputFilePath = entry.path();

@@ -51,7 +51,7 @@ constexpr auto inputProcessors = []() {
         CommandInputData(*processor)(const std::filesystem::path&, const DenigmaContext&);
     };
 
-    return to_array<InputProcessor>({
+    return std::to_array<InputProcessor>({
             { MXL_EXTENSION, nullFunc },
             { MUSICXML_EXTENSION, readMusicXml },
         });
@@ -65,7 +65,7 @@ constexpr auto outputProcessors = []() {
         void(*processor)(const std::filesystem::path&, const std::filesystem::path&, const Buffer&, const DenigmaContext&);
     };
 
-    return to_array<OutputProcessor>({
+    return std::to_array<OutputProcessor>({
             { MXL_EXTENSION, musicxml::massageMxl },
             { MUSICXML_EXTENSION, musicxml::massage },
         });

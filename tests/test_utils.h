@@ -32,7 +32,7 @@
 class ArgList {
 public:
     // Constructor to allow initialization with { "arg1", "arg2", ... }
-    ArgList(std::initializer_list<std::string> init)
+    ArgList(std::initializer_list<denigma::arg_string> init)
     {
         args_.reserve(init.size()); // Reserve space for performance.
         for (const auto& str : init) {
@@ -106,8 +106,4 @@ inline void assertStringInFile(const std::string& target, const std::filesystem:
 
 void openJson(const std::filesystem::path& path, nlohmann::json& result);
 
-inline std::string pathString(const std::filesystem::path& path)
-{
-    auto s = path.u8string();
-    return std::string(reinterpret_cast<const char*>(s.data()), s.size());
-}
+inline std::string pathString(const std::filesystem::path& path) { return utils::pathToString(path); }

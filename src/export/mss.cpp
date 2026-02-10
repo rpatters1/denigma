@@ -885,7 +885,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
             denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension");
         }
         auto currExtension = qualifiedOutputPath.extension();
-        qualifiedOutputPath.replace_extension(utils::utf8ToPath(partName + currExtension.u8string()));
+        qualifiedOutputPath.replace_extension(utils::utf8ToPath(partName + utils::utf8ToString(currExtension.u8string())));
     }
     if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) return;
 
@@ -925,7 +925,7 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Converting to " << outputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
         return;
     }
 #endif

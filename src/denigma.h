@@ -56,17 +56,6 @@ inline constexpr int JSON_INDENT_SPACES     = 4;
 
 namespace denigma {
 
-// This function exists as std::to_array in C++20
-template <typename T, std::size_t N>
-inline constexpr std::array<T, N> to_array(const T(&arr)[N])
-{
-    std::array<T, N> result{};
-    for (std::size_t i = 0; i < N; ++i) {
-        result[i] = arr[i];
-    }
-    return result;
-}
-
 #ifdef _WIN32
 using arg_view = std::wstring_view;
 using arg_char = WCHAR;
@@ -76,10 +65,19 @@ struct arg_string : public std::wstring
     arg_string(const std::wstring& wstr) : std::wstring(wstr) {}
     arg_string(const std::string& str) : std::wstring(utils::stringToWstring(str)) {}
     arg_string(const char* str) : std::wstring(utils::stringToWstring(str)) {}
+    arg_string(std::string_view str) : std::wstring(utils::stringToWstring(std::string(str))) {}
+    arg_string(const std::u8string& str) : std::wstring(utils::stringToWstring(utils::utf8ToString(str))) {}
+    arg_string(std::u8string_view str) : std::wstring(utils::stringToWstring(utils::utf8ToString(str))) {}
+    arg_string(const char8_t* str) : std::wstring(utils::stringToWstring(utils::utf8ToString(str ? std::u8string_view(str) : std::u8string_view{}))) {}
 
     operator std::string() const
     {
         return utils::wstringToString(*this);
+    }
+
+    operator std::u8string() const
+    {
+        return utils::stringToUtf8(static_cast<std::string>(*this));
     }
 };
 
@@ -90,7 +88,20 @@ inline std::string operator+(const std::string& lhs, const arg_string& rhs)
 #else
 using arg_view = std::string_view;
 using arg_char = char;
-using arg_string = std::string;
+struct arg_string : public std::string
+{
+    using std::string::string;
+    arg_string(const std::string& str) : std::string(str) {}
+    arg_string(std::string_view str) : std::string(str) {}
+    arg_string(const std::u8string& str) : std::string(utils::utf8ToString(str)) {}
+    arg_string(std::u8string_view str) : std::string(utils::utf8ToString(str)) {}
+    arg_string(const char8_t* str) : std::string(utils::utf8ToString(str ? std::u8string_view(str) : std::u8string_view{})) {}
+
+    operator std::u8string() const
+    {
+        return utils::stringToUtf8(*this);
+    }
+};
 #endif
 
 using MusxReader = ::musx::xml::pugi::Document;
@@ -125,6 +136,24 @@ inline decltype(Processors::value_type::processor) findProcessor(const Processor
         }
     }
     throw std::invalid_argument("Unsupported format: " + key);
+}
+
+template <typename Processors>
+inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, std::u8string_view extension)
+{
+    std::u8string key(extension);
+    std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
+        return static_cast<char8_t>(std::tolower(c));
+    });
+    if (key.rfind(u8".", 0) == 0) {
+        key = key.substr(1);
+    }
+    for (const auto& p : processors) {
+        if (key == utils::stringToUtf8(p.extension)) {
+            return p.processor;
+        }
+    }
+    throw std::invalid_argument("Unsupported format: " + utils::utf8ToString(key));
 }
 
 /// @brief defines log message severity

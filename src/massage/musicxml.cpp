@@ -520,7 +520,7 @@ static std::filesystem::path calcQualifiedOutputPath(const std::filesystem::path
         return outputPath;
     }
     std::filesystem::path qualifiedOutputPath = outputPath;
-    qualifiedOutputPath.replace_extension(".massaged" + outputPath.extension().u8string());
+    qualifiedOutputPath.replace_extension(utils::utf8ToPath(std::string(".massaged") + utils::utf8ToString(outputPath.extension().u8string())));
     return qualifiedOutputPath;
 }
 
@@ -567,7 +567,7 @@ std::filesystem::path findPartNameByPartFileName(const pugi::xml_document& score
         .child("score-part");
     while (nextScorePart) {
         for (auto partLink = nextScorePart.child("part-link"); partLink; partLink = partLink.next_sibling("part-link")) {
-            if (partLink.attribute("xlink:href").value() == partFileName.u8string()) {
+            if (partLink.attribute("xlink:href").value() == utils::utf8ToString(partFileName.u8string())) {
                 auto retval = utils::utf8ToPath(partLink.attribute("xlink:title").value());
                 retval.replace_extension(MUSICXML_EXTENSION);
                 return retval;
@@ -678,9 +678,9 @@ static std::shared_ptr<MassageMusicXmlContext> createContext(const std::filesyst
         auto xmlBuffer = [&]() -> Buffer {
             Buffer retval;
             const auto& path = finaleFilePath.value();
-            if (path.extension().u8string() == std::string(".") + MUSX_EXTENSION) {
+            if (path.extension().u8string() == (std::u8string(u8".") + utils::stringToUtf8(MUSX_EXTENSION))) {
                 return enigmaxml::extract(path, denigmaContext);
-            } else if (path.extension().u8string() == std::string(".") + ENIGMAXML_EXTENSION) {
+            } else if (path.extension().u8string() == (std::u8string(u8".") + utils::stringToUtf8(ENIGMAXML_EXTENSION))) {
                 return enigmaxml::read(path, denigmaContext);
             }
             assert(false); // bug in findFinaleFile if here
@@ -708,7 +708,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Massaging " << inputPath.u8string() << " to " << outputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Massaging " << utils::asUtf8Bytes(inputPath) << " to " << utils::asUtf8Bytes(outputPath));
         return;
     }
 #endif
@@ -728,7 +728,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
     bool processedAFile = false;
     auto processPartOrScore = [&](const std::filesystem::path& fileName, const std::string& xmlData) -> bool {
         auto qualifiedOutputPath = outputPath;
-        context->musxPartId = getMusxPartIdFromPartFileName(fileName.u8string(), context);
+        context->musxPartId = getMusxPartIdFromPartFileName(utils::utf8ToString(fileName.u8string()), context);
         auto partFileNamePath = [&]() {
             if (!partFileName.has_value()) {
                 return findPartNameByPartFileName(xmlScore, fileName);
@@ -769,14 +769,14 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 
 void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext)
 {
-    if (inputPath.extension().u8string() != std::string(".") + MXL_EXTENSION) {
-        denigmaContext.logMessage(LogMsg() << inputPath.u8string() << " is not a .mxl file.", LogSeverity::Error);
+    if (inputPath.extension().u8string() != (std::u8string(u8".") + utils::stringToUtf8(MXL_EXTENSION))) {
+        denigmaContext.logMessage(LogMsg() << utils::asUtf8Bytes(inputPath) << " is not a .mxl file.", LogSeverity::Error);
         return;
     }
 
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Massaging " << inputPath.u8string() << " to " << outputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Massaging " << utils::asUtf8Bytes(inputPath) << " to " << utils::asUtf8Bytes(outputPath));
         return;
     }
 #endif
@@ -791,8 +791,8 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
 
     auto context = createContext(inputPath, denigmaContext);
     utils::iterateModifyFilesInPlace(inputPath, qualifiedOutputPath, denigmaContext, [&](const std::filesystem::path& fileName, std::string& fileContents, bool isScore) {
-        if (fileName.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
-            context->musxPartId = !isScore ? getMusxPartIdFromPartFileName(fileName.u8string(), context) : 0;
+        if (fileName.extension().u8string() == (std::u8string(u8".") + utils::stringToUtf8(MUSICXML_EXTENSION))) {
+            context->musxPartId = !isScore ? getMusxPartIdFromPartFileName(utils::utf8ToString(fileName.u8string()), context) : 0;
             auto partName = [&]() -> std::string {
                 std::string retval;
                 if (context->musxDocument) {
@@ -805,7 +805,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
                 }
                 return retval;
             }();
-            denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << fileName.u8string() << " (" << partName << ") <<<<<<<<<<");
+            denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << utils::asUtf8Bytes(fileName) << " (" << partName << ") <<<<<<<<<<");
 
             auto xmlDocument = openXmlDocument(fileContents);
             processXml(xmlDocument, context);
@@ -814,7 +814,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
             xmlDocument.save(writer, INDENT_SPACES);
             fileContents = ss.str();
         } else {
-            denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << fileName.u8string() << " <<<<<<<<<<");
+            denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << utils::asUtf8Bytes(fileName) << " <<<<<<<<<<");
         }
         return true; // always save the file back, even if we didn't modify it
     });

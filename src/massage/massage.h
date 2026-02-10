@@ -37,7 +37,13 @@ struct MassageCommand : public ICommand
 
     std::optional<std::string_view> defaultInputFormat() const override { return MXL_EXTENSION; };
     std::optional<std::string> defaultOutputFormat(const std::filesystem::path& inputPath) const override
-    { return inputPath.extension().u8string().substr(1); };
+    {
+        std::string ext = inputPath.extension().string();
+        if (!ext.empty() && ext.front() == '.') {
+            ext.erase(ext.begin());
+        }
+        return ext;
+    };
 
     const std::string_view commandName() const override { return "massage"; }
 };

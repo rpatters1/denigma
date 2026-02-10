@@ -38,7 +38,7 @@ struct ExportCommand : public ICommand
     std::optional<std::string_view> defaultInputFormat() const override { return MUSX_EXTENSION; };
     std::optional<std::string> defaultOutputFormat(const std::filesystem::path& inputPath) const override
     {
-        if (inputPath.extension().u8string() == std::string(".") + ENIGMAXML_EXTENSION) {
+        if (inputPath.extension() == std::string(".") + ENIGMAXML_EXTENSION) {
             return MUSX_EXTENSION;
         }
         return ENIGMAXML_EXTENSION;

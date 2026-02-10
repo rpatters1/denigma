@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.22)
 project(denigma VERSION 3.0.1)
 
 # Specify C++ standard and minimum macOS version
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Prevent in-source builds

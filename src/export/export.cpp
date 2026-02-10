@@ -42,7 +42,7 @@ constexpr auto inputProcessors = []() {
         CommandInputData(*processor)(const std::filesystem::path&, const DenigmaContext&);
     };
 
-    return to_array<InputProcessor>({
+    return std::to_array<InputProcessor>({
             { MUSX_EXTENSION, enigmaxml::extractInputData },
             { ENIGMAXML_EXTENSION, enigmaxml::readInputData },
         });
@@ -56,7 +56,7 @@ constexpr auto outputProcessors = []() {
         void(*processor)(const std::filesystem::path&, const CommandInputData&, const DenigmaContext&);
     };
 
-    return to_array<OutputProcessor>({
+    return std::to_array<OutputProcessor>({
             { MUSX_EXTENSION, enigmaxml::writeMusx },
             { ENIGMAXML_EXTENSION, enigmaxml::write },
             { MSS_EXTENSION, mss::convert },

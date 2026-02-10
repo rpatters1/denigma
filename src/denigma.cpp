@@ -250,7 +250,9 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity sever
         errorOccurred = true;
     }
     msg.flush();
-    std::string inputFile = inputFilePath.filename().u8string();
+    const std::u8string inputFileUtf8 = inputFilePath.filename().u8string();
+    std::string inputFile;
+    utils::appendUtf8(inputFile, inputFileUtf8);
     if (!inputFile.empty()) {
         inputFile += ' ';
     }
@@ -289,19 +291,19 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity sever
 bool DenigmaContext::validatePathsAndOptions(const std::filesystem::path& outputFilePath) const
 {
     if (inputFilePath == outputFilePath) {
-        logMessage(LogMsg() << outputFilePath.u8string() << ": " << "Input and output are the same. No action taken.");
+        logMessage(LogMsg() << utils::asUtf8Bytes(outputFilePath) << ": " << "Input and output are the same. No action taken.");
         return false;
     }
 
     if (std::filesystem::exists(outputFilePath)) {
         if (overwriteExisting) {
-            logMessage(LogMsg() << "Overwriting " << outputFilePath.u8string());
+            logMessage(LogMsg() << "Overwriting " << utils::asUtf8Bytes(outputFilePath));
         } else {
-            logMessage(LogMsg() << outputFilePath.u8string() << " exists. Use --force to overwrite it.", LogSeverity::Warning);
+            logMessage(LogMsg() << utils::asUtf8Bytes(outputFilePath) << " exists. Use --force to overwrite it.", LogSeverity::Warning);
             return false;
         }
     } else {
-        logMessage(LogMsg() << "Output: " << outputFilePath.u8string());
+        logMessage(LogMsg() << "Output: " << utils::asUtf8Bytes(outputFilePath));
     }
 
     return true;
@@ -331,7 +333,7 @@ void DenigmaContext::startLogging(const std::filesystem::path& defaultLogPath, i
     errorOccurred = false;
     if (!noLog && logFilePath.has_value() && !logFile) {
         if (forTestOutput()) {
-            std::cout << "Logging to " << logFilePath.value().u8string() << std::endl;
+            std::cout << "Logging to " << utils::asUtf8Bytes(logFilePath.value()) << std::endl;
             return;
         }
         auto& path = logFilePath.value();
@@ -378,7 +380,8 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
 {
     try {
         if (!std::filesystem::is_regular_file(inpFilePath) && !forTestOutput()) {
-            throw std::runtime_error("Input path " + inpFilePath.u8string() + " does not exist or is not a file or directory.");
+            const std::u8string inputPathUtf8 = inpFilePath.u8string();
+            throw std::runtime_error("Input path " + utils::utf8ToString(inputPathUtf8) + " does not exist or is not a file or directory.");
         }
 //        if (!currentCommand->canProcess(inpFilePath)) {
 //            logMessage(LogMsg() << "Invalid input format for command: " << inpFilePath.u8string(), LogSeverity::Error);
@@ -390,7 +393,7 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
         // log header for each file
         logMessage(LogMsg(), true);
         logMessage(LogMsg() << delimiter, true);
-        logMessage(LogMsg() << kProcessingMessage << inpFilePath.u8string(), true);
+        logMessage(LogMsg() << kProcessingMessage << utils::asUtf8Bytes(inpFilePath), true);
         logMessage(LogMsg() << delimiter, true);
         this->inputFilePath = inpFilePath; // assign after logging the header
 

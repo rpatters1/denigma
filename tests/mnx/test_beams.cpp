@@ -62,9 +62,9 @@ TEST(MnxBeams, MultiMeasureBeamsToMnxMeasures)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("multimeas_beam.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "multimeas_beam.mnx");
@@ -98,9 +98,9 @@ TEST(MnxBeams, MultiMeasureBeams)
 {
     std::filesystem::path inputPath;
     copyInputToOutput("multimeas_beam.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "multimeas_beam.mnx");
@@ -133,9 +133,9 @@ TEST(MnxBeams, BeamHooksAndInner)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("secbeams.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "secbeams.mnx");
@@ -187,9 +187,9 @@ TEST(MnxBeams, BeamRestWorkarounds)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("beam_workaround.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "beam_workaround.mnx");
@@ -263,9 +263,9 @@ TEST(MnxBeams, BeamsOverSystemBreakBarlines)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("beamovers.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "beamovers.mnx");

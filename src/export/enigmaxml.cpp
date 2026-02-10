@@ -153,7 +153,7 @@ static zipFile openZipForWrite(const std::filesystem::path& outputPath)
     std::wstring widePath = outputPath.wstring();
     return zipOpen2_64(widePath.c_str(), APPEND_STATUS_CREATE, nullptr, &fileFuncs);
 #else
-    std::string utf8Path = outputPath.u8string();
+    auto utf8Path = outputPath.u8string();
     return zipOpen64(utf8Path.c_str(), APPEND_STATUS_CREATE);
 #endif
 }
@@ -260,7 +260,7 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Reading " << inputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Reading " << utils::asUtf8Bytes(inputPath));
         return {};
     }
 #endif
@@ -277,7 +277,7 @@ Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigm
         xmlFile.read(buffer.data(), fileSize);
         return buffer;
     } catch (const std::ios_base::failure& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to read " << inputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to read " << utils::asUtf8Bytes(inputPath), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
         if (const auto* ec = dynamic_cast<const std::error_code*>(&ex.code())) {
             denigmaContext.logMessage(LogMsg() << "details: " << ec->message(), LogSeverity::Error);
@@ -295,7 +295,7 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& den
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Extracting " << inputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Extracting " << utils::asUtf8Bytes(inputPath));
         return {};
     }
 #endif
@@ -304,7 +304,7 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& den
         musx::encoder::ScoreFileEncoder::recodeBuffer(buffer);
         return gunzipBuffer(buffer);
     } catch (const std::exception &ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << utils::asUtf8Bytes(inputPath), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         throw;
     }
@@ -314,14 +314,14 @@ CommandInputData extractInputData(const std::filesystem::path& inputPath, const 
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Extracting " << inputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Extracting " << utils::asUtf8Bytes(inputPath));
         return {};
     }
 #endif
     try {
         return readMusxArchive(inputPath, denigmaContext);
     } catch (const std::exception& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << inputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << utils::asUtf8Bytes(inputPath), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         throw;
     }
@@ -331,7 +331,7 @@ void write(const std::filesystem::path& outputPath, const CommandInputData& inpu
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Writing " << outputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Writing " << utils::asUtf8Bytes(outputPath));
         return;
     }
 #endif
@@ -351,7 +351,7 @@ void write(const std::filesystem::path& outputPath, const CommandInputData& inpu
         xmlFile.write(xmlBuffer.data(), xmlBuffer.size());
     } catch (const std::ios_base::failure& ex) {
         std::stringstream sst;
-        denigmaContext.logMessage(LogMsg() << "unable to write " << outputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to write " << utils::asUtf8Bytes(outputPath), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
         if (const auto* ec = dynamic_cast<const std::error_code*>(&ex.code())) {
             denigmaContext.logMessage(LogMsg() << "details: " << ec->message(), LogSeverity::Error);
@@ -364,7 +364,7 @@ void writeMusx(const std::filesystem::path& outputPath, const CommandInputData& 
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Writing " << outputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Writing " << utils::asUtf8Bytes(outputPath));
         return;
     }
 #endif
@@ -411,7 +411,7 @@ void writeMusx(const std::filesystem::path& outputPath, const CommandInputData& 
             throw std::runtime_error("unable to finalize musx archive");
         }
     } catch (const std::exception& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to write musx to " << outputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to write musx to " << utils::asUtf8Bytes(outputPath), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         throw;
     }
