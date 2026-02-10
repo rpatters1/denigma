@@ -102,7 +102,7 @@ static SmuflFontMetadata parseSmuflMetadata(std::istream& jsonFile)
 static const SmuflFontMetadata* metadataForFont(const std::filesystem::path& fontMetadataPath)
 {
     static std::unordered_map<std::u8string, SmuflFontMetadata> metadataCache;
-    const std::u8string cacheKey = fontMetadataPath.u8string();
+    const auto cacheKey = fontMetadataPath.u8string();
     auto it = metadataCache.find(cacheKey);
     if (it != metadataCache.end()) {
         return &it->second;

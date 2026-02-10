@@ -250,7 +250,7 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity sever
         errorOccurred = true;
     }
     msg.flush();
-    const std::u8string inputFileUtf8 = inputFilePath.filename().u8string();
+    const auto inputFileUtf8 = inputFilePath.filename().u8string();
     std::string inputFile;
     utils::appendUtf8(inputFile, inputFileUtf8);
     if (!inputFile.empty()) {
@@ -380,7 +380,7 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
 {
     try {
         if (!std::filesystem::is_regular_file(inpFilePath) && !forTestOutput()) {
-            const std::u8string inputPathUtf8 = inpFilePath.u8string();
+            const auto inputPathUtf8 = inpFilePath.u8string();
             throw std::runtime_error("Input path " + utils::utf8ToString(inputPathUtf8) + " does not exist or is not a file or directory.");
         }
 //        if (!currentCommand->canProcess(inpFilePath)) {

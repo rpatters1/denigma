@@ -110,7 +110,7 @@ static unzFile openZipForRead(const std::filesystem::path& zipFilePath, const De
     const std::wstring widePath = zipFilePath.wstring();
     unzFile zip = unzOpen2_64(widePath.c_str(), &fileFuncs);
 #else
-    const std::u8string utf8Path = zipFilePath.u8string();
+    const auto utf8Path = zipFilePath.u8string();
     unzFile zip = unzOpen64(utf8Path.c_str());
 #endif
 
@@ -129,7 +129,7 @@ static zipFile openZipForWrite(const std::filesystem::path& outputPath)
     const std::wstring widePath = outputPath.wstring();
     return zipOpen2_64(widePath.c_str(), APPEND_STATUS_CREATE, nullptr, &fileFuncs);
 #else
-    const std::u8string utf8Path = outputPath.u8string();
+    const auto utf8Path = outputPath.u8string();
     return zipOpen64(utf8Path.c_str(), APPEND_STATUS_CREATE);
 #endif
 }

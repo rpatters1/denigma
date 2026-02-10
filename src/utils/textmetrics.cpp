@@ -389,7 +389,7 @@ private:
         std::vector<std::filesystem::path> deduped;
         std::set<std::u8string> seen;
         for (const auto& path : dirs) {
-            const std::u8string key = path.lexically_normal().u8string();
+            const auto key = path.lexically_normal().u8string();
             if (seen.insert(key).second) {
                 deduped.push_back(path);
             }
@@ -399,7 +399,7 @@ private:
 
     static bool hasSupportedExtension(const std::filesystem::path& filePath)
     {
-        std::u8string ext = filePath.extension().u8string();
+        auto ext = filePath.extension().u8string();
         std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
             return static_cast<char8_t>(std::tolower(c));
         });
@@ -409,7 +409,7 @@ private:
     void indexFontFaceLocked(const std::filesystem::path& filePath, long faceIndex)
     {
         FT_Face face = nullptr;
-        const std::u8string fontPathUtf8 = filePath.u8string();
+        const auto fontPathUtf8 = filePath.u8string();
         if (FT_New_Face(m_library, reinterpret_cast<const char*>(fontPathUtf8.c_str()), faceIndex, &face) != 0 || !face) {
             return;
         }
@@ -436,7 +436,7 @@ private:
         }
 
         FT_Face probeFace = nullptr;
-        const std::u8string fontPathUtf8 = filePath.u8string();
+        const auto fontPathUtf8 = filePath.u8string();
         if (FT_New_Face(m_library, reinterpret_cast<const char*>(fontPathUtf8.c_str()), 0, &probeFace) != 0 || !probeFace) {
             return;
         }

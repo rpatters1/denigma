@@ -64,11 +64,11 @@ DocumentPtr createDocument(const CommandInputData& inputData, const DenigmaConte
 std::filesystem::path appendShapeSuffix(const std::filesystem::path& outputPath, Cmper shapeCmper)
 {
     std::filesystem::path result = outputPath;
-    std::u8string extension = outputPath.extension().u8string();
+    auto extension = outputPath.extension().u8string();
     if (extension.empty()) {
         extension = std::u8string(u8".") + utils::stringToUtf8(SVG_EXTENSION);
     }
-    const std::u8string stem = outputPath.stem().u8string();
+    const auto stem = outputPath.stem().u8string();
     result.replace_filename(utils::utf8ToPath(stem + utils::stringToUtf8(".shape-" + std::to_string(shapeCmper)) + extension));
     return result;
 }
