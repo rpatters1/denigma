@@ -33,6 +33,7 @@
 #include "pugixml.hpp"
 #include "utils/stringutils.h"
 #include "utils/smufl_support.h"
+#include "utils/textmetrics.h"
 
 namespace denigma {
 namespace mss {
@@ -47,7 +48,7 @@ using XmlAttribute = ::pugi::xml_attribute;
 constexpr static char MSS_VERSION[] = "4.60"; // Do not change this version without checking notes on changed values.
 constexpr static double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 constexpr static double POINTS_PER_INCH = 72.0;
-constexpr static double FONT_HEIGHT_SCALE = 0.7;
+constexpr static double FONT_ASCENT_SCALE = 0.7;
 constexpr static int MUSE_NUMERIC_PRECISION = 5;
 
 // Finale preferences:
@@ -75,6 +76,7 @@ struct FinalePreferences
     MusxInstance<options::KeySignatureOptions> keyOptions;
     MusxInstance<options::LineCurveOptions> lineCurveOptions;
     MusxInstance<options::MiscOptions> miscOptions;
+    MusxInstance<options::MusicSymbolOptions> musicSymbolOptions;
     MusxInstance<options::MultimeasureRestOptions> mmRestOptions;
     MusxInstance<options::MusicSpacingOptions> musicSpacing;
     MusxInstance<options::PageFormatOptions::PageFormat> pageFormat;
@@ -143,6 +145,7 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     retval->keyOptions = getDocOptions<options::KeySignatureOptions>(retval, "key signature");
     retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
     retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "miscellaneous");
+    retval->musicSymbolOptions = getDocOptions<options::MusicSymbolOptions>(retval, "music symbol");
     retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(retval, "multimeasure rest");
     retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(retval, "music spacing");
     auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
@@ -238,7 +241,7 @@ static void setPointElement(XmlElement& styleElement, const std::string& nodeNam
     setAttribute("y", y);
 }
 
-static double approximateFontHeightInSpaces(const FontInfo* fontInfo)
+static double approximateFontAscentInSpaces(const FontInfo* fontInfo, const DenigmaContext& denigmaContext)
 {
     if (!fontInfo) {
         return 0.0;
@@ -246,8 +249,11 @@ static double approximateFontHeightInSpaces(const FontInfo* fontInfo)
 
     const double scaledPointSize = double(fontInfo->fontSize)
                                  * (fontInfo->absolute ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL);
-    const double heightEvpu = (scaledPointSize / POINTS_PER_INCH) * EVPU_PER_INCH * FONT_HEIGHT_SCALE;
-    return heightEvpu / EVPU_PER_SPACE;
+    if (auto measuredMetricsEvpu = textmetrics::measureTextEvpu(*fontInfo, U"0123456789", scaledPointSize, denigmaContext)) {
+        return measuredMetricsEvpu->ascent / EVPU_PER_SPACE;
+    }
+    const double ascentEvpu = (scaledPointSize / POINTS_PER_INCH) * EVPU_PER_INCH * FONT_ASCENT_SCALE;
+    return ascentEvpu / EVPU_PER_SPACE;
 }
 
 static uint16_t museFontEfx(const FontInfo* fontInfo)
@@ -269,6 +275,34 @@ static double museMagVal(const FinalePreferencesPtr& prefs, const options::FontO
         return double(fontPrefs->fontSize) / double(prefs->defaultMusicFont->fontSize);
     }
     return 1.0;
+}
+
+static std::optional<EvpuFloat> calcAugmentationDotWidth(const FinalePreferencesPtr& prefs, double dotMag)
+{
+    if (!prefs->musicFontName.empty()) {
+        if (auto musicFontWidth = utils::smuflGlyphWidthForFont(prefs->musicFontName, "augmentationDot")) {
+            // SMuFL metadata is unscaled; apply dotMag here so this function always returns
+            // the final width contribution used in dotDotDistance.
+            return dotMag * musicFontWidth.value();
+        }
+    }
+    if (!prefs->musicSymbolOptions || prefs->musicSymbolOptions->augDot == 0) {
+        return std::nullopt;
+    }
+
+    const auto augDotFontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::AugDots);
+    if (!augDotFontInfo) {
+        return std::nullopt;
+    }
+    const double scaledPointSize = double(augDotFontInfo->fontSize)
+                                 * (augDotFontInfo->absolute ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL);
+    if (auto measured = textmetrics::measureGlyphWidthEvpu(*augDotFontInfo,
+                                                           prefs->musicSymbolOptions->augDot,
+                                                           scaledPointSize,
+                                                           *prefs->denigmaContext)) {
+        return measured.value();
+    }
+    return std::nullopt;
 }
 
 static void writeFontPref(XmlElement& styleElement, const std::string& namePrefix, const FontInfo* fontInfo)
@@ -500,20 +534,9 @@ void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "dotRestDistance", prefs->augDotOptions->dotNoteOffset / EVPU_PER_SPACE); // Same value as dotNoteDistance
     // Finale's dotOffset value is calculated relative to the rightmost point of the previous dot, MuseScore's dotDotDistance the leftmost. (Observed behavior)
     // Therefore, we need to add the dot width to MuseScore's dotDotDistance.
-    auto dotWidth = [&]() -> std::optional<EvpuFloat> {
-        if (!prefs->musicFontName.empty()) {
-            if (auto musicFontWidth = utils::smuflGlyphWidthForFont(prefs->musicFontName, "augmentationDot")) {
-                return musicFontWidth;
-            } else if (auto maestroFontWidth = utils::smuflGlyphWidthForFont("Finale Maestro", "augmentationDot")) {
-                prefs->denigmaContext->logMessage(LogMsg() << "unable to find augmentation dot width for " << prefs->musicFontName
-                    << ". Using Finale Maestro instead.", LogSeverity::Warning);
-                return maestroFontWidth;
-            }
-        }
-        return std::nullopt;
-    }();
+    const auto dotWidth = calcAugmentationDotWidth(prefs, dotMag);
     if (dotWidth) {
-        setElementValue(styleElement, "dotDotDistance", (prefs->augDotOptions->dotOffset + (dotMag * dotWidth.value())) / EVPU_PER_SPACE);
+        setElementValue(styleElement, "dotDotDistance", (prefs->augDotOptions->dotOffset + dotWidth.value()) / EVPU_PER_SPACE);
     } else {
         prefs->denigmaContext->logMessage(LogMsg() << "Unable to find augmentation dot width for music font [" << prefs->musicFontName
             << "]. Dot-to-dot distance setting was skipped.", LogSeverity::Warning);
@@ -633,7 +656,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
             setElementValue(styleElement, prefix + "HPlacement", justifyToAlign(alignment));
             setElementValue(styleElement, prefix + "Align", justificationString(justification));
             setElementValue(styleElement, prefix + "Position", justifyToAlign(justification));
-            const double textHeightSp = approximateFontHeightInSpaces(fontInfo.get()) * prefs->spatiumScaling;
+            const double textHeightSp = approximateFontAscentInSpaces(fontInfo.get(), *prefs->denigmaContext) * prefs->spatiumScaling;
             const double normalStaffHeightSp = 4.0;
             setPointElement(styleElement, prefix + "PosAbove", horizontalSp, std::min(-verticalSp, 0.0));
             setPointElement(styleElement, prefix + "PosBelow", horizontalSp,

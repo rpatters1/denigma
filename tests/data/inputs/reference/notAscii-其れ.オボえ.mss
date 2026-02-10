@@ -147,7 +147,7 @@
         <mmRestRangeAlign>center,baseline</mmRestRangeAlign>
         <mmRestRangePosition>center</mmRestRangePosition>
         <mmRestRangePosAbove x="0" y="0"></mmRestRangePosAbove>
-        <mmRestRangePosBelow x="0" y="1.8362"></mmRestRangePosBelow>
+        <mmRestRangePosBelow x="0" y="1.8659"></mmRestRangePosBelow>
         <mmRestRangeFrameType>0</mmRestRangeFrameType>
         <createMultiMeasureRests>1</createMultiMeasureRests>
         <minEmptyMeasures>2</minEmptyMeasures>

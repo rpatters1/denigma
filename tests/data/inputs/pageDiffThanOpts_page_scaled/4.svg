@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generator: MakeMusic 27.4.1.146 -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="7.902mm" height="23.830mm" viewBox="-0.432 -14.446 7.902 23.830" xml:space="preserve">
+<font horiz-adv-x="1000">
+<!-- Copyright (c) 2021 by MakeMusic, Inc.. All rights reserved. -->
+<font-face font-family="'Finale Maestro'" units-per-em="1000" underline-position="-75.000000" underline-thickness="50.000000">
+<font-face-src><font-face-name name="Finale Maestro"/></font-face-src></font-face>
+<missing-glyph horiz-adv-x="0" />
+<glyph unicode="&#xE566;" horiz-adv-x="484.000" d="M484,227C484,261 465,276 437,276C407,276 374,255 358,241C346,271 324,283 297,283C256,283 228,262 192,240L249,381C240,380 225,380 210,380C202,380 194,380 185,381L144,272C128,281 107,290 82,290C35,290 0,262 0,216C0,180 20,149 62,149C70,149 79,150 88,153C78,127 64,101 64,64C64,29 87,-3 124,-3C173,-3 207,46 207,122C207,154 199,182 189,213C202,220 246,253 276,253C287,253 300,247 300,231C299,203 262,120 233,59L205,0L276,0L351,164C362,188 380,241 407,241C412,241 414,235 414,227C414,220 413,211 413,203C413,186 421,176 441,176C470,176 484,197 484,227L484,227M104,184C90,173 77,168 65,168C37,168 21,191 21,209C21,238 43,268 81,268C106,268 127,255 127,235L104,184M171,186C178,170 185,140 185,110C185,64 164,30 138,30C124,30 117,42 117,52C117,73 157,159 171,186L171,186z" />
+<glyph unicode="&#xF427;" horiz-adv-x="500.000" />
+</font>
+<g id="Music">
+	<text font-family="'Finale Maestro'" transform="translate(-0.432,0.185)" font-size="5.926667" fill="rgb(0,0,0)" xml:space="preserve">&#xE566;</text>
+	<text font-family="'Finale Maestro'" transform="translate(0.926,-2.531)" font-size="5.926667" fill="rgb(0,0,0)" xml:space="preserve">&#xF427;</text>
+</g>
+</svg>

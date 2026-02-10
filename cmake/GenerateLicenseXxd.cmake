@@ -2,6 +2,15 @@
 
 
 # Define parallel lists for file paths and their corresponding prefixes
+set(FREETYPE_LICENSE_FILE "")
+if(DEFINED freetype_SOURCE_DIR AND EXISTS "${freetype_SOURCE_DIR}")
+    if(EXISTS "${freetype_SOURCE_DIR}/docs/FTL.TXT")
+        set(FREETYPE_LICENSE_FILE "${freetype_SOURCE_DIR}/docs/FTL.TXT")
+    else()
+        message(FATAL_ERROR "FreeType FTL license file not found at ${freetype_SOURCE_DIR}/docs/FTL.TXT")
+    endif()
+endif()
+
 set(LICENSE_FILES
     "${CMAKE_SOURCE_DIR}/LICENSE"
     "${musx_SOURCE_DIR}/LICENSE"
@@ -11,6 +20,10 @@ set(LICENSE_FILES
     "${zlib_SOURCE_DIR}/LICENSE"
 )
 
+if(FREETYPE_LICENSE_FILE)
+    list(APPEND LICENSE_FILES "${FREETYPE_LICENSE_FILE}")
+endif()
+
 set(LICENSE_PREFIXES
     denigma
     musx
@@ -19,6 +32,10 @@ set(LICENSE_PREFIXES
     pugixml
     zlib
 )
+
+if(FREETYPE_LICENSE_FILE)
+    list(APPEND LICENSE_PREFIXES freetype)
+endif()
 
 # Ensure both lists have the same length
 list(LENGTH LICENSE_FILES FILES_LENGTH)

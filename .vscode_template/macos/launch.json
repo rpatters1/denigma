@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C++ Debug denigma (codeLLDB)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/build/Debug/denigma",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "env": {},
+            "preLaunchTask": "build"
+        },
+        {
+            "name": "C++ Debug denigma_tests (codeLLDB)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/denigma_tests",
+            "args": [],
+            "cwd": "${workspaceFolder}/tests/data",
+            "stopOnEntry": false,
+            "env": {},
+            "preLaunchTask": "build"
+        }
+    ]
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024, Robert Patterson
+ * Copyright (C) 2026, Robert Patterson
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,28 +21,14 @@
  */
 #pragma once
 
-#include <string>
 #include <filesystem>
-#include <optional>
 
 #include "denigma.h"
-#include "musx/musx.h"
 
-namespace utils {
+namespace denigma {
+namespace svgexp {
 
-struct SmuflGlyphMetricsEvpu
-{
-    musx::dom::EvpuFloat advance{};
-    musx::dom::EvpuFloat top{};
-    musx::dom::EvpuFloat bottom{};
-};
+void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
-std::optional<std::string> smuflGlyphNameForFont(const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, char32_t codepoint);
-
-std::optional<std::string> smuflGlyphNameForFont(const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, const std::string& text);
-
-std::optional<musx::dom::EvpuFloat> smuflGlyphWidthForFont(const std::string& fontName, const std::string& glyphName);
-
-std::optional<SmuflGlyphMetricsEvpu> smuflGlyphMetricsForFont(const musx::dom::FontInfo& fontInfo, char32_t codepoint);
-
-} // namespace utils
+} // namespace svgexp
+} // namespace denigma

@@ -20,12 +20,71 @@
  * THE SOFTWARE.
  */
 #include "denigma.h"
+#include <limits>
 
 namespace denigma {
+
+namespace {
+
+musx::util::SvgConvert::SvgUnit parseSvgUnitOption(const std::string& input)
+{
+    const std::string value = utils::toLowerCase(input);
+    if (value == "none") return musx::util::SvgConvert::SvgUnit::None;
+    if (value == "px") return musx::util::SvgConvert::SvgUnit::Pixels;
+    if (value == "pt") return musx::util::SvgConvert::SvgUnit::Points;
+    if (value == "pc") return musx::util::SvgConvert::SvgUnit::Picas;
+    if (value == "cm") return musx::util::SvgConvert::SvgUnit::Centimeters;
+    if (value == "mm") return musx::util::SvgConvert::SvgUnit::Millimeters;
+    if (value == "in") return musx::util::SvgConvert::SvgUnit::Inches;
+    throw std::invalid_argument("Invalid value for --svg-unit: " + input + ". Expected one of: none, px, pt, pc, cm, mm, in.");
+}
+
+void appendShapeDefIds(const std::string& list, std::vector<musx::dom::Cmper>& out)
+{
+    if (list.empty()) {
+        throw std::invalid_argument("Missing value for --shape-def");
+    }
+    size_t start = 0;
+    while (start <= list.size()) {
+        const size_t comma = list.find(',', start);
+        const std::string token = list.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+        if (token.empty()) {
+            throw std::invalid_argument("Invalid --shape-def list: \"" + list + "\"");
+        }
+        long long parsed = 0;
+        try {
+            parsed = std::stoll(token);
+        } catch (...) {
+            throw std::invalid_argument("Invalid --shape-def value: \"" + token + "\"");
+        }
+        if (parsed <= 0 || parsed > std::numeric_limits<musx::dom::Cmper>::max()) {
+            throw std::invalid_argument("Invalid --shape-def value: \"" + token + "\"");
+        }
+        const auto id = static_cast<musx::dom::Cmper>(parsed);
+        bool seen = false;
+        for (const auto existing : out) {
+            if (existing == id) {
+                seen = true;
+                break;
+            }
+        }
+        if (!seen) {
+            out.push_back(id);
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        start = comma + 1;
+    }
+}
+
+} // namespace
 
 std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* argv[])
 {
     std::vector<const arg_char*> args;
+    bool svgScaleSpecified = false;
+    bool svgPageScaleExplicitlyEnabled = false;
     for (int x = 1; x < argc; x++) {
         auto getNextArg = [&]() -> arg_view {
                 if (x + 1 < argc) {
@@ -109,6 +168,34 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             if (!schemaPath.empty()) {
                 mnxSchemaPath = schemaPath;
             }
+        } else if (next == _ARG("--shape-def")) {
+            const std::string shapeDefList = std::string(_ARG_CONV(getNextArg()));
+            appendShapeDefIds(shapeDefList, svgShapeDefs);
+        } else if (next == _ARG("--svg-unit")) {
+            const std::string unitValue = std::string(_ARG_CONV(getNextArg()));
+            if (unitValue.empty()) {
+                throw std::invalid_argument("Missing value for --svg-unit");
+            }
+            svgUnit = parseSvgUnitOption(unitValue);
+        } else if (next == _ARG("--svg-page-scale")) {
+            svgUsePageScale = true;
+            svgPageScaleExplicitlyEnabled = true;
+        } else if (next == _ARG("--no-svg-page-scale")) {
+            svgUsePageScale = false;
+        } else if (next == _ARG("--svg-scale")) {
+            const std::string scaleValue = std::string(_ARG_CONV(getNextArg()));
+            if (scaleValue.empty()) {
+                throw std::invalid_argument("Missing value for --svg-scale");
+            }
+            try {
+                svgScale = std::stod(scaleValue);
+            } catch (...) {
+                throw std::invalid_argument("Invalid value for --svg-scale: " + scaleValue);
+            }
+            if (svgScale <= 0.0) {
+                throw std::invalid_argument("Invalid value for --svg-scale: " + scaleValue + " (must be > 0)");
+            }
+            svgScaleSpecified = true;
 #ifdef DENIGMA_TEST // this is defined on the command line by the test program
         } else if (next == _ARG("--testing")) {
             testOutput = true;
@@ -116,6 +203,12 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
         } else {
             args.push_back(argv[x]);
         }
+    }
+    if (svgScaleSpecified && !svgPageScaleExplicitlyEnabled) {
+        svgUsePageScale = false;
+    }
+    if (svgScaleSpecified && svgPageScaleExplicitlyEnabled) {
+        throw std::invalid_argument("Cannot combine --svg-scale with page-format scaling. Use --no-svg-page-scale with --svg-scale.");
     }
     return args;
 }

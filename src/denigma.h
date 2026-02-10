@@ -38,6 +38,7 @@ inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
 inline constexpr char MNX_EXTENSION[]       = "mnx";
 inline constexpr char JSON_EXTENSION[]      = "json";
 inline constexpr char MSS_EXTENSION[]       = "mss";
+inline constexpr char SVG_EXTENSION[]       = "svg";
 inline constexpr char MXL_EXTENSION[]       = "mxl";
 inline constexpr char MUSICXML_EXTENSION[]  = "musicxml";
 
@@ -193,6 +194,12 @@ public:
     std::optional<std::filesystem::path> mnxSchemaPath;
     std::optional<std::string> mnxSchema;
     bool includeTempoTool{};
+
+    // Specific options for `export --svg` command
+    std::vector<musx::dom::Cmper> svgShapeDefs;
+    musx::util::SvgConvert::SvgUnit svgUnit{ musx::util::SvgConvert::SvgUnit::Millimeters };
+    bool svgUsePageScale{ true };
+    double svgScale{ 1.0 };
 
 #ifdef DENIGMA_TEST
     bool testOutput{}; // this may be defined on the command line by the test program

@@ -57,7 +57,10 @@ if(denigma_BUILD_TESTING)
         mnxdom
         musx
         smufl_mapping
+        ${DENIGMA_TEXT_METRICS_LIBS}
     )
+
+    target_compile_definitions(denigma_tests PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
 
     target_compile_definitions(denigma_tests PRIVATE
         MUSX_TEST_DATA_PATH="${musx_SOURCE_DIR}/tests/data"

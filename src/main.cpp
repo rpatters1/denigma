@@ -108,7 +108,13 @@ int _MAIN(int argc, arg_char* argv[])
         return showHelpPage(denigmaContext.programName);
     }
 
-    std::vector<const arg_char*> args = denigmaContext.parseOptions(argc, argv);
+    std::vector<const arg_char*> args;
+    try {
+        args = denigmaContext.parseOptions(argc, argv);
+    } catch (const std::exception& e) {
+        denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
+        return 1;
+    }
 
     if (denigmaContext.showVersion) {
         std::cout << denigmaContext.programName << " " << DENIGMA_VERSION << std::endl;

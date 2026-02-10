@@ -84,7 +84,6 @@ set(SMUFL_METADATA_DIR "${CMAKE_CURRENT_LIST_DIR}/smufl")
 
 # Set output directory for compiled executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
-set(BUILD_TESTING OFF CACHE BOOL "Disable testing for external dependencies" FORCE)
 
 # Save the current state and disable deprecation warnings
 set(_original_WARN_DEPRECATED ${CMAKE_WARN_DEPRECATED})
@@ -135,6 +134,70 @@ target_include_directories(denigma_minizip PUBLIC "${zlib_SOURCE_DIR}/contrib/mi
 target_link_libraries(denigma_minizip PUBLIC ${_denigma_zlib_target})
 
 include(cmake/Dependencies.cmake) # GitHub branches/tags for MNX and MUSX
+
+set(DENIGMA_TEXT_METRICS_DEFINES "")
+set(DENIGMA_TEXT_METRICS_LIBS "")
+set(DENIGMA_TEXT_METRICS_INCLUDE_DIRS "")
+
+# Build FreeType from source so we do not require external package installation.
+set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "Disable HarfBuzz support in FreeType" FORCE)
+set(FT_DISABLE_BROTLI ON CACHE BOOL "Disable Brotli support in FreeType" FORCE)
+set(FT_DISABLE_BZIP2 ON CACHE BOOL "Disable bzip2 support in FreeType" FORCE)
+set(FT_DISABLE_PNG ON CACHE BOOL "Disable libpng support in FreeType" FORCE)
+set(FT_DISABLE_ZLIB ON CACHE BOOL "Disable zlib support in FreeType" FORCE)
+set(FT_DISABLE_TESTS ON CACHE BOOL "Disable FreeType tests" FORCE)
+set(FT_REQUIRE_ZLIB OFF CACHE BOOL "Do not require zlib for FreeType" FORCE)
+
+FetchContent_Declare(
+    freetype
+    URL https://download.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.xz
+    URL_HASH SHA256=32427e8c471ac095853212a37aef816c60b42052d4d9e48230bab3bdf2936ccc
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(freetype)
+
+if(TARGET freetype)
+    set(_denigma_freetype_target freetype)
+elseif(TARGET Freetype::Freetype)
+    set(_denigma_freetype_target Freetype::Freetype)
+else()
+    message(FATAL_ERROR "Unable to determine FreeType target name after FetchContent_MakeAvailable(freetype).")
+endif()
+message(STATUS "Using FreeType target: ${_denigma_freetype_target}")
+list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_FREETYPE=1)
+list(APPEND DENIGMA_TEXT_METRICS_LIBS ${_denigma_freetype_target})
+if(TARGET freetype AND CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang")
+    target_compile_options(freetype PRIVATE -Wno-macro-redefined)
+endif()
+
+if(UNIX AND NOT APPLE)
+    find_path(DENIGMA_FONTCONFIG_INCLUDE_DIR fontconfig/fontconfig.h)
+    find_library(DENIGMA_FONTCONFIG_LIBRARY NAMES fontconfig)
+
+    if(DENIGMA_FONTCONFIG_INCLUDE_DIR AND DENIGMA_FONTCONFIG_LIBRARY)
+        list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_FONTCONFIG=1)
+        list(APPEND DENIGMA_TEXT_METRICS_LIBS ${DENIGMA_FONTCONFIG_LIBRARY})
+        list(APPEND DENIGMA_TEXT_METRICS_INCLUDE_DIRS ${DENIGMA_FONTCONFIG_INCLUDE_DIR})
+        message(STATUS "Text metrics resolver enabled: fontconfig (find_path/find_library)")
+        message(STATUS "  fontconfig include: ${DENIGMA_FONTCONFIG_INCLUDE_DIR}")
+        message(STATUS "  fontconfig library: ${DENIGMA_FONTCONFIG_LIBRARY}")
+    else()
+        message(WARNING "Text metrics resolver disabled: fontconfig not found (find_path/find_library). Install libfontconfig1-dev to enable it.")
+        message(STATUS "  fontconfig include: ${DENIGMA_FONTCONFIG_INCLUDE_DIR}")
+        message(STATUS "  fontconfig library: ${DENIGMA_FONTCONFIG_LIBRARY}")
+        message(STATUS "Text metrics resolver fallback: FreeType directory-index lookup")
+    endif()
+elseif(APPLE)
+    find_library(DENIGMA_CORETEXT_FRAMEWORK CoreText REQUIRED)
+    find_library(DENIGMA_COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+    list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_CORETEXT=1)
+    list(APPEND DENIGMA_TEXT_METRICS_LIBS ${DENIGMA_CORETEXT_FRAMEWORK} ${DENIGMA_COREFOUNDATION_FRAMEWORK})
+    message(STATUS "Text metrics resolver enabled: CoreText")
+elseif(WIN32)
+    list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_DIRECTWRITE=1)
+    list(APPEND DENIGMA_TEXT_METRICS_LIBS dwrite)
+    message(STATUS "Text metrics resolver enabled: DirectWrite")
+endif()
 
 # Define a cache variable for the local Musx C++ DOM path relative to the source directory.
 set(MUSX_LOCAL_PATH "" CACHE STRING "Path to local Musx C++ DOM checkout relative to the source directory (if provided)")
@@ -258,9 +321,11 @@ add_executable(denigma
     src/export/mnx_parts.cpp
     src/export/mnx_sequences.cpp
     src/export/mss.cpp
+    src/export/svg.cpp
     src/export/mnx_mapping.cpp
     src/massage/massage.cpp
     src/massage/musicxml.cpp
+    src/utils/textmetrics.cpp
     src/utils/smufl_support.cpp
     src/utils/ziputils.cpp
 )
@@ -276,6 +341,7 @@ endif()
 add_dependencies(denigma GenerateLicenseXxd)
 target_include_directories(denigma PRIVATE ${GENERATED_DIR})
 target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(denigma PRIVATE ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS})
 
 # Ensure the libraries are added
 target_link_libraries(denigma PRIVATE
@@ -285,7 +351,10 @@ target_link_libraries(denigma PRIVATE
     mnxdom
     musx
     smufl_mapping
+    ${DENIGMA_TEXT_METRICS_LIBS}
 )
+
+target_compile_definitions(denigma PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
 
 # Define an interface library for precompiled headers
 add_library(denigma_pch INTERFACE)

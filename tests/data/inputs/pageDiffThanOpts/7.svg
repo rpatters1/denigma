@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generator: MakeMusic 27.4.1.146 -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="101.000" height="194.000" viewBox="-57.000 -135.000 101.000 194.000" xml:space="preserve">
+<font horiz-adv-x="2048">
+<!-- © 1990-2006 Apple Computer Inc. © 1981 Linotype AG © 1990-91 Type Solutions Inc. -->
+<font-face font-family="'Helvetica'" font-weight="bold" units-per-em="2048" underline-position="-155.000000" underline-thickness="101.000000">
+<font-face-src><font-face-name name="Helvetica Bold"/></font-face-src></font-face>
+<missing-glyph horiz-adv-x="0" />
+<glyph unicode="A" horiz-adv-x="1479.000" d="M1019,303L476,303L374,0L52,0L578,1474L926,1474L1448,0L1114,0L1019,303M933,557L749,1137L559,557L933,557z" />
+<glyph unicode="B" horiz-adv-x="1479.000" d="M829,0L161,0L161,1474L877,1474C1058,1471 1186,1419 1261,1317C1306,1254 1329,1179 1329,1092C1329,1002 1306,930 1261,875C1236,844 1198,816 1149,791C1224,764 1281,720 1320,661C1358,602 1377,530 1377,445C1377,358 1355,279 1311,210C1283,164 1248,125 1206,94C1159,58 1103,33 1038,20C974,7 904,0 829,0L829,0M822,649L455,649L455,256L817,256C882,256 932,265 968,282C1033,314 1066,375 1066,466C1066,543 1034,595 971,624C936,640 886,648 822,649L822,649M975,930C1015,954 1035,997 1035,1059C1035,1128 1008,1173 955,1195C909,1210 850,1218 779,1218L455,1218L455,893L817,893C882,893 934,905 975,930L975,930z" />
+<glyph unicode="F" horiz-adv-x="1251.000" d="M1201,1213L462,1213L462,874L1109,874L1109,618L462,618L462,0L156,0L156,1472L1201,1472L1201,1213z" />
+<glyph unicode="O" horiz-adv-x="1593.000" d="M808,-41C597,-41 436,16 325,131C176,272 101,474 101,739C101,1009 176,1212 325,1347C436,1462 597,1519 808,1519C1019,1519 1180,1462 1291,1347C1440,1212 1514,1009 1514,739C1514,474 1440,272 1291,131C1180,16 1019,-41 808,-41L808,-41M1099,355C1170,445 1206,573 1206,739C1206,904 1170,1032 1098,1122C1027,1213 930,1258 808,1258C686,1258 589,1213 516,1123C443,1033 407,905 407,739C407,573 443,445 516,355C589,265 686,220 808,220C930,220 1027,265 1099,355L1099,355z" />
+<glyph unicode="R" horiz-adv-x="1479.000" d="M782,578L464,578L464,0L163,0L163,1474L886,1474C989,1472 1069,1459 1124,1436C1180,1413 1227,1378 1266,1333C1298,1296 1323,1254 1342,1209C1361,1164 1370,1112 1370,1054C1370,984 1352,915 1317,848C1282,780 1223,732 1142,704C1210,677 1258,638 1286,588C1315,537 1329,460 1329,357L1329,258C1329,191 1332,145 1337,121C1345,83 1364,55 1393,37L1393,0L1054,0C1045,33 1038,59 1034,79C1026,120 1022,163 1021,206L1019,343C1018,437 1000,500 968,531C934,562 873,578 782,578L782,578M969,846C1030,874 1061,929 1061,1012C1061,1101 1031,1161 972,1192C939,1209 889,1218 822,1218L464,1218L464,822L813,822C882,822 934,830 969,846L969,846z" />
+<glyph unicode="T" horiz-adv-x="1251.000" d="M1227,1474L1227,1213L786,1213L786,0L476,0L476,1213L33,1213L33,1474L1227,1474z" />
+</font>
+<font horiz-adv-x="2048">
+<!-- © 1990-99 Apple Computer Inc. © 1981 Linotype AG  © 1990-91 Type Solutions Inc. © 1990-91 The Font Bureau Inc. -->
+<font-face font-family="'Times'" units-per-em="2048" underline-position="-155.000000" underline-thickness="101.000000">
+<font-face-src><font-face-name name="Times Roman"/></font-face-src></font-face>
+<missing-glyph horiz-adv-x="0" />
+<glyph unicode=" " horiz-adv-x="512.000" />
+</font>
+<g id="Music">
+	<text font-family="'Helvetica'" font-weight="bold" transform="translate(-57.000,0.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve">F</text>
+	<text font-family="'Helvetica'" font-weight="bold" transform="translate(-27.680,0.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve">O</text>
+	<text font-family="'Helvetica'" font-weight="bold" transform="translate(9.656,0.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve">R</text>
+	<text font-family="'Helvetica'" font-weight="bold" transform="translate(-57.000,48.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve">T</text>
+	<text font-family="'Helvetica'" font-weight="bold" transform="translate(-27.680,48.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve">A</text>
+	<text font-family="'Helvetica'" font-weight="bold" transform="translate(6.984,48.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve">B</text>
+	<text font-family="'Times'" transform="translate(-39.000,-99.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve"> </text>
+	<text font-family="'Times'" transform="translate(-27.000,-99.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve"> </text>
+	<text font-family="'Times'" transform="translate(-39.000,-51.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve"> </text>
+	<text font-family="'Times'" transform="translate(-27.000,-51.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve"> </text>
+	<text font-family="'Times'" transform="translate(-15.000,-51.000)" font-size="48.000000" fill="rgb(0,0,0)" xml:space="preserve"> </text>
+</g>
+</svg>
