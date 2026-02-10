@@ -47,11 +47,11 @@ static CommandInputData readMusicXml(const std::filesystem::path& inputPath, con
 constexpr auto inputProcessors = []() {
     struct InputProcessor
     {
-        const char* extension;
+        std::u8string_view extension;
         CommandInputData(*processor)(const std::filesystem::path&, const DenigmaContext&);
     };
 
-    return to_array<InputProcessor>({
+    return std::to_array<InputProcessor>({
             { MXL_EXTENSION, nullFunc },
             { MUSICXML_EXTENSION, readMusicXml },
         });
@@ -61,11 +61,11 @@ constexpr auto inputProcessors = []() {
 constexpr auto outputProcessors = []() {
     struct OutputProcessor
     {
-        const char* extension;
+        std::u8string_view extension;
         void(*processor)(const std::filesystem::path&, const std::filesystem::path&, const Buffer&, const DenigmaContext&);
     };
 
-    return to_array<OutputProcessor>({
+    return std::to_array<OutputProcessor>({
             { MXL_EXTENSION, musicxml::massageMxl },
             { MUSICXML_EXTENSION, musicxml::massage },
         });
@@ -101,7 +101,7 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
     // Supported input formats
     std::cout << indentSpaces << "Supported input formats:" << std::endl;
     for (const auto& input : inputProcessors) {
-        std::cout << indentSpaces << "  *." << input.extension;
+        std::cout << indentSpaces << "  *." << utils::utf8ToString(input.extension);
         if (input.extension == defaultInputFormat()) {
             std::cout << " (default input format)";
         }
@@ -112,7 +112,7 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
     // Supported output formats
     std::cout << indentSpaces << "Supported output options:" << std::endl;
     for (const auto& output : outputProcessors) {
-        std::cout << indentSpaces << "  --" << output.extension << " [optional filepath]" << std::endl;
+        std::cout << indentSpaces << "  --" << utils::utf8ToString(output.extension) << " [optional filepath]" << std::endl;
     }
     std::cout << indentSpaces << std::endl;
 

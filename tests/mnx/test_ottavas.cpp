@@ -35,9 +35,9 @@ TEST(MnxOttavasTest, OverlappingOttavas)
 {
     std::filesystem::path inputPath;
     copyInputToOutput("ottavas.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "ottavas.mnx");
@@ -105,9 +105,9 @@ TEST(MnxOttavasTest, EndOfBar)
 {
     std::filesystem::path inputPath;
     copyInputToOutput("ottava_end_of_bar.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!was not inserted into MNX document" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!was not inserted into MNX document" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "ottava_end_of_bar.mnx");

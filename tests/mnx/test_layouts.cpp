@@ -35,9 +35,9 @@ TEST(MnxLayouts, MultiInstrumentTest)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("multistaff_inst.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     nlohmann::json mnx;
@@ -325,9 +325,9 @@ TEST(MnxLayouts, Piano3StaffTest)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("piano3staff.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "piano3staff.mnx");

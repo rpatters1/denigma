@@ -131,7 +131,7 @@ void exportJson(const std::filesystem::path& outputPath, const CommandInputData&
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Converting to " << outputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
         return;
     }
 #endif

@@ -38,11 +38,11 @@ namespace denigma {
 constexpr auto inputProcessors = []() {
     struct InputProcessor
     {
-        const char* extension;
+        std::u8string_view extension;
         CommandInputData(*processor)(const std::filesystem::path&, const DenigmaContext&);
     };
 
-    return to_array<InputProcessor>({
+    return std::to_array<InputProcessor>({
             { MUSX_EXTENSION, enigmaxml::extractInputData },
             { ENIGMAXML_EXTENSION, enigmaxml::readInputData },
         });
@@ -52,11 +52,11 @@ constexpr auto inputProcessors = []() {
 constexpr auto outputProcessors = []() {
     struct OutputProcessor
     {
-        const char* extension;
+        std::u8string_view extension;
         void(*processor)(const std::filesystem::path&, const CommandInputData&, const DenigmaContext&);
     };
 
-    return to_array<OutputProcessor>({
+    return std::to_array<OutputProcessor>({
             { MUSX_EXTENSION, enigmaxml::writeMusx },
             { ENIGMAXML_EXTENSION, enigmaxml::write },
             { MSS_EXTENSION, mss::convert },
@@ -97,7 +97,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     // Supported input formats
     std::cout << indentSpaces << "Supported input formats:" << std::endl;
     for (const auto& input : inputProcessors) {
-        std::cout << indentSpaces << "  *." << input.extension;
+        std::cout << indentSpaces << "  *." << utils::utf8ToString(input.extension);
         if (input.extension == defaultInputFormat()) {
             std::cout << " (default input format)";
         }
@@ -108,7 +108,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     // Supported output formats
     std::cout << indentSpaces << "Supported output options:" << std::endl;
     for (const auto& output : outputProcessors) {
-        std::cout << indentSpaces << "  --" << output.extension << " [optional filepath]";
+        std::cout << indentSpaces << "  --" << utils::utf8ToString(output.extension) << " [optional filepath]";
         if (output.extension == defaultOutputFormat({})) {
             std::cout << " (default output format)";
         }

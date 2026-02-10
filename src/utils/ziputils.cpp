@@ -110,12 +110,12 @@ static unzFile openZipForRead(const std::filesystem::path& zipFilePath, const De
     const std::wstring widePath = zipFilePath.wstring();
     unzFile zip = unzOpen2_64(widePath.c_str(), &fileFuncs);
 #else
-    const std::string utf8Path = zipFilePath.u8string();
+    const auto utf8Path = zipFilePath.u8string();
     unzFile zip = unzOpen64(utf8Path.c_str());
 #endif
 
     if (!zip) {
-        denigmaContext.logMessage(LogMsg() << "unable to extract data from file " << zipFilePath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract data from file " << utils::asUtf8Bytes(zipFilePath), LogSeverity::Error);
         throw std::runtime_error("unable to open zip archive");
     }
     return zip;
@@ -129,7 +129,7 @@ static zipFile openZipForWrite(const std::filesystem::path& outputPath)
     const std::wstring widePath = outputPath.wstring();
     return zipOpen2_64(widePath.c_str(), APPEND_STATUS_CREATE, nullptr, &fileFuncs);
 #else
-    const std::string utf8Path = outputPath.u8string();
+    const auto utf8Path = outputPath.u8string();
     return zipOpen64(utf8Path.c_str(), APPEND_STATUS_CREATE);
 #endif
 }
@@ -277,7 +277,7 @@ static std::string getMusicXmlScoreName(const std::filesystem::path& zipFilePath
 {
     std::filesystem::path defaultName = zipFilePath.filename();
     defaultName.replace_extension(MUSICXML_EXTENSION);
-    std::string fileName = defaultName.filename().u8string();
+    auto fileName = defaultName.filename().u8string();
     try {
         iterateFiles(zip, std::nullopt, [&](const ZipEntryInfo& entry) {
             if (entry.filename == "META-INF/container.xml") {
@@ -288,15 +288,15 @@ static std::string getMusicXmlScoreName(const std::filesystem::path& zipFilePath
                     throw std::runtime_error("Error parsing container.xml: " + std::string(parseResult.description()));
                 }
                 if (auto path = containerXml.child("container").child("rootfiles").child("rootfile").attribute("full-path")) {
-                    fileName = path.value();
+                    fileName = utils::stringToUtf8(path.value());
                 }
                 return false;
             }
             return true;
         });
-        return fileName;
+        return utils::utf8ToString(fileName);
     } catch (const std::exception& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to extract META-INF/container.xml from file " << zipFilePath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract META-INF/container.xml from file " << utils::asUtf8Bytes(zipFilePath), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         throw;
     }
@@ -323,9 +323,9 @@ std::string readFile(const std::filesystem::path& zipFilePath, const std::string
 
 MusxArchiveFiles readMusxArchiveFiles(const std::filesystem::path& zipFilePath, const DenigmaContext& denigmaContext)
 {
-    static constexpr char kScoreDatName[] = "score.dat";
-    static constexpr char kNotationMetadataName[] = "NotationMetadata.xml";
-    static constexpr char kGraphicsDirName[] = "graphics";
+    constexpr char kScoreDatName[] = "score.dat";
+    constexpr char kNotationMetadataName[] = "NotationMetadata.xml";
+    constexpr char8_t kGraphicsDirName[] = u8"graphics";
 
     unzFile zip = openZipForRead(zipFilePath, denigmaContext);
     try {
@@ -351,7 +351,7 @@ MusxArchiveFiles readMusxArchiveFiles(const std::filesystem::path& zipFilePath, 
             }
 
             denigma::CommandInputData::EmbeddedGraphicFile graphicFile;
-            graphicFile.filename = entryPath.filename().u8string();
+            graphicFile.filename = utils::utf8ToString(entryPath.filename().u8string());
             graphicFile.blob = readCurrentFile(zip);
             result.embeddedGraphics.emplace_back(std::move(graphicFile));
             return true;
@@ -403,7 +403,7 @@ bool iterateMusicXmlPartFiles(const std::filesystem::path& zipFilePath, const de
                 return true; // skip parts that aren't the one we are looking for
             }
             std::filesystem::path nextPath = utils::utf8ToPath(fileInfo.filename);
-            if (nextPath.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
+            if (utils::pathExtensionEquals(nextPath, MUSICXML_EXTENSION)) {
                 return iterator(nextPath, readCurrentFile(zip));
             }
             return true;
@@ -422,7 +422,7 @@ bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const s
     zipFile outputZip = openZipForWrite(outputPath);
     if (!outputZip) {
         unzClose(inputZip);
-        denigmaContext.logMessage(LogMsg() << "unable to save data to file " << outputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to save data to file " << utils::asUtf8Bytes(outputPath), LogSeverity::Error);
         throw std::runtime_error("unable to create output zip archive");
     }
 
@@ -444,7 +444,7 @@ bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const s
         unzClose(inputZip);
         return retval;
     } catch (const std::exception& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to save data to file " << outputPath.u8string(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to save data to file " << utils::asUtf8Bytes(outputPath), LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         zipClose(outputZip, nullptr);
         unzClose(inputZip);

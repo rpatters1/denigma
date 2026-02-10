@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "pugixml.hpp"
+#include "utils/stringutils.h"
 
 namespace {
 
@@ -264,7 +265,7 @@ bool compareXmlFiles(const std::filesystem::path& path1,
                      std::string& message)
 {
     auto lowerExtension = [](const std::filesystem::path& path) {
-        std::string extension = path.extension().u8string();
+        std::string extension = utils::pathToString(path.extension());
         std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
             return static_cast<char>(std::tolower(c));
         });
@@ -277,11 +278,11 @@ bool compareXmlFiles(const std::filesystem::path& path1,
     const auto result1 = document1.load_file(path1.c_str(), pugi::parse_default | pugi::parse_trim_pcdata);
     const auto result2 = document2.load_file(path2.c_str(), pugi::parse_default | pugi::parse_trim_pcdata);
     if (!result1) {
-        message = std::string("unable to parse ") + path1.u8string() + ": " + result1.description();
+        message = std::string("unable to parse ") + utils::pathToString(path1) + ": " + result1.description();
         return false;
     }
     if (!result2) {
-        message = std::string("unable to parse ") + path2.u8string() + ": " + result2.description();
+        message = std::string("unable to parse ") + utils::pathToString(path2) + ": " + result2.description();
         return false;
     }
     const auto root1 = documentElement(document1);
@@ -318,7 +319,7 @@ bool compareXmlFiles(const std::filesystem::path& path1,
 
 bool shouldUseXmlComparison(const std::filesystem::path& path)
 {
-    std::string extension = path.extension().u8string();
+    std::string extension = utils::pathToString(path.extension());
     std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
         return static_cast<char>(std::tolower(c));
     });

@@ -33,16 +33,16 @@
 #include "musx/musx.h"
 #include "utils/stringutils.h"
 
-inline constexpr char MUSX_EXTENSION[]      = "musx";
-inline constexpr char ENIGMAXML_EXTENSION[] = "enigmaxml";
-inline constexpr char MNX_EXTENSION[]       = "mnx";
-inline constexpr char JSON_EXTENSION[]      = "json";
-inline constexpr char MSS_EXTENSION[]       = "mss";
-inline constexpr char SVG_EXTENSION[]       = "svg";
-inline constexpr char MXL_EXTENSION[]       = "mxl";
-inline constexpr char MUSICXML_EXTENSION[]  = "musicxml";
+constexpr char8_t MUSX_EXTENSION[]      = u8"musx";
+constexpr char8_t ENIGMAXML_EXTENSION[] = u8"enigmaxml";
+constexpr char8_t MNX_EXTENSION[]       = u8"mnx";
+constexpr char8_t JSON_EXTENSION[]      = u8"json";
+constexpr char8_t MSS_EXTENSION[]       = u8"mss";
+constexpr char8_t SVG_EXTENSION[]       = u8"svg";
+constexpr char8_t MXL_EXTENSION[]       = u8"mxl";
+constexpr char8_t MUSICXML_EXTENSION[]  = u8"musicxml";
 
-inline constexpr int JSON_INDENT_SPACES     = 4;
+constexpr int JSON_INDENT_SPACES     = 4;
 
 #ifdef _WIN32
 #define _ARG(S) L##S
@@ -56,17 +56,6 @@ inline constexpr int JSON_INDENT_SPACES     = 4;
 
 namespace denigma {
 
-// This function exists as std::to_array in C++20
-template <typename T, std::size_t N>
-inline constexpr std::array<T, N> to_array(const T(&arr)[N])
-{
-    std::array<T, N> result{};
-    for (std::size_t i = 0; i < N; ++i) {
-        result[i] = arr[i];
-    }
-    return result;
-}
-
 #ifdef _WIN32
 using arg_view = std::wstring_view;
 using arg_char = WCHAR;
@@ -76,10 +65,19 @@ struct arg_string : public std::wstring
     arg_string(const std::wstring& wstr) : std::wstring(wstr) {}
     arg_string(const std::string& str) : std::wstring(utils::stringToWstring(str)) {}
     arg_string(const char* str) : std::wstring(utils::stringToWstring(str)) {}
+    arg_string(std::string_view str) : std::wstring(utils::stringToWstring(std::string(str))) {}
+    arg_string(const std::u8string& str) : std::wstring(utils::stringToWstring(utils::utf8ToString(str))) {}
+    arg_string(std::u8string_view str) : std::wstring(utils::stringToWstring(utils::utf8ToString(str))) {}
+    arg_string(const char8_t* str) : std::wstring(utils::stringToWstring(utils::utf8ToString(str ? std::u8string_view(str) : std::u8string_view{}))) {}
 
     operator std::string() const
     {
         return utils::wstringToString(*this);
+    }
+
+    operator std::u8string() const
+    {
+        return utils::stringToUtf8(static_cast<std::string>(*this));
     }
 };
 
@@ -90,7 +88,20 @@ inline std::string operator+(const std::string& lhs, const arg_string& rhs)
 #else
 using arg_view = std::string_view;
 using arg_char = char;
-using arg_string = std::string;
+struct arg_string : public std::string
+{
+    using std::string::string;
+    arg_string(const std::string& str) : std::string(str) {}
+    arg_string(std::string_view str) : std::string(str) {}
+    arg_string(const std::u8string& str) : std::string(utils::utf8ToString(str)) {}
+    arg_string(std::u8string_view str) : std::string(utils::utf8ToString(str)) {}
+    arg_string(const char8_t* str) : std::string(utils::utf8ToString(str ? std::u8string_view(str) : std::u8string_view{})) {}
+
+    operator std::u8string() const
+    {
+        return utils::stringToUtf8(*this);
+    }
+};
 #endif
 
 using MusxReader = ::musx::xml::pugi::Document;
@@ -113,18 +124,21 @@ struct CommandInputData
 
 // Function to find the appropriate processor
 template <typename Processors>
-inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, const std::string& extension)
+inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, std::u8string_view extension)
 {
-    std::string key = utils::toLowerCase(extension);
-    if (key.rfind(".", 0) == 0) {
-        key = extension.substr(1);
+    std::u8string key(extension);
+    std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
+        return static_cast<char8_t>(std::tolower(c));
+    });
+    if (key.rfind(u8".", 0) == 0) {
+        key = key.substr(1);
     }
     for (const auto& p : processors) {
         if (key == p.extension) {
             return p.processor;
         }
     }
-    throw std::invalid_argument("Unsupported format: " + key);
+    throw std::invalid_argument("Unsupported format: " + utils::utf8ToString(key));
 }
 
 /// @brief defines log message severity
@@ -260,8 +274,8 @@ public:
     virtual bool canProcess(const std::filesystem::path& inputPath) const = 0;
     virtual CommandInputData processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
     virtual void processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
-    virtual std::optional<std::string_view> defaultInputFormat() const { return std::nullopt; }
-    virtual std::optional<std::string> defaultOutputFormat(const std::filesystem::path&) const { return std::nullopt; }
+    virtual std::optional<std::u8string_view> defaultInputFormat() const { return std::nullopt; }
+    virtual std::optional<std::u8string> defaultOutputFormat(const std::filesystem::path&) const { return std::nullopt; }
 
     virtual const std::string_view commandName() const = 0;
 };

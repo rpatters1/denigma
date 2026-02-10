@@ -22,6 +22,8 @@
 #pragma once
 
 #include <string>
+#include <string_view>
+#include <ostream>
 #include <exception>
 #include <filesystem>
 #include <algorithm>
@@ -39,6 +41,42 @@
 #endif
 
 namespace utils {
+
+inline std::string utf8ToString(std::u8string_view utf8)
+{
+    return std::string(reinterpret_cast<const char*>(utf8.data()), utf8.size());
+}
+
+inline void appendUtf8(std::string& target, std::u8string_view utf8)
+{
+    target.append(reinterpret_cast<const char*>(utf8.data()), utf8.size());
+}
+
+inline std::u8string stringToUtf8(std::string_view str)
+{
+    return std::u8string(reinterpret_cast<const char8_t*>(str.data()), str.size());
+}
+
+struct Utf8Bytes
+{
+    std::u8string value;
+};
+
+inline Utf8Bytes asUtf8Bytes(const std::filesystem::path& path)
+{
+    return Utf8Bytes{ path.u8string() };
+}
+
+inline Utf8Bytes asUtf8Bytes(std::u8string value)
+{
+    return Utf8Bytes{ std::move(value) };
+}
+
+inline std::ostream& operator<<(std::ostream& os, const Utf8Bytes& utf8)
+{
+    os.write(reinterpret_cast<const char*>(utf8.value.data()), static_cast<std::streamsize>(utf8.value.size()));
+    return os;
+}
 
 class encoding_error : public std::exception
 {
@@ -91,16 +129,6 @@ inline std::string wstringToString([[maybe_unused]]const std::wstring& wide, [[m
 #endif
 }
 
-inline std::string utf8ToAcp(const std::string& utf8)
-{
-#ifdef _WIN32
-    if (::GetACP() != CP_UTF8) {
-        return wstringToString(stringToWstring(utf8), CP_ACP);
-    }   
-#endif
-    return utf8;
-}
-
 inline std::optional<std::string> getEnvironmentValue(const char* name)
 {
     if (!name || !*name) {
@@ -129,14 +157,23 @@ inline std::optional<std::string> getEnvironmentValue(const char* name)
 #endif
 }
 
-inline std::filesystem::path utf8ToPath(const std::string& str)
+inline std::filesystem::path utf8ToPath(std::string_view str)
 {
-#ifdef _WIN32
-    if (::GetACP() != CP_UTF8) {
-        return stringToWstring(str, CP_UTF8);
+    return std::filesystem::path(stringToUtf8(str));
+}
+
+inline std::string pathToString(const std::filesystem::path& path)
+{
+    return utf8ToString(path.u8string());
+}
+
+inline bool pathExtensionEquals(const std::filesystem::path& path, std::u8string_view extensionWithoutDot)
+{
+    const auto extension = path.extension().u8string();
+    if (extension.size() != extensionWithoutDot.size() + 1 || extension.empty() || extension.front() != u8'.') {
+        return false;
     }
-#endif
-    return str;
+    return std::equal(extensionWithoutDot.begin(), extensionWithoutDot.end(), extension.begin() + 1);
 }
 
 inline std::optional<char32_t> utf8ToCodepoint(const std::string& utf8) {

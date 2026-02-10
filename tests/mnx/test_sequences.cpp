@@ -37,9 +37,9 @@ TEST(MnxSequences, Voice2TripletAtEnd)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("v2triplet_at_end.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "v2triplet_at_end.mnx");
@@ -52,9 +52,9 @@ TEST(MnxSequences, Voice2TupletIncomplete)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("v2tuplet_incomplete.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "less than the expected", "!more than the expected" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "less than the expected", "!more than the expected" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "v2tuplet_incomplete.mnx");
@@ -67,9 +67,9 @@ TEST(MnxSequences, NestedTuplets)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("tuplets_nested.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "tuplets_nested.mnx");
@@ -82,9 +82,9 @@ TEST(MnxSequences, NestedTrailingSingletonTuplet)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("tuplet-nested-singleton.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "tuplet-nested-singleton.mnx");

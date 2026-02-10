@@ -387,9 +387,9 @@ private:
 #endif
 
         std::vector<std::filesystem::path> deduped;
-        std::set<std::string> seen;
+        std::set<std::u8string> seen;
         for (const auto& path : dirs) {
-            const std::string key = path.lexically_normal().u8string();
+            const auto key = path.lexically_normal().u8string();
             if (seen.insert(key).second) {
                 deduped.push_back(path);
             }
@@ -399,27 +399,28 @@ private:
 
     static bool hasSupportedExtension(const std::filesystem::path& filePath)
     {
-        std::string ext = filePath.extension().u8string();
+        auto ext = filePath.extension().u8string();
         std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
-            return static_cast<char>(std::tolower(c));
+            return static_cast<char8_t>(std::tolower(c));
         });
-        return ext == ".ttf" || ext == ".otf" || ext == ".ttc" || ext == ".otc" || ext == ".pfa" || ext == ".pfb";
+        return ext == u8".ttf" || ext == u8".otf" || ext == u8".ttc" || ext == u8".otc" || ext == u8".pfa" || ext == u8".pfb";
     }
 
     void indexFontFaceLocked(const std::filesystem::path& filePath, long faceIndex)
     {
         FT_Face face = nullptr;
-        if (FT_New_Face(m_library, filePath.u8string().c_str(), faceIndex, &face) != 0 || !face) {
+        const auto fontPathUtf8 = filePath.u8string();
+        if (FT_New_Face(m_library, reinterpret_cast<const char*>(fontPathUtf8.c_str()), faceIndex, &face) != 0 || !face) {
             return;
         }
 
-        std::string family = face->family_name ? std::string(face->family_name) : filePath.stem().u8string();
+        std::string family = face->family_name ? std::string(face->family_name) : utils::utf8ToString(filePath.stem().u8string());
         std::string style = face->style_name ? std::string(face->style_name) : std::string{};
         const bool bold = (face->style_flags & FT_STYLE_FLAG_BOLD) != 0 || styleLooksBold(style);
         const bool italic = (face->style_flags & FT_STYLE_FLAG_ITALIC) != 0 || styleLooksItalic(style);
 
         m_faceIndex.push_back(IndexedFace{
-            ResolvedFace{ filePath.u8string(), static_cast<int>(faceIndex) },
+            ResolvedFace{ utils::utf8ToString(fontPathUtf8), static_cast<int>(faceIndex) },
             normalizeName(family),
             bold,
             italic
@@ -435,7 +436,8 @@ private:
         }
 
         FT_Face probeFace = nullptr;
-        if (FT_New_Face(m_library, filePath.u8string().c_str(), 0, &probeFace) != 0 || !probeFace) {
+        const auto fontPathUtf8 = filePath.u8string();
+        if (FT_New_Face(m_library, reinterpret_cast<const char*>(fontPathUtf8.c_str()), 0, &probeFace) != 0 || !probeFace) {
             return;
         }
         const long numFaces = (std::max)(1L, static_cast<long>(probeFace->num_faces));

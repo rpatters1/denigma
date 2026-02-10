@@ -21,6 +21,7 @@
  */
 #include <string>
 #include <filesystem>
+#include <array>
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -36,8 +37,8 @@
 #include "export/enigmaxml.h"
 #include "utils/ziputils.h"
 
-constexpr static double EDU_PER_QUARTER = 1024.0;
-constexpr static char INDENT_SPACES[] = "  ";
+constexpr double EDU_PER_QUARTER = 1024.0;
+constexpr char INDENT_SPACES[] = "  ";
 
 namespace denigma {
 namespace musicxml {
@@ -252,22 +253,32 @@ static void fixFermataWholeRests(pugi::xml_node xmlMeasure, const std::shared_pt
 }
 
 // this table maps musicxml note types to enigma note types
-static const std::unordered_map<std::string, NoteType> durationTypeMap = {
-    {"maxima", NoteType::Maxima},
-    {"long", NoteType::Longa},
-    {"breve", NoteType::Breve},
-    {"whole", NoteType::Whole},
-    {"half", NoteType::Half},
-    {"quarter", NoteType::Quarter},
-    {"eighth", NoteType::Eighth},
-    {"16th", NoteType::Note16th},
-    {"32nd", NoteType::Note32nd},
-    {"64th", NoteType::Note64th},
-    {"128th", NoteType::Note128th},
-    {"256th", NoteType::Note256th},
-    {"512th", NoteType::Note512th},
-    {"1024th", NoteType::Note1024th}
-};
+constexpr auto durationTypeMap = std::to_array<std::pair<std::string_view, NoteType>>({
+    { "maxima", NoteType::Maxima },
+    { "long", NoteType::Longa },
+    { "breve", NoteType::Breve },
+    { "whole", NoteType::Whole },
+    { "half", NoteType::Half },
+    { "quarter", NoteType::Quarter },
+    { "eighth", NoteType::Eighth },
+    { "16th", NoteType::Note16th },
+    { "32nd", NoteType::Note32nd },
+    { "64th", NoteType::Note64th },
+    { "128th", NoteType::Note128th },
+    { "256th", NoteType::Note256th },
+    { "512th", NoteType::Note512th },
+    { "1024th", NoteType::Note1024th }
+});
+
+static const std::pair<std::string_view, NoteType>* findDurationType(std::string_view typeName)
+{
+    for (const auto& value : durationTypeMap) {
+        if (value.first == typeName) {
+            return &value;
+        }
+    }
+    return nullptr;
+}
 
 static int log2_exact(uint32_t value)
 {
@@ -319,8 +330,8 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 return false;
             }
 
-            auto it = durationTypeMap.find(nextNote.child("type").text().get());
-            if (it == durationTypeMap.end()) {
+            auto* durationType = findDurationType(nextNote.child("type").text().get());
+            if (!durationType) {
                 if (!nextNote.child("rest")) { // this is valid for full measure rests
                     context->logMessage(LogMsg() << "xml note node has no type", LogSeverity::Warning);
                     context->logXmlNode(nextNote);
@@ -329,7 +340,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
             }
             auto [entryNoteType, entryNumDots] = entry->calcDurationInfo();
             auto musxNoteType = Edu(entryNoteType);
-            auto xmlNoteType = Edu(it->second);
+            auto xmlNoteType = Edu(durationType->second);
             if (xmlNoteType != musxNoteType) {
                 // correct for tremolos
                 if (auto tremolo = nextNote.child("notations").child("ornaments").child("tremolo")) {
@@ -341,7 +352,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 }
             }
             if (xmlNoteType != musxNoteType) {
-                context->logMessage(LogMsg() << "xml durations do not match Finale file: [" << Edu(entryNoteType) << ", " << it->first << "]", LogSeverity::Warning);
+                context->logMessage(LogMsg() << "xml durations do not match Finale file: [" << Edu(entryNoteType) << ", " << durationType->first << "]", LogSeverity::Warning);
                 context->logXmlNode(nextNote);
                 return false;
             }
@@ -520,7 +531,7 @@ static std::filesystem::path calcQualifiedOutputPath(const std::filesystem::path
         return outputPath;
     }
     std::filesystem::path qualifiedOutputPath = outputPath;
-    qualifiedOutputPath.replace_extension(".massaged" + outputPath.extension().u8string());
+    qualifiedOutputPath.replace_extension(u8".massaged" + outputPath.extension().u8string());
     return qualifiedOutputPath;
 }
 
@@ -567,7 +578,7 @@ std::filesystem::path findPartNameByPartFileName(const pugi::xml_document& score
         .child("score-part");
     while (nextScorePart) {
         for (auto partLink = nextScorePart.child("part-link"); partLink; partLink = partLink.next_sibling("part-link")) {
-            if (partLink.attribute("xlink:href").value() == partFileName.u8string()) {
+            if (partLink.attribute("xlink:href").value() == utils::utf8ToString(partFileName.u8string())) {
                 auto retval = utils::utf8ToPath(partLink.attribute("xlink:title").value());
                 retval.replace_extension(MUSICXML_EXTENSION);
                 return retval;
@@ -604,14 +615,14 @@ std::optional<std::filesystem::path> findFinaleFile(const std::filesystem::path&
     };
 
     // Helper function to construct a candidate file path by replacing the extension
-    auto constructPath = [](const std::filesystem::path& basePath, const char* ext) -> std::filesystem::path {
+    auto constructPath = [](const std::filesystem::path& basePath, std::u8string_view ext) -> std::filesystem::path {
         std::filesystem::path candidate = basePath;
         candidate.replace_extension(ext);
         return candidate;
     };
 
     // Helper function to search for a specific extension in a directory
-    auto findWithExtension = [&](const std::filesystem::path& dir, const std::filesystem::path& baseName, const char* ext) -> std::filesystem::path {
+    auto findWithExtension = [&](const std::filesystem::path& dir, const std::filesystem::path& baseName, std::u8string_view ext) -> std::filesystem::path {
         auto candidate = constructPath(dir / baseName, ext);
         if (fileExists(candidate)) {
             return candidate;
@@ -678,9 +689,9 @@ static std::shared_ptr<MassageMusicXmlContext> createContext(const std::filesyst
         auto xmlBuffer = [&]() -> Buffer {
             Buffer retval;
             const auto& path = finaleFilePath.value();
-            if (path.extension().u8string() == std::string(".") + MUSX_EXTENSION) {
+            if (utils::pathExtensionEquals(path, MUSX_EXTENSION)) {
                 return enigmaxml::extract(path, denigmaContext);
-            } else if (path.extension().u8string() == std::string(".") + ENIGMAXML_EXTENSION) {
+            } else if (utils::pathExtensionEquals(path, ENIGMAXML_EXTENSION)) {
                 return enigmaxml::read(path, denigmaContext);
             }
             assert(false); // bug in findFinaleFile if here
@@ -708,14 +719,14 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Massaging " << inputPath.u8string() << " to " << outputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Massaging " << utils::asUtf8Bytes(inputPath) << " to " << utils::asUtf8Bytes(outputPath));
         return;
     }
 #endif
 
     auto context = createContext(inputPath, denigmaContext);
 
-    if ((inputPath.extension() != std::string(".") + MXL_EXTENSION) || !xmlBuffer.empty()) {
+    if ((!utils::pathExtensionEquals(inputPath, MXL_EXTENSION)) || !xmlBuffer.empty()) {
         processFile(openXmlDocument(xmlBuffer), outputPath, context);
         return;
     }
@@ -728,7 +739,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
     bool processedAFile = false;
     auto processPartOrScore = [&](const std::filesystem::path& fileName, const std::string& xmlData) -> bool {
         auto qualifiedOutputPath = outputPath;
-        context->musxPartId = getMusxPartIdFromPartFileName(fileName.u8string(), context);
+        context->musxPartId = getMusxPartIdFromPartFileName(utils::utf8ToString(fileName.u8string()), context);
         auto partFileNamePath = [&]() {
             if (!partFileName.has_value()) {
                 return findPartNameByPartFileName(xmlScore, fileName);
@@ -769,14 +780,14 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 
 void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext)
 {
-    if (inputPath.extension().u8string() != std::string(".") + MXL_EXTENSION) {
-        denigmaContext.logMessage(LogMsg() << inputPath.u8string() << " is not a .mxl file.", LogSeverity::Error);
+    if (!utils::pathExtensionEquals(inputPath, MXL_EXTENSION)) {
+        denigmaContext.logMessage(LogMsg() << utils::asUtf8Bytes(inputPath) << " is not a .mxl file.", LogSeverity::Error);
         return;
     }
 
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Massaging " << inputPath.u8string() << " to " << outputPath.u8string());
+        denigmaContext.logMessage(LogMsg() << "Massaging " << utils::asUtf8Bytes(inputPath) << " to " << utils::asUtf8Bytes(outputPath));
         return;
     }
 #endif
@@ -791,8 +802,8 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
 
     auto context = createContext(inputPath, denigmaContext);
     utils::iterateModifyFilesInPlace(inputPath, qualifiedOutputPath, denigmaContext, [&](const std::filesystem::path& fileName, std::string& fileContents, bool isScore) {
-        if (fileName.extension().u8string() == std::string(".") + MUSICXML_EXTENSION) {
-            context->musxPartId = !isScore ? getMusxPartIdFromPartFileName(fileName.u8string(), context) : 0;
+        if (utils::pathExtensionEquals(fileName, MUSICXML_EXTENSION)) {
+            context->musxPartId = !isScore ? getMusxPartIdFromPartFileName(utils::utf8ToString(fileName.u8string()), context) : 0;
             auto partName = [&]() -> std::string {
                 std::string retval;
                 if (context->musxDocument) {
@@ -805,7 +816,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
                 }
                 return retval;
             }();
-            denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << fileName.u8string() << " (" << partName << ") <<<<<<<<<<");
+            denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << utils::asUtf8Bytes(fileName) << " (" << partName << ") <<<<<<<<<<");
 
             auto xmlDocument = openXmlDocument(fileContents);
             processXml(xmlDocument, context);
@@ -814,7 +825,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
             xmlDocument.save(writer, INDENT_SPACES);
             fileContents = ss.str();
         } else {
-            denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << fileName.u8string() << " <<<<<<<<<<");
+            denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << utils::asUtf8Bytes(fileName) << " <<<<<<<<<<");
         }
         return true; // always save the file back, even if we didn't modify it
     });

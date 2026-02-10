@@ -112,8 +112,9 @@ void setupTestDataPaths()
     auto workingDir = std::filesystem::current_path();
     ASSERT_TRUE(std::filesystem::is_directory(workingDir));
     ASSERT_GE(std::distance(workingDir.begin(), workingDir.end()), 2);
-    ASSERT_EQ((--workingDir.end())->u8string(), "data");
-    ASSERT_EQ((--workingDir.parent_path().end())->u8string(), "tests");
+    ASSERT_EQ(pathString(*(--workingDir.end())), "data");
+    auto parentDir = workingDir.parent_path();
+    ASSERT_EQ(pathString(*(--parentDir.end())), "tests");
     ASSERT_TRUE(std::filesystem::exists(getInputPath()));
     ASSERT_NO_THROW({
         auto outputDir = getOutputPath();
@@ -147,8 +148,8 @@ void readFile(const std::filesystem::path& filePath, std::vector<char>& contents
 
 void compareFiles(const std::filesystem::path& path1, const std::filesystem::path& path2)
 {
-    ASSERT_TRUE(std::filesystem::is_regular_file(path1)) << "unable to find " << path1.u8string();
-    ASSERT_TRUE(std::filesystem::is_regular_file(path2)) << "unable to find " << path2.u8string();
+    ASSERT_TRUE(std::filesystem::is_regular_file(path1)) << "unable to find " << pathString(path1);
+    ASSERT_TRUE(std::filesystem::is_regular_file(path2)) << "unable to find " << pathString(path2);
     const bool compareAsXml = shouldUseXmlComparison(path1) && shouldUseXmlComparison(path2);
     if (compareAsXml) {
         std::string message;
@@ -163,7 +164,7 @@ void compareFiles(const std::filesystem::path& path1, const std::filesystem::pat
     char c1, c2;
     while (file1.get(c1)) {
         ASSERT_TRUE(file2.get(c2));
-        ASSERT_EQ(c1, c2) << "comparing " << path1.u8string() << " and " << path2.u8string();
+        ASSERT_EQ(c1, c2) << "comparing " << pathString(path1) << " and " << pathString(path2);
     }
     EXPECT_FALSE(file2.get(c2));
 }
@@ -178,26 +179,26 @@ void assertStringsInFile(const std::vector<std::string>& targets, const std::fil
         auto matchingFile = std::find_if(begin(it), end(it), [&extension](const std::filesystem::directory_entry& entry) {
             return entry.is_regular_file() && entry.path().extension() == extension;
         });
-        ASSERT_NE(matchingFile, std::filesystem::end(it)) << "No file with extension " << extension.u8string() << " found in directory: " << filePath.u8string();
+        ASSERT_NE(matchingFile, std::filesystem::end(it)) << "No file with extension " << pathString(extension) << " found in directory: " << pathString(filePath);
         actualFilePath = matchingFile->path();
     } else {
-        FAIL() << "Path is neither a regular file nor a directory: " << filePath.u8string();
+        FAIL() << "Path is neither a regular file nor a directory: " << pathString(filePath);
     }
     std::ifstream file(actualFilePath, std::ios::binary);
-    ASSERT_TRUE(file.is_open()) << "failed to open file: " << actualFilePath.u8string();
+    ASSERT_TRUE(file.is_open()) << "failed to open file: " << pathString(actualFilePath);
     std::string fileContents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     for (const auto& target : targets) {
         EXPECT_NE(fileContents.find(target), std::string::npos)
-            << "String \"" << target << "\" not found in file: " << actualFilePath.u8string();
+            << "String \"" << target << "\" not found in file: " << pathString(actualFilePath);
     }
 }
 
 void openJson(const std::filesystem::path& path, nlohmann::json& result)
 {
     std::ifstream file(path);
-    ASSERT_TRUE(file) << "opening " << path.u8string();
+    ASSERT_TRUE(file) << "opening " << pathString(path);
     nlohmann::json mnx;
-    ASSERT_NO_THROW(file >> mnx) << "parsing JSON file " << path.u8string();
+    ASSERT_NO_THROW(file >> mnx) << "parsing JSON file " << pathString(path);
     result = mnx;
 }
 

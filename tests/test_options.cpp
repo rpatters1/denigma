@@ -133,7 +133,7 @@ TEST(Options, ParseOptions)
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 2);
-        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName) << "utf-8 encoding check";
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[1])), fileName) << "utf-8 encoding check";
         EXPECT_FALSE(ctx.logFilePath.has_value());
         checkStderr("Input path " + fileName + " does not exist", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
@@ -145,7 +145,7 @@ TEST(Options, ParseOptions)
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 2);
-        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".musx") << "utf-8 encoding check";
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[1])), fileName + ".musx") << "utf-8 encoding check";
         EXPECT_FALSE(ctx.logFilePath.has_value());
         checkStderr({ "Extracting " + fileName + ".musx", "Writing", fileName + ".enigmaxml" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
@@ -158,7 +158,7 @@ TEST(Options, ParseOptions)
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 4);
-        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".musx") << "utf-8 encoding check";
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[1])), fileName + ".musx") << "utf-8 encoding check";
         EXPECT_FALSE(ctx.logFilePath.has_value());
         checkStderr({ "Extracting " + fileName + ".musx", "Writing", subDir + DIRECTORY_SEP + fileName + ".enigmaxml" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
@@ -171,7 +171,7 @@ TEST(Options, ParseOptions)
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 4);
-        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".musx") << "utf-8 encoding check";
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[1])), fileName + ".musx") << "utf-8 encoding check";
         EXPECT_FALSE(ctx.logFilePath.has_value());
         checkStderr({ "Extracting " + fileName + ".musx", "Converting", subDir + DIRECTORY_SEP + fileName + ".mss" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format";
@@ -183,7 +183,7 @@ TEST(Options, ParseOptions)
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 2);
-        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".enigmaxml") << "utf-8 encoding check";
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[1])), fileName + ".enigmaxml") << "utf-8 encoding check";
         EXPECT_FALSE(ctx.logFilePath.has_value());
         checkStderr({ "Reading " + fileName + ".enigmaxml", "Writing", fileName + ".musx" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "default enigmaxml output format";
@@ -195,8 +195,8 @@ TEST(Options, ParseOptions)
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 3);
-        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".musx");
-        EXPECT_EQ(std::filesystem::path(newArgs[2]).u8string(), "--svg");
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[1])), fileName + ".musx");
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[2])), "--svg");
         EXPECT_FALSE(ctx.svgUsePageScale);
         EXPECT_DOUBLE_EQ(ctx.svgScale, 1.25);
     }
@@ -207,8 +207,8 @@ TEST(Options, ParseOptions)
         DenigmaContext ctx(DENIGMA_NAME);
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 3);
-        EXPECT_EQ(std::filesystem::path(newArgs[1]).u8string(), fileName + ".musx");
-        EXPECT_EQ(std::filesystem::path(newArgs[2]).u8string(), "--svg");
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[1])), fileName + ".musx");
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[2])), "--svg");
         ASSERT_EQ(ctx.svgShapeDefs.size(), 3u);
         EXPECT_EQ(ctx.svgShapeDefs[0], 3);
         EXPECT_EQ(ctx.svgShapeDefs[1], 5);
@@ -373,6 +373,6 @@ TEST(Options, MassageOptions)
         auto newArgs = ctx.parseOptions(args.argc(), args.argv());
         EXPECT_EQ(newArgs.size(), 2);
         ASSERT_TRUE(ctx.finaleFilePath.has_value());
-        EXPECT_EQ(ctx.finaleFilePath.value().u8string(), "parentƒ");
+        EXPECT_EQ(pathString(ctx.finaleFilePath.value()), "parentƒ");
     }
 }

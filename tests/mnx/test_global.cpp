@@ -38,9 +38,9 @@ TEST(MnxGlobal, Tempos)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("tempo_text_shape.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "tempo_text_shape.mnx");
@@ -78,15 +78,15 @@ TEST(MnxGlobal, TempoToolChanges)
     std::filesystem::path inputPath;
     copyInputToOutput("tempo_changes.musx", inputPath);
     {
-        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--enigmaxml" };
-        checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to enigmaxml: " << inputPath.u8string();
+        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--enigmaxml" };
+        checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to enigmaxml: " << pathString(inputPath);
         });
     }
     {
-        ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx", "--include-tempo-tool" };
-            checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx", "--include-tempo-tool" };
+            checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
         });
     }
 
@@ -122,9 +122,9 @@ TEST(MnxGlobal, CompositeTime)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("timesigs_composite.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", inputPath.u8string(), "--mnx" };
-    checkStderr({ "Processing", inputPath.filename().u8string(), "!validation error" }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << inputPath.u8string();
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
     auto doc = mnx::Document::create(inputPath.parent_path() / "timesigs_composite.mnx");

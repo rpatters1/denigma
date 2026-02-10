@@ -101,8 +101,8 @@ static SmuflFontMetadata parseSmuflMetadata(std::istream& jsonFile)
 
 static const SmuflFontMetadata* metadataForFont(const std::filesystem::path& fontMetadataPath)
 {
-    static std::unordered_map<std::string, SmuflFontMetadata> metadataCache;
-    const std::string cacheKey = fontMetadataPath.u8string();
+    static std::unordered_map<std::u8string, SmuflFontMetadata> metadataCache;
+    const auto cacheKey = fontMetadataPath.u8string();
     auto it = metadataCache.find(cacheKey);
     if (it != metadataCache.end()) {
         return &it->second;
@@ -112,7 +112,7 @@ static const SmuflFontMetadata* metadataForFont(const std::filesystem::path& fon
     jsonFile.exceptions(std::ios::failbit | std::ios::badbit);
     jsonFile.open(fontMetadataPath);
     if (!jsonFile.is_open()) {
-        throw std::runtime_error("Unable to open JSON file: " + fontMetadataPath.u8string());
+        throw std::runtime_error("Unable to open JSON file: " + utils::utf8ToString(fontMetadataPath.u8string()));
     }
     auto [newIt, _] = metadataCache.emplace(cacheKey, parseSmuflMetadata(jsonFile));
     return &newIt->second;
