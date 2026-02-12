@@ -157,23 +157,25 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
         tieCreated = true;
     }
     using Curve = CurveContourDirection;
-    Curve tieDirection{};
-    if (const auto tiedTo = musxNote.calcArpeggiatedTieToNote(&tieDirection)) {
+    if (const auto tiedToInfo = musxNote.calcArpeggiatedTieInfo()) {
+        const NoteInfoPtr musxTargetNote(tiedToInfo->targetEntry, tiedToInfo->targetNoteIndex);
         auto mnxTies = mnxNote.ensure_ties();
         auto mnxTie = mnxTies.append();
-        mnxTie.set_target(calcNoteId(tiedTo));
+        mnxTie.set_target(calcNoteId(musxTargetNote));
         mnxTie.set_targetType(mnx::TieTargetType::Arpeggio);
-        if (tieDirection != Curve::Unspecified) {
-            mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+        if (tiedToInfo->direction != Curve::Unspecified) {
+            mnxTie.set_side(tiedToInfo->direction == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
         }
         tieCreated = true;
     }
-    if (!tieCreated && musxNote.calcHasPseudoLvTie(&tieDirection)) {
-        auto mnxTies = mnxNote.ensure_ties();
-        auto mnxTie = mnxTies.append();
-        mnxTie.set_lv(true);
-        if (tieDirection != Curve::Unspecified) {
-            mnxTie.set_side(tieDirection == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+    if (!tieCreated) {
+        if (const auto pseudoTieInfo = musxNote.calcPseudoLvTieInfo()) {
+            auto mnxTies = mnxNote.ensure_ties();
+            auto mnxTie = mnxTies.append();
+            mnxTie.set_lv(true);
+            if (pseudoTieInfo.direction != Curve::Unspecified) {
+                mnxTie.set_side(pseudoTieInfo.direction == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+            }
         }
     }
 }
