@@ -120,6 +120,8 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
         std::string fontName = retval->defaultMusicFont->getName();
         if (retval->defaultMusicFont->calcIsSMuFL()) {
             return fontName;
+        } else if (fontName == "AshMusic") {
+            return "Finale Ash";
         } else if (fontName == "Broadway Copyist") {
             return "Finale Broadway";
         } else if (fontName == "Engraver") {
