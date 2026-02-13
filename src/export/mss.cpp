@@ -20,11 +20,13 @@
  * THE SOFTWARE.
  */
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
 #include <set>
+#include <string_view>
 
 #include "denigma.h"
 
@@ -50,6 +52,28 @@ constexpr double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 constexpr double POINTS_PER_INCH = 72.0;
 constexpr double FONT_ASCENT_SCALE = 0.7;
 constexpr int MUSE_NUMERIC_PRECISION = 5;
+
+static constexpr auto solidLinesWithHooks = std::to_array<std::string_view>({
+    "textLine",
+    "systemTextLine",
+    "letRing",
+    "palmMute",
+    "pedal"
+});
+
+static constexpr auto dashedLinesWithHooks = std::to_array<std::string_view>({
+    "whammyBar"
+});
+
+static constexpr auto solidLinesNoHooks = std::to_array<std::string_view>({
+    "noteLine",
+    "glissando"
+});
+
+static constexpr auto dashedLinesNoHooks = std::to_array<std::string_view>({
+    "ottava",
+    "tempoChange"
+});
 
 // Finale preferences:
 struct FinalePreferences
@@ -575,27 +599,71 @@ void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
 void writeSmartShapePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
-    // Hairpin-related settings
-    setElementValue(styleElement, "hairpinHeight", prefs->smartShapeOptions->shortHairpinOpeningWidth / EVPU_PER_SPACE);
+    const auto& smartShapePrefs = prefs->smartShapeOptions;
+    const auto& tiePrefs = prefs->tieOptions;
+
+    // Hairpins
+    setElementValue(styleElement, "hairpinHeight",
+                    ((smartShapePrefs->shortHairpinOpeningWidth + smartShapePrefs->crescHeight) * 0.5) / EVPU_PER_SPACE);
     setElementValue(styleElement, "hairpinContHeight", 0.5); // Hardcoded to a half space
     writeCategoryTextFontPref(styleElement, prefs, "hairpin", others::MarkingCategory::CategoryType::Dynamics);
-    writeLinePrefs(styleElement, "hairpin", prefs->smartShapeOptions->crescLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff);
+    writeLinePrefs(styleElement, "hairpin", smartShapePrefs->crescLineWidth, smartShapePrefs->smartDashOn, smartShapePrefs->smartDashOff);
+    // Cresc. / Decresc. lines
+    const double hairpinLineLineWidthEvpu = smartShapePrefs->smartLineWidth / EFIX_PER_EVPU;
+    setElementValue(styleElement, "hairpinLineDashLineLen", smartShapePrefs->smartDashOn / hairpinLineLineWidthEvpu);
+    setElementValue(styleElement, "hairpinLineDashGapLen", smartShapePrefs->smartDashOff / hairpinLineLineWidthEvpu);
 
-    // Slur-related settings
-    setElementValue(styleElement, "slurEndWidth", prefs->smartShapeOptions->smartSlurTipWidth / EVPU_PER_SPACE);
-    setElementValue(styleElement, "slurDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
+    // Slurs
+    constexpr double contourScaling = 0.5; // observed scaling factor
+    constexpr double minMuseScoreEndWidth = 0.01; // MuseScore slur- and tie thickness go crazy if the endpoint thickness is zero.
+    const double slurEndpointWidth = (std::max)(minMuseScoreEndWidth, smartShapePrefs->smartSlurTipWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "slurEndWidth", slurEndpointWidth);
+    // Ignore horizontal thickness values as they hardly affect mid width.
+    const double slurMidPointWidth = ((smartShapePrefs->slurThicknessCp1Y + smartShapePrefs->slurThicknessCp2Y) * 0.5) / EVPU_PER_SPACE;
+    setElementValue(styleElement, "slurMidWidth", slurMidPointWidth * contourScaling);
+    setElementValue(styleElement, "slurDottedWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE);
 
-    // Tie-related settings
-    setElementValue(styleElement, "tieEndWidth", prefs->tieOptions->tieTipWidth / EVPU_PER_SPACE);
-    setElementValue(styleElement, "tieDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
-    setElementValue(styleElement, "tiePlacementSingleNote", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
-    setElementValue(styleElement, "tiePlacementChord", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
+    // Ties
+    const double tieEndpointWidth = (std::max)(minMuseScoreEndWidth, tiePrefs->tieTipWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tieEndWidth", tieEndpointWidth);
+    setElementValue(styleElement, "tieMidWidth", ((tiePrefs->thicknessRight + tiePrefs->thicknessLeft) * 0.5 * contourScaling) / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tieDottedWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "tiePlacementSingleNote", tiePrefs->useOuterPlacement ? "outside" : "inside");
+    /// @note Finale's 'outer placement' for notes within chords is much closer to inside placement. But outside placement is closer overall.
+    setElementValue(styleElement, "tiePlacementChord", tiePrefs->useOuterPlacement ? "outside" : "inside");
 
-    // Ottava settings
-    setElementValue(styleElement, "ottavaHookAbove", prefs->smartShapeOptions->hookLength / EVPU_PER_SPACE);
-    setElementValue(styleElement, "ottavaHookBelow", -prefs->smartShapeOptions->hookLength / EVPU_PER_SPACE);
-    writeLinePrefs(styleElement, "ottava", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
-    setElementValue(styleElement, "ottavaNumbersOnly", prefs->smartShapeOptions->showOctavaAsText);
+    // Ottavas
+    setElementValue(styleElement, "ottavaHookAbove", smartShapePrefs->hookLength / EVPU_PER_SPACE);
+    setElementValue(styleElement, "ottavaHookBelow", smartShapePrefs->hookLength / EVPU_PER_SPACE);
+    setElementValue(styleElement, "ottavaNumbersOnly", smartShapePrefs->showOctavaAsText);
+
+    // Guitar bends
+    setElementValue(styleElement, "guitarBendLineWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "guitarDiveLineWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "bendLineWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE); // shape-dependent
+    setElementValue(styleElement, "guitarBendLineWidthTab", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE); // shape-dependent
+    setElementValue(styleElement, "guitarDiveLineWidthTab", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE); // shape-dependent
+    setElementValue(styleElement, "guitarBendUseFull", smartShapePrefs->guitarBendUseFull);
+    setElementValue(styleElement, "showFretOnFullBendRelease", !smartShapePrefs->guitarBendHideBendTo);
+
+    // General line settings
+    for (std::string_view prefix : solidLinesWithHooks) {
+        const std::string prefixString(prefix);
+        writeLinePrefs(styleElement, prefixString, smartShapePrefs->smartLineWidth, smartShapePrefs->smartDashOn, smartShapePrefs->smartDashOff);
+        setElementValue(styleElement, prefixString + "HookHeight", smartShapePrefs->hookLength / EVPU_PER_SPACE);
+    }
+    for (std::string_view prefix : dashedLinesWithHooks) {
+        const std::string prefixString(prefix);
+        writeLinePrefs(styleElement, prefixString, smartShapePrefs->smartLineWidth, smartShapePrefs->smartDashOn, smartShapePrefs->smartDashOff, "dashed");
+        setElementValue(styleElement, prefixString + "HookHeight", smartShapePrefs->hookLength / EVPU_PER_SPACE);
+    }
+    for (std::string_view prefix : solidLinesNoHooks) {
+        writeLinePrefs(styleElement, std::string(prefix), smartShapePrefs->smartLineWidth, smartShapePrefs->smartDashOn, smartShapePrefs->smartDashOff);
+    }
+    setElementValue(styleElement, "noteLineWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE); // noteLineWidth not noteLineLineWidth
+    for (std::string_view prefix : dashedLinesNoHooks) {
+        writeLinePrefs(styleElement, std::string(prefix), smartShapePrefs->smartLineWidth, smartShapePrefs->smartDashOn, smartShapePrefs->smartDashOff, "dashed");
+    }
 }
 
 void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
