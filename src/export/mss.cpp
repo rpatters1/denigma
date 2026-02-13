@@ -307,6 +307,14 @@ static std::optional<EvpuFloat> calcAugmentationDotWidth(const FinalePreferences
     return std::nullopt;
 }
 
+static std::optional<EvpuFloat> calcRepeatDotWidth(const FinalePreferencesPtr& prefs)
+{
+    if (!prefs->musicFontName.empty()) {
+        return utils::smuflGlyphWidthForFont(prefs->musicFontName, "repeatDot");
+    }
+    return std::nullopt;
+}
+
 static void writeFontPref(XmlElement& styleElement, const std::string& namePrefix, const FontInfo* fontInfo)
 {
     setElementValue(styleElement, namePrefix + "FontFace", fontInfo->getName());
@@ -450,7 +458,11 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     // Finale's final bar distance is the separation amount
     setElementValue(styleElement, "endBarDistance", prefs->barlineOptions->finalBarlineSpace / EFIX_PER_SPACE);
-    setElementValue(styleElement, "repeatBarlineDotSeparation", prefs->repeatOptions->forwardDotHPos / EVPU_PER_SPACE);
+    double repeatDotDistance = (prefs->repeatOptions->forwardDotHPos + prefs->repeatOptions->backwardDotHPos) / EVPU_PER_SPACE;
+    if (const auto repeatDotWidth = calcRepeatDotWidth(prefs)) {
+        repeatDotDistance -= repeatDotWidth.value() / EVPU_PER_SPACE;
+    }
+    setElementValue(styleElement, "repeatBarlineDotSeparation", repeatDotDistance * 0.5);
     setElementValue(styleElement, "repeatBarTips", prefs->repeatOptions->wingStyle != RepeatWingStyle::None);
 
     setElementValue(styleElement, "startBarlineSingle", prefs->barlineOptions->drawLeftBarlineSingleStaff);
@@ -474,14 +486,14 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
         (prefs->clefOptions->clefBackSepar + prefs->clefOptions->clefTimeSepar + timeSigSpaceBefore) / EVPU_PER_SPACE);
     setElementValue(styleElement, "keyTimesigDistance", 
         (prefs->keyOptions->keyBack + prefs->keyOptions->keyTimeSepar + timeSigSpaceBefore) / EVPU_PER_SPACE);
-    setElementValue(styleElement, "keyBarlineDistance", prefs->repeatOptions->afterKeySpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "keyBarlineDistance", (prefs->repeatOptions->afterKeySpace - 1.5 * EVPU_PER_SPACE) / EVPU_PER_SPACE); // observed fudge factor
 
     // Differences in how MuseScore and Finale interpret these settings mean the following are better left alone
     // setElementValue(styleElement, "systemHeaderDistance", prefs->keyOptions->keyBack / EVPU_PER_SPACE);
     // setElementValue(styleElement, "systemHeaderTimeSigDistance", prefs->timeOptions->timeBack / EVPU_PER_SPACE);
 
     setElementValue(styleElement, "clefBarlineDistance", -(prefs->clefOptions->clefChangeOffset) / EVPU_PER_SPACE);
-    setElementValue(styleElement, "timesigBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "timesigBarlineDistance", (prefs->repeatOptions->afterTimeSpace - 1.5 * EVPU_PER_SPACE) / EVPU_PER_SPACE);
 
     setElementValue(styleElement, "measureRepeatNumberPos", -(prefs->alternateNotationOptions->twoMeasNumLift + 0.5) / EVPU_PER_SPACE);
     setElementValue(styleElement, "staffLineWidth", prefs->lineCurveOptions->staffLineWidth / EFIX_PER_SPACE);
@@ -500,7 +512,18 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     setElementValue(styleElement, "keySigCourtesyBarlineMode", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
     setElementValue(styleElement, "timeSigCourtesyBarlineMode", 0); // Hard-coded as 0 in Lua
+    setElementValue(styleElement, "barlineBeforeSigChange", true);
+    setElementValue(styleElement, "doubleBarlineBeforeKeySig", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
+    setElementValue(styleElement, "doubleBarlineBeforeTimeSig", false);
+    setElementValue(styleElement, "keySigNaturals", prefs->keyOptions->doKeyCancel);
+    setElementValue(styleElement, "keySigShowNaturalsChangingSharpsFlats", prefs->keyOptions->doKeyCancelBetweenSharpsFlats);
     setElementValue(styleElement, "hideEmptyStaves", prefs->document->calcHasVaryingSystemStaves(prefs->forPartId));
+    setElementValue(styleElement, "placeClefsBeforeRepeats", true);
+    setElementValue(styleElement, "showCourtesiesRepeats", false);
+    setElementValue(styleElement, "showCourtesiesOtherJumps", false);
+    setElementValue(styleElement, "showCourtesiesAfterCancellingRepeats", false);
+    setElementValue(styleElement, "showCourtesiesAfterCancellingOtherJumps", false);
+    setElementValue(styleElement, "repeatPlayCountShow", false);
 }
 
 void writeStemPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
