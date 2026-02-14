@@ -21,12 +21,14 @@
  */
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
 #include <set>
 #include <string_view>
+#include <utility>
 
 #include "denigma.h"
 
@@ -75,6 +77,43 @@ static constexpr auto dashedLinesNoHooks = std::to_array<std::string_view>({
     "ottava",
     "tempoChange"
 });
+
+// Legacy names are normalised to lower-case with spaces removed.
+static constexpr auto finaleToSmuflFontMap = std::to_array<std::pair<std::string_view, std::string_view>>({
+    std::pair<std::string_view, std::string_view>{ "ashmusic", "Finale Ash" },
+    std::pair<std::string_view, std::string_view>{ "broadwaycopyist", "Finale Broadway" },
+    std::pair<std::string_view, std::string_view>{ "engraver", "Finale Engraver" },
+    std::pair<std::string_view, std::string_view>{ "engraverfontset", "Finale Engraver" },
+    std::pair<std::string_view, std::string_view>{ "jazz", "Finale Jazz" },
+    std::pair<std::string_view, std::string_view>{ "maestro", "Finale Maestro" },
+    std::pair<std::string_view, std::string_view>{ "petrucci", "Finale Legacy" },
+    std::pair<std::string_view, std::string_view>{ "pmusic", "Finale Maestro" },
+    std::pair<std::string_view, std::string_view>{ "sonata", "Finale Maestro" },
+});
+
+static std::string normalizedFontName(std::string_view fontName)
+{
+    std::string result;
+    result.reserve(fontName.size());
+    for (unsigned char c : fontName) {
+        if (c <= 0x7f && std::isspace(c)) {
+            continue;
+        }
+        result.push_back(char(std::tolower(c)));
+    }
+    return result;
+}
+
+static std::optional<std::string_view> mappedSmuflFontName(std::string_view fontName)
+{
+    const std::string normalized = normalizedFontName(fontName);
+    for (const auto& [finaleName, smuflName] : finaleToSmuflFontMap) {
+        if (finaleName == normalized || normalizedFontName(smuflName) == normalized) {
+            return smuflName;
+        }
+    }
+    return std::nullopt;
+}
 
 // Finale preferences:
 struct FinalePreferences
@@ -146,19 +185,10 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
         std::string fontName = retval->defaultMusicFont->getName();
         if (retval->defaultMusicFont->calcIsSMuFL()) {
             return fontName;
-        } else if (fontName == "AshMusic") {
-            return "Finale Ash";
-        } else if (fontName == "Broadway Copyist") {
-            return "Finale Broadway";
-        } else if (fontName == "Engraver") {
-            return "Finale Engraver";
-        } else if (fontName == "Jazz") {
-            return "Finale Jazz";
-        } else if (fontName == "Maestro" || fontName == "Pmusic" || fontName == "Sonata") {
-            return "Finale Maestro";
-        } else if (fontName == "Petrucci") {
-            return "Finale Legacy";
-        } // other `else if` checks as required go here
+        }
+        if (const auto mapped = mappedSmuflFontName(fontName)) {
+            return std::string(*mapped);
+        }
         return {};
     }();
     //
@@ -861,21 +891,18 @@ void writeRepeatEndingPrefs(XmlElement& styleElement, const FinalePreferencesPtr
 {
     const auto& repeatOptions = prefs->repeatOptions;
     setElementValue(styleElement, "voltaLineWidth", repeatOptions->bracketLineWidth / EFIX_PER_SPACE);
+    setPointElement(styleElement, "voltaPosAbove", 0.0, -repeatOptions->bracketHeight / EVPU_PER_SPACE);
+    setElementValue(styleElement, "voltaHook", repeatOptions->bracketHookLen / EVPU_PER_SPACE);
     setElementValue(styleElement, "voltaLineStyle", "solid");
     writeDefaultFontPref(styleElement, prefs, "volta", options::FontOptions::FontType::Ending);
     setElementValue(styleElement, "voltaAlign", "left,baseline");
+    setPointElement(styleElement, "voltaOffset",
+                    repeatOptions->bracketTextHPos / EVPU_PER_SPACE,
+                    (repeatOptions->bracketHookLen - repeatOptions->bracketTextHPos) / EVPU_PER_SPACE);
 
-    // Optionally include bracket height and hook lengths if uncommented
-    // XmlElement& element = setElementText(styleElement, "voltaPosAbove", "");
-    // element->setDoubleAttribute("x", 0);
-    // element->setDoubleAttribute("y", repeatOptions->bracketHeight / EVPU_PER_SPACE);
-
-    // setElementValue(styleElement, "voltaHook", repeatOptions->bracketHookLen / EVPU_PER_SPACE);
-
-    // Optionally include text offsets
-    // element = setElementText(styleElement, "voltaOffset", "");
-    // element->setDoubleAttribute("x", repeatOptions->bracketTextHPos / EVPU_PER_SPACE);
-    // element->setDoubleAttribute("y", repeatOptions->bracketTextVPos / EVPU_PER_SPACE);
+    // This option actually moves the front of the volta after the repeat forwards.
+    // Finale only has the option to move the end of the volta before the repeat backwards, so we leave this unset.
+    // setElementValue(styleElement, "voltaAlignEndLeftOfBarline", false);
 }
 
 void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
@@ -892,6 +919,10 @@ void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pref
     setElementValue(styleElement, "tupletNoteLeftDistance", tupletOptions->leftHookExt / EVPU_PER_SPACE);
     setElementValue(styleElement, "tupletNoteRightDistance", tupletOptions->rightHookExt / EVPU_PER_SPACE);
     setElementValue(styleElement, "tupletBracketWidth", tupletOptions->tupLineWidth / EFIX_PER_SPACE);
+    // manualSlopeAdj does not translate well, so else leave value as default
+    if (tupletOptions->alwaysFlat) {
+        setElementValue(styleElement, "tupletMaxSlope", 0.0);
+    }
 
     switch (tupletOptions->posStyle) {
         case TupletOptions::PositioningStyle::Above:
@@ -927,7 +958,8 @@ void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pref
 
     const auto& fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::Tuplet);
     if (!fontInfo) {
-        throw std::invalid_argument("Unable to load font pref for tuplets");
+        prefs->denigmaContext->logMessage(LogMsg() << "Unable to load font pref for tuplets", LogSeverity::Warning);
+        return;
     }
 
     if (fontInfo->calcIsSMuFL()) {
@@ -939,11 +971,8 @@ void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pref
         setElementValue(styleElement, "tupletUseSymbols", false);
     }
 
-    setElementValue(
-        styleElement,
-        "tupletBracketHookHeight",
-        (std::max)(-tupletOptions->leftHookLen, -tupletOptions->rightHookLen) / EVPU_PER_SPACE
-    );
+    setElementValue(styleElement, "tupletBracketHookHeight",
+                    -(std::max)(tupletOptions->leftHookLen, tupletOptions->rightHookLen) / EVPU_PER_SPACE); /// or use average
 }
 
 void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
