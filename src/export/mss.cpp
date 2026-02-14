@@ -115,6 +115,17 @@ static std::optional<std::string_view> mappedSmuflFontName(std::string_view font
     return std::nullopt;
 }
 
+static bool fontIsEngravingWithMappedLegacy(const FontInfo* fontInfo)
+{
+    if (!fontInfo) {
+        return false;
+    }
+    if (fontInfo->calcIsSMuFL()) {
+        return true;
+    }
+    return mappedSmuflFontName(fontInfo->getName()).has_value();
+}
+
 // Finale preferences:
 struct FinalePreferences
 {
@@ -419,7 +430,7 @@ static void writeDefaultFontPref(XmlElement& styleElement, const FinalePreferenc
 {
     if (auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type)) {
         // If font is a symbols font, write text settings from TextBlock and set symbol scaling.
-        if (type != options::FontOptions::FontType::TextBlock && (fontPrefs->calcIsSMuFL() || fontPrefs->calcIsSymbolFont())) {
+        if (type != options::FontOptions::FontType::TextBlock && fontIsEngravingWithMappedLegacy(fontPrefs.get())) {
             writeDefaultFontPref(styleElement, prefs, namePrefix, options::FontOptions::FontType::TextBlock);
             const double symbolScale = calcMusicalSymbolScale(prefs, fontPrefs.get());
             setElementValue(styleElement, namePrefix + "MusicalSymbolsScale", symbolScale);
