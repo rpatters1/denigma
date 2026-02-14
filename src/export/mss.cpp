@@ -639,7 +639,19 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
 void writeStemPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
-    setElementValue(styleElement, "useStraightNoteFlags", prefs->flagOptions->straightFlags);
+    bool useStraightFlags = prefs->flagOptions->straightFlags;
+    if (!useStraightFlags && prefs->musicSymbolOptions) {
+        // Some documents using certain music fonts (e.g., Pmusic) have straight flags as regular flag characters.
+        // Check flagUp and if that is straight, assume the others are straight as well.
+        if (const auto flagFont = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::Flags)) {
+            if (const auto glyphName = utils::smuflGlyphNameForFont(flagFont, prefs->musicSymbolOptions->flagUp)) {
+                if (glyphName.value() == "flag8thUpStraight") {
+                    useStraightFlags = true;
+                }
+            }
+        }
+    }
+    setElementValue(styleElement, "useStraightNoteFlags", useStraightFlags);
     setElementValue(styleElement, "stemWidth", prefs->stemOptions->stemWidth / EFIX_PER_SPACE);
     setElementValue(styleElement, "shortenStem", true);
     setElementValue(styleElement, "stemLength", prefs->stemOptions->stemLength / EVPU_PER_SPACE);
@@ -708,6 +720,7 @@ void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "concertPitch", !prefs->partGlobals->showTransposed);
     setElementValue(styleElement, "multiVoiceRestTwoSpaceOffset", std::labs(prefs->layerOneAttributes->restOffset) >= 4);
     setElementValue(styleElement, "mergeMatchingRests", prefs->miscOptions->consolidateRestsAcrossLayers);
+    setElementValue(styleElement, "tremoloStyle", 1); // MuseScore importer writes TremoloStyle::TRADITIONAL.
 }
 
 void writeSmartShapePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
@@ -838,8 +851,8 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
             const double verticalSp = double(vertical) / EVPU_PER_SPACE;
             const double horizontalSp = double(horizontal) / EVPU_PER_SPACE;
             setElementValue(styleElement, prefix + "VPlacement", (vertical >= 0) ? 0 : 1);
-            setElementValue(styleElement, prefix + "HPlacement", alignJustifyToHorizontalString(alignment));
-            setElementValue(styleElement, prefix + "Align", alignJustifyToAlignString(justification, "baseline"));
+            setElementValue(styleElement, prefix + "HPlacement", alignJustifyToHorizontalString(justification));
+            setElementValue(styleElement, prefix + "Align", alignJustifyToAlignString(alignment, "baseline"));
             setElementValue(styleElement, prefix + "Position", alignJustifyToHorizontalString(justification));
             const double textHeightSp = approximateFontAscentInSpaces(fontInfo.get(), *prefs->denigmaContext) * prefs->spatiumScaling;
             const double normalStaffHeightSp = 4.0;
@@ -878,7 +891,9 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
                        scorePart->mmRestYdisp,
                        "mmRestRange");
     }
-    setElementValue(styleElement, "createMultiMeasureRests", prefs->forPartId != 0);
+    const auto mmRests = prefs->document->getOthers()->getArray<others::MultimeasureRest>(prefs->forPartId);
+    // MuseScore importer creates MM rests for part scores and for score files that already contain MM rests.
+    setElementValue(styleElement, "createMultiMeasureRests", prefs->forPartId != 0 || !mmRests.empty());
     setElementValue(styleElement, "minEmptyMeasures", prefs->mmRestOptions->numStart);
     setElementValue(styleElement, "minMMRestWidth", prefs->mmRestOptions->measWidth / EVPU_PER_SPACE);
     setElementValue(styleElement, "mmRestNumberPos", (prefs->mmRestOptions->numAdjY / EVPU_PER_SPACE) + 1);
