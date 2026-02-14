@@ -52,6 +52,7 @@ constexpr double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 constexpr double POINTS_PER_INCH = 72.0;
 constexpr double FONT_ASCENT_SCALE = 0.7;
 constexpr int MUSE_NUMERIC_PRECISION = 5;
+constexpr double SYMBOLS_DEFAULT_SIZE = 10.0;
 
 static constexpr auto solidLinesWithHooks = std::to_array<std::string_view>({
     "textLine",
@@ -367,10 +368,36 @@ static void writeFontPref(XmlElement& styleElement, const std::string& namePrefi
     setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
 }
 
+static double calcMusicalSymbolScale(const FinalePreferencesPtr& prefs, const FontInfo* fontInfo)
+{
+    double symbolScale = double(fontInfo->fontSize);
+    if (fontInfo->calcIsSymbolFont()) {
+        symbolScale /= double(prefs->defaultMusicFont->fontSize); /// @todo account for fixed/non-fixed
+    } else if (const auto textBlockFont = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::TextBlock)) {
+        /// Fonts not recognised as symbols likely have their symbols scaled to text size
+        symbolScale /= double(textBlockFont->fontSize);
+    } else {
+        /// Should never happen: Assume text to symbols factor of 2
+        symbolScale *= 2 / double(prefs->defaultMusicFont->fontSize);
+        prefs->denigmaContext->logMessage(LogMsg() << "Unable to load text block font while calculating symbol scale. "
+            << "Assuming text-to-symbol factor of 2 for [" << fontInfo->getName() << "].", LogSeverity::Warning);
+    }
+    return symbolScale;
+}
+
 static void writeDefaultFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
 {
     if (auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type)) {
-        writeFontPref(styleElement, namePrefix, fontPrefs.get());
+        // If font is a symbols font, write text settings from TextBlock and set symbol scaling.
+        if (type != options::FontOptions::FontType::TextBlock && (fontPrefs->calcIsSMuFL() || fontPrefs->calcIsSymbolFont())) {
+            writeDefaultFontPref(styleElement, prefs, namePrefix, options::FontOptions::FontType::TextBlock);
+            const double symbolScale = calcMusicalSymbolScale(prefs, fontPrefs.get());
+            setElementValue(styleElement, namePrefix + "MusicalSymbolsScale", symbolScale);
+            setElementValue(styleElement, namePrefix + "MusicalSymbolSize", symbolScale * SYMBOLS_DEFAULT_SIZE);
+            setElementValue(styleElement, namePrefix + "FontSpatiumDependent", !fontPrefs->absolute);
+        } else {
+            writeFontPref(styleElement, namePrefix, fontPrefs.get());
+        }
     } else {
         prefs->denigmaContext->logMessage(LogMsg() << "unable to load default font pref for " << int(type), LogSeverity::Warning);
     }
@@ -415,11 +442,22 @@ static void writeCategoryTextFontPref(XmlElement& styleElement, const FinalePref
         prefs->denigmaContext->logMessage(LogMsg() << "unable to load category def for " << namePrefix, LogSeverity::Warning);
         return;
     }
-    if (!cat->textFont) {
-        prefs->denigmaContext->logMessage(LogMsg() << "marking category " << cat->getName() << " has no text font.", LogSeverity::Warning);
+    const FontInfo* categoryFont = nullptr;
+    if (namePrefix == "metronome" && cat->numberFont) {
+        categoryFont = cat->numberFont.get();
+    } else if (cat->textFont) {
+        categoryFont = cat->textFont.get();
+    }
+    if (!categoryFont) {
+        prefs->denigmaContext->logMessage(LogMsg() << "marking category " << cat->getName() << " has no usable text font.", LogSeverity::Warning);
         return;
     }
-    writeFontPref(styleElement, namePrefix, cat->textFont.get());
+    writeFontPref(styleElement, namePrefix, categoryFont);
+    if (cat->musicFont) {
+        const double symbolScale = calcMusicalSymbolScale(prefs, cat->musicFont.get());
+        setElementValue(styleElement, namePrefix + "MusicalSymbolsScale", symbolScale);
+        setElementValue(styleElement, namePrefix + "MusicalSymbolSize", symbolScale * SYMBOLS_DEFAULT_SIZE);
+    }
     for (auto& it : cat->textExpressions) {
         if (auto exp = it.second.lock()) {
             writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
