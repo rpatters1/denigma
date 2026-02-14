@@ -12,6 +12,7 @@
         <pageOddBottomMargin>1</pageOddBottomMargin>
         <pageTwosided>1</pageTwosided>
         <enableIndentationOnFirstSystem>1</enableIndentationOnFirstSystem>
+        <hideInstrumentNameIfOneInstrument>0</hideInstrumentNameIfOneInstrument>
         <firstSystemIndentationValue>24</firstSystemIndentationValue>
         <spatium>1.7859</spatium>
         <musicalSymbolFont>Finale Maestro</musicalSymbolFont>
@@ -29,7 +30,7 @@
         <endBarWidth>0.75</endBarWidth>
         <doubleBarDistance>0.33333</doubleBarDistance>
         <endBarDistance>0.5</endBarDistance>
-        <repeatBarlineDotSeparation>0.5</repeatBarlineDotSeparation>
+        <repeatBarlineDotSeparation>0.292</repeatBarlineDotSeparation>
         <repeatBarTips>0</repeatBarTips>
         <startBarlineSingle>0</startBarlineSingle>
         <startBarlineMultiple>1</startBarlineMultiple>
@@ -42,9 +43,9 @@
         <clefKeyDistance>1</clefKeyDistance>
         <clefTimesigDistance>1</clefTimesigDistance>
         <keyTimesigDistance>1.5</keyTimesigDistance>
-        <keyBarlineDistance>2.5</keyBarlineDistance>
+        <keyBarlineDistance>1</keyBarlineDistance>
         <clefBarlineDistance>0.5</clefBarlineDistance>
-        <timesigBarlineDistance>2.5</timesigBarlineDistance>
+        <timesigBarlineDistance>1</timesigBarlineDistance>
         <measureRepeatNumberPos>-0.020833</measureRepeatNumberPos>
         <staffLineWidth>0.083333</staffLineWidth>
         <ledgerLineWidth>0.16667</ledgerLineWidth>
@@ -59,7 +60,18 @@
         <genCourtesyClef>1</genCourtesyClef>
         <keySigCourtesyBarlineMode>0</keySigCourtesyBarlineMode>
         <timeSigCourtesyBarlineMode>0</timeSigCourtesyBarlineMode>
+        <barlineBeforeSigChange>1</barlineBeforeSigChange>
+        <doubleBarlineBeforeKeySig>0</doubleBarlineBeforeKeySig>
+        <doubleBarlineBeforeTimeSig>0</doubleBarlineBeforeTimeSig>
+        <keySigNaturals>1</keySigNaturals>
+        <keySigShowNaturalsChangingSharpsFlats>1</keySigShowNaturalsChangingSharpsFlats>
         <hideEmptyStaves>0</hideEmptyStaves>
+        <placeClefsBeforeRepeats>1</placeClefsBeforeRepeats>
+        <showCourtesiesRepeats>0</showCourtesiesRepeats>
+        <showCourtesiesOtherJumps>0</showCourtesiesOtherJumps>
+        <showCourtesiesAfterCancellingRepeats>0</showCourtesiesAfterCancellingRepeats>
+        <showCourtesiesAfterCancellingOtherJumps>0</showCourtesiesAfterCancellingOtherJumps>
+        <repeatPlayCountShow>0</repeatPlayCountShow>
         <useStraightNoteFlags>0</useStraightNoteFlags>
         <stemWidth>0.083333</stemWidth>
         <shortenStem>1</shortenStem>
@@ -68,8 +80,14 @@
         <stemSlashThickness>0.083333</stemSlashThickness>
         <minMeasureWidth>9</minMeasureWidth>
         <minNoteDistance>0.5</minNoteDistance>
+        <barNoteDistance>2</barNoteDistance>
+        <barAccidentalDistance>2</barAccidentalDistance>
+        <noteBarDistance>1.5</noteBarDistance>
         <measureSpacing>1.4141</measureSpacing>
-        <minTieLength>1</minTieLength>
+        <minTieLength>1.9167</minTieLength>
+        <graceToMainNoteDist>0.5</graceToMainNoteDist>
+        <graceToGraceNoteDist>0.5</graceToGraceNoteDist>
+        <articulationKeepTogether>0</articulationKeepTogether>
         <accidentalDistance>0.33333</accidentalDistance>
         <accidentalNoteDistance>0.16667</accidentalNoteDistance>
         <beamWidth>0.5</beamWidth>
@@ -85,29 +103,79 @@
         <concertPitch>0</concertPitch>
         <multiVoiceRestTwoSpaceOffset>1</multiVoiceRestTwoSpaceOffset>
         <mergeMatchingRests>1</mergeMatchingRests>
+        <tremoloStyle>1</tremoloStyle>
         <hairpinHeight>1</hairpinHeight>
         <hairpinContHeight>0.5</hairpinContHeight>
         <hairpinFontFace>Times New Roman</hairpinFontFace>
         <hairpinFontSize>11.667</hairpinFontSize>
         <hairpinFontSpatiumDependent>1</hairpinFontSpatiumDependent>
         <hairpinFontStyle>2</hairpinFontStyle>
+        <hairpinMusicalSymbolsScale>1.7143</hairpinMusicalSymbolsScale>
+        <hairpinMusicalSymbolSize>17.143</hairpinMusicalSymbolSize>
         <hairpinFrameType>0</hairpinFrameType>
         <hairpinLineWidth>0.076823</hairpinLineWidth>
         <hairpinDashLineLen>9.7627</hairpinDashLineLen>
         <hairpinDashGapLen>9.7627</hairpinDashGapLen>
+        <hairpinLineDashLineLen>9.7627</hairpinLineDashLineLen>
+        <hairpinLineDashGapLen>9.7627</hairpinLineDashGapLen>
         <slurEndWidth>0.010417</slurEndWidth>
+        <slurMidWidth>0.16667</slurMidWidth>
         <slurDottedWidth>0.076823</slurDottedWidth>
         <tieEndWidth>0.010417</tieEndWidth>
+        <tieMidWidth>0.16667</tieMidWidth>
         <tieDottedWidth>0.076823</tieDottedWidth>
         <tiePlacementSingleNote>outside</tiePlacementSingleNote>
         <tiePlacementChord>outside</tiePlacementChord>
         <ottavaHookAbove>1</ottavaHookAbove>
-        <ottavaHookBelow>-1</ottavaHookBelow>
+        <ottavaHookBelow>1</ottavaHookBelow>
+        <ottavaNumbersOnly>0</ottavaNumbersOnly>
+        <guitarBendLineWidth>0.076823</guitarBendLineWidth>
+        <guitarDiveLineWidth>0.076823</guitarDiveLineWidth>
+        <bendLineWidth>0.076823</bendLineWidth>
+        <guitarBendLineWidthTab>0.076823</guitarBendLineWidthTab>
+        <guitarDiveLineWidthTab>0.076823</guitarDiveLineWidthTab>
+        <guitarBendUseFull>1</guitarBendUseFull>
+        <showFretOnFullBendRelease>0</showFretOnFullBendRelease>
+        <textLineLineWidth>0.076823</textLineLineWidth>
+        <textLineDashLineLen>9.7627</textLineDashLineLen>
+        <textLineDashGapLen>9.7627</textLineDashGapLen>
+        <textLineHookHeight>1</textLineHookHeight>
+        <systemTextLineLineWidth>0.076823</systemTextLineLineWidth>
+        <systemTextLineDashLineLen>9.7627</systemTextLineDashLineLen>
+        <systemTextLineDashGapLen>9.7627</systemTextLineDashGapLen>
+        <systemTextLineHookHeight>1</systemTextLineHookHeight>
+        <letRingLineWidth>0.076823</letRingLineWidth>
+        <letRingDashLineLen>9.7627</letRingDashLineLen>
+        <letRingDashGapLen>9.7627</letRingDashGapLen>
+        <letRingHookHeight>1</letRingHookHeight>
+        <palmMuteLineWidth>0.076823</palmMuteLineWidth>
+        <palmMuteDashLineLen>9.7627</palmMuteDashLineLen>
+        <palmMuteDashGapLen>9.7627</palmMuteDashGapLen>
+        <palmMuteHookHeight>1</palmMuteHookHeight>
+        <pedalLineWidth>0.076823</pedalLineWidth>
+        <pedalDashLineLen>9.7627</pedalDashLineLen>
+        <pedalDashGapLen>9.7627</pedalDashGapLen>
+        <pedalHookHeight>1</pedalHookHeight>
+        <whammyBarLineWidth>0.076823</whammyBarLineWidth>
+        <whammyBarLineStyle>dashed</whammyBarLineStyle>
+        <whammyBarDashLineLen>9.7627</whammyBarDashLineLen>
+        <whammyBarDashGapLen>9.7627</whammyBarDashGapLen>
+        <whammyBarHookHeight>1</whammyBarHookHeight>
+        <noteLineLineWidth>0.076823</noteLineLineWidth>
+        <noteLineDashLineLen>9.7627</noteLineDashLineLen>
+        <noteLineDashGapLen>9.7627</noteLineDashGapLen>
+        <glissandoLineWidth>0.076823</glissandoLineWidth>
+        <glissandoDashLineLen>9.7627</glissandoDashLineLen>
+        <glissandoDashGapLen>9.7627</glissandoDashGapLen>
+        <noteLineWidth>0.076823</noteLineWidth>
         <ottavaLineWidth>0.076823</ottavaLineWidth>
         <ottavaLineStyle>dashed</ottavaLineStyle>
         <ottavaDashLineLen>9.7627</ottavaDashLineLen>
         <ottavaDashGapLen>9.7627</ottavaDashGapLen>
-        <ottavaNumbersOnly>0</ottavaNumbersOnly>
+        <tempoChangeLineWidth>0.076823</tempoChangeLineWidth>
+        <tempoChangeLineStyle>dashed</tempoChangeLineStyle>
+        <tempoChangeDashLineLen>9.7627</tempoChangeDashLineLen>
+        <tempoChangeDashGapLen>9.7627</tempoChangeDashGapLen>
         <showMeasureNumber>1</showMeasureNumber>
         <showMeasureNumberOne>0</showMeasureNumberOne>
         <measureNumberInterval>1</measureNumberInterval>
@@ -120,8 +188,8 @@
         <measureNumberFontSpatiumDependent>0</measureNumberFontSpatiumDependent>
         <measureNumberFontStyle>2</measureNumberFontStyle>
         <measureNumberVPlacement>1</measureNumberVPlacement>
-        <measureNumberHPlacement>left</measureNumberHPlacement>
-        <measureNumberAlign>center,baseline</measureNumberAlign>
+        <measureNumberHPlacement>center</measureNumberHPlacement>
+        <measureNumberAlign>left,baseline</measureNumberAlign>
         <measureNumberPosition>center</measureNumberPosition>
         <measureNumberPosAbove x="0" y="0"></measureNumberPosAbove>
         <measureNumberPosBelow x="0" y="1.0354"></measureNumberPosBelow>
@@ -131,8 +199,8 @@
         <measureNumberAlternateFontSpatiumDependent>0</measureNumberAlternateFontSpatiumDependent>
         <measureNumberAlternateFontStyle>2</measureNumberAlternateFontStyle>
         <measureNumberAlternateVPlacement>1</measureNumberAlternateVPlacement>
-        <measureNumberAlternateHPlacement>left</measureNumberAlternateHPlacement>
-        <measureNumberAlternateAlign>center,baseline</measureNumberAlternateAlign>
+        <measureNumberAlternateHPlacement>center</measureNumberAlternateHPlacement>
+        <measureNumberAlternateAlign>left,baseline</measureNumberAlternateAlign>
         <measureNumberAlternatePosition>center</measureNumberAlternatePosition>
         <measureNumberAlternatePosAbove x="0" y="0"></measureNumberAlternatePosAbove>
         <measureNumberAlternatePosBelow x="0" y="1.0354"></measureNumberAlternatePosBelow>
@@ -158,12 +226,15 @@
         <mmRestOldStyleMaxMeasures>8</mmRestOldStyleMaxMeasures>
         <mmRestOldStyleSpacing>2</mmRestOldStyleSpacing>
         <voltaLineWidth>0.25</voltaLineWidth>
+        <voltaPosAbove x="0" y="-4.5"></voltaPosAbove>
+        <voltaHook>4.5</voltaHook>
         <voltaLineStyle>solid</voltaLineStyle>
         <voltaFontFace>Times</voltaFontFace>
         <voltaFontSize>10</voltaFontSize>
         <voltaFontSpatiumDependent>1</voltaFontSpatiumDependent>
         <voltaFontStyle>1</voltaFontStyle>
         <voltaAlign>left,baseline</voltaAlign>
+        <voltaOffset x="1" y="3.5"></voltaOffset>
         <tupletOutOfStaff>0</tupletOutOfStaff>
         <tupletNumberRythmicCenter>0</tupletNumberRythmicCenter>
         <tupletExtendToEndOfDuration>0</tupletExtendToEndOfDuration>
@@ -198,55 +269,73 @@
         <longInstrumentFontSpatiumDependent>1</longInstrumentFontSpatiumDependent>
         <longInstrumentFontStyle>1</longInstrumentFontStyle>
         <longInstrumentAlign>center,center</longInstrumentAlign>
+        <longInstrumentPosition>center</longInstrumentPosition>
         <shortInstrumentFontFace>Times</shortInstrumentFontFace>
         <shortInstrumentFontSize>11.667</shortInstrumentFontSize>
         <shortInstrumentFontSpatiumDependent>1</shortInstrumentFontSpatiumDependent>
         <shortInstrumentFontStyle>1</shortInstrumentFontStyle>
         <shortInstrumentAlign>center,center</shortInstrumentAlign>
+        <shortInstrumentPosition>center</shortInstrumentPosition>
         <partInstrumentFontFace>Times</partInstrumentFontFace>
         <partInstrumentFontSize>13.333</partInstrumentFontSize>
         <partInstrumentFontSpatiumDependent>1</partInstrumentFontSpatiumDependent>
         <partInstrumentFontStyle>1</partInstrumentFontStyle>
+        <tabFretNumberFontFace>Times</tabFretNumberFontFace>
+        <tabFretNumberFontSize>10</tabFretNumberFontSize>
+        <tabFretNumberFontSpatiumDependent>1</tabFretNumberFontSpatiumDependent>
+        <tabFretNumberFontStyle>0</tabFretNumberFontStyle>
         <dynamicsFontFace>Times New Roman</dynamicsFontFace>
         <dynamicsFontSize>11.667</dynamicsFontSize>
         <dynamicsFontSpatiumDependent>1</dynamicsFontSpatiumDependent>
         <dynamicsFontStyle>2</dynamicsFontStyle>
+        <dynamicsMusicalSymbolsScale>1.7143</dynamicsMusicalSymbolsScale>
+        <dynamicsMusicalSymbolSize>17.143</dynamicsMusicalSymbolSize>
         <dynamicsFrameType>0</dynamicsFrameType>
         <expressionFontFace>Times</expressionFontFace>
         <expressionFontSize>11.667</expressionFontSize>
         <expressionFontSpatiumDependent>1</expressionFontSpatiumDependent>
         <expressionFontStyle>2</expressionFontStyle>
+        <expressionMusicalSymbolsScale>1.7143</expressionMusicalSymbolsScale>
+        <expressionMusicalSymbolSize>17.143</expressionMusicalSymbolSize>
         <tempoFontFace>Patmm</tempoFontFace>
         <tempoFontSize>11.667</tempoFontSize>
         <tempoFontSpatiumDependent>1</tempoFontSpatiumDependent>
         <tempoFontStyle>0</tempoFontStyle>
+        <tempoMusicalSymbolsScale>1</tempoMusicalSymbolsScale>
+        <tempoMusicalSymbolSize>10</tempoMusicalSymbolSize>
         <tempoFrameType>0</tempoFrameType>
         <tempoChangeFontFace>Times</tempoChangeFontFace>
         <tempoChangeFontSize>11.667</tempoChangeFontSize>
         <tempoChangeFontSpatiumDependent>1</tempoChangeFontSpatiumDependent>
         <tempoChangeFontStyle>2</tempoChangeFontStyle>
-        <tempoChangeLineWidth>0.076823</tempoChangeLineWidth>
-        <tempoChangeLineStyle>dashed</tempoChangeLineStyle>
-        <tempoChangeDashLineLen>9.7627</tempoChangeDashLineLen>
-        <tempoChangeDashGapLen>9.7627</tempoChangeDashGapLen>
-        <metronomeFontFace>Patmm</metronomeFontFace>
-        <metronomeFontSize>11.667</metronomeFontSize>
+        <tempoChangeMusicalSymbolsScale>0.85714</tempoChangeMusicalSymbolsScale>
+        <tempoChangeMusicalSymbolSize>8.5714</tempoChangeMusicalSymbolSize>
+        <metronomeFontFace>GraceNotes</metronomeFontFace>
+        <metronomeFontSize>10</metronomeFontSize>
         <metronomeFontSpatiumDependent>1</metronomeFontSpatiumDependent>
         <metronomeFontStyle>0</metronomeFontStyle>
+        <metronomeMusicalSymbolsScale>1</metronomeMusicalSymbolsScale>
+        <metronomeMusicalSymbolSize>10</metronomeMusicalSymbolSize>
         <metronomeFrameType>0</metronomeFrameType>
         <translatorFontFace>Times</translatorFontFace>
         <systemTextFontFace>Times</systemTextFontFace>
         <systemTextFontSize>11.667</systemTextFontSize>
         <systemTextFontSpatiumDependent>1</systemTextFontSpatiumDependent>
         <systemTextFontStyle>2</systemTextFontStyle>
+        <systemTextMusicalSymbolsScale>1.7143</systemTextMusicalSymbolsScale>
+        <systemTextMusicalSymbolSize>17.143</systemTextMusicalSymbolSize>
         <staffTextFontFace>Times</staffTextFontFace>
         <staffTextFontSize>11.667</staffTextFontSize>
         <staffTextFontSpatiumDependent>1</staffTextFontSpatiumDependent>
         <staffTextFontStyle>2</staffTextFontStyle>
+        <staffTextMusicalSymbolsScale>1.7143</staffTextMusicalSymbolsScale>
+        <staffTextMusicalSymbolSize>17.143</staffTextMusicalSymbolSize>
         <rehearsalMarkFontFace>Garamond</rehearsalMarkFontFace>
         <rehearsalMarkFontSize>25</rehearsalMarkFontSize>
         <rehearsalMarkFontSpatiumDependent>1</rehearsalMarkFontSpatiumDependent>
         <rehearsalMarkFontStyle>1</rehearsalMarkFontStyle>
+        <rehearsalMarkMusicalSymbolsScale>0.5</rehearsalMarkMusicalSymbolsScale>
+        <rehearsalMarkMusicalSymbolSize>5</rehearsalMarkMusicalSymbolSize>
         <rehearsalMarkFrameType>0</rehearsalMarkFrameType>
         <repeatLeftFontFace>Times</repeatLeftFontFace>
         <repeatLeftFontSize>11.667</repeatLeftFontSize>
@@ -256,6 +345,36 @@
         <repeatRightFontSize>11.667</repeatRightFontSize>
         <repeatRightFontSpatiumDependent>1</repeatRightFontSpatiumDependent>
         <repeatRightFontStyle>0</repeatRightFontStyle>
+        <repeatPlayCountFontFace>Times</repeatPlayCountFontFace>
+        <repeatPlayCountFontSize>11.667</repeatPlayCountFontSize>
+        <repeatPlayCountFontSpatiumDependent>1</repeatPlayCountFontSpatiumDependent>
+        <repeatPlayCountFontStyle>0</repeatPlayCountFontStyle>
+        <chordSymbolAFontFace>Geneva</chordSymbolAFontFace>
+        <chordSymbolAFontSize>10</chordSymbolAFontSize>
+        <chordSymbolAFontSpatiumDependent>1</chordSymbolAFontSpatiumDependent>
+        <chordSymbolAFontStyle>0</chordSymbolAFontStyle>
+        <chordSymbolBFontFace>Geneva</chordSymbolBFontFace>
+        <chordSymbolBFontSize>10</chordSymbolBFontSize>
+        <chordSymbolBFontSpatiumDependent>1</chordSymbolBFontSpatiumDependent>
+        <chordSymbolBFontStyle>0</chordSymbolBFontStyle>
+        <nashvilleNumberFontFace>Geneva</nashvilleNumberFontFace>
+        <nashvilleNumberFontSize>10</nashvilleNumberFontSize>
+        <nashvilleNumberFontSpatiumDependent>1</nashvilleNumberFontSpatiumDependent>
+        <nashvilleNumberFontStyle>0</nashvilleNumberFontStyle>
+        <romanNumeralFontFace>Geneva</romanNumeralFontFace>
+        <romanNumeralFontSize>10</romanNumeralFontSize>
+        <romanNumeralFontSpatiumDependent>1</romanNumeralFontSpatiumDependent>
+        <romanNumeralFontStyle>0</romanNumeralFontStyle>
+        <ottavaFontFace>Times</ottavaFontFace>
+        <ottavaFontSize>11.667</ottavaFontSize>
+        <ottavaFontSpatiumDependent>1</ottavaFontSpatiumDependent>
+        <ottavaFontStyle>2</ottavaFontStyle>
+        <ottavaMusicalSymbolsScale>1.7143</ottavaMusicalSymbolsScale>
+        <ottavaMusicalSymbolSize>17.143</ottavaMusicalSymbolSize>
+        <fretMag>1</fretMag>
+        <chordSymPosition>center</chordSymPosition>
+        <barreAppearanceSlur>1</barreAppearanceSlur>
+        <chordSymbolSpelling>0</chordSymbolSpelling>
         <frameFontFace>Times</frameFontFace>
         <frameFontSize>11.667</frameFontSize>
         <frameFontSpatiumDependent>1</frameFontSpatiumDependent>
@@ -268,6 +387,26 @@
         <systemTextLineFontSize>11.667</systemTextLineFontSize>
         <systemTextLineFontSpatiumDependent>1</systemTextLineFontSpatiumDependent>
         <systemTextLineFontStyle>2</systemTextLineFontStyle>
+        <letRingFontFace>Times</letRingFontFace>
+        <letRingFontSize>11.667</letRingFontSize>
+        <letRingFontSpatiumDependent>1</letRingFontSpatiumDependent>
+        <letRingFontStyle>2</letRingFontStyle>
+        <palmMuteFontFace>Times</palmMuteFontFace>
+        <palmMuteFontSize>11.667</palmMuteFontSize>
+        <palmMuteFontSpatiumDependent>1</palmMuteFontSpatiumDependent>
+        <palmMuteFontStyle>2</palmMuteFontStyle>
+        <pedalFontFace>Times</pedalFontFace>
+        <pedalFontSize>11.667</pedalFontSize>
+        <pedalFontSpatiumDependent>1</pedalFontSpatiumDependent>
+        <pedalFontStyle>2</pedalFontStyle>
+        <whammyBarFontFace>Times</whammyBarFontFace>
+        <whammyBarFontSize>11.667</whammyBarFontSize>
+        <whammyBarFontSpatiumDependent>1</whammyBarFontSpatiumDependent>
+        <whammyBarFontStyle>2</whammyBarFontStyle>
+        <noteLineFontFace>Times</noteLineFontFace>
+        <noteLineFontSize>11.667</noteLineFontSize>
+        <noteLineFontSpatiumDependent>1</noteLineFontSpatiumDependent>
+        <noteLineFontStyle>2</noteLineFontStyle>
         <glissandoFontFace>Times</glissandoFontFace>
         <glissandoFontSize>11.667</glissandoFontSize>
         <glissandoFontSpatiumDependent>1</glissandoFontSpatiumDependent>
@@ -300,6 +439,10 @@
         <stickingFontSize>11.667</stickingFontSize>
         <stickingFontSpatiumDependent>1</stickingFontSpatiumDependent>
         <stickingFontStyle>2</stickingFontStyle>
+        <fingeringFontFace>Times</fingeringFontFace>
+        <fingeringFontSize>11.667</fingeringFontSize>
+        <fingeringFontSpatiumDependent>1</fingeringFontSpatiumDependent>
+        <fingeringFontStyle>2</fingeringFontStyle>
         <user1FontFace>Times</user1FontFace>
         <user1FontSize>11.667</user1FontSize>
         <user1FontSpatiumDependent>1</user1FontSpatiumDependent>
