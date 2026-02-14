@@ -529,6 +529,7 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
                     double(pagePrefs->facingPages ? pagePrefs->rightPageMarginBottom : pagePrefs->leftPageMarginBottom) / EVPU_PER_INCH);
     setElementValue(styleElement, "pageTwosided", pagePrefs->facingPages);
     setElementValue(styleElement, "enableIndentationOnFirstSystem", pagePrefs->differentFirstSysMargin);
+    setElementValue(styleElement, "hideInstrumentNameIfOneInstrument", false); // overridden later
     setElementValue(styleElement, "firstSystemIndentationValue", double(pagePrefs->firstSysMarginLeft) / EVPU_PER_SPACE);
 
     // Calculate Spatium
@@ -1011,8 +1012,8 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
         throw std::invalid_argument("unable to find MarkingCategory for dynamics");
     }
     if (auto catFontInfo = cat->musicFont) {
-        const bool catFontIsSMuFL = catFontInfo->calcIsSMuFL();
-        const bool override = catFontIsSMuFL && !catFontInfo->calcIsDefaultMusic();
+        const bool catFontIsEngraving = fontIsEngravingWithMappedLegacy(catFontInfo.get());
+        const bool override = catFontIsEngraving && !catFontInfo->calcIsDefaultMusic();
         setElementValue(styleElement, "dynamicsOverrideFont", override);
         if (override) {
             setElementValue(styleElement, "dynamicsFont", catFontInfo->getName());
@@ -1053,7 +1054,6 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     writeCategoryTextFontPref(styleElement, prefs, "expression", CategoryType::ExpressiveText);
     writeCategoryTextFontPref(styleElement, prefs, "tempo", CategoryType::TempoMarks);
     writeCategoryTextFontPref(styleElement, prefs, "tempoChange", CategoryType::TempoAlterations);
-    writeLinePrefs(styleElement, "tempoChange", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
     writeCategoryTextFontPref(styleElement, prefs, "metronome", CategoryType::TempoMarks);
     setElementValue(styleElement, "translatorFontFace", textBlockFont->getName());
     writeCategoryTextFontPref(styleElement, prefs, "systemText", CategoryType::ExpressiveText);
