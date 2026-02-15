@@ -20,11 +20,15 @@
  * THE SOFTWARE.
  */
 #include <algorithm>
+#include <array>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
 #include <set>
+#include <string_view>
+#include <utility>
 
 #include "denigma.h"
 
@@ -50,6 +54,77 @@ constexpr double MUSE_FINALE_SCALE_DIFFERENTIAL = 20.0 / 24.0;
 constexpr double POINTS_PER_INCH = 72.0;
 constexpr double FONT_ASCENT_SCALE = 0.7;
 constexpr int MUSE_NUMERIC_PRECISION = 5;
+constexpr double SYMBOLS_DEFAULT_SIZE = 10.0;
+
+static constexpr auto solidLinesWithHooks = std::to_array<std::string_view>({
+    "textLine",
+    "systemTextLine",
+    "letRing",
+    "palmMute",
+    "pedal"
+});
+
+static constexpr auto dashedLinesWithHooks = std::to_array<std::string_view>({
+    "whammyBar"
+});
+
+static constexpr auto solidLinesNoHooks = std::to_array<std::string_view>({
+    "noteLine",
+    "glissando"
+});
+
+static constexpr auto dashedLinesNoHooks = std::to_array<std::string_view>({
+    "ottava",
+    "tempoChange"
+});
+
+// Legacy names are normalised to lower-case with spaces removed.
+static constexpr auto finaleToSmuflFontMap = std::to_array<std::pair<std::string_view, std::string_view>>({
+    std::pair<std::string_view, std::string_view>{ "ashmusic", "Finale Ash" },
+    std::pair<std::string_view, std::string_view>{ "broadwaycopyist", "Finale Broadway" },
+    std::pair<std::string_view, std::string_view>{ "engraver", "Finale Engraver" },
+    std::pair<std::string_view, std::string_view>{ "engraverfontset", "Finale Engraver" },
+    std::pair<std::string_view, std::string_view>{ "jazz", "Finale Jazz" },
+    std::pair<std::string_view, std::string_view>{ "maestro", "Finale Maestro" },
+    std::pair<std::string_view, std::string_view>{ "petrucci", "Finale Legacy" },
+    std::pair<std::string_view, std::string_view>{ "pmusic", "Finale Maestro" },
+    std::pair<std::string_view, std::string_view>{ "sonata", "Finale Maestro" },
+});
+
+static std::string normalizedFontName(std::string_view fontName)
+{
+    std::string result;
+    result.reserve(fontName.size());
+    for (unsigned char c : fontName) {
+        if (c <= 0x7f && std::isspace(c)) {
+            continue;
+        }
+        result.push_back(char(std::tolower(c)));
+    }
+    return result;
+}
+
+static std::optional<std::string_view> mappedSmuflFontName(std::string_view fontName)
+{
+    const std::string normalized = normalizedFontName(fontName);
+    for (const auto& [finaleName, smuflName] : finaleToSmuflFontMap) {
+        if (finaleName == normalized || normalizedFontName(smuflName) == normalized) {
+            return smuflName;
+        }
+    }
+    return std::nullopt;
+}
+
+static bool fontIsEngravingWithMappedLegacy(const FontInfo* fontInfo)
+{
+    if (!fontInfo) {
+        return false;
+    }
+    if (fontInfo->calcIsSMuFL()) {
+        return true;
+    }
+    return mappedSmuflFontName(fontInfo->getName()).has_value();
+}
 
 // Finale preferences:
 struct FinalePreferences
@@ -70,6 +145,7 @@ struct FinalePreferences
     MusxInstance<options::AugmentationDotOptions> augDotOptions;
     MusxInstance<options::BarlineOptions> barlineOptions;
     MusxInstance<options::BeamOptions> beamOptions;
+    MusxInstance<options::ChordOptions> chordOptions;
     MusxInstance<options::ClefOptions> clefOptions;
     MusxInstance<options::FlagOptions> flagOptions;
     MusxInstance<options::GraceNoteOptions> graceOptions;
@@ -120,17 +196,10 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
         std::string fontName = retval->defaultMusicFont->getName();
         if (retval->defaultMusicFont->calcIsSMuFL()) {
             return fontName;
-        } else if (fontName == "Broadway Copyist") {
-            return "Finale Broadway";
-        } else if (fontName == "Engraver") {
-            return "Finale Engraver";
-        } else if (fontName == "Jazz") {
-            return "Finale Jazz";
-        } else if (fontName == "Maestro" || fontName == "Pmusic" || fontName == "Sonata") {
-            return "Finale Maestro";
-        } else if (fontName == "Petrucci") {
-            return "Finale Legacy";
-        } // other `else if` checks as required go here
+        }
+        if (const auto mapped = mappedSmuflFontName(fontName)) {
+            return std::string(*mapped);
+        }
         return {};
     }();
     //
@@ -139,6 +208,7 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
     retval->augDotOptions = getDocOptions<options::AugmentationDotOptions>(retval, "augmentation dot");
     retval->barlineOptions = getDocOptions<options::BarlineOptions>(retval, "barline");
     retval->beamOptions = getDocOptions<options::BeamOptions>(retval, "beam");
+    retval->chordOptions = getDocOptions<options::ChordOptions>(retval, "chord");
     retval->clefOptions = getDocOptions<options::ClefOptions>(retval, "clef");
     retval->flagOptions = getDocOptions<options::FlagOptions>(retval, "flag");
     retval->graceOptions = getDocOptions<options::GraceNoteOptions>(retval, "grace note");
@@ -241,6 +311,23 @@ static void setPointElement(XmlElement& styleElement, const std::string& nodeNam
     setAttribute("y", y);
 }
 
+static std::string alignJustifyToHorizontalString(AlignJustify justify)
+{
+    switch (justify) {
+        case AlignJustify::Right:
+            return "right";
+        case AlignJustify::Center:
+            return "center";
+        default:
+            return "left";
+    }
+}
+
+static std::string alignJustifyToAlignString(AlignJustify justify, const char* vertical)
+{
+    return alignJustifyToHorizontalString(justify) + "," + vertical;
+}
+
 static double approximateFontAscentInSpaces(const FontInfo* fontInfo, const DenigmaContext& denigmaContext)
 {
     if (!fontInfo) {
@@ -305,6 +392,14 @@ static std::optional<EvpuFloat> calcAugmentationDotWidth(const FinalePreferences
     return std::nullopt;
 }
 
+static std::optional<EvpuFloat> calcRepeatDotWidth(const FinalePreferencesPtr& prefs)
+{
+    if (!prefs->musicFontName.empty()) {
+        return utils::smuflGlyphWidthForFont(prefs->musicFontName, "repeatDot");
+    }
+    return std::nullopt;
+}
+
 static void writeFontPref(XmlElement& styleElement, const std::string& namePrefix, const FontInfo* fontInfo)
 {
     setElementValue(styleElement, namePrefix + "FontFace", fontInfo->getName());
@@ -314,10 +409,36 @@ static void writeFontPref(XmlElement& styleElement, const std::string& namePrefi
     setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
 }
 
+static double calcMusicalSymbolScale(const FinalePreferencesPtr& prefs, const FontInfo* fontInfo)
+{
+    double symbolScale = double(fontInfo->fontSize);
+    if (fontInfo->calcIsSymbolFont()) {
+        symbolScale /= double(prefs->defaultMusicFont->fontSize); /// @todo account for fixed/non-fixed
+    } else if (const auto textBlockFont = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::TextBlock)) {
+        /// Fonts not recognised as symbols likely have their symbols scaled to text size
+        symbolScale /= double(textBlockFont->fontSize);
+    } else {
+        /// Should never happen: Assume text to symbols factor of 2
+        symbolScale *= 2 / double(prefs->defaultMusicFont->fontSize);
+        prefs->denigmaContext->logMessage(LogMsg() << "Unable to load text block font while calculating symbol scale. "
+            << "Assuming text-to-symbol factor of 2 for [" << fontInfo->getName() << "].", LogSeverity::Warning);
+    }
+    return symbolScale;
+}
+
 static void writeDefaultFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
 {
     if (auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type)) {
-        writeFontPref(styleElement, namePrefix, fontPrefs.get());
+        // If font is a symbols font, write text settings from TextBlock and set symbol scaling.
+        if (type != options::FontOptions::FontType::TextBlock && fontIsEngravingWithMappedLegacy(fontPrefs.get())) {
+            writeDefaultFontPref(styleElement, prefs, namePrefix, options::FontOptions::FontType::TextBlock);
+            const double symbolScale = calcMusicalSymbolScale(prefs, fontPrefs.get());
+            setElementValue(styleElement, namePrefix + "MusicalSymbolsScale", symbolScale);
+            setElementValue(styleElement, namePrefix + "MusicalSymbolSize", symbolScale * SYMBOLS_DEFAULT_SIZE);
+            setElementValue(styleElement, namePrefix + "FontSpatiumDependent", !fontPrefs->absolute);
+        } else {
+            writeFontPref(styleElement, namePrefix, fontPrefs.get());
+        }
     } else {
         prefs->denigmaContext->logMessage(LogMsg() << "unable to load default font pref for " << int(type), LogSeverity::Warning);
     }
@@ -362,11 +483,22 @@ static void writeCategoryTextFontPref(XmlElement& styleElement, const FinalePref
         prefs->denigmaContext->logMessage(LogMsg() << "unable to load category def for " << namePrefix, LogSeverity::Warning);
         return;
     }
-    if (!cat->textFont) {
-        prefs->denigmaContext->logMessage(LogMsg() << "marking category " << cat->getName() << " has no text font.", LogSeverity::Warning);
+    const FontInfo* categoryFont = nullptr;
+    if (namePrefix == "metronome" && cat->numberFont) {
+        categoryFont = cat->numberFont.get();
+    } else if (cat->textFont) {
+        categoryFont = cat->textFont.get();
+    }
+    if (!categoryFont) {
+        prefs->denigmaContext->logMessage(LogMsg() << "marking category " << cat->getName() << " has no usable text font.", LogSeverity::Warning);
         return;
     }
-    writeFontPref(styleElement, namePrefix, cat->textFont.get());
+    writeFontPref(styleElement, namePrefix, categoryFont);
+    if (cat->musicFont) {
+        const double symbolScale = calcMusicalSymbolScale(prefs, cat->musicFont.get());
+        setElementValue(styleElement, namePrefix + "MusicalSymbolsScale", symbolScale);
+        setElementValue(styleElement, namePrefix + "MusicalSymbolSize", symbolScale * SYMBOLS_DEFAULT_SIZE);
+    }
     for (auto& it : cat->textExpressions) {
         if (auto exp = it.second.lock()) {
             writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
@@ -397,6 +529,7 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
                     double(pagePrefs->facingPages ? pagePrefs->rightPageMarginBottom : pagePrefs->leftPageMarginBottom) / EVPU_PER_INCH);
     setElementValue(styleElement, "pageTwosided", pagePrefs->facingPages);
     setElementValue(styleElement, "enableIndentationOnFirstSystem", pagePrefs->differentFirstSysMargin);
+    setElementValue(styleElement, "hideInstrumentNameIfOneInstrument", false); // overridden later
     setElementValue(styleElement, "firstSystemIndentationValue", double(pagePrefs->firstSysMarginLeft) / EVPU_PER_SPACE);
 
     // Calculate Spatium
@@ -448,7 +581,11 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     // Finale's final bar distance is the separation amount
     setElementValue(styleElement, "endBarDistance", prefs->barlineOptions->finalBarlineSpace / EFIX_PER_SPACE);
-    setElementValue(styleElement, "repeatBarlineDotSeparation", prefs->repeatOptions->forwardDotHPos / EVPU_PER_SPACE);
+    double repeatDotDistance = (prefs->repeatOptions->forwardDotHPos + prefs->repeatOptions->backwardDotHPos) / EVPU_PER_SPACE;
+    if (const auto repeatDotWidth = calcRepeatDotWidth(prefs)) {
+        repeatDotDistance -= repeatDotWidth.value() / EVPU_PER_SPACE;
+    }
+    setElementValue(styleElement, "repeatBarlineDotSeparation", repeatDotDistance * 0.5);
     setElementValue(styleElement, "repeatBarTips", prefs->repeatOptions->wingStyle != RepeatWingStyle::None);
 
     setElementValue(styleElement, "startBarlineSingle", prefs->barlineOptions->drawLeftBarlineSingleStaff);
@@ -472,14 +609,14 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
         (prefs->clefOptions->clefBackSepar + prefs->clefOptions->clefTimeSepar + timeSigSpaceBefore) / EVPU_PER_SPACE);
     setElementValue(styleElement, "keyTimesigDistance", 
         (prefs->keyOptions->keyBack + prefs->keyOptions->keyTimeSepar + timeSigSpaceBefore) / EVPU_PER_SPACE);
-    setElementValue(styleElement, "keyBarlineDistance", prefs->repeatOptions->afterKeySpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "keyBarlineDistance", (prefs->repeatOptions->afterKeySpace - 1.5 * EVPU_PER_SPACE) / EVPU_PER_SPACE); // observed fudge factor
 
     // Differences in how MuseScore and Finale interpret these settings mean the following are better left alone
     // setElementValue(styleElement, "systemHeaderDistance", prefs->keyOptions->keyBack / EVPU_PER_SPACE);
     // setElementValue(styleElement, "systemHeaderTimeSigDistance", prefs->timeOptions->timeBack / EVPU_PER_SPACE);
 
     setElementValue(styleElement, "clefBarlineDistance", -(prefs->clefOptions->clefChangeOffset) / EVPU_PER_SPACE);
-    setElementValue(styleElement, "timesigBarlineDistance", prefs->repeatOptions->afterClefSpace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "timesigBarlineDistance", (prefs->repeatOptions->afterTimeSpace - 1.5 * EVPU_PER_SPACE) / EVPU_PER_SPACE);
 
     setElementValue(styleElement, "measureRepeatNumberPos", -(prefs->alternateNotationOptions->twoMeasNumLift + 0.5) / EVPU_PER_SPACE);
     setElementValue(styleElement, "staffLineWidth", prefs->lineCurveOptions->staffLineWidth / EFIX_PER_SPACE);
@@ -498,12 +635,35 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
 
     setElementValue(styleElement, "keySigCourtesyBarlineMode", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
     setElementValue(styleElement, "timeSigCourtesyBarlineMode", 0); // Hard-coded as 0 in Lua
+    setElementValue(styleElement, "barlineBeforeSigChange", true);
+    setElementValue(styleElement, "doubleBarlineBeforeKeySig", prefs->barlineOptions->drawDoubleBarlineBeforeKeyChanges);
+    setElementValue(styleElement, "doubleBarlineBeforeTimeSig", false);
+    setElementValue(styleElement, "keySigNaturals", prefs->keyOptions->doKeyCancel);
+    setElementValue(styleElement, "keySigShowNaturalsChangingSharpsFlats", prefs->keyOptions->doKeyCancelBetweenSharpsFlats);
     setElementValue(styleElement, "hideEmptyStaves", prefs->document->calcHasVaryingSystemStaves(prefs->forPartId));
+    setElementValue(styleElement, "placeClefsBeforeRepeats", true);
+    setElementValue(styleElement, "showCourtesiesRepeats", false);
+    setElementValue(styleElement, "showCourtesiesOtherJumps", false);
+    setElementValue(styleElement, "showCourtesiesAfterCancellingRepeats", false);
+    setElementValue(styleElement, "showCourtesiesAfterCancellingOtherJumps", false);
+    setElementValue(styleElement, "repeatPlayCountShow", false);
 }
 
 void writeStemPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
-    setElementValue(styleElement, "useStraightNoteFlags", prefs->flagOptions->straightFlags);
+    bool useStraightFlags = prefs->flagOptions->straightFlags;
+    if (!useStraightFlags && prefs->musicSymbolOptions) {
+        // Some documents using certain music fonts (e.g., Pmusic) have straight flags as regular flag characters.
+        // Check flagUp and if that is straight, assume the others are straight as well.
+        if (const auto flagFont = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::Flags)) {
+            if (const auto glyphName = utils::smuflGlyphNameForFont(flagFont, prefs->musicSymbolOptions->flagUp)) {
+                if (glyphName.value() == "flag8thUpStraight") {
+                    useStraightFlags = true;
+                }
+            }
+        }
+    }
+    setElementValue(styleElement, "useStraightNoteFlags", useStraightFlags);
     setElementValue(styleElement, "stemWidth", prefs->stemOptions->stemWidth / EFIX_PER_SPACE);
     setElementValue(styleElement, "shortenStem", true);
     setElementValue(styleElement, "stemLength", prefs->stemOptions->stemLength / EVPU_PER_SPACE);
@@ -515,8 +675,34 @@ void writeMusicSpacingPrefs(XmlElement& styleElement, const FinalePreferencesPtr
 {
     setElementValue(styleElement, "minMeasureWidth", prefs->musicSpacing->minWidth / EVPU_PER_SPACE);
     setElementValue(styleElement, "minNoteDistance", prefs->musicSpacing->minDistance / EVPU_PER_SPACE);
+    setElementValue(styleElement, "barNoteDistance", prefs->musicSpacing->musFront / EVPU_PER_SPACE);
+    setElementValue(styleElement, "barAccidentalDistance", prefs->musicSpacing->musFront / EVPU_PER_SPACE);
+    setElementValue(styleElement, "noteBarDistance", (prefs->musicSpacing->minDistance + prefs->musicSpacing->musBack) / EVPU_PER_SPACE);
     setElementValue(styleElement, "measureSpacing", prefs->musicSpacing->scalingFactor);
-    setElementValue(styleElement, "minTieLength", prefs->musicSpacing->minDistTiedNotes / EVPU_PER_SPACE);
+
+    // In Finale this distance is added to the regular note spacing,
+    // whereas MuseScore's value determines effective tie length.
+    // Thus we set the value based on the (usually) smallest tie length: ones using inside placement.
+    auto horizontalTieEndPointValue = [&](TieConnectStyleType type) -> Evpu {
+        auto it = prefs->tieOptions->tieConnectStyles.find(type);
+        if (it != prefs->tieOptions->tieConnectStyles.end() && it->second) {
+            return it->second->offsetX;
+        }
+        prefs->denigmaContext->logMessage(LogMsg() << "Missing tie connect style " << int(type) << " while setting minTieLength.", LogSeverity::Warning);
+        return 0;
+    };
+    setElementValue(styleElement, "minTieLength",
+                    (prefs->musicSpacing->minDistTiedNotes + prefs->musicSpacing->minDistance
+                     + (horizontalTieEndPointValue(TieConnectStyleType::OverEndPosInner)
+                        - horizontalTieEndPointValue(TieConnectStyleType::OverStartPosInner)
+                        + horizontalTieEndPointValue(TieConnectStyleType::UnderEndPosInner)
+                        - horizontalTieEndPointValue(TieConnectStyleType::UnderStartPosInner)) / 2) / EVPU_PER_SPACE);
+
+    // This value isn't always in used in Finale, but we can't use manual positioning.
+    setElementValue(styleElement, "graceToMainNoteDist", prefs->musicSpacing->minDistGrace / EVPU_PER_SPACE);
+    setElementValue(styleElement, "graceToGraceNoteDist", prefs->musicSpacing->minDistGrace / EVPU_PER_SPACE);
+
+    setElementValue(styleElement, "articulationKeepTogether", false);
 }
 
 void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
@@ -546,31 +732,76 @@ void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "concertPitch", !prefs->partGlobals->showTransposed);
     setElementValue(styleElement, "multiVoiceRestTwoSpaceOffset", std::labs(prefs->layerOneAttributes->restOffset) >= 4);
     setElementValue(styleElement, "mergeMatchingRests", prefs->miscOptions->consolidateRestsAcrossLayers);
+    setElementValue(styleElement, "tremoloStyle", 1); // MuseScore importer writes TremoloStyle::TRADITIONAL.
 }
 
 void writeSmartShapePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
 {
-    // Hairpin-related settings
-    setElementValue(styleElement, "hairpinHeight", prefs->smartShapeOptions->shortHairpinOpeningWidth / EVPU_PER_SPACE);
+    const auto& smartShapePrefs = prefs->smartShapeOptions;
+    const auto& tiePrefs = prefs->tieOptions;
+
+    // Hairpins
+    setElementValue(styleElement, "hairpinHeight",
+                    ((smartShapePrefs->shortHairpinOpeningWidth + smartShapePrefs->crescHeight) * 0.5) / EVPU_PER_SPACE);
     setElementValue(styleElement, "hairpinContHeight", 0.5); // Hardcoded to a half space
     writeCategoryTextFontPref(styleElement, prefs, "hairpin", others::MarkingCategory::CategoryType::Dynamics);
-    writeLinePrefs(styleElement, "hairpin", prefs->smartShapeOptions->crescLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff);
+    writeLinePrefs(styleElement, "hairpin", smartShapePrefs->crescLineWidth, smartShapePrefs->smartDashOn, smartShapePrefs->smartDashOff);
+    // Cresc. / Decresc. lines
+    const double hairpinLineLineWidthEvpu = smartShapePrefs->smartLineWidth / EFIX_PER_EVPU;
+    setElementValue(styleElement, "hairpinLineDashLineLen", smartShapePrefs->smartDashOn / hairpinLineLineWidthEvpu);
+    setElementValue(styleElement, "hairpinLineDashGapLen", smartShapePrefs->smartDashOff / hairpinLineLineWidthEvpu);
 
-    // Slur-related settings
-    setElementValue(styleElement, "slurEndWidth", prefs->smartShapeOptions->smartSlurTipWidth / EVPU_PER_SPACE);
-    setElementValue(styleElement, "slurDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
+    // Slurs
+    constexpr double contourScaling = 0.5; // observed scaling factor
+    constexpr double minMuseScoreEndWidth = 0.01; // MuseScore slur- and tie thickness go crazy if the endpoint thickness is zero.
+    const double slurEndpointWidth = (std::max)(minMuseScoreEndWidth, smartShapePrefs->smartSlurTipWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "slurEndWidth", slurEndpointWidth);
+    // Ignore horizontal thickness values as they hardly affect mid width.
+    const double slurMidPointWidth = ((smartShapePrefs->slurThicknessCp1Y + smartShapePrefs->slurThicknessCp2Y) * 0.5) / EVPU_PER_SPACE;
+    setElementValue(styleElement, "slurMidWidth", slurMidPointWidth * contourScaling);
+    setElementValue(styleElement, "slurDottedWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE);
 
-    // Tie-related settings
-    setElementValue(styleElement, "tieEndWidth", prefs->tieOptions->tieTipWidth / EVPU_PER_SPACE);
-    setElementValue(styleElement, "tieDottedWidth", prefs->smartShapeOptions->smartLineWidth / EFIX_PER_SPACE);
-    setElementValue(styleElement, "tiePlacementSingleNote", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
-    setElementValue(styleElement, "tiePlacementChord", prefs->tieOptions->useOuterPlacement ? "outside" : "inside");
+    // Ties
+    const double tieEndpointWidth = (std::max)(minMuseScoreEndWidth, tiePrefs->tieTipWidth / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tieEndWidth", tieEndpointWidth);
+    setElementValue(styleElement, "tieMidWidth", ((tiePrefs->thicknessRight + tiePrefs->thicknessLeft) * 0.5 * contourScaling) / EVPU_PER_SPACE);
+    setElementValue(styleElement, "tieDottedWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "tiePlacementSingleNote", tiePrefs->useOuterPlacement ? "outside" : "inside");
+    /// @note Finale's 'outer placement' for notes within chords is much closer to inside placement. But outside placement is closer overall.
+    setElementValue(styleElement, "tiePlacementChord", tiePrefs->useOuterPlacement ? "outside" : "inside");
 
-    // Ottava settings
-    setElementValue(styleElement, "ottavaHookAbove", prefs->smartShapeOptions->hookLength / EVPU_PER_SPACE);
-    setElementValue(styleElement, "ottavaHookBelow", -prefs->smartShapeOptions->hookLength / EVPU_PER_SPACE);
-    writeLinePrefs(styleElement, "ottava", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
-    setElementValue(styleElement, "ottavaNumbersOnly", prefs->smartShapeOptions->showOctavaAsText);
+    // Ottavas
+    setElementValue(styleElement, "ottavaHookAbove", smartShapePrefs->hookLength / EVPU_PER_SPACE);
+    setElementValue(styleElement, "ottavaHookBelow", smartShapePrefs->hookLength / EVPU_PER_SPACE);
+    setElementValue(styleElement, "ottavaNumbersOnly", smartShapePrefs->showOctavaAsText);
+
+    // Guitar bends
+    setElementValue(styleElement, "guitarBendLineWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "guitarDiveLineWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE);
+    setElementValue(styleElement, "bendLineWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE); // shape-dependent
+    setElementValue(styleElement, "guitarBendLineWidthTab", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE); // shape-dependent
+    setElementValue(styleElement, "guitarDiveLineWidthTab", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE); // shape-dependent
+    setElementValue(styleElement, "guitarBendUseFull", smartShapePrefs->guitarBendUseFull);
+    setElementValue(styleElement, "showFretOnFullBendRelease", !smartShapePrefs->guitarBendHideBendTo);
+
+    // General line settings
+    for (std::string_view prefix : solidLinesWithHooks) {
+        const std::string prefixString(prefix);
+        writeLinePrefs(styleElement, prefixString, smartShapePrefs->smartLineWidth, smartShapePrefs->smartDashOn, smartShapePrefs->smartDashOff);
+        setElementValue(styleElement, prefixString + "HookHeight", smartShapePrefs->hookLength / EVPU_PER_SPACE);
+    }
+    for (std::string_view prefix : dashedLinesWithHooks) {
+        const std::string prefixString(prefix);
+        writeLinePrefs(styleElement, prefixString, smartShapePrefs->smartLineWidth, smartShapePrefs->smartDashOn, smartShapePrefs->smartDashOff, "dashed");
+        setElementValue(styleElement, prefixString + "HookHeight", smartShapePrefs->hookLength / EVPU_PER_SPACE);
+    }
+    for (std::string_view prefix : solidLinesNoHooks) {
+        writeLinePrefs(styleElement, std::string(prefix), smartShapePrefs->smartLineWidth, smartShapePrefs->smartDashOn, smartShapePrefs->smartDashOff);
+    }
+    setElementValue(styleElement, "noteLineWidth", smartShapePrefs->smartLineWidth / EFIX_PER_SPACE); // noteLineWidth not noteLineLineWidth
+    for (std::string_view prefix : dashedLinesNoHooks) {
+        writeLinePrefs(styleElement, std::string(prefix), smartShapePrefs->smartLineWidth, smartShapePrefs->smartDashOn, smartShapePrefs->smartDashOff, "dashed");
+    }
 }
 
 void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
@@ -582,27 +813,6 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
         setElementValue(styleElement, "measureNumberInterval", scorePart->incidence);
         const bool useShowOnStart = scorePart->showOnStart && !scorePart->showOnEvery;
         setElementValue(styleElement, "measureNumberSystem", useShowOnStart);
-
-        auto justificationString = [](AlignJustify justi) -> std::string {
-            switch (justi) {
-                case AlignJustify::Right:
-                    return "right,baseline";
-                case AlignJustify::Center:
-                    return "center,baseline";
-                default:
-                    return "left,baseline";
-            }
-        };
-        auto justifyToAlign = [](AlignJustify align) -> std::string {
-            switch (align) {
-                case AlignJustify::Right:
-                    return "right";
-                case AlignJustify::Center:
-                    return "center";
-                default:
-                    return "left";
-            }
-        };
 
         const auto scrollView = prefs->document->getScrollViewStaves(prefs->forPartId);
         bool topOn = false;
@@ -653,9 +863,9 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
             const double verticalSp = double(vertical) / EVPU_PER_SPACE;
             const double horizontalSp = double(horizontal) / EVPU_PER_SPACE;
             setElementValue(styleElement, prefix + "VPlacement", (vertical >= 0) ? 0 : 1);
-            setElementValue(styleElement, prefix + "HPlacement", justifyToAlign(alignment));
-            setElementValue(styleElement, prefix + "Align", justificationString(justification));
-            setElementValue(styleElement, prefix + "Position", justifyToAlign(justification));
+            setElementValue(styleElement, prefix + "HPlacement", alignJustifyToHorizontalString(justification));
+            setElementValue(styleElement, prefix + "Align", alignJustifyToAlignString(alignment, "baseline"));
+            setElementValue(styleElement, prefix + "Position", alignJustifyToHorizontalString(justification));
             const double textHeightSp = approximateFontAscentInSpaces(fontInfo.get(), *prefs->denigmaContext) * prefs->spatiumScaling;
             const double normalStaffHeightSp = 4.0;
             setPointElement(styleElement, prefix + "PosAbove", horizontalSp, std::min(-verticalSp, 0.0));
@@ -693,7 +903,9 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
                        scorePart->mmRestYdisp,
                        "mmRestRange");
     }
-    setElementValue(styleElement, "createMultiMeasureRests", prefs->forPartId != 0);
+    const auto mmRests = prefs->document->getOthers()->getArray<others::MultimeasureRest>(prefs->forPartId);
+    // MuseScore importer creates MM rests for part scores and for score files that already contain MM rests.
+    setElementValue(styleElement, "createMultiMeasureRests", prefs->forPartId != 0 || !mmRests.empty());
     setElementValue(styleElement, "minEmptyMeasures", prefs->mmRestOptions->numStart);
     setElementValue(styleElement, "minMMRestWidth", prefs->mmRestOptions->measWidth / EVPU_PER_SPACE);
     setElementValue(styleElement, "mmRestNumberPos", (prefs->mmRestOptions->numAdjY / EVPU_PER_SPACE) + 1);
@@ -706,21 +918,18 @@ void writeRepeatEndingPrefs(XmlElement& styleElement, const FinalePreferencesPtr
 {
     const auto& repeatOptions = prefs->repeatOptions;
     setElementValue(styleElement, "voltaLineWidth", repeatOptions->bracketLineWidth / EFIX_PER_SPACE);
+    setPointElement(styleElement, "voltaPosAbove", 0.0, -repeatOptions->bracketHeight / EVPU_PER_SPACE);
+    setElementValue(styleElement, "voltaHook", repeatOptions->bracketHookLen / EVPU_PER_SPACE);
     setElementValue(styleElement, "voltaLineStyle", "solid");
     writeDefaultFontPref(styleElement, prefs, "volta", options::FontOptions::FontType::Ending);
     setElementValue(styleElement, "voltaAlign", "left,baseline");
+    setPointElement(styleElement, "voltaOffset",
+                    repeatOptions->bracketTextHPos / EVPU_PER_SPACE,
+                    (repeatOptions->bracketHookLen - repeatOptions->bracketTextHPos) / EVPU_PER_SPACE);
 
-    // Optionally include bracket height and hook lengths if uncommented
-    // XmlElement& element = setElementText(styleElement, "voltaPosAbove", "");
-    // element->setDoubleAttribute("x", 0);
-    // element->setDoubleAttribute("y", repeatOptions->bracketHeight / EVPU_PER_SPACE);
-
-    // setElementValue(styleElement, "voltaHook", repeatOptions->bracketHookLen / EVPU_PER_SPACE);
-
-    // Optionally include text offsets
-    // element = setElementText(styleElement, "voltaOffset", "");
-    // element->setDoubleAttribute("x", repeatOptions->bracketTextHPos / EVPU_PER_SPACE);
-    // element->setDoubleAttribute("y", repeatOptions->bracketTextVPos / EVPU_PER_SPACE);
+    // This option actually moves the front of the volta after the repeat forwards.
+    // Finale only has the option to move the end of the volta before the repeat backwards, so we leave this unset.
+    // setElementValue(styleElement, "voltaAlignEndLeftOfBarline", false);
 }
 
 void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
@@ -737,6 +946,10 @@ void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pref
     setElementValue(styleElement, "tupletNoteLeftDistance", tupletOptions->leftHookExt / EVPU_PER_SPACE);
     setElementValue(styleElement, "tupletNoteRightDistance", tupletOptions->rightHookExt / EVPU_PER_SPACE);
     setElementValue(styleElement, "tupletBracketWidth", tupletOptions->tupLineWidth / EFIX_PER_SPACE);
+    // manualSlopeAdj does not translate well, so else leave value as default
+    if (tupletOptions->alwaysFlat) {
+        setElementValue(styleElement, "tupletMaxSlope", 0.0);
+    }
 
     switch (tupletOptions->posStyle) {
         case TupletOptions::PositioningStyle::Above:
@@ -772,7 +985,8 @@ void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pref
 
     const auto& fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::Tuplet);
     if (!fontInfo) {
-        throw std::invalid_argument("Unable to load font pref for tuplets");
+        prefs->denigmaContext->logMessage(LogMsg() << "Unable to load font pref for tuplets", LogSeverity::Warning);
+        return;
     }
 
     if (fontInfo->calcIsSMuFL()) {
@@ -784,11 +998,8 @@ void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pref
         setElementValue(styleElement, "tupletUseSymbols", false);
     }
 
-    setElementValue(
-        styleElement,
-        "tupletBracketHookHeight",
-        (std::max)(-tupletOptions->leftHookLen, -tupletOptions->rightHookLen) / EVPU_PER_SPACE
-    );
+    setElementValue(styleElement, "tupletBracketHookHeight",
+                    -(std::max)(tupletOptions->leftHookLen, tupletOptions->rightHookLen) / EVPU_PER_SPACE); /// or use average
 }
 
 void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
@@ -801,8 +1012,8 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
         throw std::invalid_argument("unable to find MarkingCategory for dynamics");
     }
     if (auto catFontInfo = cat->musicFont) {
-        const bool catFontIsSMuFL = catFontInfo->calcIsSMuFL();
-        const bool override = catFontIsSMuFL && !catFontInfo->calcIsDefaultMusic();
+        const bool catFontIsEngraving = fontIsEngravingWithMappedLegacy(catFontInfo.get());
+        const bool override = catFontIsEngraving && !catFontInfo->calcIsDefaultMusic();
         setElementValue(styleElement, "dynamicsOverrideFont", override);
         if (override) {
             setElementValue(styleElement, "dynamicsFont", catFontInfo->getName());
@@ -828,29 +1039,21 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     if (!fullPosition) {
         throw std::invalid_argument("unable to find default full name positioning for staves");
     }
-    auto justifyToAlignment = [](const MusxInstance<others::NamePositioning>& position) {
-        switch (position->justify) {
-            case AlignJustify::Left:
-                return std::string("left,center");
-            case AlignJustify::Right:
-                return std::string("right,center");
-            default:
-                return std::string("center,center");
-        }
-    };
-    setElementValue(styleElement, "longInstrumentAlign", justifyToAlignment(fullPosition));
+    setElementValue(styleElement, "longInstrumentAlign", alignJustifyToAlignString(fullPosition->justify, "center"));
+    setElementValue(styleElement, "longInstrumentPosition", alignJustifyToHorizontalString(fullPosition->hAlign));
     writeDefaultFontPref(styleElement, prefs, "shortInstrument", FontType::AbbrvStaffNames);
     const auto abbreviatedPosition = prefs->staffOptions->namePosAbbrv;
     if (!abbreviatedPosition) {
         throw std::invalid_argument("unable to find default abbreviated name positioning for staves");
     }
-    setElementValue(styleElement, "shortInstrumentAlign", justifyToAlignment(abbreviatedPosition));
+    setElementValue(styleElement, "shortInstrumentAlign", alignJustifyToAlignString(abbreviatedPosition->justify, "center"));
+    setElementValue(styleElement, "shortInstrumentPosition", alignJustifyToHorizontalString(abbreviatedPosition->hAlign));
     writeDefaultFontPref(styleElement, prefs, "partInstrument", FontType::StaffNames);
+    writeDefaultFontPref(styleElement, prefs, "tabFretNumber", FontType::Tablature);
     writeCategoryTextFontPref(styleElement, prefs, "dynamics", CategoryType::Dynamics);
     writeCategoryTextFontPref(styleElement, prefs, "expression", CategoryType::ExpressiveText);
     writeCategoryTextFontPref(styleElement, prefs, "tempo", CategoryType::TempoMarks);
     writeCategoryTextFontPref(styleElement, prefs, "tempoChange", CategoryType::TempoAlterations);
-    writeLinePrefs(styleElement, "tempoChange", prefs->smartShapeOptions->smartLineWidth, prefs->smartShapeOptions->smartDashOn, prefs->smartShapeOptions->smartDashOff, "dashed");
     writeCategoryTextFontPref(styleElement, prefs, "metronome", CategoryType::TempoMarks);
     setElementValue(styleElement, "translatorFontFace", textBlockFont->getName());
     writeCategoryTextFontPref(styleElement, prefs, "systemText", CategoryType::ExpressiveText);
@@ -858,10 +1061,38 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     writeCategoryTextFontPref(styleElement, prefs, "rehearsalMark", CategoryType::RehearsalMarks);
     writeDefaultFontPref(styleElement, prefs, "repeatLeft", FontType::Repeat);
     writeDefaultFontPref(styleElement, prefs, "repeatRight", FontType::Repeat);
+    writeDefaultFontPref(styleElement, prefs, "repeatPlayCount", FontType::Repeat);
+    writeDefaultFontPref(styleElement, prefs, "chordSymbolA", FontType::Chord);
+    writeDefaultFontPref(styleElement, prefs, "chordSymbolB", FontType::Chord);
+    writeDefaultFontPref(styleElement, prefs, "nashvilleNumber", FontType::Chord);
+    writeDefaultFontPref(styleElement, prefs, "romanNumeral", FontType::Chord);
+    writeDefaultFontPref(styleElement, prefs, "ottava", FontType::SmartShape8va);
+    setElementValue(styleElement, "fretMag", prefs->chordOptions->fretPercent / 100.0);
+    setElementValue(styleElement, "chordSymPosition",
+                    prefs->chordOptions->chordAlignment == options::ChordOptions::ChordAlignment::Left ? "left" : "center");
+    setElementValue(styleElement, "barreAppearanceSlur", true); // Not detectable (uses shapes), but default in most templates
+    // setElementValue(styleElement, "verticallyAlignChordSymbols", false); // Otherwise offsets are not accounted for
+    auto chordSpellingFromStyle = [](options::ChordOptions::ChordStyle style) {
+        switch (style) {
+            case options::ChordOptions::ChordStyle::German:
+                return 2; // NoteSpellingType::GERMAN_PURE
+            case options::ChordOptions::ChordStyle::Scandinavian:
+                return 1; // NoteSpellingType::GERMAN
+            default:
+                return 0; // NoteSpellingType::STANDARD
+        }
+    };
+    setElementValue(styleElement, "chordSymbolSpelling", chordSpellingFromStyle(prefs->chordOptions->chordStyle));
     writeFontPref(styleElement, "frame", textBlockFont.get());
-    writeFontPref(styleElement, "textLine", textBlockFont.get());
-    writeFontPref(styleElement, "systemTextLine", textBlockFont.get());
-    writeFontPref(styleElement, "glissando", textBlockFont.get());
+    for (std::string_view prefix : solidLinesWithHooks) {
+        writeFontPref(styleElement, std::string(prefix), textBlockFont.get());
+    }
+    for (std::string_view prefix : dashedLinesWithHooks) {
+        writeFontPref(styleElement, std::string(prefix), textBlockFont.get());
+    }
+    for (std::string_view prefix : solidLinesNoHooks) {
+        writeFontPref(styleElement, std::string(prefix), textBlockFont.get());
+    }
     writeFontPref(styleElement, "bend", textBlockFont.get());
     writeFontPref(styleElement, "header", textBlockFont.get());
     writeFontPref(styleElement, "footer", textBlockFont.get());
@@ -869,6 +1100,7 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     writeFontPref(styleElement, "pageNumber", textBlockFont.get());
     writeFontPref(styleElement, "instrumentChange", textBlockFont.get());
     writeFontPref(styleElement, "sticking", textBlockFont.get());
+    writeFontPref(styleElement, "fingering", textBlockFont.get());
     for (int i = 1; i <= 12; ++i) {
         writeFontPref(styleElement, "user" + std::to_string(i), textBlockFont.get());
     }
