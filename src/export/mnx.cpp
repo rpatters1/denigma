@@ -88,7 +88,7 @@ static void createScores(const MnxMusxMappingPtr& context)
         auto mmRests = context->document->getOthers()->getArray<others::MultimeasureRest>(linkedPart->getCmper());
         for (const auto& mmRest : mmRests) {
             auto mnxMmRest = mnxScore.ensure_multimeasureRests().append(
-                mmRest->getStartMeasure(), mmRest->calcNumberOfMeasures());
+                calcGlobalMeasureId(mmRest->getStartMeasure()), mmRest->calcNumberOfMeasures());
             if (!mmRest->calcIsNumberVisible()) {
                 mnxMmRest.set_label("");
             }
@@ -105,7 +105,7 @@ static void createScores(const MnxMusxMappingPtr& context)
                         throw std::logic_error("System " + std::to_string(sysId) + " on page " + std::to_string(page->getCmper())
                             + " in part " + linkedPart->getName() + " does not exist.");
                     }
-                    auto mnxSystem = mnxSystems.append(system->startMeas);
+                    auto mnxSystem = mnxSystems.append(calcGlobalMeasureId(system->startMeas));
                     mnxSystem.set_layout(calcSystemLayoutId(linkedPart->getCmper(), sysId));
                 }
             }

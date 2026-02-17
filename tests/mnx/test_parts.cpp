@@ -72,17 +72,12 @@ TEST(MnxParts, ForcedClef)
     /// check whole rest position
     auto m2seqs = measure2.sequences();
     ASSERT_GE(m2seqs.size(), 2);
-    auto m2contentLayer1 = m2seqs[0].content();
-    ASSERT_GE(m2contentLayer1.size(), 1);
-    EXPECT_EQ(m2contentLayer1.size(), 1);
-    auto measureRest = m2contentLayer1[0];
-    ASSERT_EQ(measureRest.type(), mnx::sequence::Event::ContentTypeValue);
-    auto measureRestAsEvent = m2contentLayer1[0].get<mnx::sequence::Event>();
-    EXPECT_TRUE(measureRestAsEvent.measure());
-    ASSERT_TRUE(measureRestAsEvent.rest().has_value());
-    auto rest = measureRestAsEvent.rest().value();
-    ASSERT_TRUE(rest.staffPosition().has_value());
-    EXPECT_EQ(rest.staffPosition().value(), 4);
+    auto layer1 = m2seqs[0];
+    EXPECT_EQ(layer1.content().size(), 0u);
+    ASSERT_TRUE(layer1.fullMeasure().has_value());
+    auto fullMeasure = layer1.fullMeasure().value();
+    ASSERT_TRUE(fullMeasure.staffPosition().has_value());
+    EXPECT_EQ(fullMeasure.staffPosition().value(), 4);
 
     /// check clefs
     ASSERT_TRUE(measure2.clefs().has_value()) << measure2.dump(4);

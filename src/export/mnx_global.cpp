@@ -277,8 +277,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     MusxInstance<TimeSignature> prevTimeSig;
     for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxDocument->global().measures().append();
-        // MNX default indices match our cmper values, so there is no reason to include them.
-        // mnxMeasure.set_index(musxMeasure->getCmper());
+        mnxMeasure.set_id(calcGlobalMeasureId(musxMeasure->getCmper()));
         assignBarline(mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
         createEnding(mnxMeasure, musxMeasure);
         createFine(context, mnxMeasure, musxMeasure);

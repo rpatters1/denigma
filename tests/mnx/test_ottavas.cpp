@@ -49,7 +49,7 @@ TEST(MnxOttavasTest, OverlappingOttavas)
     // measure 1
     {
         std::vector<mnx::OttavaAmount> expectOttavaType = { mnx::OttavaAmount::TwoOctavesUp, mnx::OttavaAmount::OctaveDown };
-        std::vector<int> expectOttavaEndMeasure = { 2, 2 };
+        std::vector<std::string> expectOttavaEndMeasure = { "m2", "m2" };
         std::vector<musx::util::Fraction> expectOttaveEndPosition = { musx::util::Fraction(1, 4), musx::util::Fraction(1, 4) };
         std::vector<int> expectedNoteOctaves = { 7, 7, 6, 6 };
         auto measure = measures[0];
@@ -122,7 +122,7 @@ TEST(MnxOttavasTest, EndOfBar)
     auto ottava = measures[0].ottavas().value()[0];
     EXPECT_EQ(ottava.position().fraction().numerator(), 1);
     EXPECT_EQ(ottava.position().fraction().denominator(), 1);
-    EXPECT_EQ(ottava.end().measure(), 2);
+    EXPECT_EQ(ottava.end().measure(), "m2");
     EXPECT_EQ(ottava.end().position().fraction().numerator(), 0);
     EXPECT_EQ(ottava.end().position().fraction().denominator(), 1);
 }

@@ -245,7 +245,7 @@ static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<o
                         auto mnxOttava = mnxMeasure.ensure_ottavas().append(
                             enumConvert<mnx::OttavaAmount>(shape->shapeType),
                             mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
-                            shape->endTermSeg->endPoint->measId,
+                            calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
                             mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint));
                         mnxOttava.end().position().set_graceIndex(0);   // guarantees inclusion of any grace notes at the end of the ottava
                         if (mnxStaffNumber) {

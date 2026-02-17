@@ -130,6 +130,11 @@ inline std::string calcVoice(int partStaffNum, LayerIndex idx, int voice)
     return result;
 }
 
+inline std::string calcGlobalMeasureId(Cmper cmperValue)
+{
+    return "m" + std::to_string(cmperValue);
+}
+
 inline std::string calcLyricLineId(const std::string& type, Cmper textNumber)
 {
     return type.substr(0, 1) + std::to_string(textNumber);
