@@ -53,15 +53,15 @@ TEST(MnxScores, MultiInstrumentTest)
     ASSERT_GT(scores[0]["pages"].size(), 3);
     ASSERT_TRUE(scores[0]["pages"][0]["systems"].is_array());
     ASSERT_EQ(scores[0]["pages"][0]["systems"].size(), 1);
-    EXPECT_EQ(scores[0]["pages"][0]["systems"][0]["measure"], 1);
+    EXPECT_EQ(scores[0]["pages"][0]["systems"][0]["measure"], "m1");
     EXPECT_EQ(scores[0]["pages"][0]["systems"][0]["layout"], "S0-Sys1");
     ASSERT_TRUE(scores[0]["pages"][1]["systems"].is_array());
     ASSERT_EQ(scores[0]["pages"][1]["systems"].size(), 1);
-    EXPECT_EQ(scores[0]["pages"][1]["systems"][0]["measure"], 4);
+    EXPECT_EQ(scores[0]["pages"][1]["systems"][0]["measure"], "m4");
     EXPECT_EQ(scores[0]["pages"][1]["systems"][0]["layout"], "S0-Sys2");
     ASSERT_TRUE(scores[0]["pages"][2]["systems"].is_array());
     ASSERT_EQ(scores[0]["pages"][2]["systems"].size(), 1);
-    EXPECT_EQ(scores[0]["pages"][2]["systems"][0]["measure"], 8);
+    EXPECT_EQ(scores[0]["pages"][2]["systems"][0]["measure"], "m8");
     EXPECT_EQ(scores[0]["pages"][2]["systems"][0]["layout"], "S0-Sys3");
 
     EXPECT_EQ(scores[1]["layout"], "S1-ScrVw");
@@ -69,12 +69,12 @@ TEST(MnxScores, MultiInstrumentTest)
     ASSERT_TRUE(scores[1]["multimeasureRests"].is_array());
     ASSERT_EQ(scores[1]["multimeasureRests"].size(), 1);
     EXPECT_EQ(scores[1]["multimeasureRests"][0]["duration"], 101);
-    EXPECT_EQ(scores[1]["multimeasureRests"][0]["start"], 1);
+    EXPECT_EQ(scores[1]["multimeasureRests"][0]["start"], "m1");
     ASSERT_TRUE(scores[1]["pages"].is_array());
     ASSERT_EQ(scores[1]["pages"].size(), 1);
     ASSERT_TRUE(scores[1]["pages"][0]["systems"].is_array());
     ASSERT_EQ(scores[1]["pages"][0]["systems"].size(), 1);
-    EXPECT_EQ(scores[1]["pages"][0]["systems"][0]["measure"], 1);
+    EXPECT_EQ(scores[1]["pages"][0]["systems"][0]["measure"], "m1");
     EXPECT_EQ(scores[1]["pages"][0]["systems"][0]["layout"], "S1-Sys1");
 
     EXPECT_EQ(scores[2]["layout"], "S2-ScrVw");
@@ -82,12 +82,12 @@ TEST(MnxScores, MultiInstrumentTest)
     ASSERT_TRUE(scores[2]["multimeasureRests"].is_array());
     ASSERT_EQ(scores[2]["multimeasureRests"].size(), 1);
     EXPECT_EQ(scores[2]["multimeasureRests"][0]["duration"], 101);
-    EXPECT_EQ(scores[2]["multimeasureRests"][0]["start"], 1);
+    EXPECT_EQ(scores[2]["multimeasureRests"][0]["start"], "m1");
     ASSERT_TRUE(scores[2]["pages"].is_array());
     ASSERT_EQ(scores[2]["pages"].size(), 1);
     ASSERT_TRUE(scores[2]["pages"][0]["systems"].is_array());
     ASSERT_EQ(scores[2]["pages"][0]["systems"].size(), 1);
-    EXPECT_EQ(scores[2]["pages"][0]["systems"][0]["measure"], 1);
+    EXPECT_EQ(scores[2]["pages"][0]["systems"][0]["measure"], "m1");
     EXPECT_EQ(scores[2]["pages"][0]["systems"][0]["layout"], "S2-Sys1");
 
 
@@ -96,11 +96,11 @@ TEST(MnxScores, MultiInstrumentTest)
     ASSERT_TRUE(scores[3]["multimeasureRests"].is_array());
     ASSERT_EQ(scores[3]["multimeasureRests"].size(), 1);
     EXPECT_EQ(scores[3]["multimeasureRests"][0]["duration"], 101);
-    EXPECT_EQ(scores[3]["multimeasureRests"][0]["start"], 1);
+    EXPECT_EQ(scores[3]["multimeasureRests"][0]["start"], "m1");
     ASSERT_TRUE(scores[3]["pages"].is_array());
     ASSERT_EQ(scores[3]["pages"].size(), 1);
     ASSERT_TRUE(scores[3]["pages"][0]["systems"].is_array());
     ASSERT_EQ(scores[3]["pages"][0]["systems"].size(), 1);
-    EXPECT_EQ(scores[3]["pages"][0]["systems"][0]["measure"], 1);
+    EXPECT_EQ(scores[3]["pages"][0]["systems"][0]["measure"], "m1");
     EXPECT_EQ(scores[3]["pages"][0]["systems"][0]["layout"], "S3-Sys1");
 }

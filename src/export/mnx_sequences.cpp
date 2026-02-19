@@ -447,19 +447,36 @@ static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnx::s
     const auto musxEntry = musxEntryInfo->getEntry();
 
     auto mnxRest = mnxEvent.ensure_rest();
-    if (musxEntryInfo.calcIsFullMeasureRest()) {
-        mnxEvent.clear_duration();
-        mnxEvent.set_measure(true);
-    }
     // If a rest is hidden, it has been detected as a beam workaround, so its staff position is meaningless
     if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
         auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
         auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView());
-        if (mnxEvent.measure() || (mnxEvent.duration() && mnxEvent.duration().value().base() == mnx::NoteValueBase::Whole)) {
+        if (mnxEvent.duration().base() == mnx::NoteValueBase::Whole) {
             staffPosition += 2; // compensate for discrepancy in Finale vs. MNX whole rest staff positions.
         }
         mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
     }
+}
+
+static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnx::ContentArray content,
+    const EntryInfoPtr& musxEntryInfo)
+{
+    auto sequence = content.getEnclosingElement<mnx::Sequence>();
+    if (!sequence) {
+        context->logMessage(LogMsg() << " full measure rest could not be assigned to a top-level sequence.", LogSeverity::Warning);
+        return;
+    }
+
+    auto fullMeasure = sequence->ensure_fullMeasure();
+    const auto musxEntry = musxEntryInfo->getEntry();
+    if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
+        if (const auto musxStaff = musxEntryInfo.createCurrentStaff()) {
+            auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
+            auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView()) + 2;
+            fullMeasure.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
+        }
+    }
+    content.clear();
 }
 
 static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
@@ -515,9 +532,8 @@ static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& 
     if (forTremolo && tupletDef) {
         effectiveDura = tupletDef->calcReferenceDuration().calcEduDuration();
     }
-    auto mnxEvent = content.append<mnx::sequence::Event>();
     const auto noteValue = mnxNoteValueFromEdu(effectiveDura);
-    mnxEvent.ensure_duration(noteValue.base, noteValue.dots);
+    auto mnxEvent = content.append<mnx::sequence::Event>(noteValue.base, noteValue.dots);
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
     createLyrics(context, mnxEvent, musxEntryInfo);
     createMarkings(context, mnxEvent, musxEntry);
@@ -650,15 +666,17 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             return nullptr;
         }();
 
-        const auto addedEvent = createEvent(context, content, next.getEntryInfo(), next.getEffectiveHidden(), hasVoice1Voice2, tupletDef, inTremolo);
-
-        if (addedEvent && addedEvent->measure()) {
+        const bool fullMeasureRest = next.getEntryInfo().calcIsFullMeasureRest();
+        if (fullMeasureRest) {
+            createFullMeasureRest(context, content, next.getEntryInfo());
             elapsedInSequence = currElapsedDuration + next.getEffectiveMeasureStaffDuration();
         } else {
+            createEvent(context, content, next.getEntryInfo(), next.getEffectiveHidden(), hasVoice1Voice2, tupletDef, inTremolo);
             elapsedInSequence = currElapsedDuration + next.getEffectiveActualDuration();
         }
+
         next = next.getNext();
-        if (inGrace && next) {
+        if (!fullMeasureRest && inGrace && next) {
             const auto nextInfo = next.getEntryInfo();
             if (nextInfo.calcUnbeamed() || nextInfo.calcIsBeamStart()) {
                 // each beam group should be coded as a separate grace note sequence, so that we can control

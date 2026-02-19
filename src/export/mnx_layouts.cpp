@@ -96,6 +96,26 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
     */
 }
 
+static bool hasInstrumentStaffGroupMapping(
+    const MnxMusxMappingPtr& context,
+    const details::StaffGroupInfo& groupInfo)
+{
+    if (!groupInfo.startSlot) {
+        return false;
+    }
+    const size_t slot = groupInfo.startSlot.value();
+    if (slot >= groupInfo.systemStaves.size()) {
+        return false;
+    }
+
+    const StaffCmper staffId = groupInfo.systemStaves[slot]->staffId;
+    const auto& instruments = context->document->getInstruments();
+    if (const auto* instInfo = InstrumentInfo::getInstrumentForStaff(instruments, staffId)) {
+        return instInfo->staffGroupId == groupInfo.group->getCmper2();
+    }
+    return false;
+}
+
 static void buildOrderedContent(
     mnx::ContentArray&& content,
     const MnxMusxMappingPtr& context,
@@ -116,6 +136,19 @@ static void buildOrderedContent(
         if (groupIndex < groups.size() && index >= *groups[groupIndex].startSlot && index <= *groups[groupIndex].endSlot) {
             auto group = groups[groupIndex];
             auto mnxGroup = content.append<mnx::layout::Group>();
+            switch (group.group->drawBarlines) {
+            case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves:
+                mnxGroup.set_or_clear_barlineStyle(mnx::StaffGroupBarlineStyle::Individual);
+                break;
+            case details::StaffGroup::DrawBarlineStyle::ThroughStaves:
+                mnxGroup.set_or_clear_barlineStyle(hasInstrumentStaffGroupMapping(context, group)
+                    ? mnx::StaffGroupBarlineStyle::Instrument
+                    : mnx::StaffGroupBarlineStyle::Unified);
+                break;
+            case details::StaffGroup::DrawBarlineStyle::Mensurstriche:
+                mnxGroup.set_or_clear_barlineStyle(mnx::StaffGroupBarlineStyle::Mensurstrich);
+                break;
+            }
             if (!group.group->hideName) {
                 auto name = forMeas->calcShouldShowFullNames()
                     ? group.group->getFullInstrumentName()
