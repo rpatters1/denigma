@@ -55,6 +55,18 @@ TEST(Options, IncorrectOptions)
         });
     }
     {
+        ArgList args = { DENIGMA_NAME, "--bogus" };
+        checkStderr("Unknown or misplaced option: --bogus", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "unknown option before input should fail";
+        });
+    }
+    {
+        ArgList args = { DENIGMA_NAME, "--testing", "export", "--mss", "input.musx" };
+        checkStderr("Unknown or misplaced option: --mss", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "misplaced output option should fail";
+        });
+    }
+    {
         ArgList args = { DENIGMA_NAME, "--testing", "export", "input", "--xxx" };
         checkStderr("Unsupported format: ", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid input format (none)";
@@ -126,6 +138,15 @@ TEST(Options, ParseOptions)
         checkStdout(std::string(ctx.programName) + " " + DENIGMA_VERSION, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "show version";
         });
+    }
+    {
+        ArgList args = { DENIGMA_NAME, "--force", "export", "notAscii-其れ.musx" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 2);
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[0])), "export");
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[1])), "notAscii-其れ.musx");
+        EXPECT_TRUE(ctx.overwriteExisting);
     }
     {
         static const std::string fileName = "notAscii-其れ.invalid";
@@ -374,5 +395,25 @@ TEST(Options, MassageOptions)
         EXPECT_EQ(newArgs.size(), 2);
         ASSERT_TRUE(ctx.finaleFilePath.has_value());
         EXPECT_EQ(pathString(ctx.finaleFilePath.value()), "parentƒ");
+    }
+}
+
+TEST(Options, ForceOptionBeforeInputPattern)
+{
+    setupTestDataPaths();
+    std::string inputFile = "notAscii-其れ";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".musx", inputPath);
+
+    {
+        ArgList createArgs = { DENIGMA_NAME, "export", pathString(inputPath) };
+        EXPECT_EQ(denigmaTestMain(createArgs.argc(), createArgs.argv()), 0) << "initial export for " << pathString(inputPath);
+    }
+
+    {
+        ArgList forceArgs = { DENIGMA_NAME, "--force", "export", pathString(inputPath) };
+        checkStderr({ "Overwriting", inputFile + ".enigmaxml" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(forceArgs.argc(), forceArgs.argv()), 0) << "force option before input pattern should overwrite";
+        });
     }
 }

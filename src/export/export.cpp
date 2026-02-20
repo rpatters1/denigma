@@ -108,7 +108,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     // Supported output formats
     std::cout << indentSpaces << "Supported output options:" << std::endl;
     for (const auto& output : outputProcessors) {
-        std::cout << indentSpaces << "  --" << utils::utf8ToString(output.extension) << " [optional filepath]";
+        std::cout << indentSpaces << "  --" << utils::utf8ToString(output.extension) << " [optional filepath, relative to current directory]";
         if (output.extension == defaultOutputFormat({})) {
             std::cout << " (default output format)";
         }

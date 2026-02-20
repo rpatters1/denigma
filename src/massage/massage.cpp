@@ -112,7 +112,7 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
     // Supported output formats
     std::cout << indentSpaces << "Supported output options:" << std::endl;
     for (const auto& output : outputProcessors) {
-        std::cout << indentSpaces << "  --" << utils::utf8ToString(output.extension) << " [optional filepath]" << std::endl;
+        std::cout << indentSpaces << "  --" << utils::utf8ToString(output.extension) << " [optional filepath, relative to current directory]" << std::endl;
     }
     std::cout << indentSpaces << std::endl;
 

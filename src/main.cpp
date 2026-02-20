@@ -26,6 +26,7 @@
 #include <memory>
 #include <chrono>
 #include <regex>
+#include <stdexcept>
 #include <clocale>
 
 #include "musx/musx.h"
@@ -75,16 +76,17 @@ static int showHelpPage(const std::string_view& programName)
     }
 
     std::cout << std::endl;
-    std::cout << "By default, if the input is a single file, messages are sent to std::cerr." << std::endl;
-    std::cout << "If the input is multiple files, messages are logged in `" << programName << "-logs` in the top-level input directory." << std::endl;
+    std::cout << "By default, messages are sent to std::cerr." << std::endl;
     std::cout << std::endl;
     std::cout << "Logging options:" << std::endl;
-    std::cout << "  --log [optional-logfile-path]   Always log messages instead of sending them to std::cerr" << std::endl;
+    std::cout << "  --log [optional-logfile-path]   Log messages to file instead of sending them to std::cerr" << std::endl;
     std::cout << "  --no-log                        Always send messages to std::cerr (overrides any other logging options)" << std::endl;
     std::cout << "  --quiet                         Only display errors and warning messages (overrides --verbose)" << std::endl;
     std::cout << "  --verbose                       Verbose output" << std::endl;
     std::cout << std::endl;
-    std::cout << "Any relative path is relative to the parent path of the input file or (for log files) to the top-level input folder." << std::endl;
+    std::cout << "Relative input and explicit output paths are resolved from the current working directory." << std::endl;
+    std::cout << "Default output files (no explicit output path) are written next to each input file." << std::endl;
+    std::cout << "Relative log paths for --log are resolved from the top-level input folder." << std::endl;
 
     return 1;
 }
@@ -175,9 +177,11 @@ int _MAIN(int argc, arg_char* argv[])
     std::optional<std::filesystem::path> defaultLogPath;
 
     try {
+        std::optional<std::string> optionBeforeInput;
         for (size_t x = 0; x < args.size(); x++) {
             arg_view option = args[x];
             if (option.rfind(_ARG("--"), 0) == 0) {  // Options start with "--"
+                optionBeforeInput = std::string(arg_string(option));
                 break;
             }
             const std::filesystem::path rawInputPattern = option;
@@ -205,10 +209,6 @@ int _MAIN(int argc, arg_char* argv[])
             if (inputDirectoryExists && !defaultLogPath.has_value()) {
                 defaultLogPath = inputDir;
             }
-            if (!std::filesystem::is_regular_file(inputFilePattern) && !isSpecificFile && !denigmaContext.logFilePath.has_value()) {
-                denigmaContext.logFilePath = "";
-            }
-
             // convert wildcard pattern to regex
             auto wildcardPattern = inputFilePattern.filename().native(); // native format avoids encoding issues
 #ifdef _WIN32
@@ -255,8 +255,8 @@ int _MAIN(int argc, arg_char* argv[])
                 pathsToProcess.emplace(inputFilePattern);
             }
         }
-        if (pathsToProcess.size() > 1 && !denigmaContext.logFilePath.has_value()) {
-            denigmaContext.logFilePath = "";
+        if (pathsToProcess.empty() && optionBeforeInput.has_value()) {
+            throw std::invalid_argument("Unknown or misplaced option: " + optionBeforeInput.value());
         }
         denigmaContext.startLogging(defaultLogPath.value_or(std::filesystem::current_path()), argc, argv);
         if (denigmaContext.mnxSchemaPath.has_value() && !denigmaContext.mnxSchema.has_value()) {
