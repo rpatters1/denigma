@@ -7,7 +7,7 @@ set -o nounset
 # Change to the parent directory of the script
 cd "$(dirname "$0")/.."
 
-BUILD_DIR="build"
+BUILD_DIR="build-release"
 rm -rf "$BUILD_DIR"
 
 # Configure the project with Ninja for Release
