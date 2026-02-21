@@ -109,12 +109,11 @@ TEST(Logging, PatternFile)
     copyInputToOutput("notAscii-其れ.musx", inputPath);
     inputPath = getOutputPath() / "*.musx";
     ArgList args1 = { DENIGMA_NAME, "export", pathString(inputPath) };
-    checkStderr("", [&]() {
+    checkStderr({ "Processing", "notAscii-其れ.musx", "Output", "notAscii-其れ.enigmaxml" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args1.argc(), args1.argv()), 0) << "create from " << pathString(inputPath);
     });
     auto logPath = inputPath.parent_path() / (std::string(DENIGMA_NAME) + "-logs");
-    EXPECT_TRUE(std::filesystem::exists(logPath)) << "log file should have been created";
-    assertStringsInFile({ "Processing", "notAscii-其れ.musx", "Output", "notAscii-其れ.enigmaxml" }, logPath, ".log");
+    EXPECT_FALSE(std::filesystem::exists(logPath)) << "no log file should have been created";
 }
 
 TEST(Logging, Directory)
@@ -124,12 +123,11 @@ TEST(Logging, Directory)
     copyInputToOutput("notAscii-其れ.musx", inputPath);
     inputPath = getOutputPath();
     ArgList args1 = { DENIGMA_NAME, "export", pathString(inputPath) };
-    checkStderr("", [&]() {
+    checkStderr({ "Processing", "notAscii-其れ.musx", "Output", "notAscii-其れ.enigmaxml" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args1.argc(), args1.argv()), 0) << "create from " << pathString(inputPath);
     });
     auto logPath = inputPath / (std::string(DENIGMA_NAME) + "-logs");
-    EXPECT_TRUE(std::filesystem::exists(logPath)) << "log file should have been created";
-    assertStringsInFile({ "Processing", "notAscii-其れ.musx", "Output", "notAscii-其れ.enigmaxml" }, logPath, ".log");
+    EXPECT_FALSE(std::filesystem::exists(logPath)) << "no log file should have been created";
 }
 
 TEST(Logging, AutoGlobSimulation)
@@ -142,11 +140,10 @@ TEST(Logging, AutoGlobSimulation)
     auto currentPath = std::filesystem::current_path();
     std::filesystem::current_path(inputPath.parent_path());
     ArgList args = { DENIGMA_NAME, "export", "notAscii-其れ.musx", "pageDiffThanOpts.musx", "tremolos.musx" };
-    checkStderr("", [&]() {
+    checkStderr({ "Processing", "pageDiffThanOpts.musx", "tremolos.musx", "notAscii-" }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << "*.musx";
     });
     std::filesystem::current_path(currentPath);
     auto logPath = inputPath.parent_path() / (std::string(DENIGMA_NAME) + "-logs");
-    EXPECT_TRUE(std::filesystem::exists(logPath)) << "log file should have been created";
-    assertStringsInFile({ "Processing", "pageDiffThanOpts.musx", "tremolos.musx", "notAscii-" }, logPath, ".log");
+    EXPECT_FALSE(std::filesystem::exists(logPath)) << "no log file should have been created";
 }

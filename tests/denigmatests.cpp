@@ -117,6 +117,10 @@ void setupTestDataPaths()
     ASSERT_EQ(pathString(*(--parentDir.end())), "tests");
     ASSERT_TRUE(std::filesystem::exists(getInputPath()));
     ASSERT_NO_THROW({
+        auto exportsDir = std::filesystem::current_path() / "-exports";
+        if (std::filesystem::exists(exportsDir)) {
+            std::filesystem::remove_all(exportsDir);
+        }
         auto outputDir = getOutputPath();
         if (std::filesystem::exists(outputDir)) {
             std::filesystem::remove_all(outputDir);

@@ -113,8 +113,8 @@ TEST(Massage, Subdirectory)
         });
         std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".massaged.musicxml");
         std::filesystem::path referencePath = getInputPath() / "reference" / "musicxml" / musicXmlFilename;
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "musicxml" / "-exports" / musicXmlFilename));
-        compareFiles(referencePath, getOutputPath() / "musicxml" / "-exports" / musicXmlFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / musicXmlFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / musicXmlFilename);
     }
     copyInputToOutput(inputFile + ".mxl", inputPath); // inputPath now points to mxl file
     // mxl -> mxl
@@ -124,7 +124,7 @@ TEST(Massage, Subdirectory)
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << pathString(inputPath);
         });
         std::filesystem::path mxlFilename = utils::utf8ToPath(inputFile + ".massaged.mxl");
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / mxlFilename));
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / mxlFilename));
     }
 }
 
@@ -137,7 +137,7 @@ TEST(Massage, OutputFilename)
     copyInputToOutput("musicxml/" + inputFile + ".musicxml", inputPath); // inputPath now points to musicxml file
     // musicxml -> musicxml (no overwrite self)
     {
-        ArgList args = { DENIGMA_NAME, "massage", pathString(inputPath), "--musicxml", inputFile + ".musicxml" };
+        ArgList args = { DENIGMA_NAME, "massage", pathString(inputPath), "--musicxml", pathString(inputPath) };
         checkStderr({ "Input and output are the same. No action taken.", pathString(inputPath.filename()) }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "no self-overwrite " << pathString(inputPath);
         });
@@ -150,8 +150,8 @@ TEST(Massage, OutputFilename)
         });
         std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".no-ottavas-left.musicxml");
         std::filesystem::path referencePath = getInputPath() / "reference" / "musicxml" / utils::utf8ToPath(inputFile + ".no-ottavas-left.musicxml");
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "musicxml" / "-exports" / musicXmlFilename));
-        compareFiles(referencePath, getOutputPath() / "musicxml" / "-exports" / musicXmlFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / musicXmlFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / musicXmlFilename);
     }
     // musicxml -> musicxml (no ottava-right)
     {
@@ -161,8 +161,8 @@ TEST(Massage, OutputFilename)
         });
         std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".no-ottavas-right.musicxml");
         std::filesystem::path referencePath = getInputPath() / "reference" / "musicxml" / utils::utf8ToPath(inputFile + ".no-ottavas-right.musicxml");
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "musicxml" / "-exports" / musicXmlFilename));
-        compareFiles(referencePath, getOutputPath() / "musicxml" / "-exports" / musicXmlFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / musicXmlFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / musicXmlFilename);
     }
     // musicxml -> musicxml (no ottava-left)
     {
@@ -172,8 +172,8 @@ TEST(Massage, OutputFilename)
         });
         std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".no-ottavas-left.musicxml");
         std::filesystem::path referencePath = getInputPath() / "reference" / "musicxml" / utils::utf8ToPath(inputFile + ".no-ottavas-left.musicxml");
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "musicxml" / "-exports" / musicXmlFilename));
-        compareFiles(referencePath, getOutputPath() / "musicxml" / "-exports" / musicXmlFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / musicXmlFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / musicXmlFilename);
     }
     copyInputToOutput(inputFile + ".mxl", inputPath); // inputPath now points to mxl file
     // mxl -> musicxml (no fermata-whole-rests)
@@ -184,8 +184,8 @@ TEST(Massage, OutputFilename)
         });
         std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".no-fermata-whole-rests.musicxml");
         std::filesystem::path referencePath = getInputPath() / "reference" / utils::utf8ToPath(inputFile + ".no-fermata-whole-rests.musicxml");
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / musicXmlFilename));
-        compareFiles(referencePath, getOutputPath() / "-exports" / musicXmlFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / musicXmlFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / musicXmlFilename);
     }
     // mxl -> musicxml (no refloat-rests)
     {
@@ -195,8 +195,8 @@ TEST(Massage, OutputFilename)
         });
         std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".no-refloat-rests.musicxml");
         std::filesystem::path referencePath = getInputPath() / "reference" / utils::utf8ToPath(inputFile + ".no-refloat-rests.musicxml");
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / musicXmlFilename));
-        compareFiles(referencePath, getOutputPath() / "-exports" / musicXmlFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / musicXmlFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / musicXmlFilename);
     }
 }
 
@@ -232,8 +232,8 @@ TEST(Massage, Parts)
         });
         std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".オボえ.massaged.musicxml");
         std::filesystem::path referencePath = getInputPath() / "reference" / musicXmlFilename;
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / musicXmlFilename));
-        compareFiles(referencePath, getOutputPath() / "-exports" / musicXmlFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / musicXmlFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / musicXmlFilename);
     }
     // non-existent part
     {
@@ -250,12 +250,12 @@ TEST(Massage, Parts)
         });
         std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".massaged.musicxml");
         std::filesystem::path referencePath = getInputPath() / "reference" / musicXmlFilename;
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / musicXmlFilename));
-        compareFiles(referencePath, getOutputPath() / "-exports" / musicXmlFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / musicXmlFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / musicXmlFilename);
         std::filesystem::path musicXmlFilenamePart = utils::utf8ToPath(inputFile + ".オボえ.massaged.musicxml");
         std::filesystem::path referencePathPart = getInputPath() / "reference" / musicXmlFilenamePart;
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / musicXmlFilenamePart));
-        compareFiles(referencePathPart, getOutputPath() / "-exports" / musicXmlFilenamePart);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / musicXmlFilenamePart));
+        compareFiles(referencePathPart, std::filesystem::current_path() / "-exports" / musicXmlFilenamePart);
     }
 }
 

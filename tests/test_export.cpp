@@ -93,8 +93,8 @@ TEST(Export, Subdirectory)
         });
         std::filesystem::path enigmaFilename = utils::utf8ToPath(inputFile + ".enigmaxml");
         std::filesystem::path referencePath = getInputPath() / "reference" / enigmaFilename;
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / enigmaFilename));
-        compareFiles(referencePath, getOutputPath() / "-exports" / enigmaFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / enigmaFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / enigmaFilename);
     }
     // mss
     {
@@ -104,8 +104,8 @@ TEST(Export, Subdirectory)
         });
         std::filesystem::path mssFilename = utils::utf8ToPath(inputFile + ".mss");
         std::filesystem::path referencePath = getInputPath() / "reference" / mssFilename;
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / mssFilename));
-        compareFiles(referencePath, getOutputPath() / "-exports" / mssFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / mssFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / mssFilename);
     }
 }
 
@@ -123,8 +123,8 @@ TEST(Export, OutputFilename)
         });
         std::filesystem::path enigmaFilename = utils::utf8ToPath("output.enigmaxml");
         std::filesystem::path referencePath = getInputPath() / "reference" / utils::utf8ToPath(inputFile + ".enigmaxml");
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / enigmaFilename));
-        compareFiles(referencePath, getOutputPath() / "-exports" / enigmaFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / enigmaFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / enigmaFilename);
     }
     // mss
     {
@@ -134,8 +134,8 @@ TEST(Export, OutputFilename)
         });
         std::filesystem::path mssFilename = utils::utf8ToPath("output.mss");
         std::filesystem::path referencePath = getInputPath() / "reference" / utils::utf8ToPath(inputFile + ".mss");
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / mssFilename));
-        compareFiles(referencePath, getOutputPath() / "-exports" / mssFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / mssFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / mssFilename);
     }
 }
 
@@ -160,8 +160,8 @@ TEST(Export, SvgOutput)
         checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "explicit svg output filename";
         });
-        auto explicitFile = getOutputPath() / utils::utf8ToPath("-exports/output.svg");
-        auto suffixedFile = getOutputPath() / utils::utf8ToPath("-exports/output.shape-3.svg");
+        auto explicitFile = std::filesystem::current_path() / utils::utf8ToPath("-exports/output.svg");
+        auto suffixedFile = std::filesystem::current_path() / utils::utf8ToPath("-exports/output.shape-3.svg");
         EXPECT_TRUE(std::filesystem::exists(explicitFile));
         EXPECT_FALSE(std::filesystem::exists(suffixedFile));
         assertStringInFile("<svg", explicitFile);
@@ -226,8 +226,8 @@ TEST(Export, Parts)
         });
         std::filesystem::path mssFilename = utils::utf8ToPath(inputFile + ".オボえ.mss");
         std::filesystem::path referencePath = getInputPath() / "reference" / mssFilename;
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / mssFilename));
-        compareFiles(referencePath, getOutputPath() / "-exports" / mssFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / mssFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / mssFilename);
     }
     // non-existent part
     {
@@ -244,12 +244,12 @@ TEST(Export, Parts)
         });
         std::filesystem::path mssFilename = utils::utf8ToPath(inputFile + ".mss");
         std::filesystem::path referencePath = getInputPath() / "reference" / mssFilename;
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / mssFilename));
-        compareFiles(referencePath, getOutputPath() / "-exports" / mssFilename);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / mssFilename));
+        compareFiles(referencePath, std::filesystem::current_path() / "-exports" / mssFilename);
         std::filesystem::path mssFilenamePart = utils::utf8ToPath(inputFile + ".オボえ.mss");
         std::filesystem::path referencePathPart = getInputPath() / "reference" / mssFilenamePart;
-        EXPECT_TRUE(std::filesystem::exists(getOutputPath() / "-exports" / mssFilenamePart));
-        compareFiles(referencePathPart, getOutputPath() / "-exports" / mssFilenamePart);
+        EXPECT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / mssFilenamePart));
+        compareFiles(referencePathPart, std::filesystem::current_path() / "-exports" / mssFilenamePart);
     }
 }
 
@@ -327,7 +327,7 @@ TEST(Export, ReverseMusxTimestamp)
         });
     }
 
-    std::filesystem::path reverseMusxPath = getOutputPath() / "-exports" / "pageDiffThanOpts.rev.musx";
+    std::filesystem::path reverseMusxPath = std::filesystem::current_path() / "-exports" / "pageDiffThanOpts.rev.musx";
     {
         ArgList args = { DENIGMA_NAME, "export", pathString(enigmaxmlPath), "--musx", "-exports/pageDiffThanOpts.rev.musx", "--force" };
         checkStderr({ "Processing", pathString(enigmaxmlPath.filename()) }, [&]() {

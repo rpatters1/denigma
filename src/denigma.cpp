@@ -401,9 +401,6 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
 
         auto calcOutpuFilePath = [&](const std::filesystem::path& path, std::u8string_view format) -> std::filesystem::path {
             std::filesystem::path retval = path;
-            if (retval.is_relative()) {
-                retval = inputFilePath.parent_path() / retval;
-            }
             if (retval.empty()) {
                 retval = std::filesystem::current_path();
             }
