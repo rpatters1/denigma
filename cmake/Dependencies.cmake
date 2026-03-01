@@ -3,7 +3,7 @@
 
 # For dev cycle (point to branch):
 set(MNXDOM_GIT_TAG_OR_BRANCH "e7c947bf768caccf315426dcae0dfac02caf738b" CACHE STRING "")
-set(MUSXDOM_GIT_TAG_OR_BRANCH "56dbe8dbdc2e506301ed4d3a3a0b794fba40ad38" CACHE STRING "")
+set(MUSXDOM_GIT_TAG_OR_BRANCH "1064ccc5abb4058cc5ca48914bdc52de23ad5e2e" CACHE STRING "")
 set(SMUFL_MAPPING_GIT_TAG_OR_BRANCH "c144442232770c57b50d7d2b736642bcf2d84597" CACHE STRING "")
 
 # For release (point to tag or commit hash):
