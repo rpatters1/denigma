@@ -89,7 +89,7 @@ JumpType convertTextToJump(const std::string& text, const std::optional<std::str
 }
 
 std::vector<EventMarkingType> calcMarkingType(const EntryInfoPtr& entryInfo,
-    const MusxInstance<details::ArticulationAssign>& articDef,
+    const MusxInstance<details::ArticulationAssign>& articAssign,
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark)
 {
@@ -187,7 +187,7 @@ std::vector<EventMarkingType> calcMarkingType(const EntryInfoPtr& entryInfo,
     };
     
     auto checkShape = [&](Cmper shapeId) -> std::vector<EventMarkingType> {
-        if (auto shape = articDef->getDocument()->getOthers()->get<others::ShapeDef>(articDef->getRequestedPartId(), shapeId)) {
+        if (auto shape = articAssign->getDocument()->getOthers()->get<others::ShapeDef>(articAssign->getRequestedPartId(), shapeId)) {
             switch (shape->recognize()) {
             case KnownShapeDefType::TenutoMark:
                 return { EventMarkingType::Tenuto };
@@ -198,10 +198,10 @@ std::vector<EventMarkingType> calcMarkingType(const EntryInfoPtr& entryInfo,
         return {};
     };
 
-    if (const auto symbolContext = articDef->calcSelectedSymbolContext(entryInfo)) {
+    if (const auto symbolContext = articAssign->calcSelectedSymbolContext(entryInfo)) {
         auto result = symbolContext->symbol.isShape
-            ? checkShape(symbolContext->symbol.shapeId)
-            : checkSymbol(symbolContext->symbol.character, symbolContext->symbol.font);
+                    ? checkShape(symbolContext->symbol.shapeId)
+                    : checkSymbol(symbolContext->symbol.character, symbolContext->symbol.font);
         return result;
     }
     return {};
