@@ -68,7 +68,8 @@ enum class EventMarkingType
 };
 
 JumpType convertTextToJump(const std::string& text, const std::optional<std::string>& glyphName);
-std::vector<EventMarkingType> calcMarkingType(const MusxInstance<others::ArticulationDef>& artic,
+std::vector<EventMarkingType> calcMarkingType(const EntryInfoPtr& entryInfo,
+    const MusxInstance<details::ArticulationAssign>& articDef,
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark);
 

@@ -88,7 +88,8 @@ JumpType convertTextToJump(const std::string& text, const std::optional<std::str
     return JumpType::None;
 }
 
-std::vector<EventMarkingType> calcMarkingType(const MusxInstance<others::ArticulationDef>& artic,
+std::vector<EventMarkingType> calcMarkingType(const EntryInfoPtr& entryInfo,
+    const MusxInstance<details::ArticulationAssign>& articDef,
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark)
 {
@@ -186,7 +187,7 @@ std::vector<EventMarkingType> calcMarkingType(const MusxInstance<others::Articul
     };
     
     auto checkShape = [&](Cmper shapeId) -> std::vector<EventMarkingType> {
-        if (auto shape = artic->getDocument()->getOthers()->get<others::ShapeDef>(artic->getRequestedPartId(), shapeId)) {
+        if (auto shape = articDef->getDocument()->getOthers()->get<others::ShapeDef>(articDef->getRequestedPartId(), shapeId)) {
             switch (shape->recognize()) {
             case KnownShapeDefType::TenutoMark:
                 return { EventMarkingType::Tenuto };
@@ -197,18 +198,13 @@ std::vector<EventMarkingType> calcMarkingType(const MusxInstance<others::Articul
         return {};
     };
 
-    auto main = artic->mainIsShape
-              ? checkShape(artic->mainShape)
-              : checkSymbol(artic->charMain, artic->fontMain);
-    if (!main.empty()) {
-        return main;
+    if (const auto symbolContext = articDef->calcSelectedSymbolContext(entryInfo)) {
+        auto result = symbolContext->symbol.isShape
+            ? checkShape(symbolContext->symbol.shapeId)
+            : checkSymbol(symbolContext->symbol.character, symbolContext->symbol.font);
+        return result;
     }
-
-    auto alt = artic->altIsShape
-             ? checkShape(artic->altShape)
-             : checkSymbol(artic->charAlt, artic->fontAlt);
-
-    return alt;
+    return {};
 }
 
 mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration)
