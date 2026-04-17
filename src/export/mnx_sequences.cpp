@@ -252,10 +252,11 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
         if (!asgn->hide) {
             std::optional<int> numMarks;
             std::optional<mnx::BreathMarkSymbol> breathMark;
-            auto marks = calcMarkingType(musxEntryInfo, asgn, numMarks, breathMark);
-            for (auto mark : marks) {
-                auto mnxMarkings = mnxEvent.ensure_markings();
-                switch (mark) {
+            if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
+                auto marks = calcMarkingType(symbolContext.value(), numMarks, breathMark);
+                for (auto mark : marks) {
+                    auto mnxMarkings = mnxEvent.ensure_markings();
+                    switch (mark) {
                     case EventMarkingType::Accent:
                         if (!mnxMarkings.accent().has_value()) {
                             mnxMarkings.ensure_accent();
@@ -315,9 +316,11 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
                         }
                         break;
                     default:
-                        ASSERT_IF(true) {
+                        ASSERT_IF(true)
+                        {
                             throw std::logic_error("Encountered unknown event marking type " + std::to_string(int(mark)));
                         }
+                    }
                 }
             }
         }
