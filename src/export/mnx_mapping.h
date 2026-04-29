@@ -72,7 +72,7 @@ std::vector<EventMarkingType> calcMarkingType(
     const details::ArticulationAssign::SelectedSymbolContext& articContext,
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark);
-std::optional<mnx::Fermata> calcFermata(const std::shared_ptr<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
+std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
 
 mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
 mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);

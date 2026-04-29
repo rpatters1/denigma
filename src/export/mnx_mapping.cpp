@@ -205,7 +205,7 @@ std::vector<EventMarkingType> calcMarkingType(
     return result;
 }
 
-std::optional<mnx::Fermata> calcFermata(const std::shared_ptr<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
+std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
 {
     if (placement == VerticalPlacement::NotApplicable) {
         return std::nullopt;

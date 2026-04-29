@@ -265,10 +265,32 @@ static void assignTimeSignature(
     }
 }
 
+static void createBarlineFermata(const MnxMusxMappingPtr& context, mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
+{
+    const auto& musxDocument = context->document;
+    const auto forPartId = musxMeasure->getRequestedPartId();
+    const auto exprAssigns = musxDocument->getOthers()->getArray<others::MeasureExprAssign>(forPartId, musxMeasure->getCmper());
+    for (const auto& exprAssign : exprAssigns) {
+        if (!exprAssign->hidden && exprAssign->calcIsPartOfStaffListAssignment()) {
+            if (const auto textExp = exprAssign->getTextExpression(); textExp && textExp->horzMeasExprAlign == others::HorizontalMeasExprAlign::RightBarline) {
+                if (const auto textCtx = textExp->getRawTextCtx(forPartId)) {
+                    if (const auto symbol = utils::utf8ToCodepoint(textCtx.getText(true))) {
+                        const auto fontInfo = textCtx.parseFirstFontInfo();
+                        if (const auto fermata = calcFermata(fontInfo, symbol.value(), VerticalPlacement::Float)) {
+                            mnxMeasure.set_fermata(fermata.value());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 static void createGlobalMeasures(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-    auto& musxDocument = context->document;
+    const auto& musxDocument = context->document;
 
     // Retrieve the linked parts in order.
     auto musxMeasures = musxDocument->getOthers()->getArray<others::Measure>(SCORE_PARTID);
@@ -280,6 +302,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         mnxMeasure.set_id(calcGlobalMeasureId(musxMeasure->getCmper()));
         assignBarline(mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
         createEnding(mnxMeasure, musxMeasure);
+        createBarlineFermata(context, mnxMeasure, musxMeasure);
         createFine(context, mnxMeasure, musxMeasure);
         createJump(context, mnxMeasure, musxMeasure);
         assignKey(mnxMeasure, musxMeasure, prevKeyFifths);
