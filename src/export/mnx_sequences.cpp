@@ -253,6 +253,10 @@ static mnx::sequence::EventMarkingBase createEventMarking(
     switch (mark) {
     case EventMarkingType::Accent:
         return mnxMarkings.ensure_accent();
+    case EventMarkingType::BowDirectionDown:
+        return mnxMarkings.ensure_bowDirection(mnx::MarkingUpDown::Down);
+    case EventMarkingType::BowDirectionUp:
+        return mnxMarkings.ensure_bowDirection(mnx::MarkingUpDown::Up);
     case EventMarkingType::Breath:
     {
         auto breath = mnxMarkings.ensure_breath();

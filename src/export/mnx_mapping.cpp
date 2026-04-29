@@ -126,6 +126,10 @@ std::vector<EventMarkingType> calcMarkingType(
             } else if (glyphName == "articTenutoAccentAbove" || glyphName == "articTenutoAccentBelow" ||
                     glyphName == "articTenutoAccentAboveLegacy" || glyphName == "articTenutoAccentBelowLegacy") {
                 return { EventMarkingType::Accent, EventMarkingType::Tenuto };
+            } else if (glyphName == "stringsDownBow" || glyphName == "stringsDownBowTurned") {
+                return { EventMarkingType::BowDirectionDown };
+            } else if (glyphName == "stringsUpBow" || glyphName == "stringsUpBowTurned") {
+                return { EventMarkingType::BowDirectionUp };
             } else if (glyphName == "breathMarkComma" || glyphName == "breathMarkCommaLegacy") {
                 breathMark = mnx::BreathMarkSymbol::Comma;
                 return { EventMarkingType::Breath };

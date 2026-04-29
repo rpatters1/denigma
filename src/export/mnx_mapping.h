@@ -55,6 +55,8 @@ enum class JumpType
 enum class EventMarkingType
 {
     Accent,
+    BowDirectionUp,
+    BowDirectionDown,
     Breath,
     SoftAccent,
     Spiccato,
