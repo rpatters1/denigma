@@ -244,6 +244,49 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
     }
 }
 
+static mnx::sequence::EventMarkingBase createEventMarking(
+    mnx::sequence::EventMarkings mnxMarkings,
+    EventMarkingType mark,
+    const std::optional<int>& numMarks,
+    const std::optional<mnx::BreathMarkSymbol>& breathMark)
+{
+    switch (mark) {
+    case EventMarkingType::Accent:
+        return mnxMarkings.ensure_accent();
+    case EventMarkingType::Breath:
+    {
+        auto breath = mnxMarkings.ensure_breath();
+        if (breathMark.has_value()) {
+            breath.set_symbol(breathMark.value());
+        }
+        return breath;
+    }
+    case EventMarkingType::SoftAccent:
+        return mnxMarkings.ensure_softAccent();
+    case EventMarkingType::Spiccato:
+        return mnxMarkings.ensure_spiccato();
+    case EventMarkingType::Staccatissimo:
+        return mnxMarkings.ensure_staccatissimo();
+    case EventMarkingType::Staccato:
+        return mnxMarkings.ensure_staccato();
+    case EventMarkingType::Stress:
+        return mnxMarkings.ensure_stress();
+    case EventMarkingType::StrongAccent:
+        return mnxMarkings.ensure_strongAccent();
+    case EventMarkingType::Tenuto:
+        return mnxMarkings.ensure_tenuto();
+    case EventMarkingType::Tremolo:
+        return mnxMarkings.ensure_tremolo(numMarks.value_or(0));
+    case EventMarkingType::Unstress:
+        return mnxMarkings.ensure_unstress();
+    default:
+        ASSERT_IF(true)
+        {
+            throw std::logic_error("Encountered unknown event marking type " + std::to_string(int(mark)));
+        }
+    }
+}
+
 static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
@@ -263,51 +306,8 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
                 auto marks = calcMarkingType(symbolContext.value(), numMarks, breathMark);
                 for (auto mark : marks) {
                     auto mnxMarkings = mnxEvent.ensure_markings();
-                    switch (mark) {
-                    case EventMarkingType::Accent:
-                        mnxMarkings.ensure_accent();
-                        break;
-                    case EventMarkingType::Breath:
-                    {
-                        auto breath = mnxMarkings.ensure_breath();
-                        if (breathMark.has_value()) {
-                            breath.set_symbol(breathMark.value());
-                        }
-                        break;
-                    }
-                    case EventMarkingType::SoftAccent:
-                        mnxMarkings.ensure_softAccent();
-                        break;
-                    case EventMarkingType::Spiccato:
-                        mnxMarkings.ensure_spiccato();
-                        break;
-                    case EventMarkingType::Staccatissimo:
-                        mnxMarkings.ensure_staccatissimo();
-                        break;
-                    case EventMarkingType::Staccato:
-                        mnxMarkings.ensure_staccato();
-                        break;
-                    case EventMarkingType::Stress:
-                        mnxMarkings.ensure_stress();
-                        break;
-                    case EventMarkingType::StrongAccent:
-                        mnxMarkings.ensure_strongAccent();
-                        break;
-                    case EventMarkingType::Tenuto:
-                        mnxMarkings.ensure_tenuto();
-                        break;
-                    case EventMarkingType::Tremolo:
-                        mnxMarkings.ensure_tremolo(numMarks.value_or(0));
-                        break;
-                    case EventMarkingType::Unstress:
-                        mnxMarkings.ensure_unstress();
-                        break;
-                    default:
-                        ASSERT_IF(true)
-                        {
-                            throw std::logic_error("Encountered unknown event marking type " + std::to_string(int(mark)));
-                        }
-                    }
+                    auto mnxMarking = createEventMarking(mnxMarkings, mark, numMarks, breathMark);
+                    mnxMarking.set_or_clear_orient(enumConvert<mnx::Orientation>(symbolContext->placement));
                 }
             }
         }
