@@ -274,12 +274,10 @@ static void createBarlineFermata(const MnxMusxMappingPtr& context, mnx::global::
         if (!exprAssign->hidden && exprAssign->calcIsPartOfStaffListAssignment()) {
             if (const auto textExp = exprAssign->getTextExpression(); textExp && textExp->horzMeasExprAlign == others::HorizontalMeasExprAlign::RightBarline) {
                 if (const auto textCtx = textExp->getRawTextCtx(forPartId)) {
-                    if (const auto symbol = utils::utf8ToCodepoint(textCtx.getText(true))) {
-                        const auto fontInfo = textCtx.parseFirstFontInfo();
-                        if (const auto fermata = calcFermata(fontInfo, symbol.value(), VerticalPlacement::Float)) {
-                            mnxMeasure.set_fermata(fermata.value());
-                            break;
-                        }
+                    const auto fontInfo = textCtx.parseFirstFontInfo();
+                    if (const auto fermata = calcFermata(fontInfo, textCtx.getText(true), VerticalPlacement::Float)) {
+                        mnxMeasure.set_fermata(fermata.value());
+                        break;
                     }
                 }
             }

@@ -265,62 +265,42 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
                     auto mnxMarkings = mnxEvent.ensure_markings();
                     switch (mark) {
                     case EventMarkingType::Accent:
-                        if (!mnxMarkings.accent().has_value()) {
-                            mnxMarkings.ensure_accent();
-                        }
+                        mnxMarkings.ensure_accent();
                         break;
                     case EventMarkingType::Breath:
-                        if (!mnxMarkings.breath().has_value()) {
-                            mnxMarkings.ensure_breath();
-                        }
+                    {
+                        auto breath = mnxMarkings.ensure_breath();
                         if (breathMark.has_value()) {
-                            mnxMarkings.breath().value().set_symbol(breathMark.value());
+                            breath.set_symbol(breathMark.value());
                         }
                         break;
+                    }
                     case EventMarkingType::SoftAccent:
-                        if (!mnxMarkings.softAccent().has_value()) {
-                            mnxMarkings.ensure_softAccent();
-                        }
+                        mnxMarkings.ensure_softAccent();
                         break;
                     case EventMarkingType::Spiccato:
-                        if (!mnxMarkings.spiccato().has_value()) {
-                            mnxMarkings.ensure_spiccato();
-                        }
+                        mnxMarkings.ensure_spiccato();
                         break;
                     case EventMarkingType::Staccatissimo:
-                        if (!mnxMarkings.staccatissimo().has_value()) {
-                            mnxMarkings.ensure_staccatissimo();
-                        }
+                        mnxMarkings.ensure_staccatissimo();
                         break;
                     case EventMarkingType::Staccato:
-                        if (!mnxMarkings.staccato().has_value()) {
-                            mnxMarkings.ensure_staccato();
-                        }
+                        mnxMarkings.ensure_staccato();
                         break;
                     case EventMarkingType::Stress:
-                        if (!mnxMarkings.stress().has_value()) {
-                            mnxMarkings.ensure_stress();
-                        }
+                        mnxMarkings.ensure_stress();
                         break;
                     case EventMarkingType::StrongAccent:
-                        if (!mnxMarkings.strongAccent().has_value()) {
-                            mnxMarkings.ensure_strongAccent();
-                        }
+                        mnxMarkings.ensure_strongAccent();
                         break;
                     case EventMarkingType::Tenuto:
-                        if (!mnxMarkings.tenuto().has_value()) {
-                            mnxMarkings.ensure_tenuto();
-                        }
+                        mnxMarkings.ensure_tenuto();
                         break;
                     case EventMarkingType::Tremolo:
-                        if (!mnxMarkings.tremolo().has_value()) {
-                            mnxMarkings.ensure_tremolo(numMarks.value_or(0));
-                        }
+                        mnxMarkings.ensure_tremolo(numMarks.value_or(0));
                         break;
                     case EventMarkingType::Unstress:
-                        if (!mnxMarkings.unstress().has_value()) {
-                            mnxMarkings.ensure_unstress();
-                        }
+                        mnxMarkings.ensure_unstress();
                         break;
                     default:
                         ASSERT_IF(true)
@@ -478,6 +458,9 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnx::Content
 
     auto fullMeasure = sequence->ensure_fullMeasure();
     const auto musxEntry = musxEntryInfo->getEntry();
+    context->entryTargetByNumber.insert_or_assign(
+        musxEntry->getEntryNumber(),
+        EntryTarget{ EntryTargetKind::FullMeasureRest, fullMeasure.pointer() });
     if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
         if (const auto musxStaff = musxEntryInfo.createCurrentStaff()) {
             auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
@@ -560,6 +543,9 @@ static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& 
     const auto noteValue = mnxNoteValueFromEdu(effectiveDura);
     auto mnxEvent = content.append<mnx::sequence::Event>(noteValue.base, noteValue.dots);
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
+    context->entryTargetByNumber.insert_or_assign(
+        musxEntry->getEntryNumber(),
+        EntryTarget{ EntryTargetKind::Event, mnxEvent.pointer() });
     createLyrics(context, mnxEvent, musxEntryInfo);
     processArticulations(context, mnxEvent, musxEntryInfo);
     /// @todo orient

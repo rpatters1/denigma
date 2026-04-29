@@ -243,6 +243,14 @@ std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, 
     return result;
 }
 
+std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, const std::string& symStr, VerticalPlacement placement)
+{
+    if (const auto sym = utils::utf8ToCodepoint(symStr)) {
+        return calcFermata(fontInfo, sym.value(), placement);
+    }
+    return std::nullopt;
+}
+
 mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration)
 {
     auto [base, dots] = calcDurationInfoFromEdu(duration);

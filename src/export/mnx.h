@@ -70,6 +70,7 @@ struct MnxMusxMapping
     // musx mappings
     std::unordered_map<Cmper, JumpType> textRepeat2Jump;
     std::unordered_map<std::string, mnx::json_pointer> noteJsonById;
+    std::unordered_map<EntryNumber, EntryTarget> entryTargetByNumber;
 
     struct DeferredJumpTie {
         std::string startNoteId;
