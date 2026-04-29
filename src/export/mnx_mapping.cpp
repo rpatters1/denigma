@@ -205,6 +205,44 @@ std::vector<EventMarkingType> calcMarkingType(
     return result;
 }
 
+std::optional<mnx::Fermata> calcFermata(const std::shared_ptr<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
+{
+    if (placement == VerticalPlacement::NotApplicable) {
+        return std::nullopt;
+    }
+
+    std::optional<mnx::Fermata> result;
+
+    if (auto glyphName = utils::smuflGlyphNameForFont(fontInfo, sym)) {
+        auto makeFermata = [&](mnx::FermataSymbol symbol, mnx::FermataDuration duration = mnx::FermataDuration::Auto) {
+            auto& fermata = result.emplace();
+            fermata.set_or_clear_symbol(symbol);
+            fermata.set_or_clear_duration(duration);
+            fermata.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
+        };
+
+        if (glyphName == "fermataAbove" || glyphName == "fermataBelow") {
+            makeFermata(mnx::FermataSymbol::Normal);
+        } else if (glyphName == "fermataVeryShortAbove" || glyphName == "fermataVeryShortBelow") {
+            makeFermata(mnx::FermataSymbol::DoubleAngled, mnx::FermataDuration::VeryShort);
+        } else if (glyphName == "fermataShortAbove" || glyphName == "fermataShortBelow") {
+            makeFermata(mnx::FermataSymbol::Angled, mnx::FermataDuration::Short);
+        } else if (glyphName == "fermataLongAbove" || glyphName == "fermataLongBelow") {
+            makeFermata(mnx::FermataSymbol::Square, mnx::FermataDuration::Long);
+        } else if (glyphName == "fermataVeryLongAbove" || glyphName == "fermataVeryLongBelow") {
+            makeFermata(mnx::FermataSymbol::DoubleSquare, mnx::FermataDuration::VeryLong);
+        } else if (glyphName == "fermataLongHenzeAbove" || glyphName == "fermataLongHenzeBelow") {
+            makeFermata(mnx::FermataSymbol::DoubleDot, mnx::FermataDuration::Long);
+        } else if (glyphName == "fermataShortHenzeAbove" || glyphName == "fermataShortHenzeBelow") {
+            makeFermata(mnx::FermataSymbol::HalfCurve, mnx::FermataDuration::Short);
+        } else if (glyphName == "curlewSign") {
+            makeFermata(mnx::FermataSymbol::Curlew);
+        }
+    }
+
+    return result;
+}
+
 mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration)
 {
     auto [base, dots] = calcDurationInfoFromEdu(duration);

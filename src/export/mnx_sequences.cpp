@@ -244,7 +244,7 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
     }
 }
 
-static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
+static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
@@ -253,6 +253,13 @@ static void createMarkings(const MnxMusxMappingPtr& context, mnx::sequence::Even
             std::optional<int> numMarks;
             std::optional<mnx::BreathMarkSymbol> breathMark;
             if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
+                if (!symbolContext->symbol.isShape) {
+                    const auto& symbol = symbolContext->symbol;
+                    if (const auto fermata = calcFermata(symbol.font, symbol.character, symbolContext->placement)) {
+                        mnxEvent.set_fermata(fermata.value());
+                        continue;
+                    }
+                }
                 auto marks = calcMarkingType(symbolContext.value(), numMarks, breathMark);
                 for (auto mark : marks) {
                     auto mnxMarkings = mnxEvent.ensure_markings();
@@ -478,6 +485,22 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnx::Content
             fullMeasure.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
         }
     }
+
+    auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
+    for (const auto& asgn : articAssigns) {
+        if (!asgn->hide) {
+            if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
+                if (!symbolContext->symbol.isShape) {
+                    const auto& symbol = symbolContext->symbol;
+                    if (const auto fermata = calcFermata(symbol.font, symbol.character, symbolContext->placement)) {
+                        fullMeasure.set_fermata(fermata.value());
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
     content.clear();
 }
 
@@ -538,7 +561,7 @@ static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& 
     auto mnxEvent = content.append<mnx::sequence::Event>(noteValue.base, noteValue.dots);
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
     createLyrics(context, mnxEvent, musxEntryInfo);
-    createMarkings(context, mnxEvent, musxEntryInfo);
+    processArticulations(context, mnxEvent, musxEntryInfo);
     /// @todo orient
     createSlurs(context, mnxEvent, musxEntryInfo);
     if (const auto& crossedStaffId = musxEntryInfo.calcCrossedStaffForAll()) {

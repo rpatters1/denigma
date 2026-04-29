@@ -72,6 +72,7 @@ std::vector<EventMarkingType> calcMarkingType(
     const details::ArticulationAssign::SelectedSymbolContext& articContext,
     std::optional<int>& numMarks,
     std::optional<mnx::BreathMarkSymbol>& breathMark);
+std::optional<mnx::Fermata> calcFermata(const std::shared_ptr<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
 
 mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
 mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
@@ -83,7 +84,7 @@ std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefI
 musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction);
 mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction);
 mnx::FractionValue mnxFractionFromEdu(Edu eduValue);
-mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<musx::dom::smartshape::EndPoint>& smartShape);
+mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& smartShape);
 
 int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosition);
 
