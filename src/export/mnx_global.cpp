@@ -275,7 +275,7 @@ static void createBarlineFermata(const MnxMusxMappingPtr& context, mnx::global::
             if (const auto textExp = exprAssign->getTextExpression(); textExp && textExp->horzMeasExprAlign == others::HorizontalMeasExprAlign::RightBarline) {
                 if (const auto textCtx = textExp->getRawTextCtx(forPartId)) {
                     const auto fontInfo = textCtx.parseFirstFontInfo();
-                    if (const auto fermata = calcFermata(fontInfo, textCtx.getText(true), VerticalPlacement::Float)) {
+                    if (const auto fermata = calcFermata(fontInfo, textCtx.getText(true))) {
                         mnxMeasure.set_fermata(fermata.value());
                         break;
                     }

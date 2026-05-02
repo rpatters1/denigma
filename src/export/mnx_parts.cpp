@@ -212,7 +212,7 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
                                 }
                             } else if (!asgn->calcIsPartOfStaffListAssignment() && expr->horzMeasExprAlign != others::HorizontalMeasExprAlign::RightBarline) {
                                 /// @todo Add calculation for above or below, rather than just Float
-                                if (auto fermata = calcFermata(fontInfo, exprText, VerticalPlacement::Float)) {
+                                if (auto fermata = calcFermata(fontInfo, exprText)) {
                                     if (auto entryInfo = asgn->calcAssociatedEntry()) {
                                         const auto entryNumber = entryInfo->getEntry()->getEntryNumber();
                                         const auto entryIt = context->entryTargetByNumber.find(entryNumber);
