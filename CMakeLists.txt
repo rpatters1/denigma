@@ -318,11 +318,12 @@ add_executable(denigma
     src/export/mnx_enums.cpp
     src/export/mnx_global.cpp
     src/export/mnx_layouts.cpp
+    src/export/mnx_mapping.cpp
+    src/export/mnx_markings.cpp
     src/export/mnx_parts.cpp
     src/export/mnx_sequences.cpp
     src/export/mss.cpp
     src/export/svg.cpp
-    src/export/mnx_mapping.cpp
     src/massage/massage.cpp
     src/massage/musicxml.cpp
     src/utils/textmetrics.cpp

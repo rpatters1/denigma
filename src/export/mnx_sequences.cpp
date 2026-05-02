@@ -247,8 +247,7 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
 static mnx::sequence::EventMarkingBase createEventMarking(
     mnx::sequence::EventMarkings mnxMarkings,
     EventMarkingType mark,
-    const std::optional<int>& numMarks,
-    const std::optional<mnx::BreathMarkSymbol>& breathMark)
+    const std::optional<int>& numMarks)
 {
     switch (mark) {
     case EventMarkingType::Accent:
@@ -257,14 +256,6 @@ static mnx::sequence::EventMarkingBase createEventMarking(
         return mnxMarkings.ensure_bowDirection(mnx::MarkingUpDown::Down);
     case EventMarkingType::BowDirectionUp:
         return mnxMarkings.ensure_bowDirection(mnx::MarkingUpDown::Up);
-    case EventMarkingType::Breath:
-    {
-        auto breath = mnxMarkings.ensure_breath();
-        if (breathMark.has_value()) {
-            breath.set_symbol(breathMark.value());
-        }
-        return breath;
-    }
     case EventMarkingType::SoftAccent:
         return mnxMarkings.ensure_softAccent();
     case EventMarkingType::Spiccato:
@@ -296,21 +287,24 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
     const auto musxEntry = musxEntryInfo->getEntry();
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
-        if (!asgn->hide) {
+        if (!asgn->hide) { /// @todo eliminate this filter if MNX provides visibility options
             std::optional<int> numMarks;
-            std::optional<mnx::BreathMarkSymbol> breathMark;
             if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
-                if (!symbolContext->symbol.isShape) {
-                    const auto& symbol = symbolContext->symbol;
-                    if (const auto fermata = calcFermata(symbol.font, symbol.character, symbolContext->placement)) {
+                const auto& symbol = symbolContext->symbol;
+                if (!symbol.isShape) {
+                    if (auto fermata = calcFermata(symbol.font, symbol.character, symbolContext->placement)) {
                         mnxEvent.set_fermata(fermata.value());
                         continue;
                     }
+                    if (auto breathMark = calcBreathMark(symbol.font, symbol.character, symbolContext->placement)) {
+                        mnxEvent.ensure_markings().set_breath(breathMark.value());
+                        continue;
+                    }
                 }
-                auto marks = calcMarkingType(symbolContext.value(), numMarks, breathMark);
+                auto marks = calcMarkingType(symbolContext.value(), numMarks);
                 for (auto mark : marks) {
                     auto mnxMarkings = mnxEvent.ensure_markings();
-                    auto mnxMarking = createEventMarking(mnxMarkings, mark, numMarks, breathMark);
+                    auto mnxMarking = createEventMarking(mnxMarkings, mark, numMarks);
                     mnxMarking.set_or_clear_orient(enumConvert<mnx::Orientation>(symbolContext->placement));
                 }
             }

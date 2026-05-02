@@ -52,42 +52,7 @@ enum class JumpType
     Fine
 };
 
-enum class EventMarkingType
-{
-    Accent,
-    BowDirectionUp,
-    BowDirectionDown,
-    Breath,
-    SoftAccent,
-    Spiccato,
-    Staccatissimo,
-    Staccato,
-    Stress,
-    StrongAccent,
-    Tenuto,
-    Tremolo,
-    Unstress
-};
-
-enum class EntryTargetKind
-{
-    Event,
-    FullMeasureRest
-};
-
-struct EntryTarget
-{
-    EntryTargetKind kind;
-    mnx::json_pointer pointer;
-};
-
 JumpType convertTextToJump(const std::string& text, const std::optional<std::string>& glyphName);
-std::vector<EventMarkingType> calcMarkingType(
-    const details::ArticulationAssign::SelectedSymbolContext& articContext,
-    std::optional<int>& numMarks,
-    std::optional<mnx::BreathMarkSymbol>& breathMark);
-std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
-std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, const std::string& sysymStrm, VerticalPlacement placement);
 
 mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
 mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);

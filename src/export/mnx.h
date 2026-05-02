@@ -32,12 +32,25 @@
 #include "mnxdom.h"
 
 #include "mnx_mapping.h"
+#include "mnx_markings.h"
 
 using namespace musx::dom;
 using namespace musx::util;
 
 namespace denigma {
 namespace mnxexp {
+
+enum class EntryTargetKind
+{
+    Event,
+    FullMeasureRest
+};
+
+struct EntryTarget
+{
+    EntryTargetKind kind;
+    mnx::json_pointer pointer;
+};
 
 // stoopid c++17 standard does not include a hash for tuple
 struct SequenceHash {
