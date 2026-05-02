@@ -136,6 +136,13 @@ std::vector<EventMarkingType> calcMarkingType(
     return result;
 }
 
+bool isDynamicExpression(const MusxInstance<others::TextExpressionDef>& expr)
+{
+    /// @todo Do not base dynamics detection (or any other expression type detection) on category.
+    auto cat = expr->getDocument()->getOthers()->get<others::MarkingCategory>(expr->getRequestedPartId(), expr->categoryId);
+    return cat && cat->categoryType == others::MarkingCategory::CategoryType::Dynamics;
+}
+
 std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
 {
     if (placement == VerticalPlacement::NotApplicable) {

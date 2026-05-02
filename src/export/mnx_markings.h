@@ -54,6 +54,8 @@ std::vector<EventMarkingType> calcMarkingType(
     const details::ArticulationAssign::SelectedSymbolContext& articContext,
     std::optional<int>& numMarks);
 
+bool isDynamicExpression(const MusxInstance<others::TextExpressionDef>& expr);
+
 std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
 std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, const std::string& symStr,
     VerticalPlacement placement = VerticalPlacement::Float);
