@@ -152,23 +152,11 @@ std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, 
     std::optional<mnx::Fermata> result;
 
     if (auto glyphName = utils::smuflGlyphNameForFont(fontInfo, sym)) {
-        auto calcOrient = [&]() {
-            auto orient = enumConvert<mnx::Orientation>(placement);
-            if (orient == mnx::Orientation::Auto) {
-                if (glyphName->size() >= 5 && glyphName->compare(glyphName->size() - 5, 5, "Above") == 0) {
-                    return mnx::Orientation::Above;
-                }
-                if (glyphName->size() >= 5 && glyphName->compare(glyphName->size() - 5, 5, "Below") == 0) {
-                    return mnx::Orientation::Below;
-                }
-            }
-            return orient;
-        };
         auto makeFermata = [&](mnx::FermataSymbol symbol, mnx::FermataDuration duration = mnx::FermataDuration::Auto) {
             auto& fermata = result.emplace();
             fermata.set_or_clear_symbol(symbol);
             fermata.set_or_clear_duration(duration);
-            fermata.set_or_clear_orient(calcOrient());
+            fermata.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
         };
 
         if (glyphName == "fermataAbove" || glyphName == "fermataBelow") {
