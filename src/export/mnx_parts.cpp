@@ -180,9 +180,79 @@ static void createClefs(
     }
 }
 
-static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper,
+static void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper,
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
+    struct ExpressionAttachmentContext {
+        EntryInfoPtr entryInfo;
+        const EntryTarget* entryTarget{ nullptr };
+    };
+
+    auto calcAttachmentContext = [&](const MusxInstance<others::MeasureExprAssign>& asgn) {
+        ExpressionAttachmentContext result;
+        result.entryInfo = asgn->calcAssociatedEntry();
+        if (!result.entryInfo) {
+            return result;
+        }
+        const auto entryNumber = result.entryInfo->getEntry()->getEntryNumber();
+        const auto entryIt = context->entryTargetByNumber.find(entryNumber);
+        if (entryIt != context->entryTargetByNumber.end()) {
+            result.entryTarget = &entryIt->second;
+        }
+        return result;
+    };
+
+    auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const MusxInstance<FontInfo>& fontInfo, const std::string& exprText) {
+        /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
+        auto mnxDynamic = mnxMeasure.ensure_dynamics().append(
+            exprText, mnxFractionFromEdu(asgn->eduPosition));
+        if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, exprText)) {
+            mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
+        }
+        if (mnxStaffNumber) {
+            mnxDynamic.set_staff(mnxStaffNumber.value());
+        }
+        if (asgn->layer > 0) {
+            mnxDynamic.set_voice(calcVoice(mnxStaffNumber.value_or(1), asgn->layer - 1, 1));
+        }
+    };
+
+    auto attachFermata = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const MusxInstance<others::TextExpressionDef>& expr,
+                             const ExpressionAttachmentContext& attachment, const mnx::Fermata& fermata) {
+        if (asgn->calcIsPartOfStaffListAssignment() || expr->horzMeasExprAlign == others::HorizontalMeasExprAlign::RightBarline) {
+            return;
+        }
+        if (attachment.entryTarget) {
+            switch (attachment.entryTarget->kind) {
+            case EntryTargetKind::Event:
+                mnx::sequence::Event(context->mnxDocument->root(), attachment.entryTarget->pointer).set_fermata(fermata);
+                break;
+            case EntryTargetKind::FullMeasureRest:
+                mnx::sequence::FullMeasureRest(context->mnxDocument->root(), attachment.entryTarget->pointer).set_fermata(fermata);
+                break;
+            }
+        } else if (attachment.entryInfo) {
+            context->logMessage(LogMsg() << "Entry " << attachment.entryInfo->getEntry()->getEntryNumber()
+                << " was not mapped to an event or full measure rest", LogSeverity::Warning);
+        } else {
+            if (mnxMeasure.sequences().empty()) {
+                mnxMeasure.sequences().append();
+            }
+            for (auto seq : mnxMeasure.sequences()) {
+                if (seq.content().empty()) {
+                    auto fullMeasureRest = seq.ensure_fullMeasure();
+                    fullMeasureRest.set_fermata(fermata);
+                }
+            }
+        }
+    };
+
+    auto attachBreathMark = [&](const ExpressionAttachmentContext& attachment, const mnx::sequence::BreathMark& breathMark) {
+        if (attachment.entryTarget && attachment.entryTarget->kind == EntryTargetKind::Event) {
+            mnx::sequence::Event(context->mnxDocument->root(), attachment.entryTarget->pointer).ensure_markings().set_breath(breathMark);
+        }
+    };
+
     if (musxMeasure->hasExpression) {
         auto exprAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
         for (const auto& asgn : exprAssigns) {
@@ -191,31 +261,24 @@ static void createDynamics(const MnxMusxMappingPtr& context, const MusxInstance<
             }
             if (asgn->staffAssign == staffCmper && asgn->textExprId && !asgn->hidden) {
                 if (auto expr = asgn->getTextExpression()) {
-                    if (auto cat = context->document->getOthers()->get<others::MarkingCategory>(expr->getRequestedPartId(), expr->categoryId)) {
-                        if (cat->categoryType == others::MarkingCategory::CategoryType::Dynamics) { /// @todo: be smarter about identifying dynamics
-                            if (auto text = expr->getTextBlock()) {
-                                if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
-                                    /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
-                                    auto fontInfo = rawTextCtx.parseFirstFontInfo();
-                                    std::string dynamicText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-                                    auto mnxDynamic = mnxMeasure.ensure_dynamics().append(
-                                        dynamicText, mnxFractionFromEdu(asgn->eduPosition));
-                                    if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, dynamicText)) {
-                                        mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
-                                    }
-                                    if (mnxStaffNumber) {
-                                        mnxDynamic.set_staff(mnxStaffNumber.value());
-                                    }
-                                    if (asgn->layer > 0) {
-                                        mnxDynamic.set_voice(calcVoice(mnxStaffNumber.value_or(1), asgn->layer - 1, 1));
-                                    }
-                                } else {
-                                    context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, LogSeverity::Warning);
-                                }
-                            }  else {
-                                context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, LogSeverity::Warning);
+                    if (auto text = expr->getTextBlock()) {
+                        if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
+                            auto fontInfo = rawTextCtx.parseFirstFontInfo();
+                            std::string exprText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
+                            const auto attachment = calcAttachmentContext(asgn);
+                            /// @todo Add calculation for above or below, rather than just Float, for marking placement
+                            if (isDynamicExpression(expr)) { /// @todo: be smarter about identifying dynamics
+                                appendDynamic(asgn, fontInfo, exprText);
+                            } else if (auto fermata = calcFermata(fontInfo, exprText)) {
+                                attachFermata(asgn, expr, attachment, fermata.value());
+                            } else if (auto breathMark = calcBreathMark(fontInfo, exprText)) {
+                                attachBreathMark(attachment, breathMark.value());
                             }
+                        } else {
+                            context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, LogSeverity::Warning);
                         }
+                    } else {
+                        context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, LogSeverity::Warning);
                     }
                 }
             }
@@ -289,9 +352,11 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             std::optional<int> staffNumber = (context->currPartStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
             createBeams(context, mnxMeasure, musxMeasure, context->currPartStaves[x]);
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->currPartStaves[x], prevClefs[x]);
-            createDynamics(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
+            // ottaves must be created before sequences, so that the ottava octaves can be correctly calculated for events
             createOttavas(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->currPartStaves[x]);
+            // process expressions after sequences, in case we need to attach to events (e.g., fermatas);
+            processExpressions(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
         }
     }
     context->clearCounts();

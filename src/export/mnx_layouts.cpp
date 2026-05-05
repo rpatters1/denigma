@@ -80,10 +80,10 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
         switch (staff->stemDirection) {
         default:
             break;
-        case others::Staff::StemDirection::AlwaysUp:
+        case StemDirection::AlwaysUp:
             mnxSource.set_stem(mnx::StemDirection::Up);
             break;
-        case others::Staff::StemDirection::AlwaysDown:
+        case StemDirection::AlwaysDown:
             mnxSource.set_stem(mnx::StemDirection::Down);
             break;
         }

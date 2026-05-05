@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024, Robert Patterson
+ * Copyright (C) 2026, Robert Patterson
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,16 +21,12 @@
  */
 #pragma once
 
-#include <filesystem>
-#include <optional>
-
 #include "denigma.h"
 #include "musx/musx.h"
 #include "mnxdom.h"
 
 #include "mnx.h"
-
- //placeholder function
+#include "utils/smufl_support.h"
 
 using namespace musx::dom;
 using namespace musx::util;
@@ -38,35 +34,35 @@ using namespace musx::util;
 namespace denigma {
 namespace mnxexp {
 
-struct MnxMusxMapping;
-
-enum class JumpType
+enum class EventMarkingType
 {
-    None,
-    Segno,
-    DalSegno,
-    DsAlFine,
-    DaCapo,
-    DCAlFine,
-    Coda,
-    Fine
+    Accent,
+    BowDirectionUp,
+    BowDirectionDown,
+    SoftAccent,
+    Spiccato,
+    Staccatissimo,
+    Staccato,
+    Stress,
+    StrongAccent,
+    Tenuto,
+    Tremolo,
+    Unstress
 };
 
-JumpType convertTextToJump(const std::string& text, const std::optional<std::string>& glyphName);
+std::vector<EventMarkingType> calcMarkingType(
+    const details::ArticulationAssign::SelectedSymbolContext& articContext,
+    std::optional<int>& numMarks);
 
-mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
-mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
-mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl);
-std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
-    const MusxInstance<options::ClefOptions::ClefDef>& clefDef,
-    const MusxInstance<others::Staff>& staff, std::optional<std::string_view> glyphName);
+bool isDynamicExpression(const MusxInstance<others::TextExpressionDef>& expr);
 
-musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction);
-mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction);
-mnx::FractionValue mnxFractionFromEdu(Edu eduValue);
-mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& smartShape);
+std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
+std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, const std::string& symStr,
+    VerticalPlacement placement = VerticalPlacement::Float);
 
-int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosition);
+std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
+std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontInfo>& fontInfo, const std::string& symStr,
+    VerticalPlacement placement = VerticalPlacement::Float);
 
 } // namespace mnxexp
 } // namespace denigma
