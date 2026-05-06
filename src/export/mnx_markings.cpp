@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  */
 #include <string>
+#include <string_view>
 
 #include "mnx.h"
 #include "mnx_mapping.h"
@@ -27,6 +28,40 @@
 
 namespace denigma {
 namespace mnxexp {
+
+mnx::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement)
+{
+    const auto endsWith = [&](const std::string_view suffix) {
+        return glyphName.size() >= suffix.size()
+            && glyphName.compare(glyphName.size() - suffix.size(), suffix.size(), suffix) == 0;
+    };
+    const bool glyphIsAbove = endsWith("Above") || endsWith("AboveLegacy");
+    const bool glyphIsBelow = endsWith("Below") || endsWith("BelowLegacy");
+    switch (placement) {
+    case VerticalPlacement::Above:
+        if (glyphIsBelow) {
+            return mnx::MarkingUpDownAuto::Down;
+        }
+        break;
+    case VerticalPlacement::Below:
+        if (glyphIsAbove) {
+            return mnx::MarkingUpDownAuto::Up;
+        }
+        break;
+    case VerticalPlacement::Float:
+    case VerticalPlacement::NotApplicable:
+        break;
+    }
+    return mnx::MarkingUpDownAuto::Auto;
+}
+
+mnx::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
+{
+    if (const auto glyphName = utils::smuflGlyphNameForFont(fontInfo, sym)) {
+        return calcPointing(glyphName.value(), placement);
+    }
+    return mnx::MarkingUpDownAuto::Auto;
+}
 
 std::vector<EventMarkingType> calcMarkingType(
     const details::ArticulationAssign::SelectedSymbolContext& articContext,
@@ -157,6 +192,7 @@ std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, 
             fermata.set_or_clear_symbol(symbol);
             fermata.set_or_clear_duration(duration);
             fermata.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
+            fermata.set_or_clear_pointing(calcPointing(glyphName.value(), placement));
         };
 
         if (glyphName == "fermataAbove" || glyphName == "fermataBelow") {

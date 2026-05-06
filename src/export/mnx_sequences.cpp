@@ -247,8 +247,15 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
 static mnx::sequence::EventMarkingBase createEventMarking(
     mnx::sequence::EventMarkings mnxMarkings,
     EventMarkingType mark,
+    const details::ArticulationAssign::SelectedSymbolContext& symbolContext,
     const std::optional<int>& numMarks)
 {
+    const auto setPointing = [&](auto marking) -> mnx::sequence::EventMarkingBase {
+        const auto& symbol = symbolContext.symbol;
+        marking.set_or_clear_pointing(calcPointing(symbol.font, symbol.character, symbolContext.placement));
+        return marking;
+    };
+    
     switch (mark) {
     case EventMarkingType::Accent:
         return mnxMarkings.ensure_accent();
@@ -266,8 +273,8 @@ static mnx::sequence::EventMarkingBase createEventMarking(
         return mnxMarkings.ensure_staccato();
     case EventMarkingType::Stress:
         return mnxMarkings.ensure_stress();
-    case EventMarkingType::StrongAccent:
-        return mnxMarkings.ensure_strongAccent();
+    case EventMarkingType::StrongAccent: 
+        return setPointing(mnxMarkings.ensure_strongAccent());
     case EventMarkingType::Tenuto:
         return mnxMarkings.ensure_tenuto();
     case EventMarkingType::Tremolo:
@@ -304,7 +311,7 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
                 auto marks = calcMarkingType(symbolContext.value(), numMarks);
                 for (auto mark : marks) {
                     auto mnxMarkings = mnxEvent.ensure_markings();
-                    auto mnxMarking = createEventMarking(mnxMarkings, mark, numMarks);
+                    auto mnxMarking = createEventMarking(mnxMarkings, mark, symbolContext.value(), numMarks);
                     mnxMarking.set_or_clear_orient(enumConvert<mnx::Orientation>(symbolContext->placement));
                 }
             }

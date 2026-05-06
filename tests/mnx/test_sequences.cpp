@@ -26,9 +26,22 @@
 
 #include "gtest/gtest.h"
 #include "denigma.h"
+#include "export/mnx_markings.h"
 #include "test_utils.h"
 
 using namespace denigma;
+
+TEST(MnxSequences, CalcPointing)
+{
+    using mnxexp::calcPointing;
+
+    EXPECT_EQ(calcPointing("articMarcatoAbove", VerticalPlacement::Above), mnx::MarkingUpDownAuto::Auto);
+    EXPECT_EQ(calcPointing("articMarcatoBelow", VerticalPlacement::Above), mnx::MarkingUpDownAuto::Down);
+    EXPECT_EQ(calcPointing("articMarcatoAbove", VerticalPlacement::Below), mnx::MarkingUpDownAuto::Up);
+    EXPECT_EQ(calcPointing("articMarcatoStaccatoBelowLegacy", VerticalPlacement::Above), mnx::MarkingUpDownAuto::Down);
+    EXPECT_EQ(calcPointing("fermataBelow", VerticalPlacement::Above), mnx::MarkingUpDownAuto::Down);
+    EXPECT_EQ(calcPointing("curlewSign", VerticalPlacement::Above), mnx::MarkingUpDownAuto::Auto);
+}
 
 TEST(MnxSequences, Voice2TripletAtEnd)
 {

@@ -50,6 +50,9 @@ enum class EventMarkingType
     Unstress
 };
 
+mnx::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement);
+mnx::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
+
 std::vector<EventMarkingType> calcMarkingType(
     const details::ArticulationAssign::SelectedSymbolContext& articContext,
     std::optional<int>& numMarks);
