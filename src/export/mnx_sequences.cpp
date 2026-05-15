@@ -289,9 +289,101 @@ static mnx::sequence::EventMarkingBase createEventMarking(
     }
 }
 
+static std::optional<NoteInfoPtr> findBoundaryNote(const EntryInfoPtr& entryInfo, bool topNote)
+{
+    if (!entryInfo) {
+        return std::nullopt;
+    }
+    const auto entry = entryInfo->getEntry();
+    for (size_t noteIndex = 0; noteIndex < entry->notes.size(); ++noteIndex) {
+        NoteInfoPtr note(entryInfo, noteIndex);
+        if (topNote ? note.calcIsTop() : note.calcIsBottom()) {
+            return note;
+        }
+    }
+    return std::nullopt;
+}
+
+static void appendArpeggio(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxPartMeasure,
+    const musx::util::ArpeggioSpanCandidate& candidate)
+{
+    const auto topNote = findBoundaryNote(candidate.topEntry, true);
+    const auto bottomNote = findBoundaryNote(candidate.bottomEntry, false);
+    if (!topNote || !bottomNote) {
+        context->logMessage(LogMsg() << "skipping arpeggio because its note span could not be resolved.",
+            LogSeverity::Warning);
+        return;
+    }
+
+    const auto startId = [&]() -> std::string {
+        switch (candidate.direction) {
+        case musx::util::ArpeggioDirection::Down:
+            return calcNoteId(topNote.value());
+        case musx::util::ArpeggioDirection::Auto:
+        case musx::util::ArpeggioDirection::Up:
+            return calcNoteId(bottomNote.value());
+        }
+        ASSERT_IF(true) {
+            throw std::logic_error("Unhandled arpeggio direction.");
+        }
+        return {};
+    }();
+    const auto endId = [&]() -> std::string {
+        switch (candidate.direction) {
+        case musx::util::ArpeggioDirection::Down:
+            return calcNoteId(bottomNote.value());
+        case musx::util::ArpeggioDirection::Auto:
+        case musx::util::ArpeggioDirection::Up:
+            return calcNoteId(topNote.value());
+        }
+        ASSERT_IF(true) {
+            throw std::logic_error("Unhandled arpeggio direction.");
+        }
+        return {};
+    }();
+
+    auto mnxArpeggio = mnxPartMeasure.ensure_arpeggios().append(
+        mnxFractionFromFraction(candidate.sourceEntry.calcGlobalElapsedDuration()),
+        mnx::IdPair::make(startId, endId));
+
+    if (candidate.sourceEntry->graceIndex) {
+        mnxArpeggio.position().set_graceIndex(candidate.sourceEntry.calcReverseGraceIndex());
+    } else if (auto prevEntry = candidate.sourceEntry.getPreviousSameV(); prevEntry && prevEntry->graceIndex) {
+        mnxArpeggio.position().set_graceIndex(0);
+    }
+
+    switch (candidate.direction) {
+    case musx::util::ArpeggioDirection::Auto:
+        mnxArpeggio.set_or_clear_direction(mnx::MarkingUpDownAuto::Auto);
+        break;
+    case musx::util::ArpeggioDirection::Up:
+        mnxArpeggio.set_or_clear_direction(mnx::MarkingUpDownAuto::Up);
+        break;
+    case musx::util::ArpeggioDirection::Down:
+        mnxArpeggio.set_or_clear_direction(mnx::MarkingUpDownAuto::Down);
+        break;
+    }
+
+    switch (candidate.arrow) {
+    case musx::util::ArpeggioArrow::Auto:
+    case musx::util::ArpeggioArrow::None:
+        mnxArpeggio.set_or_clear_arrow(false);
+        break;
+    case musx::util::ArpeggioArrow::Up:
+    case musx::util::ArpeggioArrow::Down:
+        mnxArpeggio.set_or_clear_arrow(true);
+        break;
+    }
+}
+
 static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
+    auto mnxPartMeasure = mnxEvent.getEnclosingElement<mnx::part::Measure>();
+    ASSERT_IF(!mnxPartMeasure) {
+        context->logMessage(LogMsg() << "no part measure exists for " << mnxEvent.dump(4), LogSeverity::Warning);
+        return;
+    }
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) { /// @todo eliminate this filter if MNX provides visibility options
@@ -302,9 +394,11 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
                     if (auto fermata = calcFermata(symbol.font, symbol.character, symbolContext->placement)) {
                         mnxEvent.set_fermata(fermata.value());
                         continue;
-                    }
-                    if (auto breathMark = calcBreathMark(symbol.font, symbol.character, symbolContext->placement)) {
+                    } else if (auto breathMark = calcBreathMark(symbol.font, symbol.character, symbolContext->placement)) {
                         mnxEvent.ensure_markings().set_breath(breathMark.value());
+                        continue;
+                    } else if (auto arpeggioCandiate = calcArpeggio(musxEntryInfo, asgn)) {
+                        appendArpeggio(context, mnxPartMeasure.value(), arpeggioCandiate.value());
                         continue;
                     }
                 }

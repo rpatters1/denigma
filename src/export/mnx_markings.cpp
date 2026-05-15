@@ -257,5 +257,55 @@ std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontI
     return std::nullopt;
 }
 
+std::optional<musx::util::ArpeggioSpanCandidate> calcArpeggio(const EntryInfoPtr& sourceEntry, const MusxInstance<details::ArticulationAssign>& assign)
+{
+    const static auto symFilter = [&](const details::ArticulationAssign::SelectedSymbolContext& symContext) -> bool {
+        if (auto glyphName = utils::smuflGlyphNameForFont(symContext.symbol.font, symContext.symbol.character)) {
+            return glyphName == "arpeggioVerticalSegment";
+        }
+        return false;
+    };
+    if (auto musxResult = musx::util::calcArpeggioSpanForAssignment(sourceEntry, assign, {}, symFilter)) {
+        return musxResult;
+    }
+    if (const auto symContext = assign->calcSelectedSymbolContext(sourceEntry)) {
+        if (auto glyphName = utils::smuflGlyphNameForFont(symContext->symbol.font, symContext->symbol.character)) {
+            std::optional<musx::util::ArpeggioSpanCandidate> result;
+            auto makeArpeggioCandidate = [&](mnx::MarkingUpDownAuto direction) {
+                auto& candidate = result.emplace();
+                candidate.sourceEntry = sourceEntry;
+                candidate.assign = assign;
+                candidate.definition = symContext->definition;
+                candidate.topEntry = sourceEntry;
+                candidate.bottomEntry = sourceEntry;
+                switch (direction) {
+                case mnx::MarkingUpDownAuto::Auto:
+                    candidate.arrow = musx::util::ArpeggioArrow::None;
+                    candidate.direction = musx::util::ArpeggioDirection::Auto;
+                    break;
+                case mnx::MarkingUpDownAuto::Up:
+                    candidate.arrow = musx::util::ArpeggioArrow::Up;
+                    candidate.direction = musx::util::ArpeggioDirection::Up;
+                    break;
+                case mnx::MarkingUpDownAuto::Down:
+                    candidate.arrow = musx::util::ArpeggioArrow::Down;
+                    candidate.direction = musx::util::ArpeggioDirection::Down;
+                    break;
+                }
+            };
+
+            if (glyphName == "arpeggiato") {
+                makeArpeggioCandidate(mnx::MarkingUpDownAuto::Auto);
+            } else if (glyphName == "arpeggiatoUp") {
+                makeArpeggioCandidate(mnx::MarkingUpDownAuto::Up);
+            } else if (glyphName == "arpeggiatoDown") {
+                makeArpeggioCandidate(mnx::MarkingUpDownAuto::Down);
+            }
+            return result;
+        }
+    }
+    return std::nullopt;
+}
+
 } // namespace mnxexp
 } // namespace denigma
