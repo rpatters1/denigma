@@ -274,8 +274,6 @@ std::optional<musx::util::ArpeggioSpanCandidate> calcArpeggio(const EntryInfoPtr
             auto makeArpeggioCandidate = [&](mnx::MarkingUpDownAuto direction) {
                 auto& candidate = result.emplace();
                 candidate.sourceEntry = sourceEntry;
-                candidate.assign = assign;
-                candidate.definition = symContext->definition;
                 candidate.topEntry = sourceEntry;
                 candidate.bottomEntry = sourceEntry;
                 switch (direction) {
