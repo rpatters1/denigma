@@ -28,8 +28,6 @@
 #include "musx/musx.h"
 #include "mnxdom.h"
 
-#include "mnx.h"
-
  //placeholder function
 
 using namespace musx::dom;

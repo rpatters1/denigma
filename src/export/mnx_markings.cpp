@@ -305,5 +305,117 @@ std::optional<musx::util::ArpeggioSpanCandidate> calcArpeggio(const EntryInfoPtr
     return std::nullopt;
 }
 
+static std::optional<NoteInfoPtr> findArepggioBoundaryNote(const EntryInfoPtr& entryInfo, bool topNote)
+{
+    if (!entryInfo) {
+        return std::nullopt;
+    }
+    const auto entry = entryInfo->getEntry();
+    for (size_t noteIndex = 0; noteIndex < entry->notes.size(); ++noteIndex) {
+        NoteInfoPtr note(entryInfo, noteIndex);
+        if (topNote ? note.calcIsTop() : note.calcIsBottom()) {
+            return note;
+        }
+    }
+    return std::nullopt;
+}
+
+static void setArpeggioGraceIndex(mnx::RhythmicPosition position, const musx::util::ArpeggioSpanCandidate& candidate)
+{
+    if (candidate.sourceEntry->graceIndex) {
+        position.set_graceIndex(candidate.sourceEntry.calcReverseGraceIndex());
+    } else if (auto prevEntry = candidate.sourceEntry.getPreviousSameV(); prevEntry && prevEntry->graceIndex) {
+        position.set_graceIndex(0);
+    }
+}
+
+static void appendArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottomNote, mnx::part::Measure& mnxPartMeasure,
+    const musx::util::ArpeggioSpanCandidate& candidate)
+{
+    const auto startId = [&]() -> std::string {
+        switch (candidate.direction) {
+        case musx::util::ArpeggioDirection::Down:
+            return calcNoteId(topNote);
+        case musx::util::ArpeggioDirection::Auto:
+        case musx::util::ArpeggioDirection::Up:
+            return calcNoteId(bottomNote);
+        }
+        ASSERT_IF(true) {
+            throw std::logic_error("Unhandled arpeggio direction.");
+        }
+        return {};
+    }();
+    const auto endId = [&]() -> std::string {
+        switch (candidate.direction) {
+        case musx::util::ArpeggioDirection::Down:
+            return calcNoteId(bottomNote);
+        case musx::util::ArpeggioDirection::Auto:
+        case musx::util::ArpeggioDirection::Up:
+            return calcNoteId(topNote);
+        }
+        ASSERT_IF(true) {
+            throw std::logic_error("Unhandled arpeggio direction.");
+        }
+        return {};
+    }();
+
+    auto mnxArpeggio = mnxPartMeasure.ensure_arpeggios().append(
+        mnxFractionFromFraction(candidate.sourceEntry.calcGlobalElapsedDuration()),
+        mnx::IdPair::make(startId, endId));
+    setArpeggioGraceIndex(mnxArpeggio.position(), candidate);
+
+    switch (candidate.direction) {
+    case musx::util::ArpeggioDirection::Auto:
+        mnxArpeggio.set_or_clear_direction(mnx::MarkingUpDownAuto::Auto);
+        break;
+    case musx::util::ArpeggioDirection::Up:
+        mnxArpeggio.set_or_clear_direction(mnx::MarkingUpDownAuto::Up);
+        break;
+    case musx::util::ArpeggioDirection::Down:
+        mnxArpeggio.set_or_clear_direction(mnx::MarkingUpDownAuto::Down);
+        break;
+    }
+
+    switch (candidate.arrow) {
+    case musx::util::ArpeggioArrow::Auto:
+    case musx::util::ArpeggioArrow::None:
+        mnxArpeggio.set_or_clear_arrow(false);
+        break;
+    case musx::util::ArpeggioArrow::Up:
+    case musx::util::ArpeggioArrow::Down:
+        mnxArpeggio.set_or_clear_arrow(true);
+        break;
+    }
+}
+
+static void appendNonArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottomNote, mnx::part::Measure& mnxPartMeasure,
+    const musx::util::ArpeggioSpanCandidate& candidate)
+{
+    auto mnxNonArpeggio = mnxPartMeasure.ensure_nonArpeggios().append(
+        mnxFractionFromFraction(candidate.sourceEntry.calcGlobalElapsedDuration()),
+        mnx::IdPair::make(calcNoteId(bottomNote), calcNoteId(topNote)));
+    setArpeggioGraceIndex(mnxNonArpeggio.position(), candidate);
+}
+
+void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxPartMeasure,
+    const musx::util::ArpeggioSpanCandidate& candidate)
+{
+    const auto topNote = findArepggioBoundaryNote(candidate.topEntry, true);
+    const auto bottomNote = findArepggioBoundaryNote(candidate.bottomEntry, false);
+    if (!topNote || !bottomNote) {
+        context->logMessage(LogMsg() << "skipping arpeggio because its note span could not be resolved.",
+            LogSeverity::Warning);
+        return;
+    }
+
+    using SpanType = musx::util::ArpeggioSpanType;
+    switch (candidate.type) {
+    case SpanType::Normal:
+        appendArpeggio(topNote.value(), bottomNote.value(), mnxPartMeasure, candidate);
+    case SpanType::Bracket:
+        appendNonArpeggio(topNote.value(), bottomNote.value(), mnxPartMeasure, candidate);        
+    }
+}
+
 } // namespace mnxexp
 } // namespace denigma

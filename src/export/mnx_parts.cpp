@@ -32,7 +32,7 @@ namespace denigma {
 namespace mnxexp {
 
 static void createBeams(
-    [[maybe_unused]] const MnxMusxMappingPtr& context,
+    const MnxMusxMappingPtr& context,
     mnx::part::Measure mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
     StaffCmper staffCmper)
@@ -285,6 +285,36 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
         }
     }
 }
+static void processSmartShapes(
+    const MnxMusxMappingPtr& context,
+    mnx::part::Measure mnxMeasure,
+    const MusxInstance<others::Measure>& musxMeasure,
+    StaffCmper staffCmper)
+{
+    if (musxMeasure->hasSmartShape) {
+        const auto assigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
+        for (const auto& assign : assigns) {
+            MUSX_ASSERT_IF(!assign) {
+                context->logMessage(LogMsg() << "skipping empty smart shape assignment for measure " << musxMeasure->getCmper(), LogSeverity::Warning);
+                continue;
+            }
+            if (assign->centerShapeNum != 0) {
+                // ignore assignments in the middle of the shape
+                continue;
+            }
+            if (auto shape = context->document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum)) {
+                if (shape->startTermSeg->endPoint->staffId == staffCmper) {
+                    const auto sourceEntry = shape->startTermSeg->endPoint->calcAssociatedEntry(/*findExact*/true);
+                    if (sourceEntry) {
+                        if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForSmartShape(sourceEntry, shape)) {
+                            appendArpeggioCandidate(context, mnxMeasure, nonArpeggio.value());
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper,
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
@@ -355,8 +385,9 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             // ottaves must be created before sequences, so that the ottava octaves can be correctly calculated for events
             createOttavas(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->currPartStaves[x]);
-            // process expressions after sequences, in case we need to attach to events (e.g., fermatas);
+            // the following must come after sequences, in case we need to attach to events (e.g., fermatas);
             processExpressions(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
+            processSmartShapes(context, mnxMeasure, musxMeasure, context->currPartStaves[x]);
         }
     }
     context->clearCounts();

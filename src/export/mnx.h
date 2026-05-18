@@ -31,6 +31,7 @@
 #include "musx/musx.h"
 #include "mnxdom.h"
 
+#include "mnx_fwd.h"
 #include "mnx_mapping.h"
 #include "mnx_markings.h"
 
@@ -114,8 +115,6 @@ struct MnxMusxMapping
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
 };
-
-using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
 
 inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
 {

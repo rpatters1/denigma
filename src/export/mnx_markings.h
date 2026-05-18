@@ -25,7 +25,7 @@
 #include "musx/musx.h"
 #include "mnxdom.h"
 
-#include "mnx.h"
+#include "mnx_fwd.h"
 #include "utils/smufl_support.h"
 
 using namespace musx::dom;
@@ -68,6 +68,7 @@ std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontI
     VerticalPlacement placement = VerticalPlacement::Float);
 
 std::optional<musx::util::ArpeggioSpanCandidate> calcArpeggio(const EntryInfoPtr& sourceEntry, const MusxInstance<details::ArticulationAssign>& assign);
+void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
 
 } // namespace mnxexp
 } // namespace denigma
