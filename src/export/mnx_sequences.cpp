@@ -310,8 +310,13 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
                     } else if (auto breathMark = calcBreathMark(symbol.font, symbol.character, symbolContext->placement)) {
                         mnxEvent.ensure_markings().set_breath(breathMark.value());
                         continue;
-                    } else if (auto arpeggioCandiate = calcArpeggio(musxEntryInfo, asgn)) {
-                        appendArpeggioCandidate(context, mnxPartMeasure.value(), arpeggioCandiate.value());
+                    } else if (auto candiate = calcArpeggio(musxEntryInfo, asgn)) {
+                        appendArpeggioCandidate(context, mnxPartMeasure.value(), candiate.value());
+                        continue;
+                    }
+                } else {
+                    if (auto candiate = musx::util::calcNonArpeggioSpanForAssignment(musxEntryInfo, asgn)) {
+                        appendArpeggioCandidate(context, mnxPartMeasure.value(), candiate.value());
                         continue;
                     }
                 }
