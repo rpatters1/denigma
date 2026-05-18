@@ -412,8 +412,10 @@ void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measur
     switch (candidate.type) {
     case SpanType::Normal:
         appendArpeggio(topNote.value(), bottomNote.value(), mnxPartMeasure, candidate);
+        break;
     case SpanType::Bracket:
         appendNonArpeggio(topNote.value(), bottomNote.value(), mnxPartMeasure, candidate);        
+        break;
     }
 }
 
