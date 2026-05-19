@@ -32,7 +32,7 @@ namespace denigma {
 namespace mnxexp {
 
 static void createBeams(
-    [[maybe_unused]] const MnxMusxMappingPtr& context,
+    const MnxMusxMappingPtr& context,
     mnx::part::Measure mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
     StaffCmper staffCmper)
@@ -259,26 +259,60 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
             if (!asgn->calcIsAssignedInRequestedPart()) {
                 continue;
             }
-            if (asgn->staffAssign == staffCmper && asgn->textExprId && !asgn->hidden) {
-                if (auto expr = asgn->getTextExpression()) {
-                    if (auto text = expr->getTextBlock()) {
-                        if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
-                            auto fontInfo = rawTextCtx.parseFirstFontInfo();
-                            std::string exprText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-                            const auto attachment = calcAttachmentContext(asgn);
-                            /// @todo Add calculation for above or below, rather than just Float, for marking placement
-                            if (isDynamicExpression(expr)) { /// @todo: be smarter about identifying dynamics
-                                appendDynamic(asgn, fontInfo, exprText);
-                            } else if (auto fermata = calcFermata(fontInfo, exprText)) {
-                                attachFermata(asgn, expr, attachment, fermata.value());
-                            } else if (auto breathMark = calcBreathMark(fontInfo, exprText)) {
-                                attachBreathMark(attachment, breathMark.value());
+            if (asgn->staffAssign == staffCmper && !asgn->hidden) {
+                if (asgn->textExprId) {
+                    if (auto expr = asgn->getTextExpression()) {
+                        if (auto text = expr->getTextBlock()) {
+                            if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
+                                auto fontInfo = rawTextCtx.parseFirstFontInfo();
+                                std::string exprText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
+                                const auto attachment = calcAttachmentContext(asgn);
+                                /// @todo Add calculation for above or below, rather than just Float, for marking placement
+                                if (isDynamicExpression(expr)) { /// @todo: be smarter about identifying dynamics
+                                    appendDynamic(asgn, fontInfo, exprText);
+                                } else if (auto fermata = calcFermata(fontInfo, exprText)) {
+                                    attachFermata(asgn, expr, attachment, fermata.value());
+                                } else if (auto breathMark = calcBreathMark(fontInfo, exprText)) {
+                                    attachBreathMark(attachment, breathMark.value());
+                                }
+                            } else {
+                                context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, LogSeverity::Warning);
                             }
                         } else {
-                            context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, LogSeverity::Warning);
+                            context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, LogSeverity::Warning);
                         }
-                    } else {
-                        context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, LogSeverity::Warning);
+                    }
+                }
+                if (asgn->shapeExprId) {                    
+                    if (const auto candidate = musx::util::calcNonArpeggioSpanForAssignment(asgn)) {
+                        appendArpeggioCandidate(context, mnxMeasure, candidate.value());
+                    }
+                }
+            }
+        }
+    }
+}
+static void processSmartShapes(
+    const MnxMusxMappingPtr& context,
+    mnx::part::Measure mnxMeasure,
+    const MusxInstance<others::Measure>& musxMeasure,
+    StaffCmper staffCmper)
+{
+    if (musxMeasure->hasSmartShape) {
+        const auto assigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
+        for (const auto& assign : assigns) {
+            MUSX_ASSERT_IF(!assign) {
+                context->logMessage(LogMsg() << "skipping empty smart shape assignment for measure " << musxMeasure->getCmper(), LogSeverity::Warning);
+                continue;
+            }
+            if (assign->centerShapeNum != 0) {
+                // ignore assignments in the middle of the shape
+                continue;
+            }
+            if (auto shape = context->document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum)) {
+                if (shape->startTermSeg->endPoint->staffId == staffCmper) {
+                    if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForSmartShape(shape)) {
+                        appendArpeggioCandidate(context, mnxMeasure, nonArpeggio.value());
                     }
                 }
             }
@@ -347,6 +381,9 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
     }
     for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxMeasures.at(context->currMeas++);
+        if (const auto partId = part.id()) {
+            mnxMeasure.set_id(partId.value() + "." + calcGlobalMeasureId(musxMeasure->getCmper()));
+        }
         for (size_t x = 0; x < context->currPartStaves.size(); x++) {
             context->currStaff = context->currPartStaves[x];
             std::optional<int> staffNumber = (context->currPartStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
@@ -355,8 +392,9 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             // ottaves must be created before sequences, so that the ottava octaves can be correctly calculated for events
             createOttavas(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
             createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->currPartStaves[x]);
-            // process expressions after sequences, in case we need to attach to events (e.g., fermatas);
+            // the following must come after sequences, in case we need to attach to events (e.g., fermatas);
             processExpressions(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
+            processSmartShapes(context, mnxMeasure, musxMeasure, context->currPartStaves[x]);
         }
     }
     context->clearCounts();

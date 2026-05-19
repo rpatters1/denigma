@@ -292,6 +292,11 @@ static mnx::sequence::EventMarkingBase createEventMarking(
 static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
+    auto mnxPartMeasure = mnxEvent.getEnclosingElement<mnx::part::Measure>();
+    ASSERT_IF(!mnxPartMeasure) {
+        context->logMessage(LogMsg() << "no part measure exists for " << mnxEvent.dump(4), LogSeverity::Warning);
+        return;
+    }
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) { /// @todo eliminate this filter if MNX provides visibility options
@@ -302,9 +307,16 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
                     if (auto fermata = calcFermata(symbol.font, symbol.character, symbolContext->placement)) {
                         mnxEvent.set_fermata(fermata.value());
                         continue;
-                    }
-                    if (auto breathMark = calcBreathMark(symbol.font, symbol.character, symbolContext->placement)) {
+                    } else if (auto breathMark = calcBreathMark(symbol.font, symbol.character, symbolContext->placement)) {
                         mnxEvent.ensure_markings().set_breath(breathMark.value());
+                        continue;
+                    } else if (auto candiate = calcArpeggio(musxEntryInfo, asgn)) {
+                        appendArpeggioCandidate(context, mnxPartMeasure.value(), candiate.value());
+                        continue;
+                    }
+                } else {
+                    if (auto candiate = musx::util::calcNonArpeggioSpanForAssignment(musxEntryInfo, asgn)) {
+                        appendArpeggioCandidate(context, mnxPartMeasure.value(), candiate.value());
                         continue;
                     }
                 }
