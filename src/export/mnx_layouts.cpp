@@ -110,7 +110,7 @@ static bool hasInstrumentStaffGroupMapping(
 
     const StaffCmper staffId = groupInfo.systemStaves[slot]->staffId;
     const auto& instruments = context->document->getInstruments();
-    if (const auto* instInfo = InstrumentInfo::getInstrumentForStaff(instruments, staffId)) {
+    if (const auto* instInfo = instruments.getInstrumentForStaff(staffId)) {
         return instInfo->staffGroupId == groupInfo.group->getCmper2();
     }
     return false;
