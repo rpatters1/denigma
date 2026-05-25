@@ -155,6 +155,7 @@ void exportJson(const std::filesystem::path& outputPath, const CommandInputData&
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
     context->musxParts = others::PartDefinition::getInUserOrder(document);
+    context->clefOptions = getDocOptions<options::ClefOptions>(document, "clef options");
 
     createMappings(context);   // map repeat text, text exprs, articulations, etc. to semantic values
 
@@ -162,8 +163,11 @@ void exportJson(const std::filesystem::path& outputPath, const CommandInputData&
     createGlobal(context);
     createParts(context);
     finalizeJumpTies(context);
-    createLayouts(context); // must come after createParts
-    createScores(context); // must come after createLayouts
+    // Split-instrument parts need time-varying layout sources; skip scores/layouts until MNX has a stable model for that.
+    if (!denigmaContext.mnxSplitInstruments) {
+        createLayouts(context); // must come after createParts
+        createScores(context); // must come after createLayouts
+    }
 
     if (!denigmaContext.noValidate) {
         denigmaContext.logMessage(LogMsg() << "Validation starting.", LogSeverity::Verbose);

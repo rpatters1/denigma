@@ -108,6 +108,45 @@ static void createBeams(
     }
 }
 
+static std::optional<ClefIndex> createClef(
+    const MnxMusxMappingPtr& context,
+    mnx::part::Measure& mnxMeasure,
+    std::optional<int> mnxStaffNumber,
+    ClefIndex clefIndex,
+    musx::util::Fraction location,
+    const MusxInstance<others::Staff>& musxStaff)
+{
+    MUSX_ASSERT_IF(!musxStaff) {
+        context->logMessage(LogMsg() << "invalid or unmapped staff passed to createClef", LogSeverity::Warning);
+        return std::nullopt;
+    }
+    const auto& musxClef = context->clefOptions->getClefDef(clefIndex);
+    auto clefFont = musxClef->calcFont();
+    auto glyphName = utils::smuflGlyphNameForFont(clefFont, musxClef->clefChar);
+    if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, glyphName)) {
+        auto [clefSign, octave, hideOctave] = clefInfo.value();
+        int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
+        auto mnxClef = mnxMeasure.ensure_clefs().append(clefSign, staffPosition, octave);
+        if (location) {
+            mnxClef.ensure_position(mnxFractionFromFraction(location));
+        }
+        if (hideOctave) {
+            mnxClef.clef().set_showOctave(false);
+        }
+        if (mnxStaffNumber) {
+            mnxClef.set_staff(mnxStaffNumber.value());
+        }
+        if (glyphName) {
+            mnxClef.clef().set_glyph(glyphName.value());
+        }
+        return clefIndex;
+    } else {
+        context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (glyph name is " << glyphName.value_or("") << ")"
+            << " Clef change was skipped.", LogSeverity::Warning);
+    }
+    return std::nullopt;
+};
+
 static void createClefs(
     const MnxMusxMappingPtr& context,
     const mnx::Part& mnxPart,
@@ -118,10 +157,6 @@ static void createClefs(
     std::optional<ClefIndex>& prevClefIndex)
 {
     const auto& musxDocument = musxMeasure->getDocument();
-    auto clefOptions = musxDocument->getOptions()->get<options::ClefOptions>();
-    if (!clefOptions) {
-        throw std::invalid_argument("Musx document contains no clef options.");
-    }
 
     auto addClef = [&](ClefIndex clefIndex, musx::util::Fraction location) {
         if (clefIndex == prevClefIndex) {
@@ -134,29 +169,8 @@ static void createClefs(
                 << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
             return;
         }
-        const auto& musxClef = clefOptions->getClefDef(clefIndex);
-        auto clefFont = musxClef->calcFont();
-        auto glyphName = utils::smuflGlyphNameForFont(clefFont, musxClef->clefChar);
-        if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, glyphName)) {
-            auto [clefSign, octave, hideOctave] = clefInfo.value();
-            int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
-            auto mnxClef = mnxMeasure.ensure_clefs().append(clefSign, staffPosition, octave);
-            if (location) {
-                mnxClef.ensure_position(mnxFractionFromFraction(location));
-            }
-            if (hideOctave) {
-                mnxClef.clef().set_showOctave(false);
-            }
-            if (mnxStaffNumber) {
-                mnxClef.set_staff(mnxStaffNumber.value());
-            }
-            if (glyphName) {
-                mnxClef.clef().set_glyph(glyphName.value());
-            }
-            prevClefIndex = clefIndex;
-        } else {
-            context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (glyph name is " << glyphName.value_or("") << ")"
-                << " Clef change was skipped.", LogSeverity::Warning);
+        if (auto newClefIndex = createClef(context, mnxMeasure, mnxStaffNumber, clefIndex, location, musxStaff)) {
+            prevClefIndex = newClefIndex;
         }
     };
 
@@ -174,9 +188,6 @@ static void createClefs(
                 addClef(clefItem->clefIndex, location);
             }
         }
-    } else if (musxMeasure->getCmper() == 1) {
-        ClefIndex firstIndex = others::Staff::calcFirstClefIndex(musxDocument, musxMeasure->getRequestedPartId(), staffCmper);
-        addClef(firstIndex, 0);
     }
 }
 
@@ -356,10 +367,28 @@ static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<o
     }
 }
 
+static MusxInstance<others::StaffComposite> findCompositeForIdentity(
+    const InstrumentInfo& instInfo,
+    const InstrumentInfo::InstrumentIdentity& identity)
+{
+    for (const auto& [point, change] : instInfo.getChanges()) {
+        static_cast<void>(point);
+        if (change.identity == identity) {
+            return change.topStaffComposite;
+        }
+    }
+    return nullptr;
+}
+
 static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
 {
     auto& musxDocument = context->document;
     context->clearCounts();
+    if (const auto partId = part.id()) {
+        if (const auto splitIt = context->part2SplitInstrumentUuid.find(partId.value()); splitIt != context->part2SplitInstrumentUuid.end()) {
+            context->currSplitInstrumentUuid = splitIt->second;
+        }
+    }
 
     // Retrieve the linked parts in order.
     auto musxMeasures = musxDocument->getOthers()->getArray<others::Measure>(SCORE_PARTID);
@@ -387,6 +416,20 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
         for (size_t x = 0; x < context->currPartStaves.size(); x++) {
             context->currStaff = context->currPartStaves[x];
             std::optional<int> staffNumber = (context->currPartStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
+            if (context->currSplitInstrumentUuid) {
+                const auto& instInfo = context->document->getInstrumentForStaff(context->currStaff);
+                const auto identity = instInfo.getInstrumentIdentityAt(MusicPoint(musxMeasure->getCmper(), musx::util::Fraction{}));
+                if (musxMeasure->getCmper() == 1) {
+                    const auto musxStaff = findCompositeForIdentity(instInfo, identity);
+                    prevClefs[x] = createClef(context, mnxMeasure, staffNumber, musxStaff->calcClefIndexAt(1, 0, /*forWrittenPitch*/ true), 0, musxStaff);
+                }
+                if (identity.instUuid != context->currSplitInstrumentUuid.value()) {
+                    continue;
+                }
+            } else if (musxMeasure->getCmper() == 1) {
+                const auto musxStaff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getRequestedPartId(), context->currStaff, 1, 0);
+                prevClefs[x] = createClef(context, mnxMeasure, staffNumber, musxStaff->calcClefIndex(/*forWrittenPitch*/ true), 0, musxStaff);
+            }
             createBeams(context, mnxMeasure, musxMeasure, context->currPartStaves[x]);
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->currPartStaves[x], prevClefs[x]);
             // ottaves must be created before sequences, so that the ottava octaves can be correctly calculated for events
@@ -400,10 +443,75 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
     context->clearCounts();
 }
 
-void createParts(const MnxMusxMappingPtr& context)
+static void logNonBarlineInstrumentChanges(const MnxMusxMappingPtr& context, const InstrumentInfo& instInfo, StaffCmper topStaffId)
+{
+    for (const auto& [point, change] : instInfo.getChanges()) {
+        static_cast<void>(change);
+        if (point.position != musx::util::Fraction{}) {
+            context->logMessage(LogMsg() << "Instrument change for staff " << topStaffId
+                << " occurs inside measure " << point.measureId << " at edu "
+                << point.position.calcEduDuration() << ". Split-instruments export routes by measure start.",
+                LogSeverity::Warning);
+        }
+    }
+}
+
+static void mapPartToInstrumentStaves(const MnxMusxMappingPtr& context, const std::string& id, const InstrumentInfo& instInfo)
+{
+    if (instInfo.staves.size() > 1) {
+        for (const auto& [staffId, index] : instInfo.staves) {
+            static_cast<void>(index);
+            context->inst2Part.emplace(staffId, id);
+        }
+        context->part2Inst.emplace(id, instInfo.getSequentialStaves());
+    } else {
+        const auto staves = instInfo.getSequentialStaves();
+        if (!staves.empty()) {
+            context->inst2Part.emplace(staves.front(), id);
+            context->part2Inst.emplace(id, std::vector<StaffCmper>({ staves.front() }));
+        }
+    }
+}
+
+static void populatePartMetadata(
+    const MnxMusxMappingPtr& context,
+    mnx::Part& part,
+    const std::string& id,
+    const InstrumentInfo& instInfo,
+    const MusxInstance<others::StaffComposite>& staff)
 {
     auto musxMiscOptions = context->document->getOptions()->get<options::MiscOptions>();
-    auto multiStaffInsts = context->document->getOthers()->getArray<others::MultiStaffInstrumentGroup>(SCORE_PARTID);
+
+    part.set_id(id);
+    auto fullName = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
+    if (!fullName.empty()) {
+        part.set_name(trimNewLineFromString(fullName));
+    }
+    auto abrvName = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
+    if (!abrvName.empty()) {
+        part.set_shortName(trimNewLineFromString(abrvName));
+    }
+    if (instInfo.staves.size() > 1) {
+        part.set_staves(int(instInfo.staves.size()));
+    }
+    auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
+    if (transpositionDisp || transpositionAlt) {
+        auto transposition = part.ensure_transposition(
+            mnx::Interval::make(transpositionDisp,
+                                music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt)));
+        if (staff->transposition && !staff->transposition->noSimplifyKey && staff->transposition->keysig) {
+            transposition.set_keyFifthsFlipAt(7 * music_theory::sign(staff->transposition->keysig->adjust));
+        }
+        if (music_theory::calcTranspositionIsOctave(transpositionDisp, transpositionAlt)) {
+            if (musxMiscOptions->keepWrittenOctaveInConcertPitch) {
+                transposition.set_prefersWrittenPitches(true);
+            }
+        }
+    }
+}
+
+void createParts(const MnxMusxMappingPtr& context)
+{
     const auto scrollView = context->document->getScrollViewStaves(SCORE_PARTID);
     int partNumber = 0;
     auto parts = context->mnxDocument->parts();
@@ -413,43 +521,33 @@ void createParts(const MnxMusxMappingPtr& context)
         if (instIt == context->document->getInstruments().end()) {
             continue;
         }
-        std::string id = "P" + std::to_string(++partNumber);
-        auto part = parts.append();
-        part.set_id(id);
-        auto fullName = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
-        if (!fullName.empty()) {
-            part.set_name(trimNewLineFromString(fullName));
-        }
-        auto abrvName = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
-        if (!abrvName.empty()) {
-            part.set_shortName(trimNewLineFromString(abrvName));
-        }
         const auto& [topStaffId, instInfo] = *instIt;
-        if (instInfo.staves.size() > 1) {
-            part.set_staves(int(instInfo.staves.size()));
-            for (const auto& [staffId, index] : instInfo.staves) {
-                context->inst2Part.emplace(staffId, id);
-            }
-            context->part2Inst.emplace(id, instInfo.getSequentialStaves());
-        } else {
-            context->inst2Part.emplace(staff->getCmper(), id);
-            context->part2Inst.emplace(id, std::vector<StaffCmper>({ StaffCmper(staff->getCmper()) }));
+
+        std::vector<InstrumentInfo::InstrumentIdentity> identities;
+        if (context->denigmaContext->mnxSplitInstruments) {
+            logNonBarlineInstrumentChanges(context, instInfo, topStaffId);
+            identities = instInfo.getInstrumentIdentities();
         }
-        auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
-        if (transpositionDisp || transpositionAlt) {
-            auto transposition = part.ensure_transposition(
-                mnx::Interval::make(transpositionDisp,
-                                    music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt)));
-            if (staff->transposition && !staff->transposition->noSimplifyKey && staff->transposition->keysig) {
-                transposition.set_keyFifthsFlipAt(7 * music_theory::sign(staff->transposition->keysig->adjust));
-            }
-            if (music_theory::calcTranspositionIsOctave(transpositionDisp, transpositionAlt)) {
-                if (musxMiscOptions->keepWrittenOctaveInConcertPitch) {
-                    transposition.set_prefersWrittenPitches(true);
+        if (identities.empty()) {
+            identities.push_back(instInfo.getInstrumentIdentityAt(MusicPoint{}));
+        }
+
+        for (const auto& identity : identities) {
+            auto partStaff = staff;
+            if (context->denigmaContext->mnxSplitInstruments) {
+                if (auto splitStaff = findCompositeForIdentity(instInfo, identity)) {
+                    partStaff = splitStaff;
                 }
             }
+            std::string id = "P" + std::to_string(++partNumber);
+            auto part = parts.append();
+            if (context->denigmaContext->mnxSplitInstruments) {
+                context->part2SplitInstrumentUuid.emplace(id, identity.instUuid);
+            }
+            populatePartMetadata(context, part, id, instInfo, partStaff);
+            mapPartToInstrumentStaves(context, id, instInfo);
+            createMeasures(context, part);
         }
-        createMeasures(context, part);
     }
 }
 

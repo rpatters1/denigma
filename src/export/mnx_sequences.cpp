@@ -652,6 +652,16 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             content.append<mnx::sequence::Space>(mnxFractionFromFraction(currElapsedDuration - elapsedInSequence));
             elapsedInSequence = currElapsedDuration;
         }
+        if (context->currSplitInstrumentUuid) {
+            const auto& instInfo = context->document->getInstrumentForStaff(context->currStaff);
+            const auto identity = instInfo.getInstrumentIdentityAt(MusicPoint(entryInfo.getMeasure(), currElapsedDuration));
+            if (identity.instUuid != context->currSplitInstrumentUuid.value()) {
+                context->logMessage(LogMsg() << "Entry " << entry->getEntryNumber()
+                    << " has an instrument identity that differs from the active split part inside measure "
+                    << entryInfo.getMeasure() << ". Emitting it in the current frame's part.",
+                    LogSeverity::Warning);
+            }
+        }
 
         if (tupletIndex) {
             auto tuplInfo = next.getEntryInfo().getFrame()->tupletInfo[tupletIndex.value()];

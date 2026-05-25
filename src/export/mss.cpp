@@ -171,23 +171,13 @@ struct FinalePreferences
 };
 using FinalePreferencesPtr = std::shared_ptr<FinalePreferences>;
 
-template <typename T>
-static MusxInstance<T> getDocOptions(const FinalePreferencesPtr& prefs, const std::string& prefsName)
-{
-    auto retval = prefs->document->getOptions()->get<T>();
-    if (!retval) {
-        throw std::invalid_argument("document contains no default " + prefsName + " denigmaContext");
-    }
-    return retval;
-}
-
 static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper forPartId, const DenigmaContext& denigmaContext)
 {
     auto retval = std::make_shared<FinalePreferences>(denigmaContext);
     retval->document = document;
     retval->forPartId = forPartId;
 
-    auto fontOptions = getDocOptions<options::FontOptions>(retval, "font");
+    auto fontOptions = getDocOptions<options::FontOptions>(document, "font");
     retval->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
     if (!retval->defaultMusicFont) {
         throw std::invalid_argument("document contains no information for the default music font.");
@@ -203,37 +193,37 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
         return {};
     }();
     //
-    retval->accidentalOptions = getDocOptions<options::AccidentalOptions>(retval, "accidental");
-    retval->alternateNotationOptions = getDocOptions<options::AlternateNotationOptions>(retval, "alternate notation");
-    retval->augDotOptions = getDocOptions<options::AugmentationDotOptions>(retval, "augmentation dot");
-    retval->barlineOptions = getDocOptions<options::BarlineOptions>(retval, "barline");
-    retval->beamOptions = getDocOptions<options::BeamOptions>(retval, "beam");
-    retval->chordOptions = getDocOptions<options::ChordOptions>(retval, "chord");
-    retval->clefOptions = getDocOptions<options::ClefOptions>(retval, "clef");
-    retval->flagOptions = getDocOptions<options::FlagOptions>(retval, "flag");
-    retval->graceOptions = getDocOptions<options::GraceNoteOptions>(retval, "grace note");
-    retval->keyOptions = getDocOptions<options::KeySignatureOptions>(retval, "key signature");
-    retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(retval, "lines & curves");
-    retval->miscOptions = getDocOptions<options::MiscOptions>(retval, "miscellaneous");
-    retval->musicSymbolOptions = getDocOptions<options::MusicSymbolOptions>(retval, "music symbol");
-    retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(retval, "multimeasure rest");
-    retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(retval, "music spacing");
-    auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(retval, "page format");
+    retval->accidentalOptions = getDocOptions<options::AccidentalOptions>(document, "accidental");
+    retval->alternateNotationOptions = getDocOptions<options::AlternateNotationOptions>(document, "alternate notation");
+    retval->augDotOptions = getDocOptions<options::AugmentationDotOptions>(document, "augmentation dot");
+    retval->barlineOptions = getDocOptions<options::BarlineOptions>(document, "barline");
+    retval->beamOptions = getDocOptions<options::BeamOptions>(document, "beam");
+    retval->chordOptions = getDocOptions<options::ChordOptions>(document, "chord");
+    retval->clefOptions = getDocOptions<options::ClefOptions>(document, "clef");
+    retval->flagOptions = getDocOptions<options::FlagOptions>(document, "flag");
+    retval->graceOptions = getDocOptions<options::GraceNoteOptions>(document, "grace note");
+    retval->keyOptions = getDocOptions<options::KeySignatureOptions>(document, "key signature");
+    retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(document, "lines & curves");
+    retval->miscOptions = getDocOptions<options::MiscOptions>(document, "miscellaneous");
+    retval->musicSymbolOptions = getDocOptions<options::MusicSymbolOptions>(document, "music symbol");
+    retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(document, "multimeasure rest");
+    retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(document, "music spacing");
+    auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(document, "page format");
     retval->pageFormat = pageFormatOptions->calcPageFormatForPart(forPartId);
-    retval->braceOptions = getDocOptions<options::PianoBraceBracketOptions>(retval, "piano braces & brackets");
-    retval->repeatOptions = getDocOptions<options::RepeatOptions>(retval, "repeat");
-    retval->smartShapeOptions = getDocOptions<options::SmartShapeOptions>(retval, "smart shape");
-    retval->staffOptions = getDocOptions<options::StaffOptions>(retval, "staff");
-    retval->stemOptions = getDocOptions<options::StemOptions>(retval, "stem");
-    retval->tieOptions = getDocOptions<options::TieOptions>(retval, "tie");
-    retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(retval, "time signature");
-    retval->tupletOptions = getDocOptions<options::TupletOptions>(retval, "tuplet");
+    retval->braceOptions = getDocOptions<options::PianoBraceBracketOptions>(document, "piano braces & brackets");
+    retval->repeatOptions = getDocOptions<options::RepeatOptions>(document, "repeat");
+    retval->smartShapeOptions = getDocOptions<options::SmartShapeOptions>(document, "smart shape");
+    retval->staffOptions = getDocOptions<options::StaffOptions>(document, "staff");
+    retval->stemOptions = getDocOptions<options::StemOptions>(document, "stem");
+    retval->tieOptions = getDocOptions<options::TieOptions>(document, "tie");
+    retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(document, "time signature");
+    retval->tupletOptions = getDocOptions<options::TupletOptions>(document, "tuplet");
     //
-    retval->layerOneAttributes = retval->document->getOthers()->get<others::LayerAttributes>(forPartId, 0);
+    retval->layerOneAttributes = document->getOthers()->get<others::LayerAttributes>(forPartId, 0);
     if (!retval->layerOneAttributes) {
         throw std::invalid_argument("document contains no options for Layer 1");
     }
-    auto measNumRegions = retval->document->getOthers()->getArray<others::MeasureNumberRegion>(forPartId);
+    auto measNumRegions = document->getOthers()->getArray<others::MeasureNumberRegion>(forPartId);
     if (measNumRegions.size() > 0) {
         retval->measNumScorePart = (forPartId && measNumRegions[0]->useScoreInfoForPart && measNumRegions[0]->partData)
                                  ? measNumRegions[0]->partData
@@ -242,7 +232,7 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
             throw std::invalid_argument("document contains no ScorePartData for measure number region " + std::to_string(measNumRegions[0]->getCmper()));
         }
     }
-    retval->partGlobals = retval->document->getOthers()->get<others::PartGlobals>(forPartId, MUSX_GLOBALS_CMPER);
+    retval->partGlobals = document->getOthers()->get<others::PartGlobals>(forPartId, MUSX_GLOBALS_CMPER);
     if (!retval->layerOneAttributes) {
         throw std::invalid_argument("document contains no options for Layer 1");
     }

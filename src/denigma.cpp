@@ -154,6 +154,8 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             includeTempoTool = true;
         } else if (next == _ARG("--no-include-tempo-tool")) {
             includeTempoTool = false;
+        } else if (next == _ARG("--split-instruments")) {
+            mnxSplitInstruments = true;
         } else if (next == _ARG("--pretty-print")) {
             try {
                 int value = std::stoi(std::string(_ARG_CONV(getNextArg())));
