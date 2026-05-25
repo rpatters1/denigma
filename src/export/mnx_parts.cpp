@@ -147,26 +147,6 @@ static std::optional<ClefIndex> createClef(
     return std::nullopt;
 };
 
-static void clearClefsForStaff(mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
-{
-    if (auto clefsOpt = mnxMeasure.clefs()) {
-        auto clefs = clefsOpt.value();
-        for (size_t i = clefs.size(); i-- > 0;) {
-            auto clef = clefs.at(i);
-            if (mnxStaffNumber) {
-                if (clef.staff() == mnxStaffNumber.value()) {
-                    clefs.erase(i);
-                }
-            } else if (!clef.staff()) {
-                clefs.erase(i);
-            }
-        }
-        if (clefs.size() == 0) {
-            mnxMeasure.clear_clefs();
-        }
-    }
-}
-
 static void createClefs(
     const MnxMusxMappingPtr& context,
     const mnx::Part& mnxPart,
@@ -196,17 +176,12 @@ static void createClefs(
 
     auto staff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper(), 0);
     if (staff && staff->transposition && staff->transposition->setToClef) {
-        clearClefsForStaff(mnxMeasure, mnxStaffNumber); // in case this is the initial measure and was populated from the staff's default clef.
         addClef(staff->transposedClef, 0);
     } else if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper())) {
         if (gfhold->clefId.has_value()) {
-            clearClefsForStaff(mnxMeasure, mnxStaffNumber); // in case this is the initial measure and was populated from the staff's default clef.
             addClef(gfhold->clefId.value(), 0);
         } else {
             auto clefList = musxDocument->getOthers()->getArray<others::ClefList>(musxMeasure->getRequestedPartId(), gfhold->clefListId);
-            if (!clefList.empty()) {
-                clearClefsForStaff(mnxMeasure, mnxStaffNumber); // in case this is the initial measure and was populated from the staff's default clef.
-            }
             const auto ctx = details::GFrameHoldContext(gfhold);
             for (const auto& clefItem : clefList) {
                 const auto location = ctx.snapLocationToEntryOrKeep(musx::util::Fraction::fromEdu(clefItem->xEduPos), /*findExact*/ true);
@@ -444,16 +419,16 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             if (context->currSplitInstrumentUuid) {
                 const auto& instInfo = context->document->getInstrumentForStaff(context->currStaff);
                 const auto identity = instInfo.getInstrumentIdentityAt(MusicPoint(musxMeasure->getCmper(), musx::util::Fraction{}));
+                if (musxMeasure->getCmper() == 1) {
+                    const auto musxStaff = findCompositeForIdentity(instInfo, identity);
+                    prevClefs[x] = createClef(context, mnxMeasure, staffNumber, musxStaff->calcClefIndexAt(1, 0, /*forWrittenPitch*/ true), 0, musxStaff);
+                }
                 if (identity.instUuid != context->currSplitInstrumentUuid.value()) {
                     continue;
                 }
-                if (musxMeasure->getCmper() == 1) {
-                    const auto musxStaff = findCompositeForIdentity(instInfo, identity);
-                    createClef(context, mnxMeasure, staffNumber, musxStaff->calcClefIndexAt(1, 0, /*forWrittenPitch*/ true), 0, musxStaff);
-                }
             } else if (musxMeasure->getCmper() == 1) {
                 const auto musxStaff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getRequestedPartId(), context->currStaff, 1, 0);
-                createClef(context, mnxMeasure, staffNumber, musxStaff->calcClefIndex(/*forWrittenPitch*/ true), 0, musxStaff);
+                prevClefs[x] = createClef(context, mnxMeasure, staffNumber, musxStaff->calcClefIndex(/*forWrittenPitch*/ true), 0, musxStaff);
             }
             createBeams(context, mnxMeasure, musxMeasure, context->currPartStaves[x]);
             createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->currPartStaves[x], prevClefs[x]);
@@ -558,13 +533,15 @@ void createParts(const MnxMusxMappingPtr& context)
         }
 
         for (const auto& identity : identities) {
-            std::string id = "P" + std::to_string(++partNumber);
-            auto part = parts.append();
             auto partStaff = staff;
             if (context->denigmaContext->mnxSplitInstruments) {
                 if (auto splitStaff = findCompositeForIdentity(instInfo, identity)) {
                     partStaff = splitStaff;
                 }
+            }
+            std::string id = "P" + std::to_string(++partNumber);
+            auto part = parts.append();
+            if (context->denigmaContext->mnxSplitInstruments) {
                 context->part2SplitInstrumentUuid.emplace(id, identity.instUuid);
             }
             populatePartMetadata(context, part, id, instInfo, partStaff);
