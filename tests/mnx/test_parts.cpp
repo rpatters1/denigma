@@ -30,6 +30,89 @@
 
 using namespace denigma;
 
+namespace {
+
+void checkMeasure1MidMeasureClefs(const mnx::Part& part)
+{
+    auto measures = part.measures();
+    ASSERT_GE(measures.size(), 1);
+
+    for (size_t i = 1; i < measures.size(); ++i) {
+        EXPECT_FALSE(measures[i].clefs().has_value()) << measures[i].dump(4);
+    }
+
+    auto measure1 = measures[0];
+    ASSERT_TRUE(measure1.clefs().has_value()) << measure1.dump(4);
+
+    auto clefs = measure1.clefs().value();
+    std::vector<size_t> staff1Clefs;
+    for (size_t i = 0; i < clefs.size(); ++i) {
+        if (clefs[i].staff() == 1) {
+            staff1Clefs.push_back(i);
+        }
+    }
+    ASSERT_EQ(staff1Clefs.size(), 3) << measure1.dump(4);
+
+    auto clef0 = clefs[staff1Clefs[0]];
+    EXPECT_EQ(clef0.clef().sign(), mnx::ClefSign::GClef);
+    EXPECT_FALSE(clef0.position().has_value());
+
+    auto clef1 = clefs[staff1Clefs[1]];
+    EXPECT_EQ(clef1.clef().sign(), mnx::ClefSign::FClef);
+    ASSERT_TRUE(clef1.position().has_value());
+    EXPECT_EQ(clef1.position()->fraction().numerator(), 1);
+    EXPECT_EQ(clef1.position()->fraction().denominator(), 8);
+
+    auto clef2 = clefs[staff1Clefs[2]];
+    EXPECT_EQ(clef2.clef().sign(), mnx::ClefSign::CClef);
+    ASSERT_TRUE(clef2.position().has_value());
+    EXPECT_EQ(clef2.position()->fraction().numerator(), 1);
+    EXPECT_EQ(clef2.position()->fraction().denominator(), 2);
+
+    std::vector<size_t> staff2Clefs;
+    for (size_t i = 0; i < clefs.size(); ++i) {
+        if (clefs[i].staff() == 2) {
+            staff2Clefs.push_back(i);
+        }
+    }
+    ASSERT_EQ(staff2Clefs.size(), 1) << measure1.dump(4);
+
+    auto staff2Clef = clefs[staff2Clefs[0]];
+    EXPECT_FALSE(staff2Clef.position().has_value());
+}
+
+void checkMeas1MidMeasureClefExport(bool splitInstruments)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("meas1_midmeasureclef.musx", inputPath);
+
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    if (splitInstruments) {
+        args.add("--split-instruments");
+    }
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "meas1_midmeasureclef.mnx");
+    auto parts = doc.parts();
+    ASSERT_GE(parts.size(), 1);
+    checkMeasure1MidMeasureClefs(parts[0]);
+
+    nlohmann::json mnx;
+    openJson(inputPath.parent_path() / "meas1_midmeasureclef.mnx", mnx);
+    if (splitInstruments) {
+        EXPECT_FALSE(mnx.contains("scores")) << mnx.dump(4);
+        EXPECT_FALSE(mnx.contains("layouts")) << mnx.dump(4);
+    } else {
+        EXPECT_TRUE(mnx.contains("scores")) << mnx.dump(4);
+        EXPECT_TRUE(mnx.contains("layouts")) << mnx.dump(4);
+    }
+}
+
+} // namespace
+
 
 TEST(MnxParts, MultiInstrumentTest)
 {
@@ -88,6 +171,16 @@ TEST(MnxParts, ForcedClef)
     EXPECT_EQ(clef.clef().sign(), mnx::ClefSign::FClef);
     EXPECT_EQ(clef.clef().octave(), mnx::OttavaAmountOrZero::NoTransposition);
     EXPECT_FALSE(clef.position().has_value());
+}
+
+TEST(MnxParts, Measure1MidMeasureClefs)
+{
+    checkMeas1MidMeasureClefExport(false);
+}
+
+TEST(MnxParts, Measure1MidMeasureClefsSplitInstruments)
+{
+    checkMeas1MidMeasureClefExport(true);
 }
 
 TEST(MnxParts, PartiallyHiddenCue)
