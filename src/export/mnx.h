@@ -77,8 +77,11 @@ struct MnxMusxMapping
     std::unique_ptr<mnx::Document> mnxDocument;
     MusxInstanceList<others::PartDefinition> musxParts;
 
+    MusxInstance<options::ClefOptions> clefOptions;
+
     std::unordered_map<std::string, std::vector<StaffCmper>> part2Inst;
     std::unordered_map<StaffCmper, std::string> inst2Part;
+    std::unordered_map<std::string, std::string> part2SplitInstrumentUuid;
     std::unordered_set<std::string> lyricLineIds;
 
     // musx mappings
@@ -97,6 +100,7 @@ struct MnxMusxMapping
 
     MeasCmper currMeas{};
     StaffCmper currStaff{};
+    std::optional<std::string> currSplitInstrumentUuid;
     std::string voice;
     std::vector<StaffCmper> currPartStaves;
     std::unordered_set<EntryNumber> beamedEntries;
@@ -107,6 +111,7 @@ struct MnxMusxMapping
     void clearCounts()
     {
         currMeas = currStaff = 0;
+        currSplitInstrumentUuid.reset();
         voice.clear();
         currPartStaves.clear();
         beamedEntries.clear();

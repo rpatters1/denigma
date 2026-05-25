@@ -208,6 +208,7 @@ public:
     std::optional<std::filesystem::path> mnxSchemaPath;
     std::optional<std::string> mnxSchema;
     bool includeTempoTool{};
+    bool mnxSplitInstruments{};
 
     // Specific options for `export --svg` command
     std::vector<musx::dom::Cmper> svgShapeDefs;
@@ -285,6 +286,16 @@ std::string getTimeStamp(const std::string& fmt);
 bool createDirectoryIfNeeded(const std::filesystem::path& path);
 void showAboutPage();
 bool isFontSMuFL(const std::shared_ptr<musx::dom::FontInfo>& font);
+
+template <typename T>
+musx::dom::MusxInstance<T> getDocOptions(const musx::dom::DocumentPtr& document, const std::string& prefsName)
+{
+    auto retval = document->getOptions()->get<T>();
+    if (!retval) {
+        throw std::invalid_argument("document contains no default " + prefsName + " denigmaContext");
+    }
+    return retval;
+}
 
 } // namespace denigma
 

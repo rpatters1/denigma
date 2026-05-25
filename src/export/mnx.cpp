@@ -155,6 +155,7 @@ void exportJson(const std::filesystem::path& outputPath, const CommandInputData&
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
     context->musxParts = others::PartDefinition::getInUserOrder(document);
+    context->clefOptions = getDocOptions<options::ClefOptions>(document, "clef options");
 
     createMappings(context);   // map repeat text, text exprs, articulations, etc. to semantic values
 
