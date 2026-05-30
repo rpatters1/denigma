@@ -25,6 +25,7 @@
 #include "mnx.h"
 #include "mnx_mapping.h"
 #include "utils/smufl_support.h"
+#include "utils/utf8_iterator.h"
 
 namespace denigma {
 namespace mnxexp {

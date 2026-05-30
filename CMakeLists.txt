@@ -316,6 +316,7 @@ add_executable(denigma
     src/export/enigmaxml.cpp
     src/export/mnx.cpp
     src/export/mnx_enums.cpp
+    src/export/mnx_formatted_text.cpp
     src/export/mnx_global.cpp
     src/export/mnx_layouts.cpp
     src/export/mnx_mapping.cpp
@@ -328,6 +329,7 @@ add_executable(denigma
     src/massage/musicxml.cpp
     src/utils/textmetrics.cpp
     src/utils/smufl_support.cpp
+    src/utils/utf8_iterator.cpp
     src/utils/ziputils.cpp
 )
 
