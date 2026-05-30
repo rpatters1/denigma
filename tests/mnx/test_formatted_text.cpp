@@ -80,7 +80,17 @@ TEST(MnxFormattedText, ConvertsStyledText)
 
     const auto formatted = makeFormattedText(ctx.parsingContext);
 
-    EXPECT_EQ(formatted.dump(), R"json([{"style":{"font":"Times New Roman","fontStyle":"italic","size":14.0,"weight":"bold"},"text":"Bold Italic"}])json");
+    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+        {
+            "text": "Bold Italic",
+            "style": {
+                "font": "Times New Roman",
+                "size": 14.0,
+                "fontStyle": "italic",
+                "weight": "bold"
+            }
+        }
+    ])json"));
 }
 
 TEST(MnxFormattedText, ReplacesExistingContent)
@@ -91,7 +101,15 @@ TEST(MnxFormattedText, ReplacesExistingContent)
 
     setFormattedText(formatted, secondCtx.parsingContext);
 
-    EXPECT_EQ(formatted.dump(), R"json([{"style":{"font":"Times New Roman","size":12.0},"text":"Second"}])json");
+    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+        {
+            "text": "Second",
+            "style": {
+                "font": "Times New Roman",
+                "size": 12.0
+            }
+        }
+    ])json"));
 }
 
 TEST(MnxFormattedText, ConvertsSmuflGlyphs)
@@ -100,5 +118,14 @@ TEST(MnxFormattedText, ConvertsSmuflGlyphs)
 
     const auto formatted = makeFormattedText(ctx.parsingContext);
 
-    EXPECT_EQ(formatted.dump(), R"json([{"glyphs":["dynamicPiano"],"style":{"font":"Finale Maestro","size":24.0},"type":"smufl"}])json");
+    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+        {
+            "type": "smufl",
+            "glyphs": ["dynamicPiano"],
+            "style": {
+                "font": "Finale Maestro",
+                "size": 24.0
+            }
+        }
+    ])json"));
 }
