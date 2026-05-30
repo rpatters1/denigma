@@ -132,22 +132,26 @@ static void applyStyle(T item, const EnigmaStyles& styles, const MnxFormattedTex
     style.set_or_clear_weight(styles.font->bold ? mnx::FontWeight::Bold : mnx::FontWeight::Plain);
 }
 
-static void appendTextChunk(mnx::FormattedText dst, const std::string& text, const EnigmaStyles& styles, const MnxFormattedTextOptions& options)
+static void appendTextChunk(mnx::FormattedText dst, const std::string& text, const EnigmaStyles& styles, const MnxFormattedTextOptions& options, bool addStyle = true)
 {
     if (text.empty()) {
         return;
     }
     auto item = dst.append<mnx::text::Text>(text);
-    applyStyle(item, styles, options);
+    if (addStyle) {
+        applyStyle(item, styles, options);
+    }
 }
 
-static void appendSmuflChunk(mnx::FormattedText dst, const std::vector<std::string>& glyphs, const EnigmaStyles& styles, const MnxFormattedTextOptions& options)
+static void appendSmuflChunk(mnx::FormattedText dst, const std::vector<std::string>& glyphs, const EnigmaStyles& styles, const MnxFormattedTextOptions& options, bool addStyle = true)
 {
     if (glyphs.empty()) {
         return;
     }
     auto item = dst.append<mnx::text::Smufl>(glyphs);
-    applyStyle(item, styles, options);
+    if (addStyle && styles.font && styles.font->calcIsSMuFL()) {
+        applyStyle(item, styles, options);
+    }
 }
 
 static void appendConvertedChunk(mnx::FormattedText dst, const std::string& text, const EnigmaStyles& styles, const MnxFormattedTextOptions& options)
@@ -170,18 +174,20 @@ static void appendConvertedChunk(mnx::FormattedText dst, const std::string& text
         return;
     }
 
+    bool addTextStyle = true;
     for (const auto& run : splitRunsByGlyphMapping(styles.font, text)) {
         if (run.isSmufl) {
-            appendSmuflChunk(dst, run.glyphs, styles, options);
+            appendSmuflChunk(dst, run.glyphs, styles, options, false);
         } else {
-            appendTextChunk(dst, run.text, styles, options);
+            appendTextChunk(dst, run.text, styles, options, addTextStyle);
+            addTextStyle = false;
         }
     }
 }
 
 } // namespace
 
-mnx::FormattedText setFormattedText(
+void setFormattedText(
     mnx::FormattedText dst,
     const EnigmaParsingContext& src,
     const MnxFormattedTextOptions& options)
@@ -200,8 +206,6 @@ mnx::FormattedText setFormattedText(
         appendConvertedChunk(dst, chunk, styles, options);
         return true;
     }, parsingOptions);
-
-    return dst;
 }
 
 mnx::FormattedText makeFormattedText(
@@ -209,7 +213,8 @@ mnx::FormattedText makeFormattedText(
     const MnxFormattedTextOptions& options)
 {
     mnx::FormattedText result;
-    return setFormattedText(result, src, options);
+    setFormattedText(result, src, options);
+    return result;
 }
 
 } // namespace mnxexp

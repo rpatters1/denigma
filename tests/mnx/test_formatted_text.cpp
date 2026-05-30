@@ -58,6 +58,13 @@ static RawTextContext makeRawTextContext(const std::string& enigmaText)
       <family>0</family>
       <name>Times New Roman</name>
     </fontName>
+    <fontName cmper="2">
+      <charsetBank>Mac</charsetBank>
+      <charsetVal>4095</charsetVal>
+      <pitch>0</pitch>
+      <family>0</family>
+      <name>Maestro</name>
+    </fontName>
   </others>
   <texts>
     <blockText number="1">)xml";
@@ -126,6 +133,64 @@ TEST(MnxFormattedText, ConvertsSmuflGlyphs)
                 "font": "Finale Maestro",
                 "size": 24.0
             }
+        }
+    ])json"));
+}
+
+TEST(MnxFormattedText, PreservesMixedSmuflTextByDefault)
+{
+    auto ctx = makeRawTextContext("^fontid(2)^size(24)^nfx(0)p f");
+
+    const auto formatted = makeFormattedText(ctx.parsingContext);
+
+    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+        {
+            "text": "p f",
+            "style": {
+                "font": "Maestro",
+                "size": 24.0
+            }
+        }
+    ])json"));
+}
+
+TEST(MnxFormattedText, OmitsLegacyFontStyleFromSmuflGlyphs)
+{
+    auto ctx = makeRawTextContext("^fontid(2)^size(24)^nfx(0)pf");
+
+    const auto formatted = makeFormattedText(ctx.parsingContext);
+
+    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+        {
+            "type": "smufl",
+            "glyphs": ["dynamicPiano", "dynamicForte"]
+        }
+    ])json"));
+}
+
+TEST(MnxFormattedText, SplitsSmuflGlyphsFromMixedTextWhenRequested)
+{
+    auto ctx = makeRawTextContext("^fontid(2)^size(24)^nfx(0)p f");
+    MnxFormattedTextOptions options;
+    options.symbolPolicy = MnxFormattedTextSymbolPolicy::SplitSmufl;
+
+    const auto formatted = makeFormattedText(ctx.parsingContext, options);
+
+    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+        {
+            "type": "smufl",
+            "glyphs": ["dynamicPiano"]
+        },
+        {
+            "text": " ",
+            "style": {
+                "font": "Maestro",
+                "size": 24.0
+            }
+        },
+        {
+            "type": "smufl",
+            "glyphs": ["dynamicForte"]
         }
     ])json"));
 }

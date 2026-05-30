@@ -33,7 +33,7 @@ enum class MnxFormattedTextSymbolPolicy
 {
     PreserveText,
     PreferSmufl,
-    ForceSmufl
+    SplitSmufl
 };
 
 struct MnxFormattedTextOptions
@@ -44,7 +44,7 @@ struct MnxFormattedTextOptions
     std::optional<musx::dom::MusxInstance<musx::dom::FontInfo>> initialFont;
 };
 
-mnx::FormattedText setFormattedText(
+void setFormattedText(
     mnx::FormattedText dst,
     const musx::util::EnigmaParsingContext& src,
     const MnxFormattedTextOptions& options = {});
