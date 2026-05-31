@@ -21,7 +21,10 @@
  */
 #pragma once
 
+#include <functional>
 #include <optional>
+#include <string>
+#include <vector>
 
 #include "mnxdom.h"
 #include "musx/musx.h"
@@ -36,12 +39,15 @@ enum class MnxFormattedTextSymbolPolicy
     SplitSmufl
 };
 
+using MnxFormattedTextChunkCallback = std::function<void(const std::string&, const std::vector<std::string>&)>;
+
 struct MnxFormattedTextOptions
 {
     MnxFormattedTextSymbolPolicy symbolPolicy = MnxFormattedTextSymbolPolicy::PreferSmufl;
     bool skipHiddenText = true;
     bool plainTextOnly = false;
     std::optional<musx::dom::MusxInstance<musx::dom::FontInfo>> initialFont;
+    MnxFormattedTextChunkCallback onChunk;
 };
 
 void setFormattedText(

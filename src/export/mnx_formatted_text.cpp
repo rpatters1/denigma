@@ -60,7 +60,7 @@ static std::vector<std::string> glyphNamesForText(const MusxInstance<FontInfo>& 
         }
     }
     if (!allMapped) {
-    result.clear();
+        result.clear();
     }
     return result;
 }
@@ -76,16 +76,17 @@ static std::vector<GlyphRun> splitRunsByGlyphMapping(const MusxInstance<FontInfo
         appendUtf8(result.back().text, src, offset, length);
     };
 
-    auto appendGlyph = [&](const std::string& glyphName) {
+    auto appendGlyph = [&](std::string_view src, size_t offset, size_t length, const std::string& glyphName) {
         if (result.empty() || !result.back().isSmufl) {
             result.push_back(GlyphRun{ true, {}, {} });
         }
+        appendUtf8(result.back().text, src, offset, length);
         result.back().glyphs.push_back(glyphName);
     };
 
     for (utils::Utf8Iterator iter(text); !iter.atEnd(); iter.next()) {
         if (auto glyphName = utils::smuflGlyphNameForFont(font, iter->codepoint)) {
-            appendGlyph(*glyphName);
+            appendGlyph(text, iter.offset(), iter->byteCount, *glyphName);
         } else {
             appendText(text, iter.offset(), iter->byteCount);
         }
@@ -141,9 +142,12 @@ static void appendTextChunk(mnx::FormattedText dst, const std::string& text, con
     if (addStyle) {
         applyStyle(item, styles, options);
     }
+    if (options.onChunk) {
+        options.onChunk(text, {});
+    }
 }
 
-static void appendSmuflChunk(mnx::FormattedText dst, const std::vector<std::string>& glyphs, const EnigmaStyles& styles, const MnxFormattedTextOptions& options, bool addStyle = true)
+static void appendSmuflChunk(mnx::FormattedText dst, const std::string& text, const std::vector<std::string>& glyphs, const EnigmaStyles& styles, const MnxFormattedTextOptions& options, bool addStyle = true)
 {
     if (glyphs.empty()) {
         return;
@@ -151,6 +155,9 @@ static void appendSmuflChunk(mnx::FormattedText dst, const std::vector<std::stri
     auto item = dst.append<mnx::text::Smufl>(glyphs);
     if (addStyle && styles.font && styles.font->calcIsSMuFL()) {
         applyStyle(item, styles, options);
+    }
+    if (options.onChunk) {
+        options.onChunk(text, glyphs);
     }
 }
 
@@ -167,20 +174,22 @@ static void appendConvertedChunk(mnx::FormattedText dst, const std::string& text
 
     if (options.symbolPolicy == MnxFormattedTextSymbolPolicy::PreferSmufl) {
         if (auto glyphs = glyphNamesForText(styles.font, text); !glyphs.empty()) {
-            appendSmuflChunk(dst, glyphs, styles, options);
+            appendSmuflChunk(dst, text, glyphs, styles, options);
         } else {
             appendTextChunk(dst, text, styles, options);
         }
         return;
     }
 
-    bool addTextStyle = true;
-    for (const auto& run : splitRunsByGlyphMapping(styles.font, text)) {
-        if (run.isSmufl) {
-            appendSmuflChunk(dst, run.glyphs, styles, options, false);
-        } else {
-            appendTextChunk(dst, run.text, styles, options, addTextStyle);
-            addTextStyle = false;
+    if (options.symbolPolicy == MnxFormattedTextSymbolPolicy::SplitSmufl) {
+        bool addTextStyle = true;
+        for (const auto& run : splitRunsByGlyphMapping(styles.font, text)) {
+            if (run.isSmufl) {
+                appendSmuflChunk(dst, run.text, run.glyphs, styles, options, false);
+            } else {
+                appendTextChunk(dst, run.text, styles, options, addTextStyle);
+                addTextStyle = false;
+            }
         }
     }
 }

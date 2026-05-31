@@ -194,3 +194,82 @@ TEST(MnxFormattedText, SplitsSmuflGlyphsFromMixedTextWhenRequested)
         }
     ])json"));
 }
+
+TEST(MnxFormattedText, CallsOptionalChunkCallback)
+{
+    auto ctx = makeRawTextContext("^fontid(1)^size(12)^nfx(0)Text ^fontid(2)^size(24)^nfx(0)pf");
+    std::vector<std::string> chunks;
+    std::vector<std::vector<std::string>> glyphs;
+    MnxFormattedTextOptions options;
+    options.onChunk = [&](const std::string& chunk, const std::vector<std::string>& chunkGlyphs) {
+        chunks.push_back(chunk);
+        glyphs.push_back(chunkGlyphs);
+    };
+
+    const auto formatted = makeFormattedText(ctx.parsingContext, options);
+
+    EXPECT_EQ(chunks, (std::vector<std::string>{ "Text ", "pf" }));
+    EXPECT_EQ(glyphs, (std::vector<std::vector<std::string>>{ {}, { "dynamicPiano", "dynamicForte" } }));
+    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+        {
+            "text": "Text ",
+            "style": {
+                "font": "Times New Roman",
+                "size": 12.0
+            }
+        },
+        {
+            "type": "smufl",
+            "glyphs": ["dynamicPiano", "dynamicForte"]
+        }
+    ])json"));
+}
+
+TEST(MnxFormattedText, ChunkCallbackPreservesTextPolicy)
+{
+    auto ctx = makeRawTextContext("^fontid(2)^size(24)^nfx(0)pf");
+    std::vector<std::string> chunks;
+    std::vector<std::vector<std::string>> glyphs;
+    MnxFormattedTextOptions options;
+    options.symbolPolicy = MnxFormattedTextSymbolPolicy::PreserveText;
+    options.onChunk = [&](const std::string& chunk, const std::vector<std::string>& chunkGlyphs) {
+        chunks.push_back(chunk);
+        glyphs.push_back(chunkGlyphs);
+    };
+
+    const auto formatted = makeFormattedText(ctx.parsingContext, options);
+
+    EXPECT_EQ(chunks, (std::vector<std::string>{ "pf" }));
+    EXPECT_EQ(glyphs, (std::vector<std::vector<std::string>>{ {} }));
+    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+        {
+            "text": "pf",
+            "style": {
+                "font": "Maestro",
+                "size": 24.0
+            }
+        }
+    ])json"));
+}
+
+TEST(MnxFormattedText, ChunkCallbackSplitsSmuflPolicy)
+{
+    auto ctx = makeRawTextContext("^fontid(2)^size(24)^nfx(0)p f");
+    std::vector<std::string> chunks;
+    std::vector<std::vector<std::string>> glyphs;
+    MnxFormattedTextOptions options;
+    options.symbolPolicy = MnxFormattedTextSymbolPolicy::SplitSmufl;
+    options.onChunk = [&](const std::string& chunk, const std::vector<std::string>& chunkGlyphs) {
+        chunks.push_back(chunk);
+        glyphs.push_back(chunkGlyphs);
+    };
+
+    static_cast<void>(makeFormattedText(ctx.parsingContext, options));
+
+    EXPECT_EQ(chunks, (std::vector<std::string>{ "p", " ", "f" }));
+    EXPECT_EQ(glyphs, (std::vector<std::vector<std::string>>{
+        { "dynamicPiano" },
+        {},
+        { "dynamicForte" }
+    }));
+}
