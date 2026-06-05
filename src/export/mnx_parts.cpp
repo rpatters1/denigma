@@ -165,7 +165,7 @@ static void createClefs(
         auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
             musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
         if (!musxStaff) {
-            context->logMessage(LogMsg() << "Part Id " << mnxPart.id().value_or(std::to_string(mnxPart.calcArrayIndex()))
+            context->logMessage(LogMsg() << mnxPartDisplayName(context, mnxPart)
                 << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
             return;
         }
@@ -393,10 +393,9 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
     // Retrieve the linked parts in order.
     auto musxMeasures = musxDocument->getOthers()->getArray<others::Measure>(SCORE_PARTID);
     auto mnxMeasures = part.create_measures();
-    const auto it = context->part2Inst.find(part.id().value_or(""));
+    const auto it = context->part2Inst.find(part.id_or(""));
     if (it == context->part2Inst.end() || it->second.empty()) {
-        context->logMessage(LogMsg() << "Part Id " << part.id().value_or(std::to_string(part.calcArrayIndex()))
-            << " is not mapped", LogSeverity::Warning);
+        context->logMessage(LogMsg() << mnxPartDisplayName(context, part) << " is not mapped", LogSeverity::Warning);
     } else {
         context->currPartStaves = it->second;
     }

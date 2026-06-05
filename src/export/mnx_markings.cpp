@@ -320,6 +320,55 @@ static std::optional<NoteInfoPtr> findArepggioBoundaryNote(const EntryInfoPtr& e
     return std::nullopt;
 }
 
+static std::optional<std::string> findMnxPartForNote(const MnxMusxMappingPtr& context, const NoteInfoPtr& note)
+{
+    const auto it = context->inst2Part.find(note.calcStaff());
+    if (it == context->inst2Part.end()) {
+        return std::nullopt;
+    }
+    return it->second;
+}
+
+static bool noteIsInCurrentPart(const MnxMusxMappingPtr& context, const NoteInfoPtr& note)
+{
+    return context->mnxPartStaffFromStaff(note.calcStaff()).has_value();
+}
+
+static std::optional<NoteInfoPtr> findArpeggioBoundaryNoteInCurrentPart(
+    const MnxMusxMappingPtr& context,
+    const EntryInfoPtr& preferredEntry,
+    const EntryInfoPtr& fallbackEntry,
+    bool topNote)
+{
+    auto findInEntry = [&](const EntryInfoPtr& entryInfo) -> std::optional<NoteInfoPtr> {
+        if (!entryInfo) {
+            return std::nullopt;
+        }
+        const auto entry = entryInfo->getEntry();
+        if (topNote) {
+            for (size_t noteIndex = entry->notes.size(); noteIndex-- > 0; ) {
+                NoteInfoPtr note(entryInfo, noteIndex);
+                if (noteIsInCurrentPart(context, note)) {
+                    return note;
+                }
+            }
+        } else {
+            for (size_t noteIndex = 0; noteIndex < entry->notes.size(); ++noteIndex) {
+                NoteInfoPtr note(entryInfo, noteIndex);
+                if (noteIsInCurrentPart(context, note)) {
+                    return note;
+                }
+            }
+        }
+        return std::nullopt;
+    };
+
+    if (auto note = findInEntry(preferredEntry)) {
+        return note;
+    }
+    return findInEntry(fallbackEntry);
+}
+
 static void setArpeggioGraceIndex(mnx::RhythmicPosition position, const musx::util::ArpeggioSpanCandidate& candidate)
 {
     if (candidate.sourceEntry->graceIndex) {
@@ -397,7 +446,21 @@ static void appendNonArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bot
     setArpeggioGraceIndex(mnxNonArpeggio.position(), candidate);
 }
 
-void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxPartMeasure,
+static void appendArpeggioOrNonArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottomNote, mnx::part::Measure& mnxPartMeasure,
+    const musx::util::ArpeggioSpanCandidate& candidate)
+{
+    using SpanType = musx::util::ArpeggioSpanType;
+    switch (candidate.type) {
+    case SpanType::Normal:
+        appendArpeggio(topNote, bottomNote, mnxPartMeasure, candidate);
+        break;
+    case SpanType::Bracket:
+        appendNonArpeggio(topNote, bottomNote, mnxPartMeasure, candidate);
+        break;
+    }
+}
+
+void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measure&,
     const musx::util::ArpeggioSpanCandidate& candidate)
 {
     const auto topNote = findArepggioBoundaryNote(candidate.topEntry, true);
@@ -408,14 +471,119 @@ void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measur
         return;
     }
 
-    using SpanType = musx::util::ArpeggioSpanType;
-    switch (candidate.type) {
-    case SpanType::Normal:
-        appendArpeggio(topNote.value(), bottomNote.value(), mnxPartMeasure, candidate);
-        break;
-    case SpanType::Bracket:
-        appendNonArpeggio(topNote.value(), bottomNote.value(), mnxPartMeasure, candidate);        
-        break;
+    if (context->deferredArpeggioKeys.emplace(candidate.key()).second) {
+        context->deferredArpeggios.push_back(candidate);
+    }
+}
+
+static std::vector<std::string> findAffectedMnxPartsForArpeggio(const MnxMusxMappingPtr& context,
+    const musx::util::ArpeggioSpanCandidate& candidate)
+{
+    std::vector<std::string> result;
+    std::unordered_set<std::string> seen;
+    auto collectEntryParts = [&](const EntryInfoPtr& entryInfo) {
+        if (!entryInfo) {
+            return;
+        }
+        const auto entry = entryInfo->getEntry();
+        for (size_t noteIndex = 0; noteIndex < entry->notes.size(); ++noteIndex) {
+            NoteInfoPtr note(entryInfo, noteIndex);
+            if (auto partId = findMnxPartForNote(context, note); partId && seen.emplace(partId.value()).second) {
+                result.push_back(partId.value());
+            }
+        }
+    };
+    collectEntryParts(candidate.topEntry);
+    collectEntryParts(candidate.bottomEntry);
+    return result;
+}
+
+static bool appendDeferredArpeggioToPart(const MnxMusxMappingPtr& context,
+    const std::string& partId,
+    const musx::util::ArpeggioSpanCandidate& candidate)
+{
+    const auto partIt = context->part2Inst.find(partId);
+    if (partIt == context->part2Inst.end() || partIt->second.empty()) {
+        return false;
+    }
+
+    auto savedPartStaves = context->currPartStaves;
+    auto savedMeas = context->currMeas;
+    auto savedStaff = context->currStaff;
+    context->currPartStaves = partIt->second;
+    context->currMeas = candidate.sourceEntry.getMeasure();
+    context->currStaff = context->currPartStaves.front();
+
+    const auto splitTopNote = findArpeggioBoundaryNoteInCurrentPart(context, candidate.topEntry, candidate.bottomEntry, true);
+    const auto splitBottomNote = findArpeggioBoundaryNoteInCurrentPart(context, candidate.bottomEntry, candidate.topEntry, false);
+
+    context->currPartStaves = savedPartStaves;
+    context->currMeas = savedMeas;
+    context->currStaff = savedStaff;
+
+    if (!splitTopNote || !splitBottomNote) {
+        return false;
+    }
+    const auto splitTopPart = findMnxPartForNote(context, splitTopNote.value());
+    const auto splitBottomPart = findMnxPartForNote(context, splitBottomNote.value());
+    if (!splitTopPart || !splitBottomPart || splitTopPart.value() != partId || splitBottomPart.value() != partId) {
+        return false;
+    }
+
+    auto parts = context->mnxDocument->parts();
+    for (size_t partIndex = 0; partIndex < parts.size(); ++partIndex) {
+        auto part = parts[partIndex];
+        if (!part.id() || part.id().value() != partId) {
+            continue;
+        }
+        auto measures = part.measures();
+        const auto measureIndex = static_cast<size_t>(candidate.sourceEntry.getMeasure() - 1);
+        if (measureIndex >= measures.size()) {
+            return false;
+        }
+        auto mnxMeasure = measures.at(measureIndex);
+        appendArpeggioOrNonArpeggio(splitTopNote.value(), splitBottomNote.value(), mnxMeasure, candidate);
+        return true;
+    }
+    return false;
+}
+
+void finalizeArpeggios(const MnxMusxMappingPtr& context)
+{
+    for (const auto& candidate : context->deferredArpeggios) {
+        const auto topNote = findArepggioBoundaryNote(candidate.topEntry, true);
+        const auto bottomNote = findArepggioBoundaryNote(candidate.bottomEntry, false);
+        if (!topNote || !bottomNote) {
+            context->logMessage(LogMsg() << "skipping arpeggio because its note span could not be resolved.",
+                LogSeverity::Warning);
+            continue;
+        }
+
+        const auto topPart = findMnxPartForNote(context, topNote.value());
+        const auto bottomPart = findMnxPartForNote(context, bottomNote.value());
+        if (!topPart || !bottomPart) {
+            context->logMessage(LogMsg() << "skipping arpeggio because its note span includes a staff that is not assigned to an MNX part.",
+                LogSeverity::Warning);
+            continue;
+        }
+
+        std::vector<std::string> targetParts;
+        if (topPart.value() == bottomPart.value()) {
+            targetParts.push_back(topPart.value());
+        } else {
+            targetParts = findAffectedMnxPartsForArpeggio(context, candidate);
+            context->logMessage(LogMsg() << "splitting arpeggio across MNX part boundary into "
+                << mnxPartDisplayList(context, targetParts) << ".", LogSeverity::Info);
+        }
+
+        bool emittedAny = false;
+        for (const auto& partId : targetParts) {
+            emittedAny = appendDeferredArpeggioToPart(context, partId, candidate) || emittedAny;
+        }
+        if (!emittedAny) {
+            context->logMessage(LogMsg() << "skipping arpeggio because no valid MNX part span could be resolved.",
+                LogSeverity::Warning);
+        }
     }
 }
 

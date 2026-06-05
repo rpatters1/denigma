@@ -23,6 +23,7 @@
 
 #include <filesystem>
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -97,6 +98,8 @@ struct MnxMusxMapping
 
     std::vector<DeferredJumpTie> deferredJumpTies;
     std::unordered_set<std::string> deferredJumpTieKeys;
+    std::vector<musx::util::ArpeggioSpanCandidate> deferredArpeggios;
+    std::unordered_set<std::string> deferredArpeggioKeys;
 
     MeasCmper currMeas{};
     StaffCmper currStaff{};
@@ -120,6 +123,10 @@ struct MnxMusxMapping
 
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
 };
+
+std::string mnxPartDisplayName(const MnxMusxMappingPtr& context, const std::string& partId);
+std::string mnxPartDisplayName(const MnxMusxMappingPtr& context, const mnx::Part& part);
+std::string mnxPartDisplayList(const MnxMusxMappingPtr& context, const std::vector<std::string>& partIds);
 
 inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
 {

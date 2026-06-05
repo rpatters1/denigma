@@ -65,6 +65,39 @@ std::optional<int> MnxMusxMapping::mnxPartStaffFromStaff(StaffCmper staff) const
     return static_cast<int>(std::distance(currPartStaves.begin(), it) + 1);
 }
 
+std::string mnxPartDisplayName(const MnxMusxMappingPtr&, const mnx::Part& part)
+{
+    const std::string partId = part.id_or(std::to_string(part.calcArrayIndex()));
+    if (part.name() && !part.name().value().empty()) {
+        return part.name().value() + " (" + partId + ")";
+    }
+    return "Part " + std::to_string(part.calcArrayIndex() + 1) + " (" + partId + ")";
+}
+
+std::string mnxPartDisplayName(const MnxMusxMappingPtr& context, const std::string& partId)
+{
+    auto parts = context->mnxDocument->parts();
+    for (size_t partIndex = 0; partIndex < parts.size(); ++partIndex) {
+        auto part = parts[partIndex];
+        if (part.id() && part.id().value() == partId) {
+            return mnxPartDisplayName(context, part);
+        }
+    }
+    return partId;
+}
+
+std::string mnxPartDisplayList(const MnxMusxMappingPtr& context, const std::vector<std::string>& partIds)
+{
+    std::string result;
+    for (size_t i = 0; i < partIds.size(); ++i) {
+        if (i > 0) {
+            result += ", ";
+        }
+        result += mnxPartDisplayName(context, partIds[i]);
+    }
+    return result;
+}
+
 static void createMnx(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
@@ -162,6 +195,7 @@ void exportJson(const std::filesystem::path& outputPath, const CommandInputData&
     createMnx(context);
     createGlobal(context);
     createParts(context);
+    finalizeArpeggios(context);
     finalizeJumpTies(context);
     // Split-instrument parts need time-varying layout sources; skip scores/layouts until MNX has a stable model for that.
     if (!denigmaContext.mnxSplitInstruments) {
