@@ -16,6 +16,7 @@ if(denigma_BUILD_TESTING)
         denigmatests.cpp
         xml_compare.cpp
         test_export.cpp
+        test_dynamics.cpp
         test_logging.cpp
         test_massage.cpp
         test_options.cpp
