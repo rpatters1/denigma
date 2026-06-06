@@ -57,15 +57,11 @@ std::vector<EventMarkingType> calcMarkingType(
     const details::ArticulationAssign::SelectedSymbolContext& articContext,
     std::optional<int>& numMarks);
 
-bool isDynamicExpression(const MusxInstance<others::TextExpressionDef>& expr);
-
 std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
-std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, const std::string& symStr,
-    VerticalPlacement placement = VerticalPlacement::Float);
+std::optional<mnx::Fermata> calcFermata(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement = VerticalPlacement::Float);
 
 std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
-std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontInfo>& fontInfo, const std::string& symStr,
-    VerticalPlacement placement = VerticalPlacement::Float);
+std::optional<mnx::sequence::BreathMark> calcBreathMark(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement = VerticalPlacement::Float);
 
 std::optional<musx::util::ArpeggioSpanCandidate> calcArpeggio(const EntryInfoPtr& sourceEntry, const MusxInstance<details::ArticulationAssign>& assign);
 void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);

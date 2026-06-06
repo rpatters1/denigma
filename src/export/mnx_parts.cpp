@@ -27,6 +27,7 @@
 
 #include "mnx.h"
 #include "utils/smufl_support.h"
+#include "classify/dynamics.h"
 
 namespace denigma {
 namespace mnxexp {
@@ -213,10 +214,16 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
         return result;
     };
 
-    auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const MusxInstance<FontInfo>& fontInfo, const std::string& exprText) {
+    auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const musx::util::EnigmaParsingContext& exprCtx, const classify::DynamicClassification& dynamicClass) {
         /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
+        const auto typeStr = classify::dynamicCanonicalText(dynamicClass.dynamic);
+        if (typeStr.empty()) {
+            return;
+        }
         auto mnxDynamic = mnxMeasure.ensure_dynamics().append(
-            exprText, mnxFractionFromEdu(asgn->eduPosition));
+            typeStr, mnxFractionFromEdu(asgn->eduPosition));
+        auto fontInfo = exprCtx.parseFirstFontInfo();
+        std::string exprText = exprCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
         if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, exprText)) {
             mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
         }
@@ -275,16 +282,13 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
                     if (auto expr = asgn->getTextExpression()) {
                         if (auto text = expr->getTextBlock()) {
                             if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
-                                auto fontInfo = rawTextCtx.parseFirstFontInfo();
-                                std::string exprText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-                                const auto attachment = calcAttachmentContext(asgn);
                                 /// @todo Add calculation for above or below, rather than just Float, for marking placement
-                                if (isDynamicExpression(expr)) { /// @todo: be smarter about identifying dynamics
-                                    appendDynamic(asgn, fontInfo, exprText);
-                                } else if (auto fermata = calcFermata(fontInfo, exprText)) {
-                                    attachFermata(asgn, expr, attachment, fermata.value());
-                                } else if (auto breathMark = calcBreathMark(fontInfo, exprText)) {
-                                    attachBreathMark(attachment, breathMark.value());
+                                if (auto dynamicClass = classify::classifyDynamic(expr)) {
+                                    appendDynamic(asgn, rawTextCtx, dynamicClass);
+                                } else if (auto fermata = calcFermata(rawTextCtx)) {
+                                    attachFermata(asgn, expr, calcAttachmentContext(asgn), fermata.value());
+                                } else if (auto breathMark = calcBreathMark(rawTextCtx)) {
+                                    attachBreathMark(calcAttachmentContext(asgn), breathMark.value());
                                 }
                             } else {
                                 context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, LogSeverity::Warning);

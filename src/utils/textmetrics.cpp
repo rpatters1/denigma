@@ -80,7 +80,7 @@ std::string normalizeName(std::string_view input)
     result.reserve(input.size());
     for (unsigned char ch : input) {
         if (std::isalnum(ch)) {
-            result.push_back(static_cast<char>(std::tolower(ch)));
+            result.push_back(utils::toLowerCase(ch));
         } else if (ch == ' ' || ch == '-' || ch == '_') {
             continue;
         }
@@ -401,7 +401,7 @@ private:
     {
         auto ext = filePath.extension().u8string();
         std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
-            return static_cast<char8_t>(std::tolower(c));
+            return static_cast<char8_t>(utils::toLowerCase(c));
         });
         return ext == u8".ttf" || ext == u8".otf" || ext == u8".ttc" || ext == u8".otc" || ext == u8".pfa" || ext == u8".pfb";
     }

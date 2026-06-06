@@ -56,7 +56,19 @@ enum class Dynamic
     rfz
 };
 
-Dynamic classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);
-std::string_view dynamicCanonicalText(Dynamic dynamic);
+struct DynamicClassification
+{
+    Dynamic dynamic{};
+    bool hasAdditionalText{};
+
+    bool isDynamic() const noexcept
+    { return dynamic != Dynamic::None; }
+
+    explicit operator bool() const noexcept
+    { return isDynamic(); }
+};
+
+DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);
+std::string dynamicCanonicalText(Dynamic dynamic);
 
 } // namespace denigma::classify

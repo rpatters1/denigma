@@ -23,11 +23,14 @@
 
 #include <algorithm>
 #include <cctype>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "utils/smufl_support.h"
 #include "utils/stringutils.h"
+#include "utils/utf8_iterator.h"
 
 namespace denigma::classify {
 
@@ -35,33 +38,45 @@ namespace {
 
 static std::string trimAscii(std::string_view text)
 {
-    auto isSpace = [](unsigned char c) { return std::isspace(c) != 0; };
-    while (!text.empty() && isSpace(static_cast<unsigned char>(text.front()))) {
+    while (!text.empty() && utils::isSpace(static_cast<unsigned char>(text.front()))) {
         text.remove_prefix(1);
     }
-    while (!text.empty() && isSpace(static_cast<unsigned char>(text.back()))) {
+    while (!text.empty() && utils::isSpace(static_cast<unsigned char>(text.back()))) {
         text.remove_suffix(1);
     }
     return std::string(text);
 }
 
-static std::string normalizeDynamicText(std::string_view text)
+struct DynamicText
 {
-    std::string result;
-    result.reserve(text.size());
+    std::string text;
+    std::vector<bool> smuflGlyph;
+};
+
+static DynamicText normalizeDynamicText(const DynamicText& input)
+{
+    DynamicText result;
+    result.text.reserve(input.text.size());
+    result.smuflGlyph.reserve(input.smuflGlyph.size());
     bool previousWasSpace = false;
-    for (unsigned char ch : text) {
-        if (std::isspace(ch)) {
+    bool previousWasSmuflGlyph = false;
+    for (size_t i = 0; i < input.text.size(); ++i) {
+        const unsigned char ch = static_cast<unsigned char>(input.text[i]);
+        if (utils::isSpace(ch)) {
             previousWasSpace = true;
+            previousWasSmuflGlyph = false;
             continue;
         }
-        if (previousWasSpace && !result.empty()) {
-            result.push_back(' ');
+        if (previousWasSpace && !result.text.empty()) {
+            result.text.push_back(' ');
+            result.smuflGlyph.push_back(previousWasSmuflGlyph);
         }
         previousWasSpace = false;
-        result.push_back(static_cast<char>(std::tolower(ch)));
+        previousWasSmuflGlyph = false;
+        result.text.push_back(utils::toLowerCase(input.text[i]));
+        result.smuflGlyph.push_back(input.smuflGlyph[i]);
     }
-    return trimAscii(result);
+    return result;
 }
 
 static std::string glyphNameToDynamicText(std::string_view glyphName)
@@ -141,43 +156,32 @@ static std::string glyphNameToDynamicText(std::string_view glyphName)
     return {};
 }
 
-static size_t utf8ByteCount(unsigned char ch)
+static void appendDynamicText(DynamicText& text, const std::string& chunk, const musx::dom::MusxInstance<musx::dom::FontInfo>& font)
 {
-    if (ch < 0x80) {
-        return 1;
-    }
-    if ((ch & 0xE0) == 0xC0) {
-        return 2;
-    }
-    if ((ch & 0xF0) == 0xE0) {
-        return 3;
-    }
-    if ((ch & 0xF8) == 0xF0) {
-        return 4;
-    }
-    return 1;
-}
-
-static void appendDynamicText(std::string& text, const std::string& chunk, const musx::dom::MusxInstance<musx::dom::FontInfo>& font)
-{
-    for (size_t offset = 0; offset < chunk.size();) {
-        const size_t byteCount = std::min(utf8ByteCount(static_cast<unsigned char>(chunk[offset])), chunk.size() - offset);
-        const std::string codepointText = chunk.substr(offset, byteCount);
+    for (utils::Utf8Iterator iter(chunk); !iter.atEnd(); iter.next()) {
+        const std::string codepointText = chunk.substr(iter.offset(), iter->byteCount);
         if (font) {
             if (auto glyphName = utils::smuflGlyphNameForFont(font, codepointText)) {
                 if (const std::string glyphText = glyphNameToDynamicText(glyphName.value()); !glyphText.empty()) {
-                    text += glyphText;
-                    offset += byteCount;
+                    text.text += glyphText;
+                    text.smuflGlyph.insert(text.smuflGlyph.end(), glyphText.size(), true);
                     continue;
                 }
             }
         }
-        text += codepointText;
-        offset += byteCount;
+        text.text += codepointText;
+        text.smuflGlyph.insert(text.smuflGlyph.end(), codepointText.size(), false);
     }
 }
 
-static Dynamic classifyNormalizedDynamicText(std::string text)
+struct DynamicTokenMatch
+{
+    Dynamic dynamic{};
+    size_t start{};
+    size_t length{};
+};
+
+static Dynamic classifyExactDynamicToken(std::string_view text)
 {
     if (text == "pppppp") return Dynamic::pppppp;
     if (text == "ppppp") return Dynamic::ppppp;
@@ -202,23 +206,93 @@ static Dynamic classifyNormalizedDynamicText(std::string text)
     if (text == "sffz") return Dynamic::sffz;
     if (text == "rf" || text == "rinf" || text == "rinf." || text == "rinforzando") return Dynamic::rf;
     if (text == "rfz") return Dynamic::rfz;
+    return Dynamic::None;
+}
 
+static bool isDynamicLikeText(std::string_view text)
+{
     const bool dynamicLettersOnly = !text.empty() && std::all_of(text.begin(), text.end(), [](unsigned char ch) {
         return ch == 'p' || ch == 'm' || ch == 'f' || ch == 's' || ch == 'r' || ch == 'z';
     });
-    if (dynamicLettersOnly) {
-        return Dynamic::Other;
+    return dynamicLettersOnly;
+}
+
+static bool hasAdditionalText(std::string_view text, const DynamicTokenMatch& match)
+{
+    return !trimAscii(text.substr(0, match.start)).empty()
+        || !trimAscii(text.substr(match.start + match.length)).empty();
+}
+
+static bool isSmuflGlyphMatch(const DynamicText& text, const DynamicTokenMatch& match)
+{
+    return std::all_of(text.smuflGlyph.begin() + static_cast<std::ptrdiff_t>(match.start),
+                       text.smuflGlyph.begin() + static_cast<std::ptrdiff_t>(match.start + match.length),
+                       [](bool isSmuflGlyph) { return isSmuflGlyph; });
+}
+
+static bool isSpaceDelimitedMatch(const DynamicText& text, const DynamicTokenMatch& match)
+{
+    const size_t end = match.start + match.length;
+    const bool leftDelimited = match.start == 0 || utils::isSpace(static_cast<unsigned char>(text.text[match.start - 1]));
+    const bool rightDelimited = end == text.text.size() || utils::isSpace(static_cast<unsigned char>(text.text[end]));
+    return leftDelimited && rightDelimited;
+}
+
+static bool isAcceptedMatch(const DynamicText& text, const DynamicTokenMatch& match)
+{
+    return isSmuflGlyphMatch(text, match) || isSpaceDelimitedMatch(text, match);
+}
+
+static std::optional<DynamicTokenMatch> findDynamicToken(const DynamicText& text)
+{
+    if (const Dynamic exact = classifyExactDynamicToken(text.text); exact != Dynamic::None) {
+        return DynamicTokenMatch{ exact, 0, text.text.size() };
     }
 
-    return Dynamic::None;
+    const auto isBoundary = [](unsigned char ch) {
+        return utils::isSpace(ch) || utils::isPunctuation(ch);
+    };
+
+    for (size_t start = 0; start < text.text.size();) {
+        while (start < text.text.size() && isBoundary(static_cast<unsigned char>(text.text[start]))) {
+            ++start;
+        }
+        size_t end = start;
+        while (end < text.text.size() && !isBoundary(static_cast<unsigned char>(text.text[end]))) {
+            ++end;
+        }
+        if (start < end) {
+            const std::string_view token = std::string_view(text.text).substr(start, end - start);
+            if (const Dynamic dynamic = classifyExactDynamicToken(token); dynamic != Dynamic::None) {
+                DynamicTokenMatch match{ dynamic, start, end - start };
+                if (isAcceptedMatch(text, match)) {
+                    return match;
+                }
+            }
+        }
+        start = end;
+    }
+
+    return std::nullopt;
+}
+
+static DynamicClassification classifyNormalizedDynamicText(const DynamicText& text)
+{
+    if (const auto match = findDynamicToken(text)) {
+        return { match->dynamic, hasAdditionalText(text.text, match.value()) };
+    }
+    if (isDynamicLikeText(text.text)) {
+        return { Dynamic::Other, false };
+    }
+    return {};
 }
 
 } // namespace
 
-Dynamic classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
 {
     if (!def) {
-        return Dynamic::None;
+        return {};
     }
 
     const auto cat = def->getDocument()->getOthers()->get<musx::dom::others::MarkingCategory>(def->getRequestedPartId(), def->categoryId);
@@ -226,10 +300,10 @@ Dynamic classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExp
 
     auto rawTextCtx = def->getRawTextCtx(musx::dom::SCORE_PARTID);
     if (!rawTextCtx) {
-        return isDynamicsCategory ? Dynamic::Other : Dynamic::None;
+        return isDynamicsCategory ? DynamicClassification{ Dynamic::Other, true } : DynamicClassification{};
     }
 
-    std::string text;
+    DynamicText text;
     rawTextCtx.parseEnigmaText([&](const std::string& chunk, const musx::util::EnigmaStyles& styles) -> bool {
         if (!styles.font || styles.font->hidden) {
             return true;
@@ -238,19 +312,19 @@ Dynamic classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExp
         return true;
     }, musx::util::EnigmaString::EnigmaParsingOptions(musx::util::EnigmaString::AccidentalStyle::Unicode));
 
-    const Dynamic result = classifyNormalizedDynamicText(normalizeDynamicText(text));
-    if (result == Dynamic::None && isDynamicsCategory) {
-        return Dynamic::Other;
+    DynamicClassification result = classifyNormalizedDynamicText(normalizeDynamicText(text));
+    if (!result && isDynamicsCategory) {
+        return { Dynamic::Other, true };
     }
     return result;
 }
 
-std::string_view dynamicCanonicalText(Dynamic dynamic)
+std::string dynamicCanonicalText(Dynamic dynamic)
 {
     switch (dynamic) {
     case Dynamic::None:
     case Dynamic::Other:
-        return {};
+        break;
     case Dynamic::pppppp: return "pppppp";
     case Dynamic::ppppp: return "ppppp";
     case Dynamic::pppp: return "pppp";

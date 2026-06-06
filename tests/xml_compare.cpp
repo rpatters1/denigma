@@ -34,6 +34,7 @@
 
 #include "pugixml.hpp"
 #include "utils/stringutils.h"
+#include "utils/stringutils.h"
 
 namespace {
 
@@ -99,7 +100,7 @@ bool isWhitespaceOnly(const char* text)
         return true;
     }
     while (*text) {
-        if (!std::isspace(static_cast<unsigned char>(*text++))) {
+        if (!utils::isSpace(static_cast<unsigned char>(*text++))) {
             return false;
         }
     }
@@ -267,7 +268,7 @@ bool compareXmlFiles(const std::filesystem::path& path1,
     auto lowerExtension = [](const std::filesystem::path& path) {
         std::string extension = utils::pathToString(path.extension());
         std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
-            return static_cast<char>(std::tolower(c));
+            return utils::toLowerCase(c);
         });
         return extension;
     };
@@ -321,7 +322,7 @@ bool shouldUseXmlComparison(const std::filesystem::path& path)
 {
     std::string extension = utils::pathToString(path.extension());
     std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
-        return static_cast<char>(std::tolower(c));
+        return utils::toLowerCase(c);
     });
     return extension == ".mss" || extension == ".xml";
 }

@@ -88,13 +88,13 @@ static TextExpressionContext makeTextExpressionContext(const std::string& text, 
     return { document, document->getOthers()->get<others::TextExpressionDef>(SCORE_PARTID, 1) };
 }
 
-static Dynamic classifyTestDynamic(const std::string& text)
+static DynamicClassification classifyTestDynamic(const std::string& text)
 {
     const auto context = makeTextExpressionContext(text);
     return classifyDynamic(context.def);
 }
 
-static Dynamic classifyTestDynamicInDynamicsCategory(const std::string& text)
+static DynamicClassification classifyTestDynamicInDynamicsCategory(const std::string& text)
 {
     const auto context = makeTextExpressionContext(text, true);
     return classifyDynamic(context.def);
@@ -104,57 +104,87 @@ static Dynamic classifyTestDynamicInDynamicsCategory(const std::string& text)
 
 TEST(DynamicClassification, ClassifiesCoreDynamics)
 {
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pppppp"), Dynamic::pppppp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ppppp"), Dynamic::ppppp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pppp"), Dynamic::pppp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ppp"), Dynamic::ppp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pp"), Dynamic::pp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)p"), Dynamic::p);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)mp"), Dynamic::mp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)mf"), Dynamic::mf);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)f"), Dynamic::f);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ff"), Dynamic::ff);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fff"), Dynamic::fff);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ffff"), Dynamic::ffff);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffff"), Dynamic::fffff);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ffffff"), Dynamic::ffffff);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pppppp").dynamic, Dynamic::pppppp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ppppp").dynamic, Dynamic::ppppp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pppp").dynamic, Dynamic::pppp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ppp").dynamic, Dynamic::ppp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pp").dynamic, Dynamic::pp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)p").dynamic, Dynamic::p);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)mp").dynamic, Dynamic::mp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)mf").dynamic, Dynamic::mf);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)f").dynamic, Dynamic::f);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ff").dynamic, Dynamic::ff);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fff").dynamic, Dynamic::fff);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ffff").dynamic, Dynamic::ffff);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffff").dynamic, Dynamic::fffff);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ffffff").dynamic, Dynamic::ffffff);
 }
 
 TEST(DynamicClassification, ClassifiesAccentDynamics)
 {
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fp"), Dynamic::fp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fz"), Dynamic::fz);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sf"), Dynamic::sf);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sfp"), Dynamic::sfp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sfpp"), Dynamic::sfpp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sfz"), Dynamic::sfz);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sffz"), Dynamic::sffz);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rf"), Dynamic::rf);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rfz"), Dynamic::rfz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fp").dynamic, Dynamic::fp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fz").dynamic, Dynamic::fz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sf").dynamic, Dynamic::sf);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sfp").dynamic, Dynamic::sfp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sfpp").dynamic, Dynamic::sfpp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sfz").dynamic, Dynamic::sfz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sffz").dynamic, Dynamic::sffz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rf").dynamic, Dynamic::rf);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rfz").dynamic, Dynamic::rfz);
 }
 
 TEST(DynamicClassification, ClassifiesAliases)
 {
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)forzando"), Dynamic::fz);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sforzando"), Dynamic::sfz);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sforzato"), Dynamic::sfz);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rinforzando"), Dynamic::rf);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rinf."), Dynamic::rf);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)forzando").dynamic, Dynamic::fz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sforzando").dynamic, Dynamic::sfz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sforzato").dynamic, Dynamic::sfz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rinforzando").dynamic, Dynamic::rf);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rinf.").dynamic, Dynamic::rf);
 }
 
 TEST(DynamicClassification, ClassifiesLegacyGlyphs)
 {
-    EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)p"), Dynamic::p);
-    EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)ppp"), Dynamic::ppp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)F"), Dynamic::mf);
-    EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)Z"), Dynamic::fz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)p").dynamic, Dynamic::p);
+    EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)ppp").dynamic, Dynamic::ppp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)F").dynamic, Dynamic::mf);
+    EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)Z").dynamic, Dynamic::fz);
 }
 
 TEST(DynamicClassification, DistinguishesOtherAndNone)
 {
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffffff"), Dynamic::Other);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)dolce"), Dynamic::None);
-    EXPECT_EQ(classifyTestDynamicInDynamicsCategory("^fontid(1)^size(12)^nfx(0)dolce"), Dynamic::Other);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffffff").dynamic, Dynamic::Other);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)dolce").dynamic, Dynamic::None);
+    EXPECT_EQ(classifyTestDynamicInDynamicsCategory("^fontid(1)^size(12)^nfx(0)dolce").dynamic, Dynamic::Other);
+}
+
+TEST(DynamicClassification, FlagsAdditionalText)
+{
+    const auto plain = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pp");
+    EXPECT_TRUE(plain);
+    EXPECT_TRUE(plain.isDynamic());
+    EXPECT_EQ(plain.dynamic, Dynamic::pp);
+    EXPECT_FALSE(plain.hasAdditionalText);
+
+    const auto subito = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sub. pp");
+    EXPECT_TRUE(subito);
+    EXPECT_EQ(subito.dynamic, Dynamic::pp);
+    EXPECT_TRUE(subito.hasAdditionalText);
+
+    const auto none = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)dolce");
+    EXPECT_FALSE(none);
+    EXPECT_FALSE(none.isDynamic());
+}
+
+TEST(DynamicClassification, RequiresSpaceDelimitersForNonGlyphTokens)
+{
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)G.P.").dynamic, Dynamic::None);
+    EXPECT_EQ(classifyTestDynamicInDynamicsCategory("^fontid(1)^size(12)^nfx(0)G.P.").dynamic, Dynamic::Other);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)cresc.mf").dynamic, Dynamic::None);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)cresc mf").dynamic, Dynamic::mf);
+
+    const auto glyphDynamic = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)cresc.^fontid(2)^size(24)^nfx(0)F");
+    EXPECT_EQ(glyphDynamic.dynamic, Dynamic::mf);
+    EXPECT_TRUE(glyphDynamic.hasAdditionalText);
 }
 
 TEST(DynamicClassification, ProvidesCanonicalText)

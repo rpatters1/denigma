@@ -35,17 +35,21 @@ struct TextRepeatContext
     MusxInstance<others::TextRepeatDef> def;
 };
 
-static TextRepeatContext makeTextRepeatContext(const std::string& text)
+static TextRepeatContext makeTextRepeatContext(const std::string& text, const std::string& fontName = "Times New Roman", int charsetVal = 0)
 {
     std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
 <finale>
   <others>
     <fontName cmper="1">
       <charsetBank>Mac</charsetBank>
-      <charsetVal>0</charsetVal>
+      <charsetVal>)xml";
+    xml += std::to_string(charsetVal);
+    xml += R"xml(</charsetVal>
       <pitch>0</pitch>
       <family>0</family>
-      <name>Times New Roman</name>
+      <name>)xml";
+    xml += fontName;
+    xml += R"xml(</name>
     </fontName>
     <textRepeatDef cmper="1">
       <fontID>1</fontID>
@@ -71,6 +75,12 @@ static Jump classifyTestJump(const std::string& text)
     return classifyJump(context.def);
 }
 
+static Jump classifyTestJumpWithMaestro(const std::string& text)
+{
+    const auto context = makeTextRepeatContext(text, "Maestro", 4095);
+    return classifyJump(context.def);
+}
+
 } // namespace
 
 TEST(JumpClassification, ClassifiesText)
@@ -90,6 +100,12 @@ TEST(JumpClassification, ClassifiesUnicodeSymbols)
     EXPECT_EQ(classifyTestJump("§"), Jump::Segno);
     EXPECT_EQ(classifyTestJump("𝄋"), Jump::Segno);
     EXPECT_EQ(classifyTestJump("𝄌"), Jump::Coda);
+}
+
+TEST(JumpClassification, ClassifiesLegacyGlyphs)
+{
+    EXPECT_EQ(classifyTestJumpWithMaestro("%"), Jump::Segno);
+    EXPECT_EQ(classifyTestJumpWithMaestro("\xC3\x9E"), Jump::Coda);
 }
 
 TEST(JumpClassification, UnknownTextReturnsNone)

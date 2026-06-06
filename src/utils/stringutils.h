@@ -29,6 +29,8 @@
 #include <algorithm>
 #include <optional>
 #include <cstdlib>
+#include <cctype>
+#include <type_traits>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -41,6 +43,35 @@
 #endif
 
 namespace utils {
+
+namespace detail {
+
+template <typename T>
+using EnableIfEightBitCharacter = std::enable_if_t<
+    std::is_integral_v<T> && sizeof(T) == 1 && !std::is_same_v<std::remove_cv_t<T>, bool>, int>;
+
+} // namespace detail
+
+template <typename T, detail::EnableIfEightBitCharacter<T> = 0>
+inline bool isSpace(T c)
+{
+    const auto byte = static_cast<unsigned char>(c);
+    return byte <= 0x7f && std::isspace(byte) != 0;
+}
+
+template <typename T, detail::EnableIfEightBitCharacter<T> = 0>
+inline bool isPunctuation(T c)
+{
+    const auto byte = static_cast<unsigned char>(c);
+    return byte <= 0x7f && std::ispunct(byte) != 0;
+}
+
+template <typename T, detail::EnableIfEightBitCharacter<T> = 0>
+inline T toLowerCase(T c)
+{
+    const auto byte = static_cast<unsigned char>(c);
+    return byte <= 0x7f ? static_cast<T>(std::tolower(byte)) : c;
+}
 
 inline std::string utf8ToString(std::u8string_view utf8)
 {
@@ -180,7 +211,7 @@ inline std::string toLowerCase(const std::string& inp)
 {
     std::string s = inp;
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+                   [](unsigned char c) { return toLowerCase(c); });
     return s;
 }
 

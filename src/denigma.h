@@ -128,7 +128,7 @@ inline decltype(Processors::value_type::processor) findProcessor(const Processor
 {
     std::u8string key(extension);
     std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
-        return static_cast<char8_t>(std::tolower(c));
+        return static_cast<char8_t>(utils::toLowerCase(c));
     });
     if (key.rfind(u8".", 0) == 0) {
         key = key.substr(1);

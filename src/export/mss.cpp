@@ -96,10 +96,10 @@ static std::string normalizedFontName(std::string_view fontName)
     std::string result;
     result.reserve(fontName.size());
     for (unsigned char c : fontName) {
-        if (c <= 0x7f && std::isspace(c)) {
+        if (utils::isSpace(c)) {
             continue;
         }
-        result.push_back(char(std::tolower(c)));
+        result.push_back(utils::toLowerCase(c));
     }
     return result;
 }
