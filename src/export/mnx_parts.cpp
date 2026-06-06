@@ -19,6 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <cmath>
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -26,7 +27,7 @@
 #include <unordered_set>
 
 #include "mnx.h"
-#include "utils/smufl_support.h"
+#include "classify/clefs.h"
 #include "classify/dynamics.h"
 
 namespace denigma {
@@ -122,27 +123,35 @@ static std::optional<ClefIndex> createClef(
         return std::nullopt;
     }
     const auto& musxClef = context->clefOptions->getClefDef(clefIndex);
-    auto clefFont = musxClef->calcFont();
-    auto glyphName = utils::smuflGlyphNameForFont(clefFont, musxClef->clefChar);
-    if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, glyphName)) {
-        auto [clefSign, octave, hideOctave] = clefInfo.value();
+    const auto clef = classify::classifyClef(musxClef, musxStaff);
+    std::optional<mnx::ClefSign> clefSign;
+    if (clef && !clef.isBlank && std::abs(clef.octave) <= 3) {
+        switch (clef.type) {
+        case music_theory::ClefType::G: clefSign = mnx::ClefSign::GClef; break;
+        case music_theory::ClefType::C: clefSign = mnx::ClefSign::CClef; break;
+        case music_theory::ClefType::F: clefSign = mnx::ClefSign::FClef; break;
+        /// @todo handle Percussion and Tab cases when defined in mnx spec
+        default: break;
+        }
+    }
+    if (clefSign) {
         int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
-        auto mnxClef = mnxMeasure.ensure_clefs().append(clefSign, staffPosition, octave);
+        auto mnxClef = mnxMeasure.ensure_clefs().append(clefSign.value(), staffPosition, mnx::OttavaAmountOrZero(clef.octave));
         if (location) {
             mnxClef.ensure_position(mnxFractionFromFraction(location));
         }
-        if (hideOctave) {
+        if (!clef.showOctave) {
             mnxClef.clef().set_showOctave(false);
         }
         if (mnxStaffNumber) {
             mnxClef.set_staff(mnxStaffNumber.value());
         }
-        if (glyphName) {
-            mnxClef.clef().set_glyph(glyphName.value());
+        if (clef.glyphName) {
+            mnxClef.clef().set_glyph(clef.glyphName.value());
         }
         return clefIndex;
     } else {
-        context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (glyph name is " << glyphName.value_or("") << ")"
+        context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (glyph name is " << clef.glyphName.value_or("") << ")"
             << " Clef change was skipped.", LogSeverity::Warning);
     }
     return std::nullopt;

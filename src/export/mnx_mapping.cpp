@@ -19,8 +19,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <cmath>
-
 #include "mnx.h"
 
 namespace denigma {
@@ -85,61 +83,6 @@ mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& 
         return mnx::LyricLineType::Start;
     }
     return mnx::LyricLineType::Whole;
-}
-
-std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
-    const MusxInstance<options::ClefOptions::ClefDef>& clefDef,
-    const MusxInstance<others::Staff>& staff, std::optional<std::string_view> glyphName)
-{
-    if (clefDef->isBlank()) {
-        /// @todo handle blank clefs
-        return std::nullopt;
-    }
-    auto [musxClefType, octave] = clefDef->calcInfo(staff);
-    if (std::abs(octave) > 3) {
-        return std::nullopt;
-    }
-    std::optional<mnx::ClefSign> clefSign;
-    switch (musxClefType) {
-    case music_theory::ClefType::G: clefSign = mnx::ClefSign::GClef; break;
-        case music_theory::ClefType::C: clefSign = mnx::ClefSign::CClef; break;
-        case music_theory::ClefType::F: clefSign = mnx::ClefSign::FClef; break;
-        /// @todo handle Percussion and Tab cases when defined in mnx spec
-        default: break;
-    }
-    if (!clefSign) {
-        return std::nullopt;
-    }
-    bool hideOctave = false;
-    if (octave != 0) {
-        /// @todo rewrite these switches using glyph names instead of code points. Requires mappings for pre-SMuFL symbol fonts.
-        switch (clefSign.value()) {
-        case mnx::ClefSign::GClef:
-        {
-            if (clefDef->clefChar == 0x1D11E || glyphName == "gClef" || glyphName == "gClefSmall") { // Unicode G clef or known SMuFL G clef
-                hideOctave = true;
-            }
-            break;
-        }
-        case mnx::ClefSign::CClef:
-        {
-            if (clefDef->clefChar == 0x1D121 || glyphName == "cClef" || glyphName == "cClefSquare" || glyphName == "cClefFrench" || glyphName == "cClefFrench20C") {
-                hideOctave = true;
-            }
-            break;
-        }
-        case mnx::ClefSign::FClef:
-        {
-            if (clefDef->clefChar == 0x1D122 || glyphName == "fClef" || glyphName == "fClefFrench" || glyphName == "fClef19thCentury") {
-                hideOctave = true;
-            }
-            break;
-        }
-        default:
-            break;
-        }
-    }
-    return std::make_tuple(clefSign.value(), mnx::OttavaAmountOrZero(octave), hideOctave);
 }
 
 } // namespace mnxexp
