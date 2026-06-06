@@ -15,6 +15,7 @@ if(denigma_BUILD_TESTING)
     add_executable(denigma_tests
         denigmatests.cpp
         xml_compare.cpp
+        test_articulations.cpp
         test_export.cpp
         test_dynamics.cpp
         test_logging.cpp

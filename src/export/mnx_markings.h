@@ -34,28 +34,8 @@ using namespace musx::util;
 namespace denigma {
 namespace mnxexp {
 
-enum class EventMarkingType
-{
-    Accent,
-    BowDirectionUp,
-    BowDirectionDown,
-    SoftAccent,
-    Spiccato,
-    Staccatissimo,
-    Staccato,
-    Stress,
-    StrongAccent,
-    Tenuto,
-    Tremolo,
-    Unstress
-};
-
 mnx::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement);
 mnx::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
-
-std::vector<EventMarkingType> calcMarkingType(
-    const details::ArticulationAssign::SelectedSymbolContext& articContext,
-    std::optional<int>& numMarks);
 
 std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
 std::optional<mnx::Fermata> calcFermata(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement = VerticalPlacement::Float);

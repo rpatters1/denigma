@@ -319,6 +319,7 @@ add_executable(denigma
     src/main.cpp
     src/about.cpp
     src/denigma.cpp
+    src/classify/articulations.cpp
     src/classify/dynamics.cpp
     src/classify/jumps.cpp
     src/export/export.cpp
