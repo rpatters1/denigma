@@ -296,17 +296,16 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
         if (!asgn->hide) { /// @todo eliminate this filter if MNX provides visibility options
             if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
                 const auto classification = classify::classifyArticulation(symbolContext.value());
-                const auto& symbol = symbolContext->symbol;
-                if (classification.is<classify::Fermata>()) {
-                    if (auto fermata = calcFermata(symbol.font, symbol.character, symbolContext->placement)) {
-                        mnxEvent.set_fermata(fermata.value());
+                if (const auto* fermata = classification.as<classify::Fermata>()) {
+                    if (auto mnxFermata = makeFermata(*fermata, classification.glyphName, symbolContext->placement)) {
+                        mnxEvent.set_fermata(mnxFermata.value());
                     }
-                } else if (classification.is<classify::BreathMark>()) {
-                    if (auto breathMark = calcBreathMark(symbol.font, symbol.character, symbolContext->placement)) {
-                        mnxEvent.ensure_markings().set_breath(breathMark.value());
+                } else if (const auto* breathMark = classification.as<classify::BreathMark>()) {
+                    if (auto mnxBreathMark = makeBreathMark(*breathMark, symbolContext->placement)) {
+                        mnxEvent.ensure_markings().set_breath(mnxBreathMark.value());
                     }
-                } else if (classification.is<classify::Arpeggio>()) {
-                    if (auto candidate = calcArpeggio(musxEntryInfo, asgn)) {
+                } else if (const auto* arpeggio = classification.as<classify::Arpeggio>()) {
+                    if (auto candidate = makeArpeggio(musxEntryInfo, asgn, *arpeggio)) {
                         appendArpeggioCandidate(context, mnxPartMeasure.value(), candidate.value());
                     }
                 } else if (classification.is<classify::VerticalEntryBracket>()) {
@@ -488,10 +487,10 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnx::Content
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) {
             if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
-                if (!symbolContext->symbol.isShape) {
-                    const auto& symbol = symbolContext->symbol;
-                    if (const auto fermata = calcFermata(symbol.font, symbol.character, symbolContext->placement)) {
-                        fullMeasure.set_fermata(fermata.value());
+                const auto classification = classify::classifyArticulation(symbolContext.value());
+                if (const auto* fermata = classification.as<classify::Fermata>()) {
+                    if (const auto mnxFermata = makeFermata(*fermata, classification.glyphName, symbolContext->placement)) {
+                        fullMeasure.set_fermata(mnxFermata.value());
                         continue;
                     }
                 }

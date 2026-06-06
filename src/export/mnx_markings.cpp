@@ -66,15 +66,9 @@ mnx::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char
     return mnx::MarkingUpDownAuto::Auto;
 }
 
-std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
+std::optional<mnx::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement)
 {
     if (placement == VerticalPlacement::NotApplicable) {
-        return std::nullopt;
-    }
-
-    const auto classification = classify::classifyArticulationSymbol(fontInfo, sym);
-    const auto* genericFermata = classification.as<classify::Fermata>();
-    if (!genericFermata) {
         return std::nullopt;
     }
 
@@ -103,11 +97,11 @@ std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, 
     };
 
     mnx::Fermata result;
-    result.set_or_clear_symbol(convertSymbol(genericFermata->shape));
-    result.set_or_clear_duration(convertDuration(genericFermata->duration));
+    result.set_or_clear_symbol(convertSymbol(fermata.shape));
+    result.set_or_clear_duration(convertDuration(fermata.duration));
     result.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
-    if (classification.glyphName) {
-        result.set_or_clear_pointing(calcPointing(classification.glyphName.value(), placement));
+    if (glyphName) {
+        result.set_or_clear_pointing(calcPointing(glyphName.value(), placement));
     }
     return result;
 }
@@ -117,21 +111,18 @@ std::optional<mnx::Fermata> calcFermata(const musx::util::EnigmaParsingContext& 
     const auto fontInfo = ctx.parseFirstFontInfo();
     const auto symStr = ctx.getText(/*trimTags*/ true, musx::util::EnigmaString::AccidentalStyle::Unicode);
     if (const auto sym = utils::utf8ToCodepoint(symStr)) {
-        return calcFermata(fontInfo, sym.value(), placement);
+        const auto classification = classify::classifyArticulationSymbol(fontInfo, sym.value());
+        if (const auto* fermata = classification.as<classify::Fermata>()) {
+            return makeFermata(*fermata, classification.glyphName, placement);
+        }
     }
     return std::nullopt;
 }
 
-std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
+std::optional<mnx::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement)
 {
-    const auto classification = classify::classifyArticulationSymbol(fontInfo, sym);
-    const auto* genericBreathMark = classification.as<classify::BreathMark>();
-    if (!genericBreathMark) {
-        return std::nullopt;
-    }
-
     std::optional<mnx::BreathMarkSymbol> symbol;
-    switch (genericBreathMark->type) {
+    switch (breathMark.type) {
     case classify::BreathMark::Type::Comma:
         symbol = mnx::BreathMarkSymbol::Comma;
         break;
@@ -166,48 +157,48 @@ std::optional<mnx::sequence::BreathMark> calcBreathMark(const musx::util::Enigma
     const auto fontInfo = ctx.parseFirstFontInfo();
     const auto symStr = ctx.getText(/*trimTags*/ true, musx::util::EnigmaString::AccidentalStyle::Unicode);
     if (const auto sym = utils::utf8ToCodepoint(symStr)) {
-        return calcBreathMark(fontInfo, sym.value(), placement);
+        const auto classification = classify::classifyArticulationSymbol(fontInfo, sym.value());
+        if (const auto* breathMark = classification.as<classify::BreathMark>()) {
+            return makeBreathMark(*breathMark, placement);
+        }
     }
     return std::nullopt;
 }
 
-std::optional<musx::util::ArpeggioSpanCandidate> calcArpeggio(const EntryInfoPtr& sourceEntry, const MusxInstance<details::ArticulationAssign>& assign)
+std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
+    const EntryInfoPtr& sourceEntry,
+    const MusxInstance<details::ArticulationAssign>& assign,
+    const classify::Arpeggio& arpeggio)
 {
-    if (const auto symContext = assign->calcSelectedSymbolContext(sourceEntry)) {
-        const auto classification = classify::classifyArticulation(symContext.value());
-        if (const auto* arpeggio = classification.as<classify::Arpeggio>()) {
-            std::optional<musx::util::ArpeggioSpanCandidate> result;
-            auto makeArpeggioCandidate = [&](musx::util::ArpeggioDirection direction, musx::util::ArpeggioArrow arrow) {
-                auto& candidate = result.emplace();
-                candidate.sourceEntry = sourceEntry;
-                candidate.topEntry = sourceEntry;
-                candidate.bottomEntry = sourceEntry;
-                candidate.arrow = arrow;
-                candidate.direction = direction;
-            };
+    std::optional<musx::util::ArpeggioSpanCandidate> result;
+    auto makeArpeggioCandidate = [&](musx::util::ArpeggioDirection direction, musx::util::ArpeggioArrow arrow) {
+        auto& candidate = result.emplace();
+        candidate.sourceEntry = sourceEntry;
+        candidate.topEntry = sourceEntry;
+        candidate.bottomEntry = sourceEntry;
+        candidate.arrow = arrow;
+        candidate.direction = direction;
+    };
 
-            switch (arpeggio->type) {
-            case classify::Arpeggio::Type::VerticalSegment:
-                return musx::util::calcArpeggioSpanForAssignment(
-                    sourceEntry, assign, {}, [](const details::ArticulationAssign::SelectedSymbolContext&) {
-                        // The selected symbol was already classified as a vertical arpeggio segment;
-                        // this callback bypasses musx's raw-SMuFL-codepoint fallback for legacy fonts.
-                        return true;
-                    });
-            case classify::Arpeggio::Type::Normal:
-                makeArpeggioCandidate(musx::util::ArpeggioDirection::Auto, musx::util::ArpeggioArrow::None);
-                break;
-            case classify::Arpeggio::Type::Up:
-                makeArpeggioCandidate(musx::util::ArpeggioDirection::Up, musx::util::ArpeggioArrow::Up);
-                break;
-            case classify::Arpeggio::Type::Down:
-                makeArpeggioCandidate(musx::util::ArpeggioDirection::Down, musx::util::ArpeggioArrow::Down);
-                break;
-            }
-            return result;
-        }
+    switch (arpeggio.type) {
+    case classify::Arpeggio::Type::VerticalSegment:
+        return musx::util::calcArpeggioSpanForAssignment(
+            sourceEntry, assign, {}, [](const details::ArticulationAssign::SelectedSymbolContext&) {
+                // The selected symbol was already classified as a vertical arpeggio segment;
+                // this callback bypasses musx's raw-SMuFL-codepoint fallback for legacy fonts.
+                return true;
+            });
+    case classify::Arpeggio::Type::Normal:
+        makeArpeggioCandidate(musx::util::ArpeggioDirection::Auto, musx::util::ArpeggioArrow::None);
+        break;
+    case classify::Arpeggio::Type::Up:
+        makeArpeggioCandidate(musx::util::ArpeggioDirection::Up, musx::util::ArpeggioArrow::Up);
+        break;
+    case classify::Arpeggio::Type::Down:
+        makeArpeggioCandidate(musx::util::ArpeggioDirection::Down, musx::util::ArpeggioArrow::Down);
+        break;
     }
-    return std::nullopt;
+    return result;
 }
 
 static std::optional<NoteInfoPtr> findArepggioBoundaryNote(const EntryInfoPtr& entryInfo, bool topNote)
