@@ -19,74 +19,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <iostream>
-#include <filesystem>
-#include <fstream>
-#include <unordered_map>
-#include <cmath>
-
 #include "mnx.h"
-#include "utils/smufl_support.h"
 
 namespace denigma {
 namespace mnxexp {
-
-/**
- * @brief Provides a default mapping from TextRepeatDef text to a jump type
- *
- * This function only maps strings from the Finale 27 Maestro Default file
- * plus a few other obvious symbols (standard Unicode and SMuFL symbols).
- * Anything else returns JumpType::None. It does a case-insensitive comparison.
- */
-/// @param text The text to map. (Usuallu from TextRepeatText)
-/// @param glyphName The glyphname, if any.
-/// @return 
-JumpType convertTextToJump(const std::string& text, const std::optional<std::string>& glyphName)
-{
-    if (glyphName) {
-        if (glyphName == "segno" || glyphName == "segnoSerpent1" || glyphName == "segnoSerpent2" || glyphName == "segnoJapanese") {
-            return JumpType::Segno;
-        }
-        if (glyphName == "dalSegno") {
-            return JumpType::DalSegno;
-        }
-        if (glyphName == "daCapo") {
-            return JumpType::DaCapo;
-        }
-        if (glyphName == "coda" || glyphName == "codaSquare" || glyphName == "codaJapanese") {
-            return JumpType::Coda;
-        }
-    }
-
-    std::string lowerText = utils::toLowerCase(text); // Convert input text to lowercase    
-
-    if (lowerText == "d.c. al fine") {
-        return JumpType::DCAlFine;
-    }
-    if (lowerText == "d.c. al coda") {
-        return JumpType::DaCapo;
-    }
-    if (lowerText == "d.s. al fine") {
-        return JumpType::DsAlFine;
-    }
-    if (lowerText == "d.s. al coda") {
-        return JumpType::DalSegno;
-    }
-    if (lowerText == "to coda #" || lowerText == "coda" || lowerText == "to coda") {
-        return JumpType::Coda;
-    }
-    if (lowerText == "fine") {
-        return JumpType::Fine;
-    }
-    if (lowerText == "§" || lowerText == "𝄋") {
-        return JumpType::Segno;
-    }
-    if (lowerText == "𝄌") {
-        return JumpType::Coda;
-    }
-
-    return JumpType::None;
-}
 
 mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration)
 {
@@ -147,61 +83,6 @@ mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& 
         return mnx::LyricLineType::Start;
     }
     return mnx::LyricLineType::Whole;
-}
-
-std::optional<std::tuple<mnx::ClefSign, mnx::OttavaAmountOrZero, bool>> mnxClefInfoFromClefDef(
-    const MusxInstance<options::ClefOptions::ClefDef>& clefDef,
-    const MusxInstance<others::Staff>& staff, std::optional<std::string_view> glyphName)
-{
-    if (clefDef->isBlank()) {
-        /// @todo handle blank clefs
-        return std::nullopt;
-    }
-    auto [musxClefType, octave] = clefDef->calcInfo(staff);
-    if (std::abs(octave) > 3) {
-        return std::nullopt;
-    }
-    std::optional<mnx::ClefSign> clefSign;
-    switch (musxClefType) {
-    case music_theory::ClefType::G: clefSign = mnx::ClefSign::GClef; break;
-        case music_theory::ClefType::C: clefSign = mnx::ClefSign::CClef; break;
-        case music_theory::ClefType::F: clefSign = mnx::ClefSign::FClef; break;
-        /// @todo handle Percussion and Tab cases when defined in mnx spec
-        default: break;
-    }
-    if (!clefSign) {
-        return std::nullopt;
-    }
-    bool hideOctave = false;
-    if (octave != 0) {
-        /// @todo rewrite these switches using glyph names instead of code points. Requires mappings for pre-SMuFL symbol fonts.
-        switch (clefSign.value()) {
-        case mnx::ClefSign::GClef:
-        {
-            if (clefDef->clefChar == 0x1D11E || glyphName == "gClef" || glyphName == "gClefSmall") { // Unicode G clef or known SMuFL G clef
-                hideOctave = true;
-            }
-            break;
-        }
-        case mnx::ClefSign::CClef:
-        {
-            if (clefDef->clefChar == 0x1D121 || glyphName == "cClef" || glyphName == "cClefSquare" || glyphName == "cClefFrench" || glyphName == "cClefFrench20C") {
-                hideOctave = true;
-            }
-            break;
-        }
-        case mnx::ClefSign::FClef:
-        {
-            if (clefDef->clefChar == 0x1D122 || glyphName == "fClef" || glyphName == "fClefFrench" || glyphName == "fClef19thCentury") {
-                hideOctave = true;
-            }
-            break;
-        }
-        default:
-            break;
-        }
-    }
-    return std::make_tuple(clefSign.value(), mnx::OttavaAmountOrZero(octave), hideOctave);
 }
 
 } // namespace mnxexp

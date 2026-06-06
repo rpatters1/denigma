@@ -109,6 +109,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(zlib)
 
+if(TARGET zlib)
+    set_target_properties(zlib PROPERTIES
+        EXCLUDE_FROM_ALL TRUE
+        EXCLUDE_FROM_DEFAULT_BUILD TRUE
+    )
+endif()
+
 if(TARGET zlibstatic)
     set(_denigma_zlib_target zlibstatic)
 elseif(TARGET zlib)
@@ -312,10 +319,15 @@ add_executable(denigma
     src/main.cpp
     src/about.cpp
     src/denigma.cpp
+    src/classify/articulations.cpp
+    src/classify/clefs.cpp
+    src/classify/dynamics.cpp
+    src/classify/jumps.cpp
     src/export/export.cpp
     src/export/enigmaxml.cpp
     src/export/mnx.cpp
     src/export/mnx_enums.cpp
+    src/export/mnx_formatted_text.cpp
     src/export/mnx_global.cpp
     src/export/mnx_layouts.cpp
     src/export/mnx_mapping.cpp
@@ -328,6 +340,7 @@ add_executable(denigma
     src/massage/musicxml.cpp
     src/utils/textmetrics.cpp
     src/utils/smufl_support.cpp
+    src/utils/utf8_iterator.cpp
     src/utils/ziputils.cpp
 )
 

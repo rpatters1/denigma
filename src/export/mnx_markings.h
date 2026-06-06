@@ -27,6 +27,7 @@
 
 #include "mnx_fwd.h"
 #include "utils/smufl_support.h"
+#include "classify/articulations.h"
 
 using namespace musx::dom;
 using namespace musx::util;
@@ -34,40 +35,19 @@ using namespace musx::util;
 namespace denigma {
 namespace mnxexp {
 
-enum class EventMarkingType
-{
-    Accent,
-    BowDirectionUp,
-    BowDirectionDown,
-    SoftAccent,
-    Spiccato,
-    Staccatissimo,
-    Staccato,
-    Stress,
-    StrongAccent,
-    Tenuto,
-    Tremolo,
-    Unstress
-};
-
 mnx::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement);
 mnx::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
 
-std::vector<EventMarkingType> calcMarkingType(
-    const details::ArticulationAssign::SelectedSymbolContext& articContext,
-    std::optional<int>& numMarks);
+std::optional<mnx::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement);
+std::optional<mnx::Fermata> calcFermata(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement = VerticalPlacement::Float);
 
-bool isDynamicExpression(const MusxInstance<others::TextExpressionDef>& expr);
+std::optional<mnx::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement);
+std::optional<mnx::sequence::BreathMark> calcBreathMark(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement = VerticalPlacement::Float);
 
-std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
-std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, const std::string& symStr,
-    VerticalPlacement placement = VerticalPlacement::Float);
-
-std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
-std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontInfo>& fontInfo, const std::string& symStr,
-    VerticalPlacement placement = VerticalPlacement::Float);
-
-std::optional<musx::util::ArpeggioSpanCandidate> calcArpeggio(const EntryInfoPtr& sourceEntry, const MusxInstance<details::ArticulationAssign>& assign);
+std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
+    const EntryInfoPtr& sourceEntry,
+    const MusxInstance<details::ArticulationAssign>& assign,
+    const classify::Arpeggio& arpeggio);
 void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
 void finalizeArpeggios(const MnxMusxMappingPtr& context);
 

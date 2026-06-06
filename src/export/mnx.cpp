@@ -25,7 +25,6 @@
 #include <unordered_map>
 
 #include "mnx.h"
-#include "utils/smufl_support.h"
 
 using namespace musx::dom;
 using namespace musx::factory;
@@ -153,10 +152,7 @@ static void createMappings(const MnxMusxMappingPtr& context)
 {
     auto textRepeatDefs = context->document->getOthers()->getArray<others::TextRepeatDef>(SCORE_PARTID);
     for (const auto& def : textRepeatDefs) {
-        if (auto repeatText = context->document->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, def->getCmper())) {
-            auto glyphName = utils::smuflGlyphNameForFont(def->font, repeatText->text);
-            context->textRepeat2Jump.emplace(def->getCmper(), convertTextToJump(repeatText->text, glyphName));
-        }
+        context->textRepeat2Jump.emplace(def->getCmper(), classify::classifyJump(def));
     }
 }
 

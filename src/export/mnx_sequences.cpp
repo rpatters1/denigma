@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "classify/articulations.h"
 #include "mnx.h"
 #include "utils/smufl_support.h"
 
@@ -246,9 +247,8 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
 
 static mnx::sequence::EventMarkingBase createEventMarking(
     mnx::sequence::EventMarkings mnxMarkings,
-    EventMarkingType mark,
-    const details::ArticulationAssign::SelectedSymbolContext& symbolContext,
-    const std::optional<int>& numMarks)
+    classify::StandardArticulation::Type mark,
+    const details::ArticulationAssign::SelectedSymbolContext& symbolContext)
 {
     const auto setPointing = [&](auto marking) -> mnx::sequence::EventMarkingBase {
         const auto& symbol = symbolContext.symbol;
@@ -257,36 +257,30 @@ static mnx::sequence::EventMarkingBase createEventMarking(
     };
     
     switch (mark) {
-    case EventMarkingType::Accent:
+    case classify::StandardArticulation::Type::Accent:
         return mnxMarkings.ensure_accent();
-    case EventMarkingType::BowDirectionDown:
+    case classify::StandardArticulation::Type::BowDirectionDown:
         return mnxMarkings.ensure_bowDirection(mnx::MarkingUpDown::Down);
-    case EventMarkingType::BowDirectionUp:
+    case classify::StandardArticulation::Type::BowDirectionUp:
         return mnxMarkings.ensure_bowDirection(mnx::MarkingUpDown::Up);
-    case EventMarkingType::SoftAccent:
+    case classify::StandardArticulation::Type::SoftAccent:
         return mnxMarkings.ensure_softAccent();
-    case EventMarkingType::Spiccato:
+    case classify::StandardArticulation::Type::Spiccato:
         return mnxMarkings.ensure_spiccato();
-    case EventMarkingType::Staccatissimo:
+    case classify::StandardArticulation::Type::Staccatissimo:
         return mnxMarkings.ensure_staccatissimo();
-    case EventMarkingType::Staccato:
+    case classify::StandardArticulation::Type::Staccato:
         return mnxMarkings.ensure_staccato();
-    case EventMarkingType::Stress:
+    case classify::StandardArticulation::Type::Stress:
         return mnxMarkings.ensure_stress();
-    case EventMarkingType::StrongAccent: 
+    case classify::StandardArticulation::Type::StrongAccent:
         return setPointing(mnxMarkings.ensure_strongAccent());
-    case EventMarkingType::Tenuto:
+    case classify::StandardArticulation::Type::Tenuto:
         return mnxMarkings.ensure_tenuto();
-    case EventMarkingType::Tremolo:
-        return mnxMarkings.ensure_tremolo(numMarks.value_or(0));
-    case EventMarkingType::Unstress:
+    case classify::StandardArticulation::Type::Unstress:
         return mnxMarkings.ensure_unstress();
-    default:
-        ASSERT_IF(true)
-        {
-            throw std::logic_error("Encountered unknown event marking type " + std::to_string(int(mark)));
-        }
     }
+    throw std::logic_error("Encountered unknown standard articulation type " + std::to_string(int(mark)));
 }
 
 static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
@@ -300,31 +294,34 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) { /// @todo eliminate this filter if MNX provides visibility options
-            std::optional<int> numMarks;
             if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
-                const auto& symbol = symbolContext->symbol;
-                if (!symbol.isShape) {
-                    if (auto fermata = calcFermata(symbol.font, symbol.character, symbolContext->placement)) {
-                        mnxEvent.set_fermata(fermata.value());
-                        continue;
-                    } else if (auto breathMark = calcBreathMark(symbol.font, symbol.character, symbolContext->placement)) {
-                        mnxEvent.ensure_markings().set_breath(breathMark.value());
-                        continue;
-                    } else if (auto candiate = calcArpeggio(musxEntryInfo, asgn)) {
-                        appendArpeggioCandidate(context, mnxPartMeasure.value(), candiate.value());
-                        continue;
+                const auto classification = classify::classifyArticulation(symbolContext.value());
+                if (const auto* fermata = classification.as<classify::Fermata>()) {
+                    if (auto mnxFermata = makeFermata(*fermata, classification.glyphName, symbolContext->placement)) {
+                        mnxEvent.set_fermata(mnxFermata.value());
                     }
-                } else {
-                    if (auto candiate = musx::util::calcNonArpeggioSpanForAssignment(musxEntryInfo, asgn)) {
-                        appendArpeggioCandidate(context, mnxPartMeasure.value(), candiate.value());
-                        continue;
+                } else if (const auto* breathMark = classification.as<classify::BreathMark>()) {
+                    if (auto mnxBreathMark = makeBreathMark(*breathMark, symbolContext->placement)) {
+                        mnxEvent.ensure_markings().set_breath(mnxBreathMark.value());
                     }
-                }
-                auto marks = calcMarkingType(symbolContext.value(), numMarks);
-                for (auto mark : marks) {
+                } else if (const auto* arpeggio = classification.as<classify::Arpeggio>()) {
+                    if (auto candidate = makeArpeggio(musxEntryInfo, asgn, *arpeggio)) {
+                        appendArpeggioCandidate(context, mnxPartMeasure.value(), candidate.value());
+                    }
+                } else if (classification.is<classify::VerticalEntryBracket>()) {
+                    if (auto candidate = musx::util::calcNonArpeggioSpanForAssignment(musxEntryInfo, asgn)) {
+                        appendArpeggioCandidate(context, mnxPartMeasure.value(), candidate.value());
+                    }
+                } else if (const auto* tremolo = classification.as<classify::Tremolo>()) {
                     auto mnxMarkings = mnxEvent.ensure_markings();
-                    auto mnxMarking = createEventMarking(mnxMarkings, mark, symbolContext.value(), numMarks);
+                    auto mnxMarking = mnxMarkings.ensure_tremolo(tremolo->marks);
                     mnxMarking.set_or_clear_orient(enumConvert<mnx::Orientation>(symbolContext->placement));
+                } else if (const auto* articulation = classification.as<classify::StandardArticulation>()) {
+                    for (auto mark : articulation->types) {
+                        auto mnxMarkings = mnxEvent.ensure_markings();
+                        auto mnxMarking = createEventMarking(mnxMarkings, mark, symbolContext.value());
+                        mnxMarking.set_or_clear_orient(enumConvert<mnx::Orientation>(symbolContext->placement));
+                    }
                 }
             }
         }
@@ -490,10 +487,10 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnx::Content
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) {
             if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
-                if (!symbolContext->symbol.isShape) {
-                    const auto& symbol = symbolContext->symbol;
-                    if (const auto fermata = calcFermata(symbol.font, symbol.character, symbolContext->placement)) {
-                        fullMeasure.set_fermata(fermata.value());
+                const auto classification = classify::classifyArticulation(symbolContext.value());
+                if (const auto* fermata = classification.as<classify::Fermata>()) {
+                    if (const auto mnxFermata = makeFermata(*fermata, classification.glyphName, symbolContext->placement)) {
+                        fullMeasure.set_fermata(mnxFermata.value());
                         continue;
                     }
                 }

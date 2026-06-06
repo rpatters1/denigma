@@ -19,6 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <cmath>
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -26,7 +27,8 @@
 #include <unordered_set>
 
 #include "mnx.h"
-#include "utils/smufl_support.h"
+#include "classify/clefs.h"
+#include "classify/dynamics.h"
 
 namespace denigma {
 namespace mnxexp {
@@ -121,27 +123,35 @@ static std::optional<ClefIndex> createClef(
         return std::nullopt;
     }
     const auto& musxClef = context->clefOptions->getClefDef(clefIndex);
-    auto clefFont = musxClef->calcFont();
-    auto glyphName = utils::smuflGlyphNameForFont(clefFont, musxClef->clefChar);
-    if (auto clefInfo = mnxClefInfoFromClefDef(musxClef, musxStaff, glyphName)) {
-        auto [clefSign, octave, hideOctave] = clefInfo.value();
+    const auto clef = classify::classifyClef(musxClef, musxStaff);
+    std::optional<mnx::ClefSign> clefSign;
+    if (clef && !clef.isBlank && std::abs(clef.octave) <= 3) {
+        switch (clef.type) {
+        case music_theory::ClefType::G: clefSign = mnx::ClefSign::GClef; break;
+        case music_theory::ClefType::C: clefSign = mnx::ClefSign::CClef; break;
+        case music_theory::ClefType::F: clefSign = mnx::ClefSign::FClef; break;
+        /// @todo handle Percussion and Tab cases when defined in mnx spec
+        default: break;
+        }
+    }
+    if (clefSign) {
         int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
-        auto mnxClef = mnxMeasure.ensure_clefs().append(clefSign, staffPosition, octave);
+        auto mnxClef = mnxMeasure.ensure_clefs().append(clefSign.value(), staffPosition, mnx::OttavaAmountOrZero(clef.octave));
         if (location) {
             mnxClef.ensure_position(mnxFractionFromFraction(location));
         }
-        if (hideOctave) {
+        if (!clef.showOctave) {
             mnxClef.clef().set_showOctave(false);
         }
         if (mnxStaffNumber) {
             mnxClef.set_staff(mnxStaffNumber.value());
         }
-        if (glyphName) {
-            mnxClef.clef().set_glyph(glyphName.value());
+        if (clef.glyphName) {
+            mnxClef.clef().set_glyph(clef.glyphName.value());
         }
         return clefIndex;
     } else {
-        context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (glyph name is " << glyphName.value_or("") << ")"
+        context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (glyph name is " << clef.glyphName.value_or("") << ")"
             << " Clef change was skipped.", LogSeverity::Warning);
     }
     return std::nullopt;
@@ -213,10 +223,16 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
         return result;
     };
 
-    auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const MusxInstance<FontInfo>& fontInfo, const std::string& exprText) {
+    auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const musx::util::EnigmaParsingContext& exprCtx, const classify::DynamicClassification& dynamicClass) {
         /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
+        const auto typeStr = classify::dynamicCanonicalText(dynamicClass.dynamic);
+        if (typeStr.empty()) {
+            return;
+        }
         auto mnxDynamic = mnxMeasure.ensure_dynamics().append(
-            exprText, mnxFractionFromEdu(asgn->eduPosition));
+            typeStr, mnxFractionFromEdu(asgn->eduPosition));
+        auto fontInfo = exprCtx.parseFirstFontInfo();
+        std::string exprText = exprCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
         if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, exprText)) {
             mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
         }
@@ -275,16 +291,13 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
                     if (auto expr = asgn->getTextExpression()) {
                         if (auto text = expr->getTextBlock()) {
                             if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
-                                auto fontInfo = rawTextCtx.parseFirstFontInfo();
-                                std::string exprText = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-                                const auto attachment = calcAttachmentContext(asgn);
                                 /// @todo Add calculation for above or below, rather than just Float, for marking placement
-                                if (isDynamicExpression(expr)) { /// @todo: be smarter about identifying dynamics
-                                    appendDynamic(asgn, fontInfo, exprText);
-                                } else if (auto fermata = calcFermata(fontInfo, exprText)) {
-                                    attachFermata(asgn, expr, attachment, fermata.value());
-                                } else if (auto breathMark = calcBreathMark(fontInfo, exprText)) {
-                                    attachBreathMark(attachment, breathMark.value());
+                                if (auto dynamicClass = classify::classifyDynamic(expr)) {
+                                    appendDynamic(asgn, rawTextCtx, dynamicClass);
+                                } else if (auto fermata = calcFermata(rawTextCtx)) {
+                                    attachFermata(asgn, expr, calcAttachmentContext(asgn), fermata.value());
+                                } else if (auto breathMark = calcBreathMark(rawTextCtx)) {
+                                    attachBreathMark(calcAttachmentContext(asgn), breathMark.value());
                                 }
                             } else {
                                 context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, LogSeverity::Warning);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024, Robert Patterson
+ * Copyright (C) 2026, Robert Patterson
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,33 +21,25 @@
  */
 #pragma once
 
-#include <filesystem>
-#include <optional>
-
-#include "denigma.h"
 #include "musx/musx.h"
-#include "mnxdom.h"
 
- //placeholder function
+namespace denigma::classify {
 
-using namespace musx::dom;
-using namespace musx::util;
+enum class Jump
+{
+    None,
+    Segno,
+    Coda,
+    ToCoda,
+    Fine,
+    DaCapo,
+    DCAlFine,
+    DCAlCoda,
+    DalSegno,
+    DsAlFine,
+    DsAlCoda
+};
 
-namespace denigma {
-namespace mnxexp {
+Jump classifyJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatDef>& def);
 
-struct MnxMusxMapping;
-
-mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
-mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
-mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl);
-
-musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction);
-mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction);
-mnx::FractionValue mnxFractionFromEdu(Edu eduValue);
-mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& smartShape);
-
-int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosition);
-
-} // namespace mnxexp
-} // namespace denigma
+} // namespace denigma::classify

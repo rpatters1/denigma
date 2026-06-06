@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024, Robert Patterson
+ * Copyright (C) 2026, Robert Patterson
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,33 +21,30 @@
  */
 #pragma once
 
-#include <filesystem>
 #include <optional>
+#include <string>
 
-#include "denigma.h"
 #include "musx/musx.h"
-#include "mnxdom.h"
 
- //placeholder function
+namespace denigma::classify {
 
-using namespace musx::dom;
-using namespace musx::util;
+struct ClefClassification
+{
+    music_theory::ClefType type{};
+    int octave{};
+    bool isBlank{};
+    bool showOctave{ true };
+    std::optional<std::string> glyphName;
 
-namespace denigma {
-namespace mnxexp {
+    bool isClef() const noexcept
+    { return type != music_theory::ClefType::Unknown; }
 
-struct MnxMusxMapping;
+    explicit operator bool() const noexcept
+    { return isClef(); }
+};
 
-mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
-mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
-mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl);
+ClefClassification classifyClef(
+    const musx::dom::MusxInstance<musx::dom::options::ClefOptions::ClefDef>& clefDef,
+    const musx::dom::MusxInstance<musx::dom::others::Staff>& staff = nullptr);
 
-musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction);
-mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction);
-mnx::FractionValue mnxFractionFromEdu(Edu eduValue);
-mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& smartShape);
-
-int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosition);
-
-} // namespace mnxexp
-} // namespace denigma
+} // namespace denigma::classify

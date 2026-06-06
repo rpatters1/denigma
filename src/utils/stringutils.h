@@ -29,6 +29,8 @@
 #include <algorithm>
 #include <optional>
 #include <cstdlib>
+#include <cctype>
+#include <type_traits>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -41,6 +43,35 @@
 #endif
 
 namespace utils {
+
+namespace detail {
+
+template <typename T>
+using EnableIfEightBitCharacter = std::enable_if_t<
+    std::is_integral_v<T> && sizeof(T) == 1 && !std::is_same_v<std::remove_cv_t<T>, bool>, int>;
+
+} // namespace detail
+
+template <typename T, detail::EnableIfEightBitCharacter<T> = 0>
+inline bool isSpace(T c)
+{
+    const auto byte = static_cast<unsigned char>(c);
+    return byte <= 0x7f && std::isspace(byte) != 0;
+}
+
+template <typename T, detail::EnableIfEightBitCharacter<T> = 0>
+inline bool isPunctuation(T c)
+{
+    const auto byte = static_cast<unsigned char>(c);
+    return byte <= 0x7f && std::ispunct(byte) != 0;
+}
+
+template <typename T, detail::EnableIfEightBitCharacter<T> = 0>
+inline T toLowerCase(T c)
+{
+    const auto byte = static_cast<unsigned char>(c);
+    return byte <= 0x7f ? static_cast<T>(std::tolower(byte)) : c;
+}
 
 inline std::string utf8ToString(std::u8string_view utf8)
 {
@@ -176,68 +207,11 @@ inline bool pathExtensionEquals(const std::filesystem::path& path, std::u8string
     return std::equal(extensionWithoutDot.begin(), extensionWithoutDot.end(), extension.begin() + 1);
 }
 
-inline std::optional<char32_t> utf8ToCodepoint(const std::string& utf8) {
-    size_t len = utf8.size();
-    if (len == 0 || len > 4) {
-        return std::nullopt; // Invalid UTF-8 (must be 1-4 bytes)
-    }
-
-    const unsigned char* data = reinterpret_cast<const unsigned char*>(utf8.data());
-    char32_t codepoint = 0;
-
-    if (len == 1) { 
-        // ASCII (0x00 - 0x7F)
-        if (data[0] <= 0x7F) {
-            codepoint = data[0];
-        } else {
-            return std::nullopt; // Invalid single-byte character
-        }
-    } else if (len == 2) { 
-        // 2-byte sequence (U+0080 - U+07FF)
-        if ((data[0] & 0xE0) == 0xC0 && (data[1] & 0xC0) == 0x80) {
-            codepoint = ((data[0] & 0x1F) << 6) | (data[1] & 0x3F);
-            if (codepoint < 0x80) return std::nullopt; // Overlong encoding
-        } else {
-            return std::nullopt;
-        }
-    } else if (len == 3) { 
-        // 3-byte sequence (U+0800 - U+FFFF)
-        if ((data[0] & 0xF0) == 0xE0 &&
-            (data[1] & 0xC0) == 0x80 &&
-            (data[2] & 0xC0) == 0x80) {
-            codepoint = ((data[0] & 0x0F) << 12) |
-                        ((data[1] & 0x3F) << 6) |
-                        (data[2] & 0x3F);
-            if (codepoint < 0x800) return std::nullopt; // Overlong encoding
-        } else {
-            return std::nullopt;
-        }
-    } else if (len == 4) { 
-        // 4-byte sequence (U+10000 - U+10FFFF)
-        if ((data[0] & 0xF8) == 0xF0 &&
-            (data[1] & 0xC0) == 0x80 &&
-            (data[2] & 0xC0) == 0x80 &&
-            (data[3] & 0xC0) == 0x80) {
-            codepoint = ((data[0] & 0x07) << 18) |
-                        ((data[1] & 0x3F) << 12) |
-                        ((data[2] & 0x3F) << 6) |
-                        (data[3] & 0x3F);
-            if (codepoint < 0x10000 || codepoint > 0x10FFFF) return std::nullopt; // Overlong encoding or out of range
-        } else {
-            return std::nullopt;
-        }
-    } else {
-        return std::nullopt; // Invalid size
-    }
-
-    return codepoint;
-}
-
 inline std::string toLowerCase(const std::string& inp)
 {
     std::string s = inp;
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+                   [](unsigned char c) { return toLowerCase(c); });
     return s;
 }
 

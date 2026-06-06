@@ -21,10 +21,13 @@
  */
 #include <string>
 #include <string_view>
+#include <stdexcept>
 
+#include "classify/articulations.h"
 #include "mnx.h"
 #include "mnx_mapping.h"
 #include "utils/smufl_support.h"
+#include "utils/utf8_iterator.h"
 
 namespace denigma {
 namespace mnxexp {
@@ -63,246 +66,139 @@ mnx::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char
     return mnx::MarkingUpDownAuto::Auto;
 }
 
-std::vector<EventMarkingType> calcMarkingType(
-    const details::ArticulationAssign::SelectedSymbolContext& articContext,
-    std::optional<int>& numMarks)
-{
-    auto checkSymbol = [&](char32_t sym, const MusxInstance<FontInfo>& fontInfo) -> std::vector<EventMarkingType> {
-        // First, check for standard Unicode chars
-        switch (sym) {
-            case 0x1D167:
-            case 0x1D16A:
-                numMarks = 1;
-                return { EventMarkingType::Tremolo };
-            case 0x1D168:
-            case 0x1D16B:
-                numMarks = 2;
-                return { EventMarkingType::Tremolo };
-            case 0x1D169:
-            case 0x1D16C:
-                numMarks = 3;
-                return { EventMarkingType::Tremolo };
-            case 0x1D17B: return { EventMarkingType::Accent };
-            case 0x1D17C: return { EventMarkingType::Staccato };
-            case 0x1D17D: return { EventMarkingType::Tenuto };
-            case 0x1D17E: return { EventMarkingType::Staccatissimo };
-            case 0x1D17F: return { EventMarkingType::StrongAccent };
-            default: break;                
-        }
-
-        /// @todo Spiccato marking has no SMuFl glyph!
-        if (auto glyphName = utils::smuflGlyphNameForFont(fontInfo, sym)) {
-            if (glyphName == "articAccentAbove" || glyphName == "articAccentBelow" || glyphName == "articAccentAboveLegacy") {
-                return { EventMarkingType::Accent };
-            } else if (glyphName == "articAccentStaccatoAbove" || glyphName == "articAccentStaccatoBelow" ||
-                    glyphName == "articAccentStaccatoAboveLegacy" || glyphName == "articAccentStaccatoBelowLegacy") {
-                return { EventMarkingType::Accent, EventMarkingType::Staccato };
-            } else if (glyphName == "articTenutoAccentAbove" || glyphName == "articTenutoAccentBelow" ||
-                    glyphName == "articTenutoAccentAboveLegacy" || glyphName == "articTenutoAccentBelowLegacy") {
-                return { EventMarkingType::Accent, EventMarkingType::Tenuto };
-            } else if (glyphName == "stringsDownBow" || glyphName == "stringsDownBowTurned") {
-                return { EventMarkingType::BowDirectionDown };
-            } else if (glyphName == "stringsUpBow" || glyphName == "stringsUpBowTurned") {
-                return { EventMarkingType::BowDirectionUp };
-            } else if (glyphName == "articStaccatissimoAbove" || glyphName == "articStaccatissimoBelow") {
-                return { EventMarkingType::Spiccato };
-            } else if (glyphName == "articStaccatissimoStrokeAbove" || glyphName == "articStaccatissimoStrokeBelow" ||
-                    glyphName == "articStaccatissimoWedgeAbove" || glyphName == "articStaccatissimoWedgeBelow") {
-                return { EventMarkingType::Staccatissimo };
-            } else if (glyphName == "articStaccatoAbove" || glyphName == "articStaccatoBelow") {
-                return { EventMarkingType::Staccato };
-            } else if (glyphName == "articMarcatoStaccatoAbove" || glyphName == "articMarcatoStaccatoBelow" ||
-                    glyphName == "articMarcatoStaccatoAboveLegacy" || glyphName == "articMarcatoStaccatoBelowLegacy") {
-                return { EventMarkingType::Staccato, EventMarkingType::StrongAccent };
-            } else if (glyphName == "articTenutoStaccatoAbove" || glyphName == "articTenutoStaccatoBelow" ||
-                    glyphName == "articTenutoStaccatoAboveLegacy" || glyphName == "articTenutoStaccatoBelowLegacy") {
-                return { EventMarkingType::Staccato, EventMarkingType::Tenuto };
-            } else if (glyphName == "articStressAbove" || glyphName == "articStressBelow") {
-                return { EventMarkingType::Stress };
-            } else if (glyphName == "articUnstressAbove" || glyphName == "articUnstressBelow") {
-                return { EventMarkingType::Unstress };
-            } else if (glyphName == "articMarcatoAbove" || glyphName == "articMarcatoBelow") {
-                return { EventMarkingType::StrongAccent };
-            } else if (glyphName == "articMarcatoTenutoAbove" || glyphName == "articMarcatoTenutoBelow") {
-                return { EventMarkingType::StrongAccent, EventMarkingType::Tenuto };
-            } else if (glyphName == "articTenutoAbove" || glyphName == "articTenutoBelow") {
-                return { EventMarkingType::Tenuto };
-            } else if (glyphName == "stemPendereckiTremolo" || glyphName == "buzzRoll" ||
-                    glyphName == "pendereckiTremolo" || glyphName == "unmeasuredTremolo" ||
-                    glyphName == "unmeasuredTremoloSimple" || glyphName == "stockhausenTremolo") {
-                numMarks = 0;
-                return { EventMarkingType::Tremolo };
-            } else if (glyphName == "tremolo1" || glyphName == "tremoloFingered1" || glyphName == "tremolo1Alt") {
-                numMarks = 1;
-                return { EventMarkingType::Tremolo };
-            } else if (glyphName == "tremolo2" || glyphName == "tremoloFingered2" || glyphName == "tremolo2Alt") {
-                numMarks = 2;
-                return { EventMarkingType::Tremolo };
-            } else if (glyphName == "tremolo3" || glyphName == "tremoloFingered3" || glyphName == "tremolo3Alt") {
-                numMarks = 3;
-                return { EventMarkingType::Tremolo };
-            } else if (glyphName == "tremolo4" || glyphName == "tremoloFingered4" || glyphName == "tremolo4Legacy") {
-                numMarks = 4;
-                return { EventMarkingType::Tremolo };
-            } else if (glyphName == "tremolo5" || glyphName == "tremoloFingered5" || glyphName == "tremolo5Legacy") {
-                numMarks = 5;
-                return { EventMarkingType::Tremolo };
-            }
-        }
-        return {};
-    };
-    
-    auto checkShape = [&](Cmper shapeId) -> std::vector<EventMarkingType> {
-        const auto& articDef = *articContext.definition;
-        if (auto shape = articDef.getDocument()->getOthers()->get<others::ShapeDef>(articDef.getRequestedPartId(), shapeId)) {
-            switch (shape->recognize()) {
-            case KnownShapeDefType::TenutoMark:
-                return { EventMarkingType::Tenuto };
-            default:
-                break;
-            }
-        }
-        return {};
-    };
-
-    auto result = articContext.symbol.isShape
-                ? checkShape(articContext.symbol.shapeId)
-                : checkSymbol(articContext.symbol.character, articContext.symbol.font);
-    return result;
-}
-
-bool isDynamicExpression(const MusxInstance<others::TextExpressionDef>& expr)
-{
-    /// @todo Do not base dynamics detection (or any other expression type detection) on category.
-    auto cat = expr->getDocument()->getOthers()->get<others::MarkingCategory>(expr->getRequestedPartId(), expr->categoryId);
-    return cat && cat->categoryType == others::MarkingCategory::CategoryType::Dynamics;
-}
-
-std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
+std::optional<mnx::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement)
 {
     if (placement == VerticalPlacement::NotApplicable) {
         return std::nullopt;
     }
 
-    std::optional<mnx::Fermata> result;
-
-    if (auto glyphName = utils::smuflGlyphNameForFont(fontInfo, sym)) {
-        auto makeFermata = [&](mnx::FermataSymbol symbol, mnx::FermataDuration duration = mnx::FermataDuration::Auto) {
-            auto& fermata = result.emplace();
-            fermata.set_or_clear_symbol(symbol);
-            fermata.set_or_clear_duration(duration);
-            fermata.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
-            fermata.set_or_clear_pointing(calcPointing(glyphName.value(), placement));
-        };
-
-        if (glyphName == "fermataAbove" || glyphName == "fermataBelow") {
-            makeFermata(mnx::FermataSymbol::Normal);
-        } else if (glyphName == "fermataVeryShortAbove" || glyphName == "fermataVeryShortBelow") {
-            makeFermata(mnx::FermataSymbol::DoubleAngled, mnx::FermataDuration::VeryShort);
-        } else if (glyphName == "fermataShortAbove" || glyphName == "fermataShortBelow") {
-            makeFermata(mnx::FermataSymbol::Angled, mnx::FermataDuration::Short);
-        } else if (glyphName == "fermataLongAbove" || glyphName == "fermataLongBelow") {
-            makeFermata(mnx::FermataSymbol::Square, mnx::FermataDuration::Long);
-        } else if (glyphName == "fermataVeryLongAbove" || glyphName == "fermataVeryLongBelow") {
-            makeFermata(mnx::FermataSymbol::DoubleSquare, mnx::FermataDuration::VeryLong);
-        } else if (glyphName == "fermataLongHenzeAbove" || glyphName == "fermataLongHenzeBelow") {
-            makeFermata(mnx::FermataSymbol::DoubleDot, mnx::FermataDuration::Long);
-        } else if (glyphName == "fermataShortHenzeAbove" || glyphName == "fermataShortHenzeBelow") {
-            makeFermata(mnx::FermataSymbol::HalfCurve, mnx::FermataDuration::Short);
-        } else if (glyphName == "curlewSign") {
-            makeFermata(mnx::FermataSymbol::Curlew);
+    auto convertSymbol = [](classify::Fermata::Shape shape) {
+        switch (shape) {
+        case classify::Fermata::Shape::Normal: return mnx::FermataSymbol::Normal;
+        case classify::Fermata::Shape::Angled: return mnx::FermataSymbol::Angled;
+        case classify::Fermata::Shape::DoubleAngled: return mnx::FermataSymbol::DoubleAngled;
+        case classify::Fermata::Shape::Square: return mnx::FermataSymbol::Square;
+        case classify::Fermata::Shape::DoubleSquare: return mnx::FermataSymbol::DoubleSquare;
+        case classify::Fermata::Shape::HalfCurve: return mnx::FermataSymbol::HalfCurve;
+        case classify::Fermata::Shape::DoubleDot: return mnx::FermataSymbol::DoubleDot;
+        case classify::Fermata::Shape::Curlew: return mnx::FermataSymbol::Curlew;
         }
-    }
-
-    return result;
-}
-
-std::optional<mnx::Fermata> calcFermata(const MusxInstance<FontInfo>& fontInfo, const std::string& symStr, VerticalPlacement placement)
-{
-    if (const auto sym = utils::utf8ToCodepoint(symStr)) {
-        return calcFermata(fontInfo, sym.value(), placement);
-    }
-    return std::nullopt;
-}
-
-std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
-{
-    std::optional<mnx::sequence::BreathMark> result;
-
-    if (auto glyphName = utils::smuflGlyphNameForFont(fontInfo, sym)) {
-        auto makeBreathMark = [&](mnx::BreathMarkSymbol breathSym) {
-            auto& breathMark = result.emplace();
-            breathMark.set_symbol(breathSym);
-            breathMark.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
-        };
-        if (glyphName == "breathMarkComma" || glyphName == "breathMarkCommaLegacy") {
-            makeBreathMark(mnx::BreathMarkSymbol::Comma);
-        } else if (glyphName == "breathMarkTick") {
-            makeBreathMark(mnx::BreathMarkSymbol::Tick);
-        } else if (glyphName == "breathMarkUpbow") {
-            makeBreathMark(mnx::BreathMarkSymbol::Upbow);
-        } else if (glyphName == "breathMarkSalzedo") {
-            makeBreathMark(mnx::BreathMarkSymbol::Salzedo);
-        }
-    }
-
-    return result;
-}
-
-std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontInfo>& fontInfo, const std::string& symStr, VerticalPlacement placement)
-{
-    if (const auto sym = utils::utf8ToCodepoint(symStr)) {
-        return calcBreathMark(fontInfo, sym.value(), placement);
-    }
-    return std::nullopt;
-}
-
-std::optional<musx::util::ArpeggioSpanCandidate> calcArpeggio(const EntryInfoPtr& sourceEntry, const MusxInstance<details::ArticulationAssign>& assign)
-{
-    const static auto symFilter = [&](const details::ArticulationAssign::SelectedSymbolContext& symContext) -> bool {
-        if (auto glyphName = utils::smuflGlyphNameForFont(symContext.symbol.font, symContext.symbol.character)) {
-            return glyphName == "arpeggioVerticalSegment";
-        }
-        return false;
+        throw std::logic_error("Unhandled fermata shape.");
     };
-    if (auto musxResult = musx::util::calcArpeggioSpanForAssignment(sourceEntry, assign, {}, symFilter)) {
-        return musxResult;
-    }
-    if (const auto symContext = assign->calcSelectedSymbolContext(sourceEntry)) {
-        if (auto glyphName = utils::smuflGlyphNameForFont(symContext->symbol.font, symContext->symbol.character)) {
-            std::optional<musx::util::ArpeggioSpanCandidate> result;
-            auto makeArpeggioCandidate = [&](mnx::MarkingUpDownAuto direction) {
-                auto& candidate = result.emplace();
-                candidate.sourceEntry = sourceEntry;
-                candidate.topEntry = sourceEntry;
-                candidate.bottomEntry = sourceEntry;
-                switch (direction) {
-                case mnx::MarkingUpDownAuto::Auto:
-                    candidate.arrow = musx::util::ArpeggioArrow::None;
-                    candidate.direction = musx::util::ArpeggioDirection::Auto;
-                    break;
-                case mnx::MarkingUpDownAuto::Up:
-                    candidate.arrow = musx::util::ArpeggioArrow::Up;
-                    candidate.direction = musx::util::ArpeggioDirection::Up;
-                    break;
-                case mnx::MarkingUpDownAuto::Down:
-                    candidate.arrow = musx::util::ArpeggioArrow::Down;
-                    candidate.direction = musx::util::ArpeggioDirection::Down;
-                    break;
-                }
-            };
+    auto convertDuration = [](classify::Fermata::Duration duration) {
+        switch (duration) {
+        case classify::Fermata::Duration::Auto: return mnx::FermataDuration::Auto;
+        case classify::Fermata::Duration::VeryShort: return mnx::FermataDuration::VeryShort;
+        case classify::Fermata::Duration::Short: return mnx::FermataDuration::Short;
+        case classify::Fermata::Duration::Long: return mnx::FermataDuration::Long;
+        case classify::Fermata::Duration::VeryLong: return mnx::FermataDuration::VeryLong;
+        }
+        throw std::logic_error("Unhandled fermata duration.");
+    };
 
-            if (glyphName == "arpeggiato") {
-                makeArpeggioCandidate(mnx::MarkingUpDownAuto::Auto);
-            } else if (glyphName == "arpeggiatoUp") {
-                makeArpeggioCandidate(mnx::MarkingUpDownAuto::Up);
-            } else if (glyphName == "arpeggiatoDown") {
-                makeArpeggioCandidate(mnx::MarkingUpDownAuto::Down);
-            }
-            return result;
+    mnx::Fermata result;
+    result.set_or_clear_symbol(convertSymbol(fermata.shape));
+    result.set_or_clear_duration(convertDuration(fermata.duration));
+    result.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
+    if (glyphName) {
+        result.set_or_clear_pointing(calcPointing(glyphName.value(), placement));
+    }
+    return result;
+}
+
+std::optional<mnx::Fermata> calcFermata(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement)
+{
+    const auto fontInfo = ctx.parseFirstFontInfo();
+    const auto symStr = ctx.getText(/*trimTags*/ true, musx::util::EnigmaString::AccidentalStyle::Unicode);
+    if (const auto sym = utils::utf8ToCodepoint(symStr)) {
+        const auto classification = classify::classifyArticulationSymbol(fontInfo, sym.value());
+        if (const auto* fermata = classification.as<classify::Fermata>()) {
+            return makeFermata(*fermata, classification.glyphName, placement);
         }
     }
     return std::nullopt;
+}
+
+std::optional<mnx::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement)
+{
+    std::optional<mnx::BreathMarkSymbol> symbol;
+    switch (breathMark.type) {
+    case classify::BreathMark::Type::Comma:
+        symbol = mnx::BreathMarkSymbol::Comma;
+        break;
+    case classify::BreathMark::Type::Tick:
+        symbol = mnx::BreathMarkSymbol::Tick;
+        break;
+    case classify::BreathMark::Type::Upbow:
+        symbol = mnx::BreathMarkSymbol::Upbow;
+        break;
+    case classify::BreathMark::Type::Salzedo:
+        symbol = mnx::BreathMarkSymbol::Salzedo;
+        break;
+    case classify::BreathMark::Type::Caesura:
+    case classify::BreathMark::Type::CaesuraCurved:
+    case classify::BreathMark::Type::CaesuraShort:
+    case classify::BreathMark::Type::CaesuraThick:
+    case classify::BreathMark::Type::ChantCaesura:
+    case classify::BreathMark::Type::CaesuraSingleStroke:
+        break;
+    }
+    if (!symbol) {
+        return std::nullopt;
+    }
+    mnx::sequence::BreathMark result;
+    result.set_symbol(symbol.value());
+    result.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
+    return result;
+}
+
+std::optional<mnx::sequence::BreathMark> calcBreathMark(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement)
+{
+    const auto fontInfo = ctx.parseFirstFontInfo();
+    const auto symStr = ctx.getText(/*trimTags*/ true, musx::util::EnigmaString::AccidentalStyle::Unicode);
+    if (const auto sym = utils::utf8ToCodepoint(symStr)) {
+        const auto classification = classify::classifyArticulationSymbol(fontInfo, sym.value());
+        if (const auto* breathMark = classification.as<classify::BreathMark>()) {
+            return makeBreathMark(*breathMark, placement);
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
+    const EntryInfoPtr& sourceEntry,
+    const MusxInstance<details::ArticulationAssign>& assign,
+    const classify::Arpeggio& arpeggio)
+{
+    std::optional<musx::util::ArpeggioSpanCandidate> result;
+    auto makeArpeggioCandidate = [&](musx::util::ArpeggioDirection direction, musx::util::ArpeggioArrow arrow) {
+        auto& candidate = result.emplace();
+        candidate.sourceEntry = sourceEntry;
+        candidate.topEntry = sourceEntry;
+        candidate.bottomEntry = sourceEntry;
+        candidate.arrow = arrow;
+        candidate.direction = direction;
+    };
+
+    switch (arpeggio.type) {
+    case classify::Arpeggio::Type::VerticalSegment:
+        return musx::util::calcArpeggioSpanForAssignment(
+            sourceEntry, assign, {}, [](const details::ArticulationAssign::SelectedSymbolContext&) {
+                // The selected symbol was already classified as a vertical arpeggio segment;
+                // this callback bypasses musx's raw-SMuFL-codepoint fallback for legacy fonts.
+                return true;
+            });
+    case classify::Arpeggio::Type::Normal:
+        makeArpeggioCandidate(musx::util::ArpeggioDirection::Auto, musx::util::ArpeggioArrow::None);
+        break;
+    case classify::Arpeggio::Type::Up:
+        makeArpeggioCandidate(musx::util::ArpeggioDirection::Up, musx::util::ArpeggioArrow::Up);
+        break;
+    case classify::Arpeggio::Type::Down:
+        makeArpeggioCandidate(musx::util::ArpeggioDirection::Down, musx::util::ArpeggioArrow::Down);
+        break;
+    }
+    return result;
 }
 
 static std::optional<NoteInfoPtr> findArepggioBoundaryNote(const EntryInfoPtr& entryInfo, bool topNote)

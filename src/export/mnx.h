@@ -35,6 +35,7 @@
 #include "mnx_fwd.h"
 #include "mnx_mapping.h"
 #include "mnx_markings.h"
+#include "classify/jumps.h"
 
 using namespace musx::dom;
 using namespace musx::util;
@@ -86,7 +87,7 @@ struct MnxMusxMapping
     std::unordered_set<std::string> lyricLineIds;
 
     // musx mappings
-    std::unordered_map<Cmper, JumpType> textRepeat2Jump;
+    std::unordered_map<Cmper, classify::Jump> textRepeat2Jump;
     std::unordered_map<std::string, mnx::json_pointer> noteJsonById;
     std::unordered_map<EntryNumber, EntryTarget> entryTargetByNumber;
 

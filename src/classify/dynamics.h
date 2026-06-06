@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024, Robert Patterson
+ * Copyright (C) 2026, Robert Patterson
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,33 +21,54 @@
  */
 #pragma once
 
-#include <filesystem>
-#include <optional>
+#include <string_view>
 
-#include "denigma.h"
 #include "musx/musx.h"
-#include "mnxdom.h"
 
- //placeholder function
+namespace denigma::classify {
 
-using namespace musx::dom;
-using namespace musx::util;
+enum class Dynamic
+{
+    None,
+    Other,
+    pppppp,
+    ppppp,
+    pppp,
+    ppp,
+    pp,
+    p,
+    mp,
+    mf,
+    f,
+    ff,
+    fff,
+    ffff,
+    fffff,
+    ffffff,
+    fp,
+    fz,
+    sf,
+    sfp,
+    sfpp,
+    sfz,
+    sffz,
+    rf,
+    rfz
+};
 
-namespace denigma {
-namespace mnxexp {
+struct DynamicClassification
+{
+    Dynamic dynamic{};
+    bool hasAdditionalText{};
 
-struct MnxMusxMapping;
+    bool isDynamic() const noexcept
+    { return dynamic != Dynamic::None; }
 
-mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
-mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
-mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl);
+    explicit operator bool() const noexcept
+    { return isDynamic(); }
+};
 
-musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction);
-mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction);
-mnx::FractionValue mnxFractionFromEdu(Edu eduValue);
-mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& smartShape);
+DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);
+std::string dynamicCanonicalText(Dynamic dynamic);
 
-int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosition);
-
-} // namespace mnxexp
-} // namespace denigma
+} // namespace denigma::classify

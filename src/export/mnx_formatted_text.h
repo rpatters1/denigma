@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024, Robert Patterson
+ * Copyright (C) 2026, Robert Patterson
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,33 +21,43 @@
  */
 #pragma once
 
-#include <filesystem>
+#include <functional>
 #include <optional>
+#include <string>
+#include <vector>
 
-#include "denigma.h"
-#include "musx/musx.h"
 #include "mnxdom.h"
-
- //placeholder function
-
-using namespace musx::dom;
-using namespace musx::util;
+#include "musx/musx.h"
 
 namespace denigma {
 namespace mnxexp {
 
-struct MnxMusxMapping;
+enum class MnxFormattedTextSymbolPolicy
+{
+    PreserveText,
+    PreferSmufl,
+    SplitSmufl
+};
 
-mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
-mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
-mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl);
+using MnxFormattedTextChunkCallback = std::function<void(const std::string&, const std::vector<std::string>&)>;
 
-musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction);
-mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction);
-mnx::FractionValue mnxFractionFromEdu(Edu eduValue);
-mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& smartShape);
+struct MnxFormattedTextOptions
+{
+    MnxFormattedTextSymbolPolicy symbolPolicy = MnxFormattedTextSymbolPolicy::PreferSmufl;
+    bool skipHiddenText = true;
+    bool plainTextOnly = false;
+    std::optional<musx::dom::MusxInstance<musx::dom::FontInfo>> initialFont;
+    MnxFormattedTextChunkCallback onChunk;
+};
 
-int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosition);
+void setFormattedText(
+    mnx::FormattedText dst,
+    const musx::util::EnigmaParsingContext& src,
+    const MnxFormattedTextOptions& options = {});
+
+mnx::FormattedText makeFormattedText(
+    const musx::util::EnigmaParsingContext& src,
+    const MnxFormattedTextOptions& options = {});
 
 } // namespace mnxexp
 } // namespace denigma

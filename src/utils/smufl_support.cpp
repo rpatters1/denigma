@@ -32,6 +32,7 @@
 
 #include "musx/musx.h"
 #include "smufl_mapping.h"
+#include "utils/utf8_iterator.h"
 
 using namespace musx::dom;
 

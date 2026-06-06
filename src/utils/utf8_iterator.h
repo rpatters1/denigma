@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024, Robert Patterson
+ * Copyright (C) 2026, Robert Patterson
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,33 +21,43 @@
  */
 #pragma once
 
-#include <filesystem>
+#include <cstddef>
 #include <optional>
+#include <string>
+#include <string_view>
 
-#include "denigma.h"
-#include "musx/musx.h"
-#include "mnxdom.h"
+namespace utils {
+struct Utf8Codepoint
+{
+    char32_t codepoint{};
+    size_t byteCount{};
+};
 
- //placeholder function
+class Utf8Iterator
+{
+public:
+    explicit Utf8Iterator(std::string_view text);
 
-using namespace musx::dom;
-using namespace musx::util;
+    bool atEnd() const noexcept { return m_atEnd; }
+    bool valid() const noexcept { return m_valid; }
 
-namespace denigma {
-namespace mnxexp {
+    const Utf8Codepoint& operator*() const noexcept { return m_current; }
+    const Utf8Codepoint* operator->() const noexcept { return &m_current; }
 
-struct MnxMusxMapping;
+    size_t offset() const noexcept { return m_offset; }
 
-mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
-mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
-mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl);
+    void next();
 
-musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction);
-mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction);
-mnx::FractionValue mnxFractionFromEdu(Edu eduValue);
-mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& smartShape);
+private:
+    void decodeCurrent();
 
-int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosition);
+    std::string_view m_text;
+    size_t m_offset{};
+    Utf8Codepoint m_current{};
+    bool m_atEnd{};
+    bool m_valid{true};
+};
 
-} // namespace mnxexp
-} // namespace denigma
+/// @brief Converts a string to a utf32 codepoint if it represents exactly one codepoing.
+std::optional<char32_t> utf8ToCodepoint(const std::string& utf8);
+} //namespace utils
