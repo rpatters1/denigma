@@ -109,6 +109,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(zlib)
 
+if(TARGET zlib)
+    set_target_properties(zlib PROPERTIES
+        EXCLUDE_FROM_ALL TRUE
+        EXCLUDE_FROM_DEFAULT_BUILD TRUE
+    )
+endif()
+
 if(TARGET zlibstatic)
     set(_denigma_zlib_target zlibstatic)
 elseif(TARGET zlib)
