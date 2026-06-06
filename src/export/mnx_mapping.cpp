@@ -19,74 +19,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include <iostream>
-#include <filesystem>
-#include <fstream>
-#include <unordered_map>
 #include <cmath>
 
 #include "mnx.h"
-#include "utils/smufl_support.h"
 
 namespace denigma {
 namespace mnxexp {
-
-/**
- * @brief Provides a default mapping from TextRepeatDef text to a jump type
- *
- * This function only maps strings from the Finale 27 Maestro Default file
- * plus a few other obvious symbols (standard Unicode and SMuFL symbols).
- * Anything else returns JumpType::None. It does a case-insensitive comparison.
- */
-/// @param text The text to map. (Usuallu from TextRepeatText)
-/// @param glyphName The glyphname, if any.
-/// @return 
-JumpType convertTextToJump(const std::string& text, const std::optional<std::string>& glyphName)
-{
-    if (glyphName) {
-        if (glyphName == "segno" || glyphName == "segnoSerpent1" || glyphName == "segnoSerpent2" || glyphName == "segnoJapanese") {
-            return JumpType::Segno;
-        }
-        if (glyphName == "dalSegno") {
-            return JumpType::DalSegno;
-        }
-        if (glyphName == "daCapo") {
-            return JumpType::DaCapo;
-        }
-        if (glyphName == "coda" || glyphName == "codaSquare" || glyphName == "codaJapanese") {
-            return JumpType::Coda;
-        }
-    }
-
-    std::string lowerText = utils::toLowerCase(text); // Convert input text to lowercase    
-
-    if (lowerText == "d.c. al fine") {
-        return JumpType::DCAlFine;
-    }
-    if (lowerText == "d.c. al coda") {
-        return JumpType::DaCapo;
-    }
-    if (lowerText == "d.s. al fine") {
-        return JumpType::DsAlFine;
-    }
-    if (lowerText == "d.s. al coda") {
-        return JumpType::DalSegno;
-    }
-    if (lowerText == "to coda #" || lowerText == "coda" || lowerText == "to coda") {
-        return JumpType::Coda;
-    }
-    if (lowerText == "fine") {
-        return JumpType::Fine;
-    }
-    if (lowerText == "§" || lowerText == "𝄋") {
-        return JumpType::Segno;
-    }
-    if (lowerText == "𝄌") {
-        return JumpType::Coda;
-    }
-
-    return JumpType::None;
-}
 
 mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration)
 {

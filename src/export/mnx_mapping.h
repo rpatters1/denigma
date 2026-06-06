@@ -38,20 +38,6 @@ namespace mnxexp {
 
 struct MnxMusxMapping;
 
-enum class JumpType
-{
-    None,
-    Segno,
-    DalSegno,
-    DsAlFine,
-    DaCapo,
-    DCAlFine,
-    Coda,
-    Fine
-};
-
-JumpType convertTextToJump(const std::string& text, const std::optional<std::string>& glyphName);
-
 mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
 mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
 mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl);

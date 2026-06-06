@@ -90,7 +90,7 @@ static musx::util::Fraction calcJumpLocation(const MusxInstance<others::TextRepe
     return result;
 }
 
-static std::optional<MusxInstance<others::TextRepeatAssign>> searchForJump(const MnxMusxMappingPtr& context, JumpType jumpType, const MusxInstance<others::Measure>& musxMeasure)
+static std::optional<MusxInstance<others::TextRepeatAssign>> searchForJump(const MnxMusxMappingPtr& context, classify::Jump jumpType, const MusxInstance<others::Measure>& musxMeasure)
 {
     if (musxMeasure->hasTextRepeat) {
         auto textRepeatAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::TextRepeatAssign>(SCORE_PARTID, musxMeasure->getCmper());
@@ -109,7 +109,7 @@ static void createFine(
     mnx::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    if (auto repeatAssign = searchForJump(context, JumpType::Fine, musxMeasure)) {
+    if (auto repeatAssign = searchForJump(context, classify::Jump::Fine, musxMeasure)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
         mnxMeasure.ensure_fine(mnxFractionFromFraction(location));
     }
@@ -120,10 +120,11 @@ static void createJump(
     mnx::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    constexpr auto jumpMapping = std::to_array<std::pair<JumpType, mnx::JumpType>>(
+    constexpr auto jumpMapping = std::to_array<std::pair<classify::Jump, mnx::JumpType>>(
     {
-        {JumpType::DalSegno, mnx::JumpType::Segno},
-        {JumpType::DsAlFine, mnx::JumpType::DsAlFine},
+        {classify::Jump::DalSegno, mnx::JumpType::Segno},
+        {classify::Jump::DsAlCoda, mnx::JumpType::Segno},
+        {classify::Jump::DsAlFine, mnx::JumpType::DsAlFine},
     });
 
     for (const auto& mapping : jumpMapping) {
@@ -171,7 +172,7 @@ static void createSegno(
     mnx::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    if (auto repeatAssign = searchForJump(context, JumpType::Segno, musxMeasure)) {
+    if (auto repeatAssign = searchForJump(context, classify::Jump::Segno, musxMeasure)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
         auto segno = mnxMeasure.ensure_segno(mnxFractionFromFraction(location));
         if (auto repeatText = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {

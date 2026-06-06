@@ -6,6 +6,7 @@ if(denigma_BUILD_TESTING)
 
     # Collect all .cpp files in the source directory
     file(GLOB DENIGMA_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp"
+                            "${CMAKE_SOURCE_DIR}/src/classify/*.cpp"
                             "${CMAKE_SOURCE_DIR}/src/export/*.cpp"
                             "${CMAKE_SOURCE_DIR}/src/massage/*.cpp"
                             "${CMAKE_SOURCE_DIR}/src/utils/*.cpp")
@@ -18,6 +19,7 @@ if(denigma_BUILD_TESTING)
         test_logging.cpp
         test_massage.cpp
         test_options.cpp
+        test_jumps.cpp
         mnx/test_beams.cpp
         mnx/test_formatted_text.cpp
         mnx/test_global.cpp
