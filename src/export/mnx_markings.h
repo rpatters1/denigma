@@ -69,6 +69,7 @@ std::optional<mnx::sequence::BreathMark> calcBreathMark(const MusxInstance<FontI
 
 std::optional<musx::util::ArpeggioSpanCandidate> calcArpeggio(const EntryInfoPtr& sourceEntry, const MusxInstance<details::ArticulationAssign>& assign);
 void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
+void finalizeArpeggios(const MnxMusxMappingPtr& context);
 
 } // namespace mnxexp
 } // namespace denigma
