@@ -291,8 +291,8 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     const auto& musxDocument = context->document;
 
     // Retrieve the linked parts in order.
-    auto musxMeasures = musxDocument->getOthers()->getArray<others::Measure>(SCORE_PARTID);
-    auto musxBarlineOptions = musxDocument->getOptions()->get<options::BarlineOptions>();
+    const auto musxMeasures = musxDocument->getOthers()->getArray<others::Measure>(SCORE_PARTID);
+    const auto musxBarlineOptions = context->finaleOptions.barlineOptions;
     std::optional<int> prevKeyFifths;
     MusxInstance<TimeSignature> prevTimeSig;
     for (const auto& musxMeasure : musxMeasures) {
