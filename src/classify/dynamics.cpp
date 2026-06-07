@@ -81,10 +81,10 @@ static DynamicText normalizeDynamicText(const DynamicText& input)
 
 static std::string glyphNameToDynamicText(std::string_view glyphName)
 {
-    if (glyphName == "dynamicPiano") {
+    if (glyphName == "dynamicPiano" || glyphName == "dynamicPianoSmall") {
         return "p";
     }
-    if (glyphName == "dynamicPianissimo") {
+    if (glyphName == "dynamicPP") {
         return "pp";
     }
     if (glyphName == "dynamicPPP") {
@@ -99,7 +99,7 @@ static std::string glyphNameToDynamicText(std::string_view glyphName)
     if (glyphName == "dynamicPPPPPP") {
         return "pppppp";
     }
-    if (glyphName == "dynamicMezzo") {
+    if (glyphName == "dynamicMezzo" || glyphName == "dynamicMezzoSmall") {
         return "m";
     }
     if (glyphName == "dynamicMP") {
@@ -108,7 +108,7 @@ static std::string glyphNameToDynamicText(std::string_view glyphName)
     if (glyphName == "dynamicMF") {
         return "mf";
     }
-    if (glyphName == "dynamicForte") {
+    if (glyphName == "dynamicForte" || glyphName == "dynamicForteSmall") {
         return "f";
     }
     if (glyphName == "dynamicFF") {
@@ -129,11 +129,17 @@ static std::string glyphNameToDynamicText(std::string_view glyphName)
     if (glyphName == "dynamicFortePiano") {
         return "fp";
     }
+    if (glyphName == "dynamicPF") {
+        return "pf";
+    }
     if (glyphName == "dynamicForzando") {
         return "fz";
     }
-    if (glyphName == "dynamicSforzando") {
-        return "sf";
+    if (glyphName == "dynamicSforzando" || glyphName == "dynamicSforzandoLegacy" || glyphName == "dynamicSforzandoSmall") {
+        return "s";
+    }
+    if (glyphName == "dynamicSforzando1") {
+        return "sfz";
     }
     if (glyphName == "dynamicSforzandoPiano") {
         return "sfp";
@@ -144,14 +150,21 @@ static std::string glyphNameToDynamicText(std::string_view glyphName)
     if (glyphName == "dynamicSforzato") {
         return "sfz";
     }
+    if (glyphName == "dynamicSforzatoPiano") {
+        return "sfzp";
+    }
     if (glyphName == "dynamicSforzatoFF") {
         return "sffz";
     }
-    if (glyphName == "dynamicRinforzando" || glyphName == "dynamicRinforzando1" || glyphName == "dynamicRinforzando2") {
+    if (glyphName == "dynamicRinforzando" || glyphName == "dynamicRinforzando1" || glyphName == "dynamicRinforzando2"
+        || glyphName == "dynamicRinforzandoSmall") {
         return "rf";
     }
-    if (glyphName == "dynamicZ") {
+    if (glyphName == "dynamicZ" || glyphName == "dynamicZSmall") {
         return "z";
+    }
+    if (glyphName == "dynamicNiente" || glyphName == "dynamicNienteForHairpin" || glyphName == "dynamicNienteSmall") {
+        return "n";
     }
     return {};
 }
@@ -198,14 +211,19 @@ static Dynamic classifyExactDynamicToken(std::string_view text)
     if (text == "fffff") return Dynamic::fffff;
     if (text == "ffffff") return Dynamic::ffffff;
     if (text == "fp") return Dynamic::fp;
+    if (text == "ffp") return Dynamic::ffp;
     if (text == "fz" || text == "forzando") return Dynamic::fz;
+    if (text == "ffz") return Dynamic::ffz;
+    if (text == "pf") return Dynamic::pf;
     if (text == "sf") return Dynamic::sf;
     if (text == "sfp") return Dynamic::sfp;
     if (text == "sfpp") return Dynamic::sfpp;
     if (text == "sfz" || text == "sforzando" || text == "sforzato") return Dynamic::sfz;
     if (text == "sffz") return Dynamic::sffz;
+    if (text == "sfzp") return Dynamic::sfzp;
     if (text == "rf" || text == "rinf" || text == "rinf." || text == "rinforzando") return Dynamic::rf;
     if (text == "rfz") return Dynamic::rfz;
+    if (text == "n" || text == "niente") return Dynamic::n;
     return Dynamic::None;
 }
 
@@ -340,14 +358,57 @@ std::string dynamicCanonicalText(Dynamic dynamic)
     case Dynamic::fffff: return "fffff";
     case Dynamic::ffffff: return "ffffff";
     case Dynamic::fp: return "fp";
+    case Dynamic::ffp: return "ffp";
     case Dynamic::fz: return "fz";
+    case Dynamic::ffz: return "ffz";
+    case Dynamic::pf: return "pf";
     case Dynamic::sf: return "sf";
     case Dynamic::sfp: return "sfp";
     case Dynamic::sfpp: return "sfpp";
     case Dynamic::sfz: return "sfz";
     case Dynamic::sffz: return "sffz";
+    case Dynamic::sfzp: return "sfzp";
     case Dynamic::rf: return "rf";
     case Dynamic::rfz: return "rfz";
+    case Dynamic::n: return "n";
+    }
+    return {};
+}
+
+std::vector<std::string> dynamicCanonicalGlyphs(Dynamic dynamic)
+{
+    switch (dynamic) {
+    case Dynamic::None:
+    case Dynamic::Other:
+        break;
+    case Dynamic::pppppp: return { "dynamicPPPPPP" };
+    case Dynamic::ppppp: return { "dynamicPPPPP" };
+    case Dynamic::pppp: return { "dynamicPPPP" };
+    case Dynamic::ppp: return { "dynamicPPP" };
+    case Dynamic::pp: return { "dynamicPP" };
+    case Dynamic::p: return { "dynamicPiano" };
+    case Dynamic::mp: return { "dynamicMP" };
+    case Dynamic::mf: return { "dynamicMF" };
+    case Dynamic::f: return { "dynamicForte" };
+    case Dynamic::ff: return { "dynamicFF" };
+    case Dynamic::fff: return { "dynamicFFF" };
+    case Dynamic::ffff: return { "dynamicFFFF" };
+    case Dynamic::fffff: return { "dynamicFFFFF" };
+    case Dynamic::ffffff: return { "dynamicFFFFFF" };
+    case Dynamic::fp: return { "dynamicFortePiano" };
+    case Dynamic::ffp: return { "dynamicFF", "dynamicPiano" };
+    case Dynamic::fz: return { "dynamicForzando" };
+    case Dynamic::ffz: return { "dynamicFF", "dynamicZ" };
+    case Dynamic::pf: return { "dynamicPF" };
+    case Dynamic::sf: return { "dynamicSforzando", "dynamicForte" };
+    case Dynamic::sfp: return { "dynamicSforzandoPiano" };
+    case Dynamic::sfpp: return { "dynamicSforzandoPianissimo" };
+    case Dynamic::sfz: return { "dynamicSforzando1" };
+    case Dynamic::sffz: return { "dynamicSforzatoFF" };
+    case Dynamic::sfzp: return { "dynamicSforzatoPiano" };
+    case Dynamic::rf: return { "dynamicRinforzando" };
+    case Dynamic::rfz: return { "dynamicRinforzando", "dynamicZ" };
+    case Dynamic::n: return { "dynamicNiente" };
     }
     return {};
 }

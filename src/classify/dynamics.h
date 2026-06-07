@@ -22,6 +22,7 @@
 #pragma once
 
 #include <string_view>
+#include <vector>
 
 #include "musx/musx.h"
 
@@ -46,14 +47,19 @@ enum class Dynamic
     fffff,
     ffffff,
     fp,
+    ffp,
     fz,
+    ffz,
+    pf,
     sf,
     sfp,
     sfpp,
     sfz,
     sffz,
+    sfzp,
     rf,
-    rfz
+    rfz,
+    n
 };
 
 struct DynamicClassification
@@ -70,5 +76,6 @@ struct DynamicClassification
 
 DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);
 std::string dynamicCanonicalText(Dynamic dynamic);
+std::vector<std::string> dynamicCanonicalGlyphs(Dynamic dynamic);
 
 } // namespace denigma::classify
