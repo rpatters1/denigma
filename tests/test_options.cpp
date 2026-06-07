@@ -102,6 +102,12 @@ TEST(Options, IncorrectOptions)
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "svg scale conflicts with page scale";
         });
     }
+    {
+        ArgList args = { DENIGMA_NAME, "--testing", "export", "input.musx", "--cue-layer", "5", "--mnx" };
+        checkStderr("Invalid value for --cue-layer: 5 (must be 1..4)", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid cue layer";
+        });
+    }
 }
 
 TEST(Options, ParseOptions)
@@ -220,6 +226,17 @@ TEST(Options, ParseOptions)
         EXPECT_EQ(pathString(std::filesystem::path(newArgs[2])), "--svg");
         EXPECT_FALSE(ctx.svgUsePageScale);
         EXPECT_DOUBLE_EQ(ctx.svgScale, 1.25);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx", "--mnx", "--cue-layer", "4" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 3);
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[1])), fileName + ".musx");
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[2])), "--mnx");
+        ASSERT_TRUE(ctx.cueLayer.has_value());
+        EXPECT_EQ(ctx.cueLayer.value(), 4);
     }
     {
         static const std::string fileName = "notAscii-其れ";

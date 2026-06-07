@@ -404,18 +404,18 @@ static bool appendDeferredArpeggioToPart(const MnxMusxMappingPtr& context,
     }
 
     auto savedPartStaves = context->currPartStaves;
-    auto savedMeas = context->currMeas;
-    auto savedStaff = context->currStaff;
+    auto savedMeas = context->current.meas;
+    auto savedStaff = context->current.staff;
     context->currPartStaves = partIt->second;
-    context->currMeas = candidate.sourceEntry.getMeasure();
-    context->currStaff = context->currPartStaves.front();
+    context->current.meas = candidate.sourceEntry.getMeasure();
+    context->current.staff = context->currPartStaves.front();
 
     const auto splitTopNote = findArpeggioBoundaryNoteInCurrentPart(context, candidate.topEntry, candidate.bottomEntry, true);
     const auto splitBottomNote = findArpeggioBoundaryNoteInCurrentPart(context, candidate.bottomEntry, candidate.topEntry, false);
 
     context->currPartStaves = savedPartStaves;
-    context->currMeas = savedMeas;
-    context->currStaff = savedStaff;
+    context->current.meas = savedMeas;
+    context->current.staff = savedStaff;
 
     if (!splitTopNote || !splitBottomNote) {
         return false;

@@ -190,6 +190,7 @@ public:
     bool verbose{};
     bool quiet{};
     bool noValidate{};
+    std::optional<int> cueLayer;
     std::optional<std::filesystem::path> excludeFolder;
     std::optional<std::string> partName;
     std::optional<std::filesystem::path> logFilePath;
@@ -203,7 +204,7 @@ public:
     bool fermataWholeRests{ true };
     std::optional<std::filesystem::path> finaleFilePath;
 
-    // Specic options for `export --mnx` command
+    // Specific options for `export --mnx` command
     std::optional<int> indentSpaces{ JSON_INDENT_SPACES };
     std::optional<std::filesystem::path> mnxSchemaPath;
     std::optional<std::string> mnxSchema;

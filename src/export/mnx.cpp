@@ -35,24 +35,66 @@ namespace mnxexp {
 void MnxMusxMapping::logMessage(LogMsg&& msg, LogSeverity severity)
 {
     std::string logEntry;
-    if (currStaff > 0 && currMeas > 0) {
+    if (current.staff > 0 && current.meas > 0) {
         std::string staffName = [&]() -> std::string {
             if (document) {
-                if (auto staff = others::StaffComposite::createCurrent(document, SCORE_PARTID, currStaff, currMeas, 0)) {
+                if (auto staff = others::StaffComposite::createCurrent(document, SCORE_PARTID, current.staff, current.meas, 0)) {
                     auto instName = staff->getFullInstrumentName();
                     if (!instName.empty()) return instName;
                 }
             }
-            return "Staff " + std::to_string(currStaff);
+            return "Staff " + std::to_string(current.staff);
         }();
 
         std::string v;
-        if (!voice.empty()) {
-            v = " " + voice;
+        if (!current.voice.empty()) {
+            v = " " + current.voice;
         }
-        logEntry += "[" + staffName + " m" + std::to_string(currMeas) + v + "] ";
+        logEntry += "[" + staffName + " m" + std::to_string(current.meas) + v + "] ";
     }
     denigmaContext->logMessage(LogMsg() << logEntry << msg.str(), severity);
+}
+
+void MnxMusxMapping::logDiscardedCueLayerFrame(LayerIndex layer)
+{
+    discardedCueFrames++;
+    logMessage(LogMsg() << "discarded cue material detected by --cue-layer in measure "
+        << current.meas << ", staff " << current.staff << ", layer " << (layer + 1)
+        << "; MNX does not currently support cues.");
+}
+
+void MnxMusxMapping::logDiscardedHeuristicCueHold()
+{
+    discardedCueFrames++;
+    logMessage(LogMsg() << "discarded cue material detected heuristically in measure "
+        << current.meas << ", staff " << current.staff
+        << "; MNX does not currently support cues.");
+}
+
+void MnxMusxMapping::setCurrentMeasureStaff(const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper)
+{
+    current.clear();
+    current.meas = musxMeasure->getCmper();
+    current.staff = staffCmper;
+    current.gfhold.emplace(musxMeasure->getDocument(), musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper());
+    if (!*current.gfhold) {
+        return;
+    }
+
+    current.layerVoices = current.gfhold->calcVoices();
+    if (current.gfhold->calcIsCuesOnly()) {
+        current.cueDiscardPlan.discardWholeHold = true;
+        logDiscardedHeuristicCueHold();
+        return;
+    }
+
+    if (denigmaContext->cueLayer) {
+        const LayerIndex cueLayer = static_cast<LayerIndex>(*denigmaContext->cueLayer - 1);
+        if (auto entryFrame = current.gfhold->createEntryFrame(cueLayer); entryFrame && !entryFrame->getEntries().empty()) {
+            current.cueDiscardPlan.discardLayers.emplace(cueLayer);
+            logDiscardedCueLayerFrame(cueLayer);
+        }
+    }
 }
 
 std::optional<int> MnxMusxMapping::mnxPartStaffFromStaff(StaffCmper staff) const
@@ -197,6 +239,10 @@ void exportJson(const std::filesystem::path& outputPath, const CommandInputData&
     if (!denigmaContext.mnxSplitInstruments) {
         createLayouts(context); // must come after createParts
         createScores(context); // must come after createLayouts
+    }
+    if (context->discardedCueFrames > 0) {
+        denigmaContext.logMessage(LogMsg() << "discarded " << context->discardedCueFrames
+            << " cue frames because MNX does not currently support cues.");
     }
 
     if (!denigmaContext.noValidate) {

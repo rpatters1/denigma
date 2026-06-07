@@ -36,17 +36,16 @@ namespace mnxexp {
 static void createBeams(
     const MnxMusxMappingPtr& context,
     mnx::part::Measure mnxMeasure,
-    const MusxInstance<others::Measure>& musxMeasure,
-    StaffCmper staffCmper)
+    const MusxInstance<others::Measure>& musxMeasure)
 {
     const auto& musxDocument = musxMeasure->getDocument();
     const auto mnxMeasures = mnxMeasure.parent<mnx::Array<mnx::part::Measure>>();
     const auto partId = musxMeasure->getRequestedPartId();
-    if (auto gfhold = details::GFrameHoldContext(musxDocument, partId, staffCmper, musxMeasure->getCmper())) {
-        if (gfhold.calcIsCuesOnly()) {
+    if (context->current.gfhold) {
+        if (context->current.cueDiscardPlan.discardWholeHold) {
             return; // skip cues until MNX spec includes them
         }
-        gfhold.iterateEntries([&](const EntryInfoPtr& entryInfo) -> bool {
+        auto processEntry = [&](const EntryInfoPtr& entryInfo) -> bool {
             auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
                 assert(firstInBeam.calcLowestBeamStart(/*considerBeamOverBarlines*/true) <= beamNumber);
                 auto beam = mnxBeams.append();
@@ -106,7 +105,15 @@ static void createBeams(
                 processBeam(mnxMeasure.ensure_beams(), 1, entryInfo, processBeam);
             }
             return true;
-        });
+        };
+        for (const auto& [layer, _] : context->current.layerVoices) {
+            if (context->current.cueDiscardPlan.skipsLayer(layer)) {
+                continue;
+            }
+            if (auto entryFrame = context->current.gfhold->createEntryFrame(layer)) {
+                entryFrame->iterateEntries(processEntry);
+            }
+        }
     }
 }
 
@@ -163,10 +170,10 @@ static void createClefs(
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
     const MusxInstance<others::Measure>& musxMeasure,
-    StaffCmper staffCmper,
     std::optional<ClefIndex>& prevClefIndex)
 {
     const auto& musxDocument = musxMeasure->getDocument();
+    const StaffCmper staffCmper = context->current.staff;
 
     auto addClef = [&](ClefIndex clefIndex, musx::util::Fraction location) {
         if (clefIndex == prevClefIndex) {
@@ -201,9 +208,10 @@ static void createClefs(
     }
 }
 
-static void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper,
+static void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
+    const StaffCmper staffCmper = context->current.staff;
     struct ExpressionAttachmentContext {
         EntryInfoPtr entryInfo;
         const EntryTarget* entryTarget{ nullptr };
@@ -319,9 +327,9 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
 static void processSmartShapes(
     const MnxMusxMappingPtr& context,
     mnx::part::Measure mnxMeasure,
-    const MusxInstance<others::Measure>& musxMeasure,
-    StaffCmper staffCmper)
+    const MusxInstance<others::Measure>& musxMeasure)
 {
+    const StaffCmper staffCmper = context->current.staff;
     if (musxMeasure->hasSmartShape) {
         const auto assigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
         for (const auto& assign : assigns) {
@@ -344,10 +352,11 @@ static void processSmartShapes(
     }
 }
 
-static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper,
+static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
     mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
-    context->ottavasApplicableInMeasure.clear();
+    const StaffCmper staffCmper = context->current.staff;
+    context->current.ottavasApplicableInMeasure.clear();
     if (musxMeasure->hasSmartShape) {
         auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
         for (const auto& asgn : shapeAssigns) {
@@ -361,7 +370,7 @@ static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<o
                         case others::SmartShape::ShapeType::TwoOctaveUp:
                             break;
                     }
-                    context->ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
+                    context->current.ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
                     if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
                         auto mnxOttava = mnxMeasure.ensure_ottavas().append(
                             enumConvert<mnx::OttavaAmount>(shape->shapeType),
@@ -420,16 +429,17 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
         // create measures in one go, so that createBeams can add a beam to any measure
         mnxMeasures.append();
     }
+    size_t measureIndex = 0;
     for (const auto& musxMeasure : musxMeasures) {
-        auto mnxMeasure = mnxMeasures.at(context->currMeas++);
+        auto mnxMeasure = mnxMeasures.at(measureIndex++);
         if (const auto partId = part.id()) {
             mnxMeasure.set_id(partId.value() + "." + calcGlobalMeasureId(musxMeasure->getCmper()));
         }
         for (size_t x = 0; x < context->currPartStaves.size(); x++) {
-            context->currStaff = context->currPartStaves[x];
+            const StaffCmper staffCmper = context->currPartStaves[x];
             std::optional<int> staffNumber = (context->currPartStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
             if (context->currSplitInstrumentUuid) {
-                const auto& instInfo = context->document->getInstrumentForStaff(context->currStaff);
+                const auto& instInfo = context->document->getInstrumentForStaff(staffCmper);
                 const auto identity = instInfo.getInstrumentIdentityAt(MusicPoint(musxMeasure->getCmper(), musx::util::Fraction{}));
                 if (musxMeasure->getCmper() == 1) {
                     const auto musxStaff = findCompositeForIdentity(instInfo, identity);
@@ -439,17 +449,18 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
                     continue;
                 }
             } else if (musxMeasure->getCmper() == 1) {
-                const auto musxStaff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getRequestedPartId(), context->currStaff, 1, 0);
+                const auto musxStaff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getRequestedPartId(), staffCmper, 1, 0);
                 prevClefs[x] = createClef(context, mnxMeasure, staffNumber, musxStaff->calcClefIndex(/*forWrittenPitch*/ true), 0, musxStaff);
             }
-            createBeams(context, mnxMeasure, musxMeasure, context->currPartStaves[x]);
-            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, context->currPartStaves[x], prevClefs[x]);
+            context->setCurrentMeasureStaff(musxMeasure, staffCmper);
+            createBeams(context, mnxMeasure, musxMeasure);
+            createClefs(context, part, mnxMeasure, staffNumber, musxMeasure, prevClefs[x]);
             // ottaves must be created before sequences, so that the ottava octaves can be correctly calculated for events
-            createOttavas(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
-            createSequences(context, mnxMeasure, staffNumber, musxMeasure, context->currPartStaves[x]);
+            createOttavas(context, musxMeasure, mnxMeasure, staffNumber);
+            createSequences(context, mnxMeasure, staffNumber, musxMeasure);
             // the following must come after sequences, in case we need to attach to events (e.g., fermatas);
-            processExpressions(context, musxMeasure, context->currPartStaves[x], mnxMeasure, staffNumber);
-            processSmartShapes(context, mnxMeasure, musxMeasure, context->currPartStaves[x]);
+            processExpressions(context, musxMeasure, mnxMeasure, staffNumber);
+            processSmartShapes(context, mnxMeasure, musxMeasure);
         }
     }
     context->clearCounts();

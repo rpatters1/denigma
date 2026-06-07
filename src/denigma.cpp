@@ -126,6 +126,19 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             verbose = true;
         } else if (next == _ARG("--no-validate")) {
             noValidate = true;
+        } else if (next == _ARG("--cue-layer")) {
+            const std::string layerValue = std::string(_ARG_CONV(getNextArg()));
+            if (layerValue.empty()) {
+                throw std::invalid_argument("Missing value for --cue-layer");
+            }
+            try {
+                cueLayer = std::stoi(layerValue);
+            } catch (...) {
+                throw std::invalid_argument("Invalid value for --cue-layer: " + layerValue + " (must be 1..4)");
+            }
+            if (*cueLayer < 1 || *cueLayer > 4) {
+                throw std::invalid_argument("Invalid value for --cue-layer: " + layerValue + " (must be 1..4)");
+            }
         // Specific options for `massage` command
         } else if (next == _ARG("--finale-file")) {
             auto option = getNextArg();

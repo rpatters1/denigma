@@ -331,7 +331,7 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
 mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote)
 {
     auto [noteName, octave, alteration, _] = musxNote.calcNotePropertiesConcert();
-    for (const auto& it : context->ottavasApplicableInMeasure) {
+    for (const auto& it : context->current.ottavasApplicableInMeasure) {
         auto shape = it.second;
         if (shape->calcAppliesTo(musxNote.getEntryInfo())) {
             // if the note is a tie continuation, the ottava has to apply to the original note
@@ -650,7 +650,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             elapsedInSequence = currElapsedDuration;
         }
         if (context->currSplitInstrumentUuid) {
-            const auto& instInfo = context->document->getInstrumentForStaff(context->currStaff);
+            const auto& instInfo = context->document->getInstrumentForStaff(context->current.staff);
             const auto identity = instInfo.getInstrumentIdentityAt(MusicPoint(entryInfo.getMeasure(), currElapsedDuration));
             if (identity.instUuid != context->currSplitInstrumentUuid.value()) {
                 context->logMessage(LogMsg() << "Entry " << entry->getEntryNumber()
@@ -726,22 +726,21 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
 void createSequences(const MnxMusxMappingPtr& context,
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
-    const MusxInstance<others::Measure>& musxMeasure,
-    StaffCmper staffCmper)
+    const MusxInstance<others::Measure>& musxMeasure)
 {
-    auto gfhold = details::GFrameHoldContext(musxMeasure->getDocument(), musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper());
-    if (!gfhold) {
+    if (!context->current.gfhold || !*context->current.gfhold) {
         return; // nothing to do
     }
-    if (gfhold.calcIsCuesOnly()) {
-        context->logMessage(LogMsg() << " skipping cues until MNX committee decides how to handle them.", LogSeverity::Verbose);
+    if (context->current.cueDiscardPlan.discardWholeHold) {
         return;
     }
-    const auto measureDuration = musxMeasure->calcDuration(staffCmper);
-    const std::map<LayerIndex, int> layerVoices = gfhold.calcVoices();
-    for (const auto& [layer, numV2] : layerVoices) {
+    const auto measureDuration = musxMeasure->calcDuration(context->current.staff);
+    for (const auto& [layer, numV2] : context->current.layerVoices) {
+        if (context->current.cueDiscardPlan.skipsLayer(layer)) {
+            continue;
+        }
         const int maxVoices = numV2 ? 2 : 1;
-        if (auto entryFrame = gfhold.createEntryFrame(layer)) {
+        if (auto entryFrame = context->current.gfhold->createEntryFrame(layer)) {
             const bool usesV1V2 = numV2 && entryFrame->getFirstInterpretedIterator(2); // ignore entries the iterator will skip
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
@@ -751,12 +750,12 @@ void createSequences(const MnxMusxMappingPtr& context,
                         if (mnxStaffNumber) {
                             sequence.set_staff(mnxStaffNumber.value());
                         }
-                        context->voice = calcVoice(mnxStaffNumber.value_or(1), layer, voice);
-                        sequence.set_voice(context->voice);
+                        context->current.voice = calcVoice(mnxStaffNumber.value_or(1), layer, voice);
+                        sequence.set_voice(context->current.voice);
                         auto elapsedInVoice = musx::util::Fraction(0);
                         addEntryToContent(context, sequence.content(), firstEntry, elapsedInVoice, usesV1V2, false);
                         appendMeasureRemainderSpaces(sequence.content(), elapsedInVoice, measureDuration);
-                        context->voice.clear();
+                        context->current.voice.clear();
                     }
                 }
             }
