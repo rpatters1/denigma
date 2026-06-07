@@ -193,3 +193,17 @@ TEST(MnxParts, PartiallyHiddenCue)
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 }
+
+TEST(MnxParts, CueLayer)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("forced_bass_clef.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx", "--cue-layer", "1", "--no-validate" };
+    checkStderr(std::vector<std::string>{
+        "discarded cue material detected by --cue-layer in measure 2, staff 1, layer 1; MNX does not currently support cues.",
+        "discarded 1 cue frames because MNX does not currently support cues."
+    }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx with cue layer: " << pathString(inputPath);
+    });
+}

@@ -22,6 +22,7 @@
 #pragma once
 
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -102,27 +103,57 @@ struct MnxMusxMapping
     std::vector<musx::util::ArpeggioSpanCandidate> deferredArpeggios;
     std::unordered_set<std::string> deferredArpeggioKeys;
 
-    MeasCmper currMeas{};
-    StaffCmper currStaff{};
     std::optional<std::string> currSplitInstrumentUuid;
-    std::string voice;
     std::vector<StaffCmper> currPartStaves;
     std::unordered_set<EntryNumber> beamedEntries;
-    std::unordered_map<Cmper, MusxInstance<others::SmartShape>> ottavasApplicableInMeasure;
+    size_t discardedCueFrames{};
+
+    struct CueDiscardPlan {
+        bool discardWholeHold{};
+        std::unordered_set<LayerIndex> discardLayers;
+
+        bool skipsLayer(LayerIndex layer) const
+        {
+            return discardWholeHold || discardLayers.find(layer) != discardLayers.end();
+        }
+    };
+
+    struct CurrentMeasureStaff {
+        MeasCmper meas{};
+        StaffCmper staff{};
+        std::string voice;
+        std::optional<details::GFrameHoldContext> gfhold;
+        std::map<LayerIndex, int> layerVoices;
+        CueDiscardPlan cueDiscardPlan;
+        std::unordered_map<Cmper, MusxInstance<others::SmartShape>> ottavasApplicableInMeasure;
+
+        void clear()
+        {
+            meas = staff = 0;
+            voice.clear();
+            gfhold.reset();
+            layerVoices.clear();
+            cueDiscardPlan = {};
+            ottavasApplicableInMeasure.clear();
+        }
+    };
+
+    CurrentMeasureStaff current;
 
     std::optional<int> mnxPartStaffFromStaff(StaffCmper staff) const;
 
     void clearCounts()
     {
-        currMeas = currStaff = 0;
         currSplitInstrumentUuid.reset();
-        voice.clear();
         currPartStaves.clear();
         beamedEntries.clear();
-        ottavasApplicableInMeasure.clear();
+        current.clear();
     }
 
+    void setCurrentMeasureStaff(const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper);
     void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
+    void logDiscardedHeuristicCueHold();
+    void logDiscardedCueLayerFrame(LayerIndex layer);
 };
 
 std::string mnxPartDisplayName(const MnxMusxMappingPtr& context, const std::string& partId);
@@ -195,8 +226,7 @@ void createParts(const MnxMusxMappingPtr& context);
 void createSequences(const MnxMusxMappingPtr& context,
     mnx::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
-    const MusxInstance<others::Measure>& musxMeasure,
-    StaffCmper staffCmper);
+    const MusxInstance<others::Measure>& musxMeasure);
 void finalizeJumpTies(const MnxMusxMappingPtr& context);
 
 void exportJson(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
