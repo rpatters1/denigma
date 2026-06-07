@@ -503,21 +503,21 @@ static void populatePartMetadata(
     const InstrumentInfo& instInfo,
     const MusxInstance<others::StaffComposite>& staff)
 {
-    auto musxMiscOptions = context->finaleOptions.miscOptions;
+    const auto musxMiscOptions = context->finaleOptions.miscOptions;
 
     part.set_id(id);
-    auto fullName = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
+    const auto fullName = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
     if (!fullName.empty()) {
         part.set_name(trimNewLineFromString(fullName));
     }
-    auto abrvName = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
+    const auto abrvName = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
     if (!abrvName.empty()) {
         part.set_shortName(trimNewLineFromString(abrvName));
     }
     if (instInfo.staves.size() > 1) {
         part.set_staves(int(instInfo.staves.size()));
     }
-    auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
+    const auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
     if (transpositionDisp || transpositionAlt) {
         auto transposition = part.ensure_transposition(
             mnx::Interval::make(transpositionDisp,

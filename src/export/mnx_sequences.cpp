@@ -596,7 +596,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
     musx::util::Fraction& elapsedInSequence, bool hasVoice1Voice2,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt, bool inTremolo = false)
 {
-    auto musxGraceOptions = context->finaleOptions.graceOptions;
+    const auto musxGraceOptions = context->finaleOptions.graceOptions;
     auto next = firstEntryInfo;
     while (next) {
         if (tupletIndex) {
@@ -608,8 +608,8 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             }
         }
 
-        auto entryInfo = next.getEntryInfo();
-        auto entry = entryInfo->getEntry();
+        const auto entryInfo = next.getEntryInfo();
+        const auto entry = entryInfo->getEntry();
         if (inGrace && !entry->graceNote) {
             return next;
         } else if (!inGrace && entry->graceNote) {
