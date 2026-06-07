@@ -19,6 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -105,6 +108,19 @@ static DynamicClassification classifyTestDynamicInDynamicsCategory(const std::st
 {
     const auto context = makeTextExpressionContext(text, true);
     return classifyDynamic(context.def);
+}
+
+static DocumentPtr loadPattersonDefaultDocument()
+{
+    const std::filesystem::path path = std::filesystem::path(MUSX_TEST_DATA_PATH) / "reference" / "PattersonDefault.enigmaxml";
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        ADD_FAILURE() << "Unable to open " << path;
+        return {};
+    }
+
+    std::vector<char> buffer((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    return musx::factory::DocumentFactory::create<musx::xml::pugi::Document>(buffer);
 }
 
 static std::string smuflGlyphText(const std::vector<std::string>& glyphs)
@@ -218,6 +234,45 @@ TEST(DynamicClassification, ClassifiesSmuflGlyphs)
     EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE539;").dynamic, Dynamic::sfz);
     EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE53C;").dynamic, Dynamic::rf);
     EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE53D;").dynamic, Dynamic::rfz);
+}
+
+TEST(DynamicClassification, ClassifiesPattersonDefaultDynamicsCategory)
+{
+    const auto document = loadPattersonDefaultDocument();
+    ASSERT_TRUE(document);
+
+    const auto category = document->getOthers()->get<others::MarkingCategory>(SCORE_PARTID, 1);
+    ASSERT_TRUE(category);
+    ASSERT_EQ(category->categoryType, others::MarkingCategory::CategoryType::Dynamics);
+
+    struct ExpectedDynamic
+    {
+        Cmper cmper{};
+        Dynamic dynamic{};
+        bool hasAdditionalText{};
+    };
+
+    const std::vector<ExpectedDynamic> expected = {
+        { 1, Dynamic::ffff }, { 2, Dynamic::fff }, { 3, Dynamic::ff }, { 4, Dynamic::f },
+        { 5, Dynamic::mf }, { 6, Dynamic::mp }, { 7, Dynamic::p }, { 8, Dynamic::pp },
+        { 9, Dynamic::ppp }, { 10, Dynamic::pppp }, { 23, Dynamic::n }, { 11, Dynamic::fp },
+        { 12, Dynamic::fz }, { 50, Dynamic::ffz }, { 13, Dynamic::sf }, { 14, Dynamic::sfz },
+        { 15, Dynamic::sffz }, { 16, Dynamic::sfzp }, { 17, Dynamic::sfpp }, { 18, Dynamic::sfp },
+        { 19, Dynamic::rfz }, { 20, Dynamic::rf }, { 21, Dynamic::p, true }, { 22, Dynamic::p, true },
+        { 51, Dynamic::f, true }, { 52, Dynamic::ff, true }, { 53, Dynamic::pp, true }
+    };
+
+    ASSERT_EQ(category->textExpressions.size(), expected.size());
+    for (const auto& item : expected) {
+        ASSERT_TRUE(category->textExpressions.contains(item.cmper)) << item.cmper;
+        const auto def = document->getOthers()->get<others::TextExpressionDef>(SCORE_PARTID, item.cmper);
+        ASSERT_TRUE(def) << item.cmper;
+        ASSERT_EQ(def->categoryId, 1) << item.cmper;
+
+        const auto classification = classifyDynamic(def);
+        EXPECT_EQ(classification.dynamic, item.dynamic) << item.cmper;
+        EXPECT_EQ(classification.hasAdditionalText, item.hasAdditionalText) << item.cmper;
+    }
 }
 
 TEST(DynamicClassification, DistinguishesOtherAndNone)
