@@ -129,7 +129,7 @@ static std::optional<ClefIndex> createClef(
         context->logMessage(LogMsg() << "invalid or unmapped staff passed to createClef", LogSeverity::Warning);
         return std::nullopt;
     }
-    const auto& musxClef = context->clefOptions->getClefDef(clefIndex);
+    const auto& musxClef = context->finaleOptions.clefOptions->getClefDef(clefIndex);
     const auto clef = classify::classifyClef(musxClef, musxStaff);
     std::optional<mnx::ClefSign> clefSign;
     if (clef && !clef.isBlank && std::abs(clef.octave) <= 3) {
@@ -503,7 +503,7 @@ static void populatePartMetadata(
     const InstrumentInfo& instInfo,
     const MusxInstance<others::StaffComposite>& staff)
 {
-    auto musxMiscOptions = context->document->getOptions()->get<options::MiscOptions>();
+    auto musxMiscOptions = context->finaleOptions.miscOptions;
 
     part.set_id(id);
     auto fullName = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);

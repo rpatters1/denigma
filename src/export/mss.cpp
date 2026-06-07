@@ -32,6 +32,7 @@
 
 #include "denigma.h"
 
+#include "finale_options.h"
 #include "mss.h"
 #include "musx/musx.h"
 #include "pugixml.hpp"
@@ -126,62 +127,31 @@ static bool fontIsEngravingWithMappedLegacy(const FontInfo* fontInfo)
     return mappedSmuflFontName(fontInfo->getName()).has_value();
 }
 
-// Finale preferences:
-struct FinalePreferences
+// MSS preferences:
+struct MssPreferences : public FinaleOptions
 {
-    FinalePreferences(const DenigmaContext& context)
-        : denigmaContext(&context) {}
-
     const DenigmaContext* denigmaContext;
     DocumentPtr document;
     Cmper forPartId{};
     //
-    MusxInstance<FontInfo> defaultMusicFont;
     std::string musicFontName;
     double spatiumScaling{};
     //
-    MusxInstance<options::AccidentalOptions> accidentalOptions;
-    MusxInstance<options::AlternateNotationOptions> alternateNotationOptions;
-    MusxInstance<options::AugmentationDotOptions> augDotOptions;
-    MusxInstance<options::BarlineOptions> barlineOptions;
-    MusxInstance<options::BeamOptions> beamOptions;
-    MusxInstance<options::ChordOptions> chordOptions;
-    MusxInstance<options::ClefOptions> clefOptions;
-    MusxInstance<options::FlagOptions> flagOptions;
-    MusxInstance<options::GraceNoteOptions> graceOptions;
-    MusxInstance<options::KeySignatureOptions> keyOptions;
-    MusxInstance<options::LineCurveOptions> lineCurveOptions;
-    MusxInstance<options::MiscOptions> miscOptions;
-    MusxInstance<options::MusicSymbolOptions> musicSymbolOptions;
-    MusxInstance<options::MultimeasureRestOptions> mmRestOptions;
-    MusxInstance<options::MusicSpacingOptions> musicSpacing;
     MusxInstance<options::PageFormatOptions::PageFormat> pageFormat;
-    MusxInstance<options::PianoBraceBracketOptions> braceOptions;
-    MusxInstance<options::RepeatOptions> repeatOptions;
-    MusxInstance<options::SmartShapeOptions> smartShapeOptions;
-    MusxInstance<options::StaffOptions> staffOptions;
-    MusxInstance<options::StemOptions> stemOptions;
-    MusxInstance<options::TieOptions> tieOptions;
-    MusxInstance<options::TimeSignatureOptions> timeOptions;
-    MusxInstance<options::TupletOptions> tupletOptions;
-    //
     MusxInstance<others::LayerAttributes> layerOneAttributes;
     MusxInstance<others::MeasureNumberRegion::ScorePartData> measNumScorePart;
     MusxInstance<others::PartGlobals> partGlobals;
 };
-using FinalePreferencesPtr = std::shared_ptr<FinalePreferences>;
+using MssPreferencesPtr = std::shared_ptr<MssPreferences>;
 
-static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper forPartId, const DenigmaContext& denigmaContext)
+static MssPreferencesPtr getCurrentPrefs(const DocumentPtr& document, const FinaleOptions& finaleOptions, Cmper forPartId, const DenigmaContext& denigmaContext)
 {
-    auto retval = std::make_shared<FinalePreferences>(denigmaContext);
+    auto retval = std::make_shared<MssPreferences>();
+    static_cast<FinaleOptions&>(*retval) = finaleOptions;
+    retval->denigmaContext = &denigmaContext;
     retval->document = document;
     retval->forPartId = forPartId;
 
-    auto fontOptions = getDocOptions<options::FontOptions>(document, "font");
-    retval->defaultMusicFont = fontOptions->getFontInfo(options::FontOptions::FontType::Music);
-    if (!retval->defaultMusicFont) {
-        throw std::invalid_argument("document contains no information for the default music font.");
-    }
     retval->musicFontName = [&]() -> std::string {
         std::string fontName = retval->defaultMusicFont->getName();
         if (retval->defaultMusicFont->calcIsSMuFL()) {
@@ -192,32 +162,7 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
         }
         return {};
     }();
-    //
-    retval->accidentalOptions = getDocOptions<options::AccidentalOptions>(document, "accidental");
-    retval->alternateNotationOptions = getDocOptions<options::AlternateNotationOptions>(document, "alternate notation");
-    retval->augDotOptions = getDocOptions<options::AugmentationDotOptions>(document, "augmentation dot");
-    retval->barlineOptions = getDocOptions<options::BarlineOptions>(document, "barline");
-    retval->beamOptions = getDocOptions<options::BeamOptions>(document, "beam");
-    retval->chordOptions = getDocOptions<options::ChordOptions>(document, "chord");
-    retval->clefOptions = getDocOptions<options::ClefOptions>(document, "clef");
-    retval->flagOptions = getDocOptions<options::FlagOptions>(document, "flag");
-    retval->graceOptions = getDocOptions<options::GraceNoteOptions>(document, "grace note");
-    retval->keyOptions = getDocOptions<options::KeySignatureOptions>(document, "key signature");
-    retval->lineCurveOptions = getDocOptions<options::LineCurveOptions>(document, "lines & curves");
-    retval->miscOptions = getDocOptions<options::MiscOptions>(document, "miscellaneous");
-    retval->musicSymbolOptions = getDocOptions<options::MusicSymbolOptions>(document, "music symbol");
-    retval->mmRestOptions = getDocOptions<options::MultimeasureRestOptions>(document, "multimeasure rest");
-    retval->musicSpacing = getDocOptions<options::MusicSpacingOptions>(document, "music spacing");
-    auto pageFormatOptions = getDocOptions<options::PageFormatOptions>(document, "page format");
-    retval->pageFormat = pageFormatOptions->calcPageFormatForPart(forPartId);
-    retval->braceOptions = getDocOptions<options::PianoBraceBracketOptions>(document, "piano braces & brackets");
-    retval->repeatOptions = getDocOptions<options::RepeatOptions>(document, "repeat");
-    retval->smartShapeOptions = getDocOptions<options::SmartShapeOptions>(document, "smart shape");
-    retval->staffOptions = getDocOptions<options::StaffOptions>(document, "staff");
-    retval->stemOptions = getDocOptions<options::StemOptions>(document, "stem");
-    retval->tieOptions = getDocOptions<options::TieOptions>(document, "tie");
-    retval->timeOptions = getDocOptions<options::TimeSignatureOptions>(document, "time signature");
-    retval->tupletOptions = getDocOptions<options::TupletOptions>(document, "tuplet");
+    retval->pageFormat = retval->pageFormatOptions->calcPageFormatForPart(forPartId);
     //
     retval->layerOneAttributes = document->getOthers()->get<others::LayerAttributes>(forPartId, 0);
     if (!retval->layerOneAttributes) {
@@ -233,8 +178,8 @@ static FinalePreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper f
         }
     }
     retval->partGlobals = document->getOthers()->get<others::PartGlobals>(forPartId, MUSX_GLOBALS_CMPER);
-    if (!retval->layerOneAttributes) {
-        throw std::invalid_argument("document contains no options for Layer 1");
+    if (!retval->partGlobals) {
+        throw std::invalid_argument("document contains no part globals");
     }
     retval->spatiumScaling = retval->pageFormat->calcCombinedSystemScaling().toDouble();
 
@@ -345,16 +290,16 @@ static uint16_t museFontEfx(const FontInfo* fontInfo)
     return retval;
 }
 
-static double museMagVal(const FinalePreferencesPtr& prefs, const options::FontOptions::FontType type)
+static double museMagVal(const MssPreferencesPtr& prefs, const options::FontOptions::FontType type)
 {
-    auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type);
+    auto fontPrefs = prefs->fontOptions->getFontInfo(type);
     if (fontPrefs->getName() == prefs->defaultMusicFont->getName()) {
         return double(fontPrefs->fontSize) / double(prefs->defaultMusicFont->fontSize);
     }
     return 1.0;
 }
 
-static std::optional<EvpuFloat> calcAugmentationDotWidth(const FinalePreferencesPtr& prefs, double dotMag)
+static std::optional<EvpuFloat> calcAugmentationDotWidth(const MssPreferencesPtr& prefs, double dotMag)
 {
     if (!prefs->musicFontName.empty()) {
         if (auto musicFontWidth = utils::smuflGlyphWidthForFont(prefs->musicFontName, "augmentationDot")) {
@@ -367,7 +312,7 @@ static std::optional<EvpuFloat> calcAugmentationDotWidth(const FinalePreferences
         return std::nullopt;
     }
 
-    const auto augDotFontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::AugDots);
+    const auto augDotFontInfo = prefs->fontOptions->getFontInfo(options::FontOptions::FontType::AugDots);
     if (!augDotFontInfo) {
         return std::nullopt;
     }
@@ -382,7 +327,7 @@ static std::optional<EvpuFloat> calcAugmentationDotWidth(const FinalePreferences
     return std::nullopt;
 }
 
-static std::optional<EvpuFloat> calcRepeatDotWidth(const FinalePreferencesPtr& prefs)
+static std::optional<EvpuFloat> calcRepeatDotWidth(const MssPreferencesPtr& prefs)
 {
     if (!prefs->musicFontName.empty()) {
         return utils::smuflGlyphWidthForFont(prefs->musicFontName, "repeatDot");
@@ -399,12 +344,12 @@ static void writeFontPref(XmlElement& styleElement, const std::string& namePrefi
     setElementValue(styleElement, namePrefix + "FontStyle", museFontEfx(fontInfo));
 }
 
-static double calcMusicalSymbolScale(const FinalePreferencesPtr& prefs, const FontInfo* fontInfo)
+static double calcMusicalSymbolScale(const MssPreferencesPtr& prefs, const FontInfo* fontInfo)
 {
     double symbolScale = double(fontInfo->fontSize);
     if (fontInfo->calcIsSymbolFont()) {
         symbolScale /= double(prefs->defaultMusicFont->fontSize); /// @todo account for fixed/non-fixed
-    } else if (const auto textBlockFont = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::TextBlock)) {
+    } else if (const auto textBlockFont = prefs->fontOptions->getFontInfo(options::FontOptions::FontType::TextBlock)) {
         /// Fonts not recognised as symbols likely have their symbols scaled to text size
         symbolScale /= double(textBlockFont->fontSize);
     } else {
@@ -416,9 +361,9 @@ static double calcMusicalSymbolScale(const FinalePreferencesPtr& prefs, const Fo
     return symbolScale;
 }
 
-static void writeDefaultFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
+static void writeDefaultFontPref(XmlElement& styleElement, const MssPreferencesPtr& prefs, const std::string& namePrefix, options::FontOptions::FontType type)
 {
-    if (auto fontPrefs = options::FontOptions::getFontInfo(prefs->document, type)) {
+    if (auto fontPrefs = prefs->fontOptions->getFontInfo(type)) {
         // If font is a symbols font, write text settings from TextBlock and set symbol scaling.
         if (type != options::FontOptions::FontType::TextBlock && fontIsEngravingWithMappedLegacy(fontPrefs.get())) {
             writeDefaultFontPref(styleElement, prefs, namePrefix, options::FontOptions::FontType::TextBlock);
@@ -466,7 +411,7 @@ static void writeFramePrefs(XmlElement& styleElement, const std::string& namePre
                     enclosure->roundCorners ? int(lround(enclosure->cornerRadius / EFIX_PER_EVPU)) : 0);
 }
 
-static void writeCategoryTextFontPref(XmlElement& styleElement, const FinalePreferencesPtr& prefs, const std::string& namePrefix, others::MarkingCategory::CategoryType categoryType)
+static void writeCategoryTextFontPref(XmlElement& styleElement, const MssPreferencesPtr& prefs, const std::string& namePrefix, others::MarkingCategory::CategoryType categoryType)
 {
     auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(prefs->forPartId, Cmper(categoryType));
     if (!cat) {
@@ -499,7 +444,7 @@ static void writeCategoryTextFontPref(XmlElement& styleElement, const FinalePref
     }
 }
 
-static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+static void writePagePrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
     auto pagePrefs = prefs->pageFormat;
 
@@ -539,9 +484,9 @@ static void writePagePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     }
 }
 
-static void writeLyricsPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+static void writeLyricsPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
-    auto fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::LyricVerse);
+    auto fontInfo = prefs->fontOptions->getFontInfo(options::FontOptions::FontType::LyricVerse);
     for (auto [verseNumber, evenOdd] : {
             std::make_pair(1, "Odd"),
             std::make_pair(2, "Even")
@@ -557,7 +502,7 @@ static void writeLyricsPrefs(XmlElement& styleElement, const FinalePreferencesPt
     }
 }
 
-void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+void writeLineMeasurePrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
     using RepeatWingStyle = options::RepeatOptions::WingStyle;
 
@@ -639,13 +584,13 @@ void writeLineMeasurePrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "repeatPlayCountShow", false);
 }
 
-void writeStemPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+void writeStemPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
     bool useStraightFlags = prefs->flagOptions->straightFlags;
     if (!useStraightFlags && prefs->musicSymbolOptions) {
         // Some documents using certain music fonts (e.g., Pmusic) have straight flags as regular flag characters.
         // Check flagUp and if that is straight, assume the others are straight as well.
-        if (const auto flagFont = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::Flags)) {
+        if (const auto flagFont = prefs->fontOptions->getFontInfo(options::FontOptions::FontType::Flags)) {
             if (const auto glyphName = utils::smuflGlyphNameForFont(flagFont, prefs->musicSymbolOptions->flagUp)) {
                 if (glyphName.value() == "flag8thUpStraight") {
                     useStraightFlags = true;
@@ -661,7 +606,7 @@ void writeStemPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
     setElementValue(styleElement, "stemSlashThickness", prefs->graceOptions->graceSlashWidth / EFIX_PER_SPACE);
 }
 
-void writeMusicSpacingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+void writeMusicSpacingPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
     setElementValue(styleElement, "minMeasureWidth", prefs->musicSpacing->minWidth / EVPU_PER_SPACE);
     setElementValue(styleElement, "minNoteDistance", prefs->musicSpacing->minDistance / EVPU_PER_SPACE);
@@ -695,7 +640,7 @@ void writeMusicSpacingPrefs(XmlElement& styleElement, const FinalePreferencesPtr
     setElementValue(styleElement, "articulationKeepTogether", false);
 }
 
-void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+void writeNoteRelatedPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
     setElementValue(styleElement, "accidentalDistance", prefs->accidentalOptions->acciAcciSpace / EVPU_PER_SPACE);
     setElementValue(styleElement, "accidentalNoteDistance", prefs->accidentalOptions->acciNoteSpace / EVPU_PER_SPACE);
@@ -725,7 +670,7 @@ void writeNoteRelatedPrefs(XmlElement& styleElement, const FinalePreferencesPtr&
     setElementValue(styleElement, "tremoloStyle", 1); // MuseScore importer writes TremoloStyle::TRADITIONAL.
 }
 
-void writeSmartShapePrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+void writeSmartShapePrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
     const auto& smartShapePrefs = prefs->smartShapeOptions;
     const auto& tiePrefs = prefs->tieOptions;
@@ -794,7 +739,7 @@ void writeSmartShapePrefs(XmlElement& styleElement, const FinalePreferencesPtr& 
     }
 }
 
-void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+void writeMeasureNumberPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
     setElementValue(styleElement, "showMeasureNumber", bool(prefs->measNumScorePart));
     if (prefs->measNumScorePart) {
@@ -904,7 +849,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const FinalePreferencesPt
     setElementValue(styleElement, "mmRestOldStyleSpacing", prefs->mmRestOptions->symSpacing / EVPU_PER_SPACE);
 }
 
-void writeRepeatEndingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+void writeRepeatEndingPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
     const auto& repeatOptions = prefs->repeatOptions;
     setElementValue(styleElement, "voltaLineWidth", repeatOptions->bracketLineWidth / EFIX_PER_SPACE);
@@ -922,7 +867,7 @@ void writeRepeatEndingPrefs(XmlElement& styleElement, const FinalePreferencesPtr
     // setElementValue(styleElement, "voltaAlignEndLeftOfBarline", false);
 }
 
-void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+void writeTupletPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
     using TupletOptions = options::TupletOptions;
     const auto& tupletOptions = prefs->tupletOptions;
@@ -973,7 +918,7 @@ void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pref
         setElementValue(styleElement, "tupletBracketType", 0);        
     }
 
-    const auto& fontInfo = options::FontOptions::getFontInfo(prefs->document, options::FontOptions::FontType::Tuplet);
+    const auto& fontInfo = prefs->fontOptions->getFontInfo(options::FontOptions::FontType::Tuplet);
     if (!fontInfo) {
         prefs->denigmaContext->logMessage(LogMsg() << "Unable to load font pref for tuplets", LogSeverity::Warning);
         return;
@@ -992,7 +937,7 @@ void writeTupletPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pref
                     -(std::max)(tupletOptions->leftHookLen, tupletOptions->rightHookLen) / EVPU_PER_SPACE); /// or use average
 }
 
-void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& prefs)
+void writeMarkingPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
     using FontType = options::FontOptions::FontType;
     using CategoryType = others::MarkingCategory::CategoryType;
@@ -1014,7 +959,7 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
         }
     }
     // Load font preferences for Text Blocks
-    auto textBlockFont = options::FontOptions::getFontInfo(prefs->document, FontType::TextBlock);
+    auto textBlockFont = prefs->fontOptions->getFontInfo(FontType::TextBlock);
     if (!textBlockFont) {
         throw std::invalid_argument("unable to find font prefs for Text Blocks");
     }
@@ -1096,7 +1041,7 @@ void writeMarkingPrefs(XmlElement& styleElement, const FinalePreferencesPtr& pre
     }
 }
 
-static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part = nullptr)
+static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const FinaleOptions& finaleOptions, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part = nullptr)
 {
     // calculate actual output path
     std::filesystem::path qualifiedOutputPath = outputPath;
@@ -1112,7 +1057,7 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) return;
 
     const Cmper forPartId = part ? part->getCmper() : 0;
-    auto prefs = getCurrentPrefs(document, forPartId, denigmaContext);
+    auto prefs = getCurrentPrefs(document, finaleOptions, forPartId, denigmaContext);
 
     // extract document to mss
     XmlDocument mssDoc; // output
@@ -1153,8 +1098,9 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
 #endif
 
     auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
+    auto finaleOptions = loadFinaleOptions(document);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
-        processPart(outputPath, document, denigmaContext); // process the score
+        processPart(outputPath, document, finaleOptions, denigmaContext); // process the score
     }
     bool foundPart = false;
     if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
@@ -1162,9 +1108,9 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
         for (const auto& part : parts) {
             if (part->getCmper() != SCORE_PARTID) {
                 if (denigmaContext.allPartsAndScore) {
-                    processPart(outputPath, document, denigmaContext, part);
+                    processPart(outputPath, document, finaleOptions, denigmaContext, part);
                 } else if (denigmaContext.partName->empty() || part->getName().rfind(denigmaContext.partName.value(), 0) == 0) {
-                    processPart(outputPath, document, denigmaContext, part);
+                    processPart(outputPath, document, finaleOptions, denigmaContext, part);
                     foundPart = true;
                     break;
                 }

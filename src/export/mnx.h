@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "denigma.h"
+#include "finale_options.h"
 #include "musx/musx.h"
 #include "mnxdom.h"
 
@@ -73,14 +74,13 @@ using json = nlohmann::ordered_json;
 struct MnxMusxMapping
 {
     MnxMusxMapping(const DenigmaContext& context, const DocumentPtr& doc)
-        : denigmaContext(&context), document(doc), mnxDocument(), musxParts(doc, SCORE_PARTID) {}
+        : denigmaContext(&context), document(doc), finaleOptions(loadFinaleOptions(doc)), mnxDocument(), musxParts(doc, SCORE_PARTID) {}
 
     const DenigmaContext* denigmaContext;
     musx::dom::DocumentPtr document;
+    FinaleOptions finaleOptions;
     std::unique_ptr<mnx::Document> mnxDocument;
     MusxInstanceList<others::PartDefinition> musxParts;
-
-    MusxInstance<options::ClefOptions> clefOptions;
 
     std::unordered_map<std::string, std::vector<StaffCmper>> part2Inst;
     std::unordered_map<StaffCmper, std::string> inst2Part;
