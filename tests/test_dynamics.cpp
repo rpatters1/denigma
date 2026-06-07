@@ -188,8 +188,9 @@ TEST(DynamicClassification, ClassifiesAccentDynamics)
 TEST(DynamicClassification, ClassifiesAliases)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)forzando").dynamic, Dynamic::fz);
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sforzando").dynamic, Dynamic::sfz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sforzando").dynamic, Dynamic::sf);
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sforzato").dynamic, Dynamic::sfz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sforzado").dynamic, Dynamic::sfz);
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rinforzando").dynamic, Dynamic::rf);
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rinf.").dynamic, Dynamic::rf);
 }
@@ -213,7 +214,10 @@ TEST(DynamicClassification, ClassifiesSmuflGlyphs)
     EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE52F;&#xE525;").dynamic, Dynamic::ffz);
     EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE524;&#xE522;").dynamic, Dynamic::sf);
     EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE524;&#xE522;&#xE520;").dynamic, Dynamic::sfp);
-    EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE536;").dynamic, Dynamic::sfz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE536;").dynamic, Dynamic::sf);
+    EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE539;").dynamic, Dynamic::sfz);
+    EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE53C;").dynamic, Dynamic::rf);
+    EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE53D;").dynamic, Dynamic::rfz);
 }
 
 TEST(DynamicClassification, DistinguishesOtherAndNone)

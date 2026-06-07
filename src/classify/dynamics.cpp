@@ -139,7 +139,7 @@ static std::string glyphNameToDynamicText(std::string_view glyphName)
         return "s";
     }
     if (glyphName == "dynamicSforzando1") {
-        return "sfz";
+        return "sf";
     }
     if (glyphName == "dynamicSforzandoPiano") {
         return "sfp";
@@ -156,9 +156,14 @@ static std::string glyphNameToDynamicText(std::string_view glyphName)
     if (glyphName == "dynamicSforzatoFF") {
         return "sffz";
     }
-    if (glyphName == "dynamicRinforzando" || glyphName == "dynamicRinforzando1" || glyphName == "dynamicRinforzando2"
-        || glyphName == "dynamicRinforzandoSmall") {
+    if (glyphName == "dynamicRinforzando" || glyphName == "dynamicRinforzandoSmall") {
+        return "r";
+    }
+    if (glyphName == "dynamicRinforzando1") {
         return "rf";
+    }
+    if (glyphName == "dynamicRinforzando2") {
+        return "rfz";
     }
     if (glyphName == "dynamicZ" || glyphName == "dynamicZSmall") {
         return "z";
@@ -215,10 +220,10 @@ static Dynamic classifyExactDynamicToken(std::string_view text)
     if (text == "fz" || text == "forzando") return Dynamic::fz;
     if (text == "ffz") return Dynamic::ffz;
     if (text == "pf") return Dynamic::pf;
-    if (text == "sf") return Dynamic::sf;
+    if (text == "sf" || text == "sforzando") return Dynamic::sf;
     if (text == "sfp") return Dynamic::sfp;
     if (text == "sfpp") return Dynamic::sfpp;
-    if (text == "sfz" || text == "sforzando" || text == "sforzato") return Dynamic::sfz;
+    if (text == "sfz" || text == "sforzato" || text == "sforzado") return Dynamic::sfz;
     if (text == "sffz") return Dynamic::sffz;
     if (text == "sfzp") return Dynamic::sfzp;
     if (text == "rf" || text == "rinf" || text == "rinf." || text == "rinforzando") return Dynamic::rf;
@@ -400,14 +405,14 @@ std::vector<std::string> dynamicCanonicalGlyphs(Dynamic dynamic)
     case Dynamic::fz: return { "dynamicForzando" };
     case Dynamic::ffz: return { "dynamicFF", "dynamicZ" };
     case Dynamic::pf: return { "dynamicPF" };
-    case Dynamic::sf: return { "dynamicSforzando", "dynamicForte" };
+    case Dynamic::sf: return { "dynamicSforzando1" };
     case Dynamic::sfp: return { "dynamicSforzandoPiano" };
     case Dynamic::sfpp: return { "dynamicSforzandoPianissimo" };
-    case Dynamic::sfz: return { "dynamicSforzando1" };
+    case Dynamic::sfz: return { "dynamicSforzato" };
     case Dynamic::sffz: return { "dynamicSforzatoFF" };
     case Dynamic::sfzp: return { "dynamicSforzatoPiano" };
-    case Dynamic::rf: return { "dynamicRinforzando" };
-    case Dynamic::rfz: return { "dynamicRinforzando", "dynamicZ" };
+    case Dynamic::rf: return { "dynamicRinforzando1" };
+    case Dynamic::rfz: return { "dynamicRinforzando2" };
     case Dynamic::n: return { "dynamicNiente" };
     }
     return {};
