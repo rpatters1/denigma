@@ -79,7 +79,7 @@ static void createBeams(
                     }
                 }
             };
-            if (context->beamedEntries.find(entryInfo->getEntry()->getEntryNumber()) != context->beamedEntries.end()) {
+            if (context->beamedEntries.contains(entryInfo->getEntry()->getEntryNumber())) {
                 return true; // skip any entry that is already in a primary beam.
             }
             if (entryInfo.calcIsBeamStart(EntryInfoPtr::BeamIterationMode::Interpreted)) {
@@ -232,6 +232,9 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
     };
 
     auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const musx::util::EnigmaParsingContext& exprCtx, const classify::DynamicClassification& dynamicClass) {
+        if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
+            return;
+        }
         /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
         const auto typeStr = classify::dynamicCanonicalText(dynamicClass.dynamic);
         if (typeStr.empty()) {
@@ -244,11 +247,11 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
         if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, exprText)) {
             mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
         }
-        if (mnxStaffNumber) {
-            mnxDynamic.set_staff(mnxStaffNumber.value());
-        }
         if (asgn->layer > 0) {
+            mnxDynamic.set_staff(mnxStaffNumber.value_or(1));
             mnxDynamic.set_voice(calcVoice(mnxStaffNumber.value_or(1), asgn->layer - 1, 1));
+        } else if (mnxStaffNumber) {
+            mnxDynamic.set_staff(mnxStaffNumber.value());
         }
     };
 

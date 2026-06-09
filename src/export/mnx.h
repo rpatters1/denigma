@@ -114,7 +114,7 @@ struct MnxMusxMapping
 
         bool skipsLayer(LayerIndex layer) const
         {
-            return discardWholeHold || discardLayers.find(layer) != discardLayers.end();
+            return discardWholeHold || discardLayers.contains(layer);
         }
     };
 
