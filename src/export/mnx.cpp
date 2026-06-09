@@ -82,15 +82,16 @@ void MnxMusxMapping::setCurrentMeasureStaff(const MusxInstance<others::Measure>&
     }
 
     current.layerVoices = current.gfhold->calcVoices();
-    if (current.gfhold->calcIsCuesOnly()) {
+    if (const auto cueSummary = current.gfhold->calcCueSummary()) {
         current.cueDiscardPlan.discardWholeHold = true;
+        current.cueDiscardPlan.discardLayers.insert(cueSummary.cueLayers.begin(), cueSummary.cueLayers.end());
         logDiscardedHeuristicCueHold();
         return;
     }
 
     if (denigmaContext->cueLayer) {
         const LayerIndex cueLayer = static_cast<LayerIndex>(*denigmaContext->cueLayer - 1);
-        if (auto entryFrame = current.gfhold->createEntryFrame(cueLayer); entryFrame && !entryFrame->getEntries().empty()) {
+        if (current.gfhold.value()->frames[cueLayer] != 0) {
             current.cueDiscardPlan.discardLayers.emplace(cueLayer);
             logDiscardedCueLayerFrame(cueLayer);
         }
