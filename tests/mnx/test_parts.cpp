@@ -207,3 +207,49 @@ TEST(MnxParts, CueLayer)
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx with cue layer: " << pathString(inputPath);
     });
 }
+
+TEST(MnxParts, DynamicsGraceIndices)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("grace_indices.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "grace_indices.mnx");
+    auto parts = doc.parts();
+    ASSERT_GE(parts.size(), 1);
+
+    auto measures = parts[0].measures();
+    ASSERT_GE(measures.size(), 4);
+
+    {
+        auto measure = measures[1];
+        ASSERT_TRUE(measure.dynamics().has_value());
+        auto dynamics = measure.dynamics().value();
+        ASSERT_GE(dynamics.size(), 2);
+        EXPECT_EQ(dynamics[0].position().graceIndex(), std::nullopt);
+        EXPECT_EQ(dynamics[1].position().graceIndex(), 0);
+    }
+
+    {
+        auto measure = measures[2];
+        ASSERT_TRUE(measure.dynamics().has_value());
+        auto dynamics = measure.dynamics().value();
+        ASSERT_GE(dynamics.size(), 4);
+        EXPECT_EQ(dynamics[0].position().graceIndex(), 3);
+        EXPECT_EQ(dynamics[1].position().graceIndex(), 2);
+        EXPECT_EQ(dynamics[2].position().graceIndex(), 1);
+        EXPECT_EQ(dynamics[3].position().graceIndex(), 0);
+    }
+
+    {
+        auto measure = measures[3];
+        ASSERT_TRUE(measure.dynamics().has_value());
+        auto dynamics = measure.dynamics().value();
+        ASSERT_GE(dynamics.size(), 1);
+        EXPECT_EQ(dynamics[0].position().graceIndex(), 0);
+    }
+}

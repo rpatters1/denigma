@@ -236,20 +236,42 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
             return;
         }
         /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
-        const auto typeStr = classify::dynamicCanonicalText(dynamicClass.dynamic);
-        if (typeStr.empty()) {
+        const auto dynValue = classify::dynamicCanonicalText(dynamicClass.dynamic);
+        if (dynValue.empty()) {
             return;
         }
         auto mnxDynamic = mnxMeasure.ensure_dynamics().append(
-            typeStr, mnxFractionFromEdu(asgn->eduPosition));
+            dynValue, mnxFractionFromEdu(asgn->eduPosition));
+        const auto entryInfo = asgn->calcAssociatedEntry();
+        int entryVoice = 1;
+        LayerIndex voiceLayerIdx = asgn->layer > 0 ? asgn->layer - 1 : 0;
+        if (entryInfo) {
+            entryVoice = static_cast<int>(entryInfo->getEntry()->voice2) + 1;
+            if (asgn->layer == 0) {
+                voiceLayerIdx = entryInfo.getLayerIndex();
+            }
+            if (entryInfo->graceIndex > 0) {
+                mnxDynamic.position().set_graceIndex(entryInfo.calcReverseGraceIndex());
+            } else if (entryInfo.calcHasGraceNote()) {
+                mnxDynamic.position().set_graceIndex(0);
+            }
+        } else if (context->current.gfhold) {
+            if (const auto measure = context->document->getOthers()->get<others::Measure>(asgn->getRequestedPartId(), context->current.meas)) {
+                if (musx::util::Fraction::fromEdu(asgn->eduPosition) >= measure->calcDuration(context->current.staff)) {
+                    // if we are at the end of a measure, explicitly require main position to ignore any grace
+                    // notes that might be trailing at the end of the frame
+                    mnxDynamic.position().set_graceIndex(0);
+                }
+            }
+        }
         auto fontInfo = exprCtx.parseFirstFontInfo();
         std::string exprText = exprCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
         if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, exprText)) {
             mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
         }
-        if (asgn->layer > 0) {
+        if (asgn->layer > 0 || asgn->voice2 || (entryInfo && entryInfo->getEntry()->v2Launch)) {
             mnxDynamic.set_staff(mnxStaffNumber.value_or(1));
-            mnxDynamic.set_voice(calcVoice(mnxStaffNumber.value_or(1), asgn->layer - 1, 1));
+            mnxDynamic.set_voice(calcVoice(mnxStaffNumber.value_or(1), voiceLayerIdx, entryVoice));
         } else if (mnxStaffNumber) {
             mnxDynamic.set_staff(mnxStaffNumber.value());
         }
