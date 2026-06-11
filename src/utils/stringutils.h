@@ -24,6 +24,7 @@
 #include <string>
 #include <string_view>
 #include <ostream>
+#include <fstream>
 #include <exception>
 #include <filesystem>
 #include <algorithm>

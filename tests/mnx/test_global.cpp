@@ -26,6 +26,7 @@
 
 #include "gtest/gtest.h"
 #include "denigma.h"
+#include "mnxdom.h"
 #include "test_utils.h"
 #include "musx/musx.h"
 #include "export/mnx.h"

@@ -371,18 +371,7 @@ add_library(denigma_internal_deps INTERFACE)
 target_include_directories(denigma_internal_deps INTERFACE
     ${GENERATED_DIR}
     ${CMAKE_SOURCE_DIR}/src
-    ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS}
 )
-target_link_libraries(denigma_internal_deps INTERFACE
-    denigma_minizip
-    ${_denigma_zlib_target}
-    pugixml
-    mnxdom
-    musx
-    smufl_mapping
-    ${DENIGMA_TEXT_METRICS_LIBS}
-)
-target_compile_definitions(denigma_internal_deps INTERFACE ${DENIGMA_TEXT_METRICS_DEFINES})
 
 # Define an interface library for precompiled headers.
 add_library(denigma_pch INTERFACE)
@@ -391,10 +380,6 @@ target_precompile_headers(denigma_pch INTERFACE
     <functional>
     <string>
     <memory>
-    "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
-    "${musx_SOURCE_DIR}/src/musx/musx.h"
-    "${mnxdom_SOURCE_DIR}/src/mnxdom.h"
-    "${smufl_mapping_SOURCE_DIR}/src/smufl_mapping.h"
 )
 target_link_libraries(denigma_internal_deps INTERFACE denigma_pch)
 
@@ -417,7 +402,81 @@ add_denigma_internal_library(denigma_format_mnx ${DENIGMA_FORMAT_MNX_SOURCES})
 add_denigma_internal_library(denigma_format_mss ${DENIGMA_FORMAT_MSS_SOURCES})
 add_denigma_internal_library(denigma_format_svg ${DENIGMA_FORMAT_SVG_SOURCES})
 add_denigma_internal_library(denigma_export ${DENIGMA_EXPORT_COMMAND_SOURCES})
+
+target_link_libraries(denigma_core PUBLIC musx pugixml)
+
+target_link_libraries(denigma_utils
+    PUBLIC
+        denigma_core
+        musx
+        pugixml
+    PRIVATE
+        denigma_minizip
+        ${_denigma_zlib_target}
+        nlohmann_json::nlohmann_json
+        pugixml
+        smufl_mapping
+        ${DENIGMA_TEXT_METRICS_LIBS}
+)
+target_include_directories(denigma_utils PRIVATE ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS})
+target_compile_definitions(denigma_utils PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
+
+target_link_libraries(denigma_classify
+    PUBLIC
+        musx
+        pugixml
+    PRIVATE
+        denigma_utils
+)
+
+target_link_libraries(denigma_massage
+    PUBLIC
+        denigma_core
+    PRIVATE
+        denigma_format_enigmaxml
+        denigma_utils
+        pugixml
+        musx
+)
+
+target_link_libraries(denigma_format_enigmaxml
+    PUBLIC
+        denigma_core
+    PRIVATE
+        denigma_utils
+        denigma_minizip
+        ${_denigma_zlib_target}
+        musx
+)
+
+target_link_libraries(denigma_format_mnx
+    PUBLIC
+        denigma_core
+        denigma_classify
+        denigma_utils
+        mnxdom
+        musx
+)
+
+target_link_libraries(denigma_format_mss
+    PUBLIC
+        denigma_core
+    PRIVATE
+        denigma_utils
+        pugixml
+        musx
+)
+
+target_link_libraries(denigma_format_svg
+    PUBLIC
+        denigma_core
+    PRIVATE
+        denigma_utils
+        musx
+)
+
 target_link_libraries(denigma_export PUBLIC
+    denigma_core
     denigma_format_enigmaxml
     denigma_format_mnx
     denigma_format_mss
@@ -431,7 +490,57 @@ add_denigma_internal_test_library(denigma_format_mnx_test ${DENIGMA_FORMAT_MNX_S
 add_denigma_internal_test_library(denigma_format_mss_test ${DENIGMA_FORMAT_MSS_SOURCES})
 add_denigma_internal_test_library(denigma_format_svg_test ${DENIGMA_FORMAT_SVG_SOURCES})
 add_denigma_internal_library(denigma_export_test ${DENIGMA_EXPORT_COMMAND_SOURCES})
+
+target_link_libraries(denigma_core_test PUBLIC musx pugixml)
+
+target_link_libraries(denigma_massage_test
+    PUBLIC
+        denigma_core_test
+    PRIVATE
+        denigma_format_enigmaxml_test
+        denigma_utils
+        pugixml
+        musx
+)
+
+target_link_libraries(denigma_format_enigmaxml_test
+    PUBLIC
+        denigma_core_test
+    PRIVATE
+        denigma_utils
+        denigma_minizip
+        ${_denigma_zlib_target}
+        musx
+)
+
+target_link_libraries(denigma_format_mnx_test
+    PUBLIC
+        denigma_core_test
+        denigma_classify
+        denigma_utils
+        mnxdom
+        musx
+)
+
+target_link_libraries(denigma_format_mss_test
+    PUBLIC
+        denigma_core_test
+    PRIVATE
+        denigma_utils
+        pugixml
+        musx
+)
+
+target_link_libraries(denigma_format_svg_test
+    PUBLIC
+        denigma_core_test
+    PRIVATE
+        denigma_utils
+        musx
+)
+
 target_link_libraries(denigma_export_test PUBLIC
+    denigma_core_test
     denigma_format_enigmaxml_test
     denigma_format_mnx_test
     denigma_format_mss_test
@@ -456,9 +565,6 @@ add_dependencies(denigma GenerateLicenseXxd)
 target_link_libraries(denigma PRIVATE
     denigma_export
     denigma_massage
-    denigma_classify
-    denigma_core
-    denigma_utils
     denigma_internal_deps
 )
 

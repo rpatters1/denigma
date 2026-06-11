@@ -57,6 +57,7 @@ if(denigma_BUILD_TESTING)
         denigma_core_test
         denigma_utils
         denigma_internal_deps
+        denigma_minizip
     )
 
     target_compile_definitions(denigma_tests PRIVATE
