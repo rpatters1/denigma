@@ -314,16 +314,19 @@ add_custom_target(PrintConfig ALL
 
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
 
-# Add executable target
-add_executable(denigma
-    src/main.cpp
-    src/about.cpp
+set(DENIGMA_CORE_SOURCES
     src/denigma.cpp
     src/finale_options.cpp
+)
+
+set(DENIGMA_CLASSIFY_SOURCES
     src/classify/articulations.cpp
     src/classify/clefs.cpp
     src/classify/dynamics.cpp
     src/classify/jumps.cpp
+)
+
+set(DENIGMA_EXPORT_SOURCES
     src/export/export.cpp
     src/export/enigmaxml.cpp
     src/export/mnx.cpp
@@ -337,12 +340,78 @@ add_executable(denigma
     src/export/mnx_sequences.cpp
     src/export/mss.cpp
     src/export/svg.cpp
+)
+
+set(DENIGMA_MASSAGE_SOURCES
     src/massage/massage.cpp
     src/massage/musicxml.cpp
+)
+
+set(DENIGMA_UTILS_SOURCES
     src/utils/textmetrics.cpp
     src/utils/smufl_support.cpp
     src/utils/utf8_iterator.cpp
     src/utils/ziputils.cpp
+)
+
+# Define an interface library for shared include paths, dependencies, and precompiled headers.
+add_library(denigma_internal_deps INTERFACE)
+target_include_directories(denigma_internal_deps INTERFACE
+    ${GENERATED_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+    ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS}
+)
+target_link_libraries(denigma_internal_deps INTERFACE
+    denigma_minizip
+    ${_denigma_zlib_target}
+    pugixml
+    mnxdom
+    musx
+    smufl_mapping
+    ${DENIGMA_TEXT_METRICS_LIBS}
+)
+target_compile_definitions(denigma_internal_deps INTERFACE ${DENIGMA_TEXT_METRICS_DEFINES})
+
+# Define an interface library for precompiled headers.
+add_library(denigma_pch INTERFACE)
+target_precompile_headers(denigma_pch INTERFACE
+    <algorithm>
+    <functional>
+    <string>
+    <memory>
+    "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
+    "${musx_SOURCE_DIR}/src/musx/musx.h"
+    "${mnxdom_SOURCE_DIR}/src/mnxdom.h"
+    "${smufl_mapping_SOURCE_DIR}/src/smufl_mapping.h"
+)
+target_link_libraries(denigma_internal_deps INTERFACE denigma_pch)
+
+function(add_denigma_internal_library target_name)
+    add_library(${target_name} STATIC ${ARGN})
+    target_link_libraries(${target_name} PUBLIC denigma_internal_deps)
+endfunction()
+
+function(add_denigma_internal_test_library target_name)
+    add_denigma_internal_library(${target_name} ${ARGN})
+    target_compile_definitions(${target_name} PRIVATE DENIGMA_TEST)
+endfunction()
+
+add_denigma_internal_library(denigma_core ${DENIGMA_CORE_SOURCES})
+add_denigma_internal_library(denigma_classify ${DENIGMA_CLASSIFY_SOURCES})
+add_denigma_internal_library(denigma_export ${DENIGMA_EXPORT_SOURCES})
+add_denigma_internal_library(denigma_massage ${DENIGMA_MASSAGE_SOURCES})
+add_denigma_internal_library(denigma_utils ${DENIGMA_UTILS_SOURCES})
+
+add_denigma_internal_test_library(denigma_core_test ${DENIGMA_CORE_SOURCES})
+add_denigma_internal_test_library(denigma_classify_test ${DENIGMA_CLASSIFY_SOURCES})
+add_denigma_internal_test_library(denigma_export_test ${DENIGMA_EXPORT_SOURCES})
+add_denigma_internal_test_library(denigma_massage_test ${DENIGMA_MASSAGE_SOURCES})
+add_denigma_internal_test_library(denigma_utils_test ${DENIGMA_UTILS_SOURCES})
+
+# Add executable target
+add_executable(denigma
+    src/main.cpp
+    src/about.cpp
 )
 
 # For the denigma target specifically
@@ -354,40 +423,14 @@ endif()
 
 # Ensure the include directories are added
 add_dependencies(denigma GenerateLicenseXxd)
-target_include_directories(denigma PRIVATE ${GENERATED_DIR})
-target_include_directories(denigma PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_include_directories(denigma PRIVATE ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS})
-
-# Ensure the libraries are added
 target_link_libraries(denigma PRIVATE
-    denigma_minizip
-    ${_denigma_zlib_target}
-    pugixml
-    mnxdom
-    musx
-    smufl_mapping
-    ${DENIGMA_TEXT_METRICS_LIBS}
+    denigma_export
+    denigma_massage
+    denigma_classify
+    denigma_core
+    denigma_utils
+    denigma_internal_deps
 )
-
-target_compile_definitions(denigma PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
-
-# Define an interface library for precompiled headers
-add_library(denigma_pch INTERFACE)
-
-# Add Precompiled Headers (PCH) for the test suite
-target_precompile_headers(denigma_pch INTERFACE
-    <algorithm>
-    <functional>
-    <string>
-    <memory>
-    "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
-    "${musx_SOURCE_DIR}/src/musx/musx.h"
-    "${mnxdom_SOURCE_DIR}/src/mnxdom.h"
-    "${smufl_mapping_SOURCE_DIR}/src/smufl_mapping.h"
-)
-
-# Link the interface library to denigma
-target_link_libraries(denigma PUBLIC denigma_pch)
 
 set(DEPLOY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/denigma)
 

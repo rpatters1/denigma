@@ -4,13 +4,6 @@ if(denigma_BUILD_TESTING)
     # Enable testing in this directory
     enable_testing()
 
-    # Collect all .cpp files in the source directory
-    file(GLOB DENIGMA_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp"
-                            "${CMAKE_SOURCE_DIR}/src/classify/*.cpp"
-                            "${CMAKE_SOURCE_DIR}/src/export/*.cpp"
-                            "${CMAKE_SOURCE_DIR}/src/massage/*.cpp"
-                            "${CMAKE_SOURCE_DIR}/src/utils/*.cpp")
-
     # Add an executable for the test suite
     add_executable(denigma_tests
         denigmatests.cpp
@@ -32,7 +25,8 @@ if(denigma_BUILD_TESTING)
         mnx/test_schema.cpp
         mnx/test_scores.cpp
         mnx/test_sequences.cpp
-        ${DENIGMA_SOURCES}
+        ${CMAKE_SOURCE_DIR}/src/main.cpp
+        ${CMAKE_SOURCE_DIR}/src/about.cpp
     )
 
     if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
@@ -57,16 +51,13 @@ if(denigma_BUILD_TESTING)
 
     # Link libraries used by denigma
     target_link_libraries(denigma_tests PRIVATE
-        denigma_pch                   # Precompiled headers
-        denigma_minizip
-        pugixml
-        mnxdom
-        musx
-        smufl_mapping
-        ${DENIGMA_TEXT_METRICS_LIBS}
+        denigma_export_test
+        denigma_massage_test
+        denigma_classify_test
+        denigma_core_test
+        denigma_utils_test
+        denigma_internal_deps
     )
-
-    target_compile_definitions(denigma_tests PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
 
     target_compile_definitions(denigma_tests PRIVATE
         MUSX_TEST_DATA_PATH="${musx_SOURCE_DIR}/tests/data"
@@ -76,7 +67,7 @@ if(denigma_BUILD_TESTING)
     target_compile_definitions(denigma_tests PRIVATE DENIGMA_TEST)
 
     # Add test dependencies
-    add_dependencies(denigma_tests GenerateMnxSchemaXxd)
+    add_dependencies(denigma_tests GenerateLicenseXxd)
 
     # Add Google Test as a dependency
     FetchContent_Declare(
