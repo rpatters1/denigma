@@ -25,6 +25,7 @@
 #include <filesystem>
 #include <functional>
 
+#include "denigma/io/random_access_reader.h"
 #include "denigma.h"
 
 namespace utils {
@@ -43,7 +44,9 @@ struct MusxArchiveFiles
  * @param denigmaContext [in] the DenigmaContext (for logging).
  */
 std::string readFile(const std::filesystem::path& zipFilePath, const std::string& fileName, const denigma::DenigmaContext& denigmaContext);
+std::string readFile(const denigma::IRandomAccessReader& reader, const std::string& fileName, const denigma::DenigmaContext& denigmaContext);
 MusxArchiveFiles readMusxArchiveFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext);
+MusxArchiveFiles readMusxArchiveFiles(const denigma::IRandomAccessReader& reader, const denigma::DenigmaContext& denigmaContext);
 
 /// @brief iterator func that feeds the next filename and xmldata
 using IteratorFunc = std::function<bool(const std::filesystem::path& fileName, const std::string& xmlData)>;

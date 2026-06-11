@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  */
 #include <array>
+#include <cstddef>
 #include <limits>
 #include <stdexcept>
 
@@ -38,6 +39,13 @@ namespace utils {
 using namespace denigma;
 
 namespace {
+
+struct RandomAccessZipStream
+{
+    const IRandomAccessReader* reader{};
+    std::uint64_t position{};
+    bool error{};
+};
 
 struct ZipEntryInfo {
     std::string filename;
@@ -117,6 +125,110 @@ static unzFile openZipForRead(const std::filesystem::path& zipFilePath, const De
     if (!zip) {
         denigmaContext.logMessage(LogMsg() << "unable to extract data from file " << utils::asUtf8Bytes(zipFilePath), LogSeverity::Error);
         throw std::runtime_error("unable to open zip archive");
+    }
+    return zip;
+}
+
+static voidpf ZCALLBACK randomAccessOpen64(voidpf opaque, const void*, int mode)
+{
+    if ((mode & ZLIB_FILEFUNC_MODE_READ) == 0) {
+        return nullptr;
+    }
+    auto* reader = static_cast<const IRandomAccessReader*>(opaque);
+    if (!reader) {
+        return nullptr;
+    }
+    return new RandomAccessZipStream{ reader, 0, false };
+}
+
+static uLong ZCALLBACK randomAccessRead(voidpf, voidpf stream, void* buffer, uLong size)
+{
+    auto* zipStream = static_cast<RandomAccessZipStream*>(stream);
+    if (!zipStream || !buffer) {
+        return 0;
+    }
+
+    try {
+        const auto bytesRead = zipStream->reader->readAt(
+            zipStream->position,
+            std::span<std::byte>(reinterpret_cast<std::byte*>(buffer), static_cast<std::size_t>(size)));
+        zipStream->position += bytesRead;
+        return static_cast<uLong>(bytesRead);
+    } catch (...) {
+        zipStream->error = true;
+        return 0;
+    }
+}
+
+static uLong ZCALLBACK randomAccessWrite(voidpf, voidpf, const void*, uLong)
+{
+    return 0;
+}
+
+static ZPOS64_T ZCALLBACK randomAccessTell64(voidpf, voidpf stream)
+{
+    auto* zipStream = static_cast<RandomAccessZipStream*>(stream);
+    return zipStream ? static_cast<ZPOS64_T>(zipStream->position) : static_cast<ZPOS64_T>(0);
+}
+
+static long ZCALLBACK randomAccessSeek64(voidpf, voidpf stream, ZPOS64_T offset, int origin)
+{
+    auto* zipStream = static_cast<RandomAccessZipStream*>(stream);
+    if (!zipStream) {
+        return -1;
+    }
+
+    std::uint64_t base{};
+    switch (origin) {
+    case ZLIB_FILEFUNC_SEEK_SET:
+        base = 0;
+        break;
+    case ZLIB_FILEFUNC_SEEK_CUR:
+        base = zipStream->position;
+        break;
+    case ZLIB_FILEFUNC_SEEK_END:
+        base = zipStream->reader->size();
+        break;
+    default:
+        return -1;
+    }
+
+    const auto nextPosition = base + static_cast<std::uint64_t>(offset);
+    if (nextPosition > zipStream->reader->size()) {
+        return -1;
+    }
+    zipStream->position = nextPosition;
+    return 0;
+}
+
+static int ZCALLBACK randomAccessClose(voidpf, voidpf stream)
+{
+    delete static_cast<RandomAccessZipStream*>(stream);
+    return 0;
+}
+
+static int ZCALLBACK randomAccessError(voidpf, voidpf stream)
+{
+    auto* zipStream = static_cast<RandomAccessZipStream*>(stream);
+    return zipStream && zipStream->error ? 1 : 0;
+}
+
+static unzFile openZipForRead(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext)
+{
+    zlib_filefunc64_def fileFuncs{};
+    fileFuncs.zopen64_file = randomAccessOpen64;
+    fileFuncs.zread_file = randomAccessRead;
+    fileFuncs.zwrite_file = randomAccessWrite;
+    fileFuncs.ztell64_file = randomAccessTell64;
+    fileFuncs.zseek64_file = randomAccessSeek64;
+    fileFuncs.zclose_file = randomAccessClose;
+    fileFuncs.zerror_file = randomAccessError;
+    fileFuncs.opaque = const_cast<IRandomAccessReader*>(&reader);
+
+    unzFile zip = unzOpen2_64(nullptr, &fileFuncs);
+    if (!zip) {
+        denigmaContext.logMessage(LogMsg() << "unable to extract data from random-access zip reader", LogSeverity::Error);
+        throw std::runtime_error("unable to open random-access zip archive");
     }
     return zip;
 }
@@ -306,7 +418,13 @@ static std::string getMusicXmlScoreName(const std::filesystem::path& zipFilePath
 
 std::string readFile(const std::filesystem::path& zipFilePath, const std::string& fileName, const DenigmaContext& denigmaContext)
 {
-    unzFile zip = openZipForRead(zipFilePath, denigmaContext);
+    FileRandomAccessReader reader(zipFilePath);
+    return readFile(reader, fileName, denigmaContext);
+}
+
+std::string readFile(const IRandomAccessReader& reader, const std::string& fileName, const DenigmaContext& denigmaContext)
+{
+    unzFile zip = openZipForRead(reader, denigmaContext);
     try {
         const int rc = unzLocateFile(zip, fileName.c_str(), 1);
         if (rc != UNZ_OK) {
@@ -323,11 +441,17 @@ std::string readFile(const std::filesystem::path& zipFilePath, const std::string
 
 MusxArchiveFiles readMusxArchiveFiles(const std::filesystem::path& zipFilePath, const DenigmaContext& denigmaContext)
 {
+    FileRandomAccessReader reader(zipFilePath);
+    return readMusxArchiveFiles(reader, denigmaContext);
+}
+
+MusxArchiveFiles readMusxArchiveFiles(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext)
+{
     constexpr char kScoreDatName[] = "score.dat";
     constexpr char kNotationMetadataName[] = "NotationMetadata.xml";
     constexpr char8_t kGraphicsDirName[] = u8"graphics";
 
-    unzFile zip = openZipForRead(zipFilePath, denigmaContext);
+    unzFile zip = openZipForRead(reader, denigmaContext);
     try {
         MusxArchiveFiles result;
         bool foundScoreDat = false;

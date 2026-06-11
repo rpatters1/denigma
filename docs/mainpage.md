@@ -6,3 +6,4 @@ The public API is centered on `denigma::IConverter`. Callers pass input as a mem
 
 Format-specific libraries register their adapters with `denigma::ConverterRegistry`. A client links the common API and only the adapter library it needs, then requests a converter by source and target format.
 
+MUSX input can be supplied through `denigma::IRandomAccessReader`, allowing native clients to use files and WebAssembly clients to provide a memory-backed or host-backed random-access source without requiring the converter API to own filesystem I/O.

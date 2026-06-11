@@ -1,4 +1,5 @@
 set(DENIGMA_UTILS_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/random_access_reader.cpp
     ${CMAKE_CURRENT_LIST_DIR}/textmetrics.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smufl_support.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utf8_iterator.cpp

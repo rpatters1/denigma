@@ -22,10 +22,13 @@
 #include <string>
 #include <ctime>
 #include <array>
+#include <cstddef>
 #include <filesystem>
 #include <iterator>
+#include <span>
 
 #include "gtest/gtest.h"
+#include "denigma/io/random_access_reader.h"
 #include "denigma.h"
 #include "test_utils.h"
 #include "unzip.h"
@@ -399,6 +402,20 @@ TEST(ZipUtils, ReadMusxArchiveFiles)
     EXPECT_FALSE(archiveFiles.scoreDat.empty());
     ASSERT_TRUE(archiveFiles.notationMetadata.has_value());
     EXPECT_NE(archiveFiles.notationMetadata->find("<metadata"), std::string::npos);
+
+    denigma::FileRandomAccessReader fileReader(inputPath);
+    const auto fileReaderArchiveFiles = utils::readMusxArchiveFiles(fileReader, DenigmaContext(DENIGMA_NAME));
+    EXPECT_EQ(fileReaderArchiveFiles.scoreDat, archiveFiles.scoreDat);
+    EXPECT_EQ(fileReaderArchiveFiles.notationMetadata, archiveFiles.notationMetadata);
+    EXPECT_EQ(fileReaderArchiveFiles.embeddedGraphics.size(), archiveFiles.embeddedGraphics.size());
+
+    std::vector<char> musxBytes;
+    readFile(inputPath, musxBytes);
+    denigma::BufferRandomAccessReader bufferReader(std::as_bytes(std::span<const char>(musxBytes.data(), musxBytes.size())));
+    const auto bufferReaderArchiveFiles = utils::readMusxArchiveFiles(bufferReader, DenigmaContext(DENIGMA_NAME));
+    EXPECT_EQ(bufferReaderArchiveFiles.scoreDat, archiveFiles.scoreDat);
+    EXPECT_EQ(bufferReaderArchiveFiles.notationMetadata, archiveFiles.notationMetadata);
+    EXPECT_EQ(bufferReaderArchiveFiles.embeddedGraphics.size(), archiveFiles.embeddedGraphics.size());
 }
 
 TEST(Export, MnxFromEnigmaxmlNoMetadataStillWorks)
