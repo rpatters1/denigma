@@ -25,17 +25,20 @@
 
 namespace denigma::formats::mnx {
 
+/// Converter adapter for Enigma XML input to MNX JSON output.
 class EnigmaXmlToMnxJsonConverter final : public IConverter
 {
 public:
     [[nodiscard]] FormatId sourceFormat() const override { return FormatId::EnigmaXml; }
     [[nodiscard]] FormatId targetFormat() const override { return FormatId::MnxJson; }
 
+    /// Converts Enigma XML from memory and writes MNX JSON to the provided stream.
     ConversionResult convert(std::span<const std::byte> input,
                              std::ostream& output,
                              const ConversionOptions& options = {}) const override;
 };
 
+/// Registers all MNX format converters with the supplied registry.
 void registerConverters(ConverterRegistry& registry);
 
 } // namespace denigma::formats::mnx

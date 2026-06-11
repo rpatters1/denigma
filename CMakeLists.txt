@@ -601,6 +601,32 @@ else()
     message(STATUS "Testing not enabled for denigma_BUILD_TESTING.")
 endif()
 
+option(denigma_BUILD_DOCS "Build the Denigma public API Doxygen site as part of the default build" OFF)
+find_package(Doxygen QUIET)
+
+if(DOXYGEN_FOUND)
+    configure_file(
+        ${CMAKE_SOURCE_DIR}/docs/Doxyfile.in
+        ${CMAKE_BINARY_DIR}/Doxyfile
+        @ONLY
+    )
+
+    set(_denigma_docs_all)
+    if(denigma_BUILD_DOCS)
+        set(_denigma_docs_all ALL)
+    endif()
+
+    add_custom_target(denigma_docs ${_denigma_docs_all}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/docs/api
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Generating Denigma public API documentation"
+        VERBATIM
+    )
+elseif(denigma_BUILD_DOCS)
+    message(FATAL_ERROR "denigma_BUILD_DOCS is ON, but Doxygen was not found.")
+endif()
+
 get_target_property(defs musx INTERFACE_COMPILE_DEFINITIONS)
 message(STATUS "musx INTERFACE definitions: ${defs}")
 

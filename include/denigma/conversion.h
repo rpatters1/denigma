@@ -33,14 +33,19 @@
 
 namespace denigma {
 
+/// Stable identifiers for converter input and output formats.
 enum class FormatId
 {
+    /// Finale Enigma XML.
     EnigmaXml,
+    /// MNX JSON as produced by mnxdom.
     MnxJson
 };
 
+/// A non-fatal message emitted by a converter.
 struct Diagnostic
 {
+    /// Diagnostic severity.
     enum class Severity
     {
         Info,
@@ -48,38 +53,49 @@ struct Diagnostic
         Error
     };
 
-    Severity severity{ Severity::Info };
-    std::string message;
+    Severity severity{ Severity::Info }; ///< Message severity.
+    std::string message;                 ///< Human-readable diagnostic text.
 };
 
+/// Common options accepted by public converter adapters.
 struct ConversionOptions
 {
+    /// Caller-supplied source name used for diagnostics and metadata.
     std::string sourceName;
+    /// Enables converter-specific output validation when supported.
     bool validate{ true };
+    /// Number of spaces used for formatted text output, or std::nullopt for compact output.
     std::optional<int> indentSpaces{ 4 };
 };
 
+/// Result metadata returned after a conversion completes.
 struct ConversionResult
 {
-    std::vector<Diagnostic> diagnostics;
+    std::vector<Diagnostic> diagnostics; ///< Non-fatal diagnostics emitted during conversion.
 };
 
+/// Public interface implemented by each conversion adapter.
 class IConverter
 {
 public:
     virtual ~IConverter() = default;
 
+    /// Returns the source format accepted by this converter.
     [[nodiscard]] virtual FormatId sourceFormat() const = 0;
+    /// Returns the target format produced by this converter.
     [[nodiscard]] virtual FormatId targetFormat() const = 0;
 
+    /// Converts the input memory buffer and writes the converted output to the provided stream.
     virtual ConversionResult convert(std::span<const std::byte> input,
                                      std::ostream& output,
                                      const ConversionOptions& options = {}) const = 0;
 };
 
+/// Lightweight registry for locating converters by source and target format.
 class ConverterRegistry
 {
 public:
+    /// Adds a converter to the registry.
     void add(std::unique_ptr<IConverter> converter)
     {
         if (!converter) {
@@ -88,6 +104,7 @@ public:
         m_converters.emplace_back(std::move(converter));
     }
 
+    /// Returns the first registered converter matching the requested formats, or nullptr.
     [[nodiscard]] const IConverter* find(FormatId sourceFormat, FormatId targetFormat) const
     {
         for (const auto& converter : m_converters) {
