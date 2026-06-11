@@ -126,12 +126,10 @@ void convert(const CommandInputData& inputData,
              const DenigmaContext& denigmaContext,
              const MultiOutputCallback& outputCallback)
 {
-#ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Converting SVG data");
         return;
     }
-#endif
 
     auto document = createDocument(inputData, denigmaContext);
     const auto shapes = selectShapes(document, denigmaContext);
@@ -171,12 +169,10 @@ void convert(const CommandInputData& inputData,
 
 void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
-#ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
         return;
     }
-#endif
 
     struct PendingSvg
     {

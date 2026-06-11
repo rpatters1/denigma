@@ -22,17 +22,3 @@ target_link_libraries(denigma_format_mnx
     PRIVATE
         denigma_format_enigmaxml
 )
-
-if(denigma_BUILD_TESTING)
-    add_denigma_internal_test_library(denigma_format_mnx_test ${DENIGMA_FORMAT_MNX_SOURCES})
-    target_link_libraries(denigma_format_mnx_test
-        PUBLIC
-            denigma_core_test
-            denigma_classify
-            denigma_utils
-            mnxdom
-            musx
-        PRIVATE
-            denigma_format_enigmaxml_test
-    )
-endif()

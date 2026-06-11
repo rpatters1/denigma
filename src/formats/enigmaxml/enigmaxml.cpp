@@ -258,12 +258,10 @@ static CommandInputData readMusxArchive(const IRandomAccessReader& reader, const
 
 CommandInputData readEnigmaXmlInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
-#ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Reading " << utils::asUtf8Bytes(inputPath));
         return {};
     }
-#endif
     try {
         std::ifstream xmlFile;
         xmlFile.exceptions(std::ios::failbit | std::ios::badbit);
@@ -288,12 +286,10 @@ CommandInputData readEnigmaXmlInputData(const std::filesystem::path& inputPath, 
 
 CommandInputData extractMusxInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
-#ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Extracting " << utils::asUtf8Bytes(inputPath));
         return {};
     }
-#endif
     try {
         FileRandomAccessReader reader(inputPath);
         return extractMusxInputData(reader, denigmaContext);
@@ -306,12 +302,10 @@ CommandInputData extractMusxInputData(const std::filesystem::path& inputPath, co
 
 CommandInputData extractMusxInputData(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext)
 {
-#ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Extracting from random-access reader");
         return {};
     }
-#endif
     try {
         return readMusxArchive(reader, denigmaContext);
     } catch (const std::exception& ex) {
@@ -323,12 +317,10 @@ CommandInputData extractMusxInputData(const IRandomAccessReader& reader, const D
 
 void writeEnigmaXml(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
-#ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Writing " << utils::asUtf8Bytes(outputPath));
         return;
     }
-#endif
 
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
@@ -356,12 +348,10 @@ void writeEnigmaXml(const std::filesystem::path& outputPath, const CommandInputD
 
 void writeMusxForCli(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
-#ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Writing " << utils::asUtf8Bytes(outputPath));
         return;
     }
-#endif
 
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 

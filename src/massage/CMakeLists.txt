@@ -20,7 +20,7 @@ if(denigma_BUILD_TESTING)
         PUBLIC
             denigma_core_test
         PRIVATE
-            denigma_format_enigmaxml_test
+            denigma_format_enigmaxml
             denigma_utils
             pugixml
             musx

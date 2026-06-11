@@ -13,16 +13,3 @@ target_link_libraries(denigma_format_mss
         pugixml
         musx
 )
-
-if(denigma_BUILD_TESTING)
-    add_denigma_internal_test_library(denigma_format_mss_test ${DENIGMA_FORMAT_MSS_SOURCES})
-    target_link_libraries(denigma_format_mss_test
-        PUBLIC
-            denigma_core_test
-        PRIVATE
-            denigma_format_enigmaxml_test
-            denigma_utils
-            pugixml
-            musx
-    )
-endif()

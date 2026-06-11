@@ -217,9 +217,7 @@ public:
     bool svgUsePageScale{ false };
     double svgScale{ 1.0 };
 
-#ifdef DENIGMA_TEST
     bool testOutput{}; // this may be defined on the command line by the test program
-#endif
 
     void setMassageTarget(const std::string& opt)
     {
@@ -254,11 +252,7 @@ public:
 
     bool forTestOutput() const
     {
-#ifdef DENIGMA_TEST
         return testOutput;
-#else
-        return false;
-#endif
     }
 
 private:

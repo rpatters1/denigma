@@ -280,12 +280,10 @@ void exportJson(std::ostream& output, const CommandInputData& inputData, const D
 
 void exportJson(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
-#ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
         return;
     }
-#endif
     if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
     std::ofstream output;
