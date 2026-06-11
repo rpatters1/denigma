@@ -28,6 +28,43 @@
 
 namespace denigma::formats::svg {
 
+namespace {
+
+musx::util::SvgConvert::SvgUnit toMusxSvgUnit(SvgUnit unit)
+{
+    switch (unit) {
+    case SvgUnit::None:
+        return musx::util::SvgConvert::SvgUnit::None;
+    case SvgUnit::Pixels:
+        return musx::util::SvgConvert::SvgUnit::Pixels;
+    case SvgUnit::Points:
+        return musx::util::SvgConvert::SvgUnit::Points;
+    case SvgUnit::Picas:
+        return musx::util::SvgConvert::SvgUnit::Picas;
+    case SvgUnit::Centimeters:
+        return musx::util::SvgConvert::SvgUnit::Centimeters;
+    case SvgUnit::Millimeters:
+        return musx::util::SvgConvert::SvgUnit::Millimeters;
+    case SvgUnit::Inches:
+        return musx::util::SvgConvert::SvgUnit::Inches;
+    }
+    return musx::util::SvgConvert::SvgUnit::Points;
+}
+
+void applySvgOptions(DenigmaContext& context, const ConversionOptions& options)
+{
+    context.noValidate = !options.validate;
+    context.svgUnit = toMusxSvgUnit(options.svgUnit);
+    context.svgScale = options.svgScale;
+    context.svgUsePageScale = options.svgUsePageScale;
+    context.svgShapeDefs.reserve(options.svgShapeDefs.size());
+    for (const int shapeDef : options.svgShapeDefs) {
+        context.svgShapeDefs.push_back(static_cast<musx::dom::Cmper>(shapeDef));
+    }
+}
+
+} // namespace
+
 ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> input,
                                                   const MultiOutputCallback& outputCallback,
                                                   const ConversionOptions& options) const
@@ -42,12 +79,7 @@ ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> inp
     context.inputFilePath = options.sourceName.empty()
         ? std::filesystem::path("input.enigmaxml")
         : std::filesystem::path(options.sourceName);
-    context.noValidate = !options.validate;
-    context.svgUsePageScale = options.svgUsePageScale;
-    context.svgShapeDefs.reserve(options.svgShapeDefs.size());
-    for (const int shapeDef : options.svgShapeDefs) {
-        context.svgShapeDefs.push_back(static_cast<musx::dom::Cmper>(shapeDef));
-    }
+    applySvgOptions(context, options);
 
     svgexp::convert(CommandInputData{ std::move(buffer), std::nullopt, {} }, context, outputCallback);
     return {};
@@ -61,12 +93,7 @@ ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
     context.inputFilePath = options.sourceName.empty()
         ? std::filesystem::path("input.musx")
         : std::filesystem::path(options.sourceName);
-    context.noValidate = !options.validate;
-    context.svgUsePageScale = options.svgUsePageScale;
-    context.svgShapeDefs.reserve(options.svgShapeDefs.size());
-    for (const int shapeDef : options.svgShapeDefs) {
-        context.svgShapeDefs.push_back(static_cast<musx::dom::Cmper>(shapeDef));
-    }
+    applySvgOptions(context, options);
 
     svgexp::convert(enigmaxml::extractInputData(input, context), context, outputCallback);
     return {};

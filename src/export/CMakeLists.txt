@@ -12,7 +12,7 @@ target_link_libraries(denigma_export PUBLIC
 )
 
 if(denigma_BUILD_TESTING)
-    add_denigma_internal_library(denigma_export_test ${DENIGMA_EXPORT_COMMAND_SOURCES})
+    add_denigma_internal_test_library(denigma_export_test ${DENIGMA_EXPORT_COMMAND_SOURCES})
     target_link_libraries(denigma_export_test PUBLIC
         denigma_core_test
         denigma_format_enigmaxml_test

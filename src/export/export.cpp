@@ -25,22 +25,25 @@
 #include <string>
 #include <array>
 #include <cstddef>
+#include <cstring>
 #include <span>
 #include <stdexcept>
 #include <unordered_map>
 #include <optional>
+#include <vector>
 
+#include "denigma/formats/mss.h"
 #include "denigma/formats/mnx.h"
+#include "denigma/formats/svg.h"
 #include "export/export.h"
 #include "export/enigmaxml.h"
 #include "export/mss.h"
-#include "export/svg.h"
 
 namespace denigma {
 
 namespace {
 
-ConversionOptions makeMnxConversionOptions(const DenigmaContext& denigmaContext)
+ConversionOptions makeConversionOptions(const DenigmaContext& denigmaContext)
 {
     ConversionOptions options;
     options.sourceName = denigmaContext.inputFilePath.string();
@@ -50,7 +53,41 @@ ConversionOptions makeMnxConversionOptions(const DenigmaContext& denigmaContext)
     options.mnxSchema = denigmaContext.mnxSchema;
     options.mnxIncludeTempoTool = denigmaContext.includeTempoTool;
     options.mnxSplitInstruments = denigmaContext.mnxSplitInstruments;
+    switch (denigmaContext.svgUnit) {
+    case musx::util::SvgConvert::SvgUnit::None:
+        options.svgUnit = SvgUnit::None;
+        break;
+    case musx::util::SvgConvert::SvgUnit::Pixels:
+        options.svgUnit = SvgUnit::Pixels;
+        break;
+    case musx::util::SvgConvert::SvgUnit::Points:
+        options.svgUnit = SvgUnit::Points;
+        break;
+    case musx::util::SvgConvert::SvgUnit::Picas:
+        options.svgUnit = SvgUnit::Picas;
+        break;
+    case musx::util::SvgConvert::SvgUnit::Centimeters:
+        options.svgUnit = SvgUnit::Centimeters;
+        break;
+    case musx::util::SvgConvert::SvgUnit::Millimeters:
+        options.svgUnit = SvgUnit::Millimeters;
+        break;
+    case musx::util::SvgConvert::SvgUnit::Inches:
+        options.svgUnit = SvgUnit::Inches;
+        break;
+    }
+    options.svgScale = denigmaContext.svgScale;
+    options.svgUsePageScale = denigmaContext.svgUsePageScale;
+    options.svgShapeDefs.reserve(denigmaContext.svgShapeDefs.size());
+    for (const auto shapeDef : denigmaContext.svgShapeDefs) {
+        options.svgShapeDefs.push_back(static_cast<int>(shapeDef));
+    }
     return options;
+}
+
+std::span<const std::byte> enigmaXmlBytes(const CommandInputData& inputData)
+{
+    return std::as_bytes(std::span(inputData.primaryBuffer.data(), inputData.primaryBuffer.size()));
 }
 
 void exportMnxJsonWithAdapter(const std::filesystem::path& outputPath,
@@ -76,9 +113,129 @@ void exportMnxJsonWithAdapter(const std::filesystem::path& outputPath,
     output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     output.open(outputPath, std::ios::out | std::ios::binary);
 
-    const auto input = std::as_bytes(std::span(inputData.primaryBuffer.data(), inputData.primaryBuffer.size()));
-    converter->convert(input, output, makeMnxConversionOptions(denigmaContext));
+    converter->convert(enigmaXmlBytes(inputData), output, makeConversionOptions(denigmaContext));
     output.close();
+}
+
+void exportMssWithAdapter(const std::filesystem::path& outputPath,
+                          const CommandInputData& inputData,
+                          const DenigmaContext& denigmaContext)
+{
+    if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
+        mss::convert(outputPath, inputData, denigmaContext);
+        return;
+    }
+
+#ifdef DENIGMA_TEST
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
+        return;
+    }
+#endif
+    if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
+
+    ConverterRegistry registry;
+    formats::mss::registerConverters(registry);
+    const auto* converter = registry.find(FormatId::EnigmaXml, FormatId::MssXml);
+    if (!converter) {
+        throw std::logic_error("MSS converter is not registered.");
+    }
+
+    std::ofstream output;
+    output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+    output.open(outputPath, std::ios::out | std::ios::binary);
+    converter->convert(enigmaXmlBytes(inputData), output, makeConversionOptions(denigmaContext));
+    output.close();
+}
+
+std::filesystem::path appendSvgShapeSuffix(const std::filesystem::path& outputPath, int shapeCmper)
+{
+    std::filesystem::path result = outputPath;
+    auto extension = outputPath.extension().u8string();
+    if (extension.empty()) {
+        extension.push_back(u8'.');
+        extension.append(SVG_EXTENSION);
+    }
+    const auto stem = outputPath.stem().u8string();
+    result.replace_filename(std::filesystem::path(stem + utils::stringToUtf8(".shape-" + std::to_string(shapeCmper)) + extension));
+    return result;
+}
+
+std::filesystem::path resolveSvgOutputPath(const std::filesystem::path& outputPath,
+                                           int shapeCmper,
+                                           bool outputIsFilename,
+                                           bool multipleShapes)
+{
+    if (!outputIsFilename || multipleShapes) {
+        return appendSvgShapeSuffix(outputPath, shapeCmper);
+    }
+    return outputPath;
+}
+
+int shapeCmperFromSuggestedSvgName(std::string_view suggestedName)
+{
+    const std::string suggestedNameString(suggestedName);
+    constexpr std::string_view prefix = "shape-";
+    constexpr std::string_view suffix = ".svg";
+    if (suggestedNameString.rfind(prefix, 0) != 0
+        || suggestedNameString.size() <= prefix.size() + suffix.size()
+        || !suggestedNameString.ends_with(suffix)) {
+        return 0;
+    }
+    return std::stoi(suggestedNameString.substr(prefix.size(), suggestedNameString.size() - prefix.size() - suffix.size()));
+}
+
+void exportSvgWithAdapter(const std::filesystem::path& outputPath,
+                          const CommandInputData& inputData,
+                          const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
+        return;
+    }
+#endif
+
+    ConverterRegistry registry;
+    formats::svg::registerConverters(registry);
+    const auto* converter = registry.findMultiOutput(FormatId::EnigmaXml, FormatId::Svg);
+    if (!converter) {
+        throw std::logic_error("SVG converter is not registered.");
+    }
+
+    struct PendingSvg
+    {
+        int shapeCmper{};
+        std::string data;
+    };
+
+    std::vector<PendingSvg> pendingSvgs;
+    converter->convert(enigmaXmlBytes(inputData), [&](std::string_view suggestedName, std::span<const std::byte> svgData) {
+        std::string data;
+        data.resize(svgData.size());
+        std::memcpy(data.data(), svgData.data(), svgData.size());
+        pendingSvgs.push_back(PendingSvg{ shapeCmperFromSuggestedSvgName(suggestedName), std::move(data) });
+    }, makeConversionOptions(denigmaContext));
+
+    const bool multipleShapes = pendingSvgs.size() > 1;
+    size_t generatedCount = 0;
+    for (const auto& pendingSvg : pendingSvgs) {
+        const auto resolvedOutputPath = resolveSvgOutputPath(
+            outputPath, pendingSvg.shapeCmper, denigmaContext.outputIsFilename, multipleShapes);
+        if (!denigmaContext.validatePathsAndOptions(resolvedOutputPath)) {
+            continue;
+        }
+        std::ofstream output;
+        output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+        output.open(resolvedOutputPath, std::ios::out | std::ios::binary);
+        output.write(pendingSvg.data.data(), static_cast<std::streamsize>(pendingSvg.data.size()));
+        output.close();
+        ++generatedCount;
+    }
+
+    if (generatedCount == 0) {
+        denigmaContext.logMessage(LogMsg() << "No SVG files were written.", LogSeverity::Warning);
+    }
 }
 
 } // namespace
@@ -108,8 +265,8 @@ constexpr auto outputProcessors = []() {
     return std::to_array<OutputProcessor>({
             { MUSX_EXTENSION, enigmaxml::writeMusx },
             { ENIGMAXML_EXTENSION, enigmaxml::write },
-            { MSS_EXTENSION, mss::convert },
-            { SVG_EXTENSION, svgexp::convert },
+            { MSS_EXTENSION, exportMssWithAdapter },
+            { SVG_EXTENSION, exportSvgWithAdapter },
             { MNX_EXTENSION, exportMnxJsonWithAdapter },
             { JSON_EXTENSION, exportMnxJsonWithAdapter },
         });

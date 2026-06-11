@@ -51,6 +51,18 @@ enum class FormatId
     Svg
 };
 
+/// Unit suffix used by SVG output dimensions.
+enum class SvgUnit
+{
+    None,
+    Pixels,
+    Points,
+    Picas,
+    Centimeters,
+    Millimeters,
+    Inches
+};
+
 /// A non-fatal message emitted by a converter.
 struct Diagnostic
 {
@@ -83,6 +95,10 @@ struct ConversionOptions
     bool mnxIncludeTempoTool{ false };
     /// Split Finale instruments into separate MNX parts when supported.
     bool mnxSplitInstruments{ false };
+    /// Unit suffix for SVG width and height output.
+    SvgUnit svgUnit{ SvgUnit::Points };
+    /// Extra scale multiplier for SVG output when page scaling is not active.
+    double svgScale{ 1.0 };
     /// Optional ShapeDef identifiers for SVG conversion.
     std::vector<int> svgShapeDefs;
     /// Use Finale page-format scaling for SVG conversion when supported.
