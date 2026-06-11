@@ -28,6 +28,7 @@
 #include "gtest/gtest.h"
 
 #include "denigma/formats/mnx.h"
+#include "denigma/io/random_access_reader.h"
 #include "test_utils.h"
 
 TEST(ConverterApi, EnigmaXmlToMnxJsonWritesToStream)
@@ -50,6 +51,33 @@ TEST(ConverterApi, EnigmaXmlToMnxJsonWritesToStream)
     const auto result = converter->convert(std::as_bytes(std::span<const char>(input.data(), input.size())),
                                            output,
                                            options);
+
+    EXPECT_TRUE(result.diagnostics.empty());
+
+    const std::string jsonText = output.str();
+    ASSERT_FALSE(jsonText.empty());
+    const auto json = nlohmann::json::parse(jsonText);
+    ASSERT_TRUE(json.contains("mnx"));
+    ASSERT_TRUE(json.contains("global"));
+    ASSERT_TRUE(json.contains("parts"));
+}
+
+TEST(ConverterApi, MusxToMnxJsonWritesToStream)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::mnx::registerConverters(registry);
+    const auto* converter = registry.findReader(denigma::FormatId::Musx, denigma::FormatId::MnxJson);
+    ASSERT_NE(converter, nullptr);
+
+    denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
+    std::ostringstream output;
+    denigma::ConversionOptions options;
+    options.sourceName = "notAscii-其れ.musx";
+    options.validate = false;
+    options.indentSpaces = 2;
+    const auto result = converter->convert(input, output, options);
 
     EXPECT_TRUE(result.diagnostics.empty());
 

@@ -35,6 +35,19 @@ public:
                              const ConversionOptions& options = {}) const override;
 };
 
+/// Converter adapter for MUSX archive input to MuseScore style XML output.
+class MusxToMssXmlConverter final : public IReaderConverter
+{
+public:
+    [[nodiscard]] FormatId sourceFormat() const override { return FormatId::Musx; }
+    [[nodiscard]] FormatId targetFormat() const override { return FormatId::MssXml; }
+
+    /// Extracts a MUSX archive and writes MuseScore style XML to the provided stream.
+    ConversionResult convert(const IRandomAccessReader& input,
+                             std::ostream& output,
+                             const ConversionOptions& options = {}) const override;
+};
+
 /// Registers all MSS format converters with the supplied registry.
 void registerConverters(ConverterRegistry& registry);
 

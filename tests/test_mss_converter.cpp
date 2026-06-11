@@ -26,6 +26,7 @@
 #include "pugixml.hpp"
 
 #include "denigma/formats/mss.h"
+#include "denigma/io/random_access_reader.h"
 #include "test_utils.h"
 
 TEST(ConverterApi, EnigmaXmlToMssXmlWritesToStream)
@@ -46,6 +47,35 @@ TEST(ConverterApi, EnigmaXmlToMssXmlWritesToStream)
     const auto result = converter->convert(std::as_bytes(std::span<const char>(input.data(), input.size())),
                                            output,
                                            options);
+
+    EXPECT_TRUE(result.diagnostics.empty());
+
+    const std::string xmlText = output.str();
+    ASSERT_FALSE(xmlText.empty());
+
+    pugi::xml_document document;
+    const auto parseResult = document.load_string(xmlText.c_str());
+    ASSERT_TRUE(parseResult) << parseResult.description();
+    const auto museScore = document.child("museScore");
+    ASSERT_TRUE(museScore);
+    EXPECT_STREQ(museScore.attribute("version").value(), "4.60");
+    EXPECT_TRUE(museScore.child("Style"));
+}
+
+TEST(ConverterApi, MusxToMssXmlWritesToStream)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::mss::registerConverters(registry);
+    const auto* converter = registry.findReader(denigma::FormatId::Musx, denigma::FormatId::MssXml);
+    ASSERT_NE(converter, nullptr);
+
+    denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
+    std::ostringstream output;
+    denigma::ConversionOptions options;
+    options.sourceName = "notAscii-其れ.musx";
+    const auto result = converter->convert(input, output, options);
 
     EXPECT_TRUE(result.diagnostics.empty());
 

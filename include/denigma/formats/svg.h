@@ -35,6 +35,19 @@ public:
                              const ConversionOptions& options = {}) const override;
 };
 
+/// Converter adapter for MUSX archive input to zero or more SVG documents.
+class MusxToSvgConverter final : public IReaderMultiOutputConverter
+{
+public:
+    [[nodiscard]] FormatId sourceFormat() const override { return FormatId::Musx; }
+    [[nodiscard]] FormatId targetFormat() const override { return FormatId::Svg; }
+
+    /// Extracts a MUSX archive and invokes outputCallback for each SVG document.
+    ConversionResult convert(const IRandomAccessReader& input,
+                             const MultiOutputCallback& outputCallback,
+                             const ConversionOptions& options = {}) const override;
+};
+
 /// Registers all SVG format converters with the supplied registry.
 void registerConverters(ConverterRegistry& registry);
 

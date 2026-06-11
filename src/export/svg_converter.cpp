@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "denigma.h"
+#include "export/enigmaxml.h"
 #include "export/svg.h"
 
 namespace denigma::formats::svg {
@@ -52,9 +53,29 @@ ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> inp
     return {};
 }
 
+ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
+                                             const MultiOutputCallback& outputCallback,
+                                             const ConversionOptions& options) const
+{
+    DenigmaContext context("denigma");
+    context.inputFilePath = options.sourceName.empty()
+        ? std::filesystem::path("input.musx")
+        : std::filesystem::path(options.sourceName);
+    context.noValidate = !options.validate;
+    context.svgUsePageScale = options.svgUsePageScale;
+    context.svgShapeDefs.reserve(options.svgShapeDefs.size());
+    for (const int shapeDef : options.svgShapeDefs) {
+        context.svgShapeDefs.push_back(static_cast<musx::dom::Cmper>(shapeDef));
+    }
+
+    svgexp::convert(enigmaxml::extractInputData(input, context), context, outputCallback);
+    return {};
+}
+
 void registerConverters(ConverterRegistry& registry)
 {
     registry.add(std::make_unique<EnigmaXmlToSvgConverter>());
+    registry.add(std::make_unique<MusxToSvgConverter>());
 }
 
 } // namespace denigma::formats::svg

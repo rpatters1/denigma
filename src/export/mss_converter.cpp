@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "denigma.h"
+#include "export/enigmaxml.h"
 #include "export/mss.h"
 
 namespace denigma::formats::mss {
@@ -47,9 +48,24 @@ ConversionResult EnigmaXmlToMssXmlConverter::convert(std::span<const std::byte> 
     return {};
 }
 
+ConversionResult MusxToMssXmlConverter::convert(const IRandomAccessReader& input,
+                                                std::ostream& output,
+                                                const ConversionOptions& options) const
+{
+    DenigmaContext context("denigma");
+    context.inputFilePath = options.sourceName.empty()
+        ? std::filesystem::path("input.musx")
+        : std::filesystem::path(options.sourceName);
+    context.noValidate = !options.validate;
+
+    denigma::mss::convert(output, enigmaxml::extractInputData(input, context), context);
+    return {};
+}
+
 void registerConverters(ConverterRegistry& registry)
 {
     registry.add(std::make_unique<EnigmaXmlToMssXmlConverter>());
+    registry.add(std::make_unique<MusxToMssXmlConverter>());
 }
 
 } // namespace denigma::formats::mss

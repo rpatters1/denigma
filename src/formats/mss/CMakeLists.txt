@@ -8,6 +8,7 @@ target_link_libraries(denigma_format_mss
     PUBLIC
         denigma_core
     PRIVATE
+        denigma_format_enigmaxml
         denigma_utils
         pugixml
         musx
@@ -19,6 +20,7 @@ if(denigma_BUILD_TESTING)
         PUBLIC
             denigma_core_test
         PRIVATE
+            denigma_format_enigmaxml_test
             denigma_utils
             pugixml
             musx

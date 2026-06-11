@@ -25,6 +25,7 @@
 #include "gtest/gtest.h"
 
 #include "denigma/formats/svg.h"
+#include "denigma/io/random_access_reader.h"
 #include "test_utils.h"
 
 TEST(ConverterApi, EnigmaXmlToSvgInvokesOutputCallback)
@@ -46,6 +47,37 @@ TEST(ConverterApi, EnigmaXmlToSvgInvokesOutputCallback)
     std::vector<std::pair<std::string, std::string>> outputs;
     const auto result = converter->convert(
         std::as_bytes(std::span<const char>(input.data(), input.size())),
+        [&](std::string_view suggestedName, std::span<const std::byte> data) {
+            std::string svgText;
+            svgText.resize(data.size());
+            std::memcpy(svgText.data(), data.data(), data.size());
+            outputs.emplace_back(std::string(suggestedName), std::move(svgText));
+        },
+        options);
+
+    EXPECT_TRUE(result.diagnostics.empty());
+    ASSERT_EQ(outputs.size(), 1u);
+    EXPECT_EQ(outputs.front().first, "shape-3.svg");
+    EXPECT_NE(outputs.front().second.find("<svg"), std::string::npos);
+}
+
+TEST(ConverterApi, MusxToSvgInvokesOutputCallback)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::svg::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::Svg);
+    ASSERT_NE(converter, nullptr);
+
+    denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
+    denigma::ConversionOptions options;
+    options.sourceName = "notAscii-其れ.musx";
+    options.svgShapeDefs = { 3 };
+
+    std::vector<std::pair<std::string, std::string>> outputs;
+    const auto result = converter->convert(
+        input,
         [&](std::string_view suggestedName, std::span<const std::byte> data) {
             std::string svgText;
             svgText.resize(data.size());

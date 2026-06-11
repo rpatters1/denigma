@@ -8,6 +8,7 @@ target_link_libraries(denigma_format_svg
     PUBLIC
         denigma_core
     PRIVATE
+        denigma_format_enigmaxml
         denigma_utils
         musx
 )
@@ -18,6 +19,7 @@ if(denigma_BUILD_TESTING)
         PUBLIC
             denigma_core_test
         PRIVATE
+            denigma_format_enigmaxml_test
             denigma_utils
             musx
     )

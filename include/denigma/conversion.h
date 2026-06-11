@@ -141,6 +141,23 @@ public:
                                      const ConversionOptions& options = {}) const = 0;
 };
 
+/// Public interface implemented by reader-backed adapters that may produce multiple output documents.
+class IReaderMultiOutputConverter
+{
+public:
+    virtual ~IReaderMultiOutputConverter() = default;
+
+    /// Returns the source format accepted by this converter.
+    [[nodiscard]] virtual FormatId sourceFormat() const = 0;
+    /// Returns the target format produced by this converter.
+    [[nodiscard]] virtual FormatId targetFormat() const = 0;
+
+    /// Converts the input reader and invokes outputCallback once for each generated output.
+    virtual ConversionResult convert(const IRandomAccessReader& input,
+                                     const MultiOutputCallback& outputCallback,
+                                     const ConversionOptions& options = {}) const = 0;
+};
+
 /// Lightweight registry for locating converters by source and target format.
 class ConverterRegistry
 {
@@ -170,6 +187,15 @@ public:
             throw std::invalid_argument("converter cannot be null");
         }
         m_readerConverters.emplace_back(std::move(converter));
+    }
+
+    /// Adds a reader-backed multi-output converter to the registry.
+    void add(std::unique_ptr<IReaderMultiOutputConverter> converter)
+    {
+        if (!converter) {
+            throw std::invalid_argument("converter cannot be null");
+        }
+        m_readerMultiOutputConverters.emplace_back(std::move(converter));
     }
 
     /// Returns the first registered converter matching the requested formats, or nullptr.
@@ -205,10 +231,22 @@ public:
         return nullptr;
     }
 
+    /// Returns the first registered reader-backed multi-output converter matching the requested formats, or nullptr.
+    [[nodiscard]] const IReaderMultiOutputConverter* findReaderMultiOutput(FormatId sourceFormat, FormatId targetFormat) const
+    {
+        for (const auto& converter : m_readerMultiOutputConverters) {
+            if (converter->sourceFormat() == sourceFormat && converter->targetFormat() == targetFormat) {
+                return converter.get();
+            }
+        }
+        return nullptr;
+    }
+
 private:
     std::vector<std::unique_ptr<IConverter>> m_converters;
     std::vector<std::unique_ptr<IMultiOutputConverter>> m_multiOutputConverters;
     std::vector<std::unique_ptr<IReaderConverter>> m_readerConverters;
+    std::vector<std::unique_ptr<IReaderMultiOutputConverter>> m_readerMultiOutputConverters;
 };
 
 } // namespace denigma

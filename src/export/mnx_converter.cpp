@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "denigma.h"
+#include "export/enigmaxml.h"
 #include "export/mnx.h"
 
 namespace denigma::formats::mnx {
@@ -51,9 +52,25 @@ ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte>
     return {};
 }
 
+ConversionResult MusxToMnxJsonConverter::convert(const IRandomAccessReader& input,
+                                                 std::ostream& output,
+                                                 const ConversionOptions& options) const
+{
+    DenigmaContext context("denigma");
+    context.inputFilePath = options.sourceName.empty()
+        ? std::filesystem::path("input.musx")
+        : std::filesystem::path(options.sourceName);
+    context.noValidate = !options.validate;
+    context.indentSpaces = options.indentSpaces;
+
+    mnxexp::exportJson(output, enigmaxml::extractInputData(input, context), context);
+    return {};
+}
+
 void registerConverters(ConverterRegistry& registry)
 {
     registry.add(std::make_unique<EnigmaXmlToMnxJsonConverter>());
+    registry.add(std::make_unique<MusxToMnxJsonConverter>());
 }
 
 } // namespace denigma::formats::mnx

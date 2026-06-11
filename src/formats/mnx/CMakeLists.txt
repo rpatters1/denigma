@@ -19,6 +19,8 @@ target_link_libraries(denigma_format_mnx
         denigma_utils
         mnxdom
         musx
+    PRIVATE
+        denigma_format_enigmaxml
 )
 
 if(denigma_BUILD_TESTING)
@@ -30,5 +32,7 @@ if(denigma_BUILD_TESTING)
             denigma_utils
             mnxdom
             musx
+        PRIVATE
+            denigma_format_enigmaxml_test
     )
 endif()
