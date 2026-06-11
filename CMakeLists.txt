@@ -326,9 +326,15 @@ set(DENIGMA_CLASSIFY_SOURCES
     src/classify/jumps.cpp
 )
 
-set(DENIGMA_EXPORT_SOURCES
+set(DENIGMA_EXPORT_COMMAND_SOURCES
     src/export/export.cpp
+)
+
+set(DENIGMA_FORMAT_ENIGMAXML_SOURCES
     src/export/enigmaxml.cpp
+)
+
+set(DENIGMA_FORMAT_MNX_SOURCES
     src/export/mnx.cpp
     src/export/mnx_enums.cpp
     src/export/mnx_formatted_text.cpp
@@ -338,7 +344,13 @@ set(DENIGMA_EXPORT_SOURCES
     src/export/mnx_markings.cpp
     src/export/mnx_parts.cpp
     src/export/mnx_sequences.cpp
+)
+
+set(DENIGMA_FORMAT_MSS_SOURCES
     src/export/mss.cpp
+)
+
+set(DENIGMA_FORMAT_SVG_SOURCES
     src/export/svg.cpp
 )
 
@@ -398,15 +410,33 @@ endfunction()
 
 add_denigma_internal_library(denigma_core ${DENIGMA_CORE_SOURCES})
 add_denigma_internal_library(denigma_classify ${DENIGMA_CLASSIFY_SOURCES})
-add_denigma_internal_library(denigma_export ${DENIGMA_EXPORT_SOURCES})
 add_denigma_internal_library(denigma_massage ${DENIGMA_MASSAGE_SOURCES})
 add_denigma_internal_library(denigma_utils ${DENIGMA_UTILS_SOURCES})
+add_denigma_internal_library(denigma_format_enigmaxml ${DENIGMA_FORMAT_ENIGMAXML_SOURCES})
+add_denigma_internal_library(denigma_format_mnx ${DENIGMA_FORMAT_MNX_SOURCES})
+add_denigma_internal_library(denigma_format_mss ${DENIGMA_FORMAT_MSS_SOURCES})
+add_denigma_internal_library(denigma_format_svg ${DENIGMA_FORMAT_SVG_SOURCES})
+add_denigma_internal_library(denigma_export ${DENIGMA_EXPORT_COMMAND_SOURCES})
+target_link_libraries(denigma_export PUBLIC
+    denigma_format_enigmaxml
+    denigma_format_mnx
+    denigma_format_mss
+    denigma_format_svg
+)
 
 add_denigma_internal_test_library(denigma_core_test ${DENIGMA_CORE_SOURCES})
-add_denigma_internal_test_library(denigma_classify_test ${DENIGMA_CLASSIFY_SOURCES})
-add_denigma_internal_test_library(denigma_export_test ${DENIGMA_EXPORT_SOURCES})
 add_denigma_internal_test_library(denigma_massage_test ${DENIGMA_MASSAGE_SOURCES})
-add_denigma_internal_test_library(denigma_utils_test ${DENIGMA_UTILS_SOURCES})
+add_denigma_internal_test_library(denigma_format_enigmaxml_test ${DENIGMA_FORMAT_ENIGMAXML_SOURCES})
+add_denigma_internal_test_library(denigma_format_mnx_test ${DENIGMA_FORMAT_MNX_SOURCES})
+add_denigma_internal_test_library(denigma_format_mss_test ${DENIGMA_FORMAT_MSS_SOURCES})
+add_denigma_internal_test_library(denigma_format_svg_test ${DENIGMA_FORMAT_SVG_SOURCES})
+add_denigma_internal_library(denigma_export_test ${DENIGMA_EXPORT_COMMAND_SOURCES})
+target_link_libraries(denigma_export_test PUBLIC
+    denigma_format_enigmaxml_test
+    denigma_format_mnx_test
+    denigma_format_mss_test
+    denigma_format_svg_test
+)
 
 # Add executable target
 add_executable(denigma

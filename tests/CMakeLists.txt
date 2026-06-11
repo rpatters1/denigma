@@ -53,9 +53,9 @@ if(denigma_BUILD_TESTING)
     target_link_libraries(denigma_tests PRIVATE
         denigma_export_test
         denigma_massage_test
-        denigma_classify_test
+        denigma_classify
         denigma_core_test
-        denigma_utils_test
+        denigma_utils
         denigma_internal_deps
     )
 
