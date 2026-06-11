@@ -25,6 +25,7 @@
 #include <optional>
 #include <ostream>
 
+#include "denigma/conversion.h"
 #include "denigma.h"
 
  //placeholder function
@@ -33,6 +34,9 @@ namespace denigma {
 namespace mss {
 
 void convert(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+void convert(const CommandInputData& inputData,
+             const DenigmaContext& denigmaContext,
+             const MultiOutputCallback& outputCallback);
 void convert(const std::filesystem::path& file, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
 } // namespace mss

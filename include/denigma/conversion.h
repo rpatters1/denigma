@@ -95,6 +95,10 @@ struct ConversionOptions
     bool mnxIncludeTempoTool{ false };
     /// Split Finale instruments into separate MNX parts when supported.
     bool mnxSplitInstruments{ false };
+    /// Emit the score plus all linked parts for MSS multi-output conversion.
+    bool mssAllPartsAndScore{ false };
+    /// Optional part-name prefix for MSS multi-output conversion.
+    std::optional<std::string> mssPartName;
     /// Unit suffix for SVG width and height output.
     SvgUnit svgUnit{ SvgUnit::Points };
     /// Extra scale multiplier for SVG output when page scaling is not active.

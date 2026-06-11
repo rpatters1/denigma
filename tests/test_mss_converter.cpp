@@ -17,6 +17,7 @@
  * THE SOFTWARE.
  */
 #include <cstddef>
+#include <cstring>
 #include <sstream>
 #include <span>
 #include <string>
@@ -89,4 +90,49 @@ TEST(ConverterApi, MusxToMssXmlWritesToStream)
     ASSERT_TRUE(museScore);
     EXPECT_STREQ(museScore.attribute("version").value(), "4.60");
     EXPECT_TRUE(museScore.child("Style"));
+}
+
+TEST(ConverterApi, MusxToMssXmlInvokesOutputCallbackForParts)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::mss::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::MssXml);
+    ASSERT_NE(converter, nullptr);
+
+    struct Output
+    {
+        std::string suggestedName;
+        std::string data;
+    };
+
+    std::vector<Output> outputs;
+    denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
+    denigma::ConversionOptions options;
+    options.sourceName = "notAscii-其れ.musx";
+    options.mssAllPartsAndScore = true;
+    const auto result = converter->convert(input, [&](std::string_view suggestedName, std::span<const std::byte> data) {
+        std::string outputData;
+        outputData.resize(data.size());
+        std::memcpy(outputData.data(), data.data(), data.size());
+        outputs.push_back(Output{ std::string(suggestedName), std::move(outputData) });
+    }, options);
+
+    EXPECT_TRUE(result.diagnostics.empty());
+    ASSERT_GE(outputs.size(), 2);
+    EXPECT_EQ(outputs.front().suggestedName, "");
+
+    bool foundNamedPart = false;
+    for (const auto& output : outputs) {
+        pugi::xml_document document;
+        const auto parseResult = document.load_string(output.data.c_str());
+        ASSERT_TRUE(parseResult) << parseResult.description();
+        const auto museScore = document.child("museScore");
+        ASSERT_TRUE(museScore);
+        EXPECT_STREQ(museScore.attribute("version").value(), "4.60");
+        EXPECT_TRUE(museScore.child("Style"));
+        foundNamedPart = foundNamedPart || output.suggestedName == "オボえ";
+    }
+    EXPECT_TRUE(foundNamedPart);
 }

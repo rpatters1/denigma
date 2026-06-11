@@ -22,12 +22,15 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <optional>
 #include <ostream>
 #include <set>
+#include <span>
+#include <sstream>
 #include <string_view>
 #include <utility>
 
@@ -1070,34 +1073,40 @@ static XmlDocument createMssDocument(const DocumentPtr& document, const FinaleOp
     return mssDoc;
 }
 
-static std::filesystem::path resolvePartOutputPath(const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part)
+static std::string partOutputName(const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part)
+{
+    if (!part) {
+        return {};
+    }
+    auto partName = part->getName(); // Unicode-encoded partname can contain non-ASCII characters
+    if (partName.empty()) {
+        partName = "Part" + std::to_string(part->getCmper());
+        denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension");
+    }
+    return partName;
+}
+
+static std::filesystem::path resolvePartOutputPath(const std::filesystem::path& outputPath, std::string_view partName)
 {
     std::filesystem::path qualifiedOutputPath = outputPath;
-    if (part) {
-        auto partName = part->getName(); // Unicode-encoded partname can contain non-ASCII characters
-        if (partName.empty()) {
-            partName = "Part" + std::to_string(part->getCmper());
-            denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension");
-        }
+    if (!partName.empty()) {
         auto currExtension = qualifiedOutputPath.extension();
         qualifiedOutputPath.replace_extension(utils::stringToUtf8(partName) + currExtension.u8string());
     }
     return qualifiedOutputPath;
 }
 
-static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const FinaleOptions& finaleOptions, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part = nullptr)
+static void processPart(const DocumentPtr& document,
+                        const FinaleOptions& finaleOptions,
+                        const DenigmaContext& denigmaContext,
+                        const MultiOutputCallback& outputCallback,
+                        const MusxInstance<others::PartDefinition>& part = nullptr)
 {
-    const std::filesystem::path qualifiedOutputPath = resolvePartOutputPath(outputPath, denigmaContext, part);
-    if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) return;
-
     auto mssDoc = createMssDocument(document, finaleOptions, denigmaContext, part);
-    // output
-    // open the file ourselves to avoid Windows ACP encoding issues for path strings
-    std::ofstream file;
-    file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
-    file.open(qualifiedOutputPath, std::ios::out | std::ios::binary);
-    mssDoc.save(file, "    ");
-    file.close();
+    std::ostringstream output;
+    mssDoc.save(output, "    ");
+    const auto data = output.str();
+    outputCallback(partOutputName(denigmaContext, part), std::as_bytes(std::span<const char>(data.data(), data.size())));
 }
 
 void convert(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
@@ -1115,11 +1124,13 @@ void convert(std::ostream& output, const CommandInputData& inputData, const Deni
     mssDoc.save(output, "    ");
 }
 
-void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+void convert(const CommandInputData& inputData,
+             const DenigmaContext& denigmaContext,
+             const MultiOutputCallback& outputCallback)
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
+        denigmaContext.logMessage(LogMsg() << "Converting MSS data");
         return;
     }
 #endif
@@ -1127,7 +1138,7 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
     auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
     auto finaleOptions = loadFinaleOptions(document);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
-        processPart(outputPath, document, finaleOptions, denigmaContext); // process the score
+        processPart(document, finaleOptions, denigmaContext, outputCallback); // process the score
     }
     bool foundPart = false;
     if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
@@ -1135,9 +1146,9 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
         for (const auto& part : parts) {
             if (part->getCmper() != SCORE_PARTID) {
                 if (denigmaContext.allPartsAndScore) {
-                    processPart(outputPath, document, finaleOptions, denigmaContext, part);
+                    processPart(document, finaleOptions, denigmaContext, outputCallback, part);
                 } else if (denigmaContext.partName->empty() || part->getName().rfind(denigmaContext.partName.value(), 0) == 0) {
-                    processPart(outputPath, document, finaleOptions, denigmaContext, part);
+                    processPart(document, finaleOptions, denigmaContext, outputCallback, part);
                     foundPart = true;
                     break;
                 }
@@ -1150,6 +1161,35 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
         } else {
             denigmaContext.logMessage(LogMsg() << "No part name starting with \"" << denigmaContext.partName.value() << "\" was found", LogSeverity::Warning);
         }
+    }
+}
+
+void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
+        return;
+    }
+#endif
+
+    size_t generatedCount = 0;
+    convert(inputData, denigmaContext, [&](std::string_view suggestedName, std::span<const std::byte> mssData) {
+        const auto qualifiedOutputPath = resolvePartOutputPath(outputPath, suggestedName);
+        if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) {
+            return;
+        }
+        // open the file ourselves to avoid Windows ACP encoding issues for path strings
+        std::ofstream file;
+        file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+        file.open(qualifiedOutputPath, std::ios::out | std::ios::binary);
+        file.write(reinterpret_cast<const char*>(mssData.data()), static_cast<std::streamsize>(mssData.size()));
+        file.close();
+        ++generatedCount;
+    });
+
+    if (generatedCount == 0) {
+        denigmaContext.logMessage(LogMsg() << "No MSS files were written.", LogSeverity::Warning);
     }
 }
 

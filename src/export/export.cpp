@@ -37,7 +37,6 @@
 #include "denigma/formats/svg.h"
 #include "export/export.h"
 #include "export/enigmaxml.h"
-#include "export/mss.h"
 
 namespace denigma {
 
@@ -53,6 +52,8 @@ ConversionOptions makeConversionOptions(const DenigmaContext& denigmaContext)
     options.mnxSchema = denigmaContext.mnxSchema;
     options.mnxIncludeTempoTool = denigmaContext.includeTempoTool;
     options.mnxSplitInstruments = denigmaContext.mnxSplitInstruments;
+    options.mssAllPartsAndScore = denigmaContext.allPartsAndScore;
+    options.mssPartName = denigmaContext.partName;
     switch (denigmaContext.svgUnit) {
     case musx::util::SvgConvert::SvgUnit::None:
         options.svgUnit = SvgUnit::None;
@@ -121,31 +122,41 @@ void exportMssWithAdapter(const std::filesystem::path& outputPath,
                           const CommandInputData& inputData,
                           const DenigmaContext& denigmaContext)
 {
-    if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
-        mss::convert(outputPath, inputData, denigmaContext);
-        return;
-    }
-
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
         return;
     }
 #endif
-    if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
     ConverterRegistry registry;
     formats::mss::registerConverters(registry);
-    const auto* converter = registry.find(FormatId::EnigmaXml, FormatId::MssXml);
+    const auto* converter = registry.findMultiOutput(FormatId::EnigmaXml, FormatId::MssXml);
     if (!converter) {
         throw std::logic_error("MSS converter is not registered.");
     }
 
-    std::ofstream output;
-    output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
-    output.open(outputPath, std::ios::out | std::ios::binary);
-    converter->convert(enigmaXmlBytes(inputData), output, makeConversionOptions(denigmaContext));
-    output.close();
+    size_t generatedCount = 0;
+    converter->convert(enigmaXmlBytes(inputData), [&](std::string_view suggestedName, std::span<const std::byte> mssData) {
+        std::filesystem::path qualifiedOutputPath = outputPath;
+        if (!suggestedName.empty()) {
+            auto currExtension = qualifiedOutputPath.extension();
+            qualifiedOutputPath.replace_extension(utils::stringToUtf8(suggestedName) + currExtension.u8string());
+        }
+        if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) {
+            return;
+        }
+        std::ofstream output;
+        output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+        output.open(qualifiedOutputPath, std::ios::out | std::ios::binary);
+        output.write(reinterpret_cast<const char*>(mssData.data()), static_cast<std::streamsize>(mssData.size()));
+        output.close();
+        ++generatedCount;
+    }, makeConversionOptions(denigmaContext));
+
+    if (generatedCount == 0) {
+        denigmaContext.logMessage(LogMsg() << "No MSS files were written.", LogSeverity::Warning);
+    }
 }
 
 std::filesystem::path appendSvgShapeSuffix(const std::filesystem::path& outputPath, int shapeCmper)

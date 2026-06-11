@@ -48,6 +48,32 @@ public:
                              const ConversionOptions& options = {}) const override;
 };
 
+/// Converter adapter for Enigma XML input to one or more MuseScore style XML outputs.
+class EnigmaXmlToMssXmlMultiOutputConverter final : public IMultiOutputConverter
+{
+public:
+    [[nodiscard]] FormatId sourceFormat() const override { return FormatId::EnigmaXml; }
+    [[nodiscard]] FormatId targetFormat() const override { return FormatId::MssXml; }
+
+    /// Converts Enigma XML from memory and invokes outputCallback for each MSS document.
+    ConversionResult convert(std::span<const std::byte> input,
+                             const MultiOutputCallback& outputCallback,
+                             const ConversionOptions& options = {}) const override;
+};
+
+/// Converter adapter for MUSX archive input to one or more MuseScore style XML outputs.
+class MusxToMssXmlMultiOutputConverter final : public IReaderMultiOutputConverter
+{
+public:
+    [[nodiscard]] FormatId sourceFormat() const override { return FormatId::Musx; }
+    [[nodiscard]] FormatId targetFormat() const override { return FormatId::MssXml; }
+
+    /// Extracts a MUSX archive and invokes outputCallback for each MSS document.
+    ConversionResult convert(const IRandomAccessReader& input,
+                             const MultiOutputCallback& outputCallback,
+                             const ConversionOptions& options = {}) const override;
+};
+
 /// Registers all MSS format converters with the supplied registry.
 void registerConverters(ConverterRegistry& registry);
 
