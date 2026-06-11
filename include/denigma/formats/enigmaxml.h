@@ -25,6 +25,7 @@ namespace denigma::formats::enigmaxml {
 /// Options for MUSX to Enigma XML conversion.
 struct Options final : public IOptions
 {
+    /// Options common to all converters.
     CommonOptions common;
 };
 

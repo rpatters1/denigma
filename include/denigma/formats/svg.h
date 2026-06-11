@@ -39,6 +39,7 @@ enum class Unit
 /// Options for SVG converters.
 struct Options final : public IOptions
 {
+    /// Options common to all converters.
     CommonOptions common;
     /// Unit suffix for SVG width and height output.
     Unit unit{ Unit::Points };

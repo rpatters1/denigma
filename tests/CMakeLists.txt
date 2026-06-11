@@ -18,6 +18,7 @@ if(denigma_BUILD_TESTING)
         test_mss_converter.cpp
         test_options.cpp
         test_svg_converter.cpp
+        test_typed_converter_options.cpp
         test_jumps.cpp
         mnx/test_beams.cpp
         mnx/test_converter.cpp

@@ -31,6 +31,7 @@ namespace denigma::formats::mnx {
 /// Options for MNX JSON converters.
 struct Options final : public IOptions
 {
+    /// Options common to all converters.
     CommonOptions common;
     /// Number of spaces used for formatted JSON output, or std::nullopt for compact output.
     std::optional<int> indentSpaces{ 4 };

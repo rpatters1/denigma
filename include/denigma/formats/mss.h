@@ -28,6 +28,7 @@ namespace denigma::formats::mss {
 /// Options for MuseScore style XML converters.
 struct Options final : public IOptions
 {
+    /// Options common to all converters.
     CommonOptions common;
     /// Emit the score plus all linked parts for multi-output conversion.
     bool allPartsAndScore{ false };
