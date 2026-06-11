@@ -95,7 +95,7 @@ ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
         : std::filesystem::path(options.sourceName);
     applySvgOptions(context, options);
 
-    svgexp::convert(enigmaxml::extractInputData(input, context), context, outputCallback);
+    svgexp::convert(enigmaxml::extractMusxInputData(input, context), context, outputCallback);
     return {};
 }
 

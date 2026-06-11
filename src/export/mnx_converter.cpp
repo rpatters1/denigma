@@ -72,7 +72,7 @@ ConversionResult MusxToMnxJsonConverter::convert(const IRandomAccessReader& inpu
 {
     auto context = makeMnxContext(options, "input.musx");
 
-    mnxexp::exportJson(output, enigmaxml::extractInputData(input, context), context);
+    mnxexp::exportJson(output, enigmaxml::extractMusxInputData(input, context), context);
     return {};
 }
 

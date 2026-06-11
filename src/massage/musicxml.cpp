@@ -690,9 +690,9 @@ static std::shared_ptr<MassageMusicXmlContext> createContext(const std::filesyst
             Buffer retval;
             const auto& path = finaleFilePath.value();
             if (utils::pathExtensionEquals(path, MUSX_EXTENSION)) {
-                return enigmaxml::extract(path, denigmaContext);
+                return enigmaxml::extractMusxInputData(path, denigmaContext).primaryBuffer;
             } else if (utils::pathExtensionEquals(path, ENIGMAXML_EXTENSION)) {
-                return enigmaxml::read(path, denigmaContext);
+                return enigmaxml::readEnigmaXmlInputData(path, denigmaContext).primaryBuffer;
             }
             assert(false); // bug in findFinaleFile if here
             return {};

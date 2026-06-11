@@ -260,8 +260,8 @@ constexpr auto inputProcessors = []() {
     };
 
     return std::to_array<InputProcessor>({
-            { MUSX_EXTENSION, enigmaxml::extractInputData },
-            { ENIGMAXML_EXTENSION, enigmaxml::readInputData },
+            { MUSX_EXTENSION, enigmaxml::extractMusxInputData },
+            { ENIGMAXML_EXTENSION, enigmaxml::readEnigmaXmlInputData },
         });
     }();
 
@@ -274,8 +274,8 @@ constexpr auto outputProcessors = []() {
     };
 
     return std::to_array<OutputProcessor>({
-            { MUSX_EXTENSION, enigmaxml::writeMusx },
-            { ENIGMAXML_EXTENSION, enigmaxml::write },
+            { MUSX_EXTENSION, enigmaxml::writeMusxForCli },
+            { ENIGMAXML_EXTENSION, enigmaxml::writeEnigmaXml },
             { MSS_EXTENSION, exportMssWithAdapter },
             { SVG_EXTENSION, exportSvgWithAdapter },
             { MNX_EXTENSION, exportMnxJsonWithAdapter },

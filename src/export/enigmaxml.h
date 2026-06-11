@@ -31,14 +31,11 @@
 namespace denigma {
 namespace enigmaxml {
 
-Buffer extract(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
-Buffer extract(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext);
-Buffer read(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
-CommandInputData extractInputData(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
-CommandInputData extractInputData(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext);
-CommandInputData readInputData(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
-void write(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
-void writeMusx(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+CommandInputData extractMusxInputData(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
+CommandInputData extractMusxInputData(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext);
+CommandInputData readEnigmaXmlInputData(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
+void writeEnigmaXml(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+void writeMusxForCli(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
 } // namespace enigmaxml
 } // namespace denigma

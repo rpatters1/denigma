@@ -71,7 +71,7 @@ ConversionResult MusxToMssXmlConverter::convert(const IRandomAccessReader& input
 {
     auto context = makeMssContext(options, "input.musx");
 
-    denigma::mss::convert(output, enigmaxml::extractInputData(input, context), context);
+    denigma::mss::convert(output, enigmaxml::extractMusxInputData(input, context), context);
     return {};
 }
 
@@ -92,7 +92,7 @@ ConversionResult MusxToMssXmlMultiOutputConverter::convert(const IRandomAccessRe
 {
     auto context = makeMssContext(options, "input.musx");
 
-    denigma::mss::convert(enigmaxml::extractInputData(input, context), context, outputCallback);
+    denigma::mss::convert(enigmaxml::extractMusxInputData(input, context), context, outputCallback);
     return {};
 }
 

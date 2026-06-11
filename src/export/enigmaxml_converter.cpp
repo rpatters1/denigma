@@ -35,7 +35,7 @@ ConversionResult MusxToEnigmaXmlConverter::convert(const IRandomAccessReader& in
         : std::filesystem::path(options.sourceName);
     context.noValidate = !options.validate;
 
-    const Buffer buffer = denigma::enigmaxml::extract(input, context);
+    const Buffer buffer = denigma::enigmaxml::extractMusxInputData(input, context).primaryBuffer;
     output.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
     return {};
 }
