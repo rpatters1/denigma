@@ -41,6 +41,8 @@ enum class FormatId
     EnigmaXml,
     /// MNX JSON as produced by mnxdom.
     MnxJson,
+    /// MuseScore style XML.
+    MssXml,
     /// Scalable Vector Graphics XML.
     Svg
 };

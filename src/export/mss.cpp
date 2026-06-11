@@ -26,6 +26,7 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <ostream>
 #include <set>
 #include <string_view>
 #include <utility>
@@ -1041,21 +1042,8 @@ void writeMarkingPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
     }
 }
 
-static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const FinaleOptions& finaleOptions, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part = nullptr)
+static XmlDocument createMssDocument(const DocumentPtr& document, const FinaleOptions& finaleOptions, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part = nullptr)
 {
-    // calculate actual output path
-    std::filesystem::path qualifiedOutputPath = outputPath;
-    if (part) {
-        auto partName = part->getName(); // Unicode-encoded partname can contain non-ASCII characters 
-        if (partName.empty()) {
-            partName = "Part" + std::to_string(part->getCmper());
-            denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension");
-        }
-        auto currExtension = qualifiedOutputPath.extension();
-        qualifiedOutputPath.replace_extension(utils::stringToUtf8(partName) + currExtension.u8string());
-    }
-    if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) return;
-
     const Cmper forPartId = part ? part->getCmper() : 0;
     auto prefs = getCurrentPrefs(document, finaleOptions, forPartId, denigmaContext);
 
@@ -1079,6 +1067,30 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     writeRepeatEndingPrefs(styleElement, prefs);
     writeTupletPrefs(styleElement, prefs);
     writeMarkingPrefs(styleElement, prefs);
+    return mssDoc;
+}
+
+static std::filesystem::path resolvePartOutputPath(const std::filesystem::path& outputPath, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part)
+{
+    std::filesystem::path qualifiedOutputPath = outputPath;
+    if (part) {
+        auto partName = part->getName(); // Unicode-encoded partname can contain non-ASCII characters
+        if (partName.empty()) {
+            partName = "Part" + std::to_string(part->getCmper());
+            denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension");
+        }
+        auto currExtension = qualifiedOutputPath.extension();
+        qualifiedOutputPath.replace_extension(utils::stringToUtf8(partName) + currExtension.u8string());
+    }
+    return qualifiedOutputPath;
+}
+
+static void processPart(const std::filesystem::path& outputPath, const DocumentPtr& document, const FinaleOptions& finaleOptions, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part = nullptr)
+{
+    const std::filesystem::path qualifiedOutputPath = resolvePartOutputPath(outputPath, denigmaContext, part);
+    if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) return;
+
+    auto mssDoc = createMssDocument(document, finaleOptions, denigmaContext, part);
     // output
     // open the file ourselves to avoid Windows ACP encoding issues for path strings
     std::ofstream file;
@@ -1086,6 +1098,21 @@ static void processPart(const std::filesystem::path& outputPath, const DocumentP
     file.open(qualifiedOutputPath, std::ios::out | std::ios::binary);
     mssDoc.save(file, "    ");
     file.close();
+}
+
+void convert(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Converting MSS data");
+        return;
+    }
+#endif
+
+    auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
+    auto finaleOptions = loadFinaleOptions(document);
+    auto mssDoc = createMssDocument(document, finaleOptions, denigmaContext);
+    mssDoc.save(output, "    ");
 }
 
 void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)

@@ -14,6 +14,7 @@ if(denigma_BUILD_TESTING)
         test_dynamics.cpp
         test_logging.cpp
         test_massage.cpp
+        test_mss_converter.cpp
         test_options.cpp
         test_svg_converter.cpp
         test_jumps.cpp

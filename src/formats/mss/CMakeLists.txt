@@ -1,5 +1,6 @@
 set(DENIGMA_FORMAT_MSS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/../../export/mss.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/../../export/mss_converter.cpp
 )
 
 add_denigma_internal_library(denigma_format_mss ${DENIGMA_FORMAT_MSS_SOURCES})

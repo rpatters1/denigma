@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024, Robert Patterson
+ * Copyright (C) 2026, Robert Patterson
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -7,9 +7,6 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -21,19 +18,24 @@
  */
 #pragma once
 
-#include <filesystem>
-#include <optional>
-#include <ostream>
+#include "denigma/conversion.h"
 
-#include "denigma.h"
+namespace denigma::formats::mss {
 
- //placeholder function
+/// Converter adapter for Enigma XML input to MuseScore style XML output.
+class EnigmaXmlToMssXmlConverter final : public IConverter
+{
+public:
+    [[nodiscard]] FormatId sourceFormat() const override { return FormatId::EnigmaXml; }
+    [[nodiscard]] FormatId targetFormat() const override { return FormatId::MssXml; }
 
-namespace denigma {
-namespace mss {
+    /// Converts Enigma XML from memory and writes MuseScore style XML to the provided stream.
+    ConversionResult convert(std::span<const std::byte> input,
+                             std::ostream& output,
+                             const ConversionOptions& options = {}) const override;
+};
 
-void convert(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
-void convert(const std::filesystem::path& file, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+/// Registers all MSS format converters with the supplied registry.
+void registerConverters(ConverterRegistry& registry);
 
-} // namespace mss
-} // namespace denigma
+} // namespace denigma::formats::mss
