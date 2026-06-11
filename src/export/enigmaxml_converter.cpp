@@ -27,17 +27,24 @@ namespace denigma::formats::enigmaxml {
 
 ConversionResult MusxToEnigmaXmlConverter::convert(const IRandomAccessReader& input,
                                                    std::ostream& output,
-                                                   const ConversionOptions& options) const
+                                                   const Options& options) const
 {
     DenigmaContext context("denigma");
-    context.inputFilePath = options.sourceName.empty()
+    context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.musx")
-        : std::filesystem::path(options.sourceName);
-    context.noValidate = !options.validate;
+        : std::filesystem::path(options.common.sourceName);
+    context.noValidate = !options.common.validate;
 
     const Buffer buffer = denigma::enigmaxml::extractMusxInputData(input, context).primaryBuffer;
     output.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
     return {};
+}
+
+ConversionResult MusxToEnigmaXmlConverter::convert(const IRandomAccessReader& input,
+                                                   std::ostream& output,
+                                                   const ConversionRequest& request) const
+{
+    return convert(input, output, optionsFromRequest<Options>(request, "MusxToEnigmaXmlConverter"));
 }
 
 void registerConverters(ConverterRegistry& registry)

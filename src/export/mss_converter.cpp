@@ -30,15 +30,15 @@ namespace denigma::formats::mss {
 
 namespace {
 
-DenigmaContext makeMssContext(const ConversionOptions& options, const std::filesystem::path& defaultSourceName)
+DenigmaContext makeMssContext(const Options& options, const std::filesystem::path& defaultSourceName)
 {
     DenigmaContext context("denigma");
-    context.inputFilePath = options.sourceName.empty()
+    context.inputFilePath = options.common.sourceName.empty()
         ? defaultSourceName
-        : std::filesystem::path(options.sourceName);
-    context.noValidate = !options.validate;
-    context.allPartsAndScore = options.mssAllPartsAndScore;
-    context.partName = options.mssPartName;
+        : std::filesystem::path(options.common.sourceName);
+    context.noValidate = !options.common.validate;
+    context.allPartsAndScore = options.allPartsAndScore;
+    context.partName = options.partName;
     return context;
 }
 
@@ -56,7 +56,7 @@ Buffer copyBytes(std::span<const std::byte> input)
 
 ConversionResult EnigmaXmlToMssXmlConverter::convert(std::span<const std::byte> input,
                                                      std::ostream& output,
-                                                     const ConversionOptions& options) const
+                                                     const Options& options) const
 {
     auto buffer = copyBytes(input);
     auto context = makeMssContext(options, "input.enigmaxml");
@@ -65,9 +65,16 @@ ConversionResult EnigmaXmlToMssXmlConverter::convert(std::span<const std::byte> 
     return {};
 }
 
+ConversionResult EnigmaXmlToMssXmlConverter::convert(std::span<const std::byte> input,
+                                                     std::ostream& output,
+                                                     const ConversionRequest& request) const
+{
+    return convert(input, output, optionsFromRequest<Options>(request, "EnigmaXmlToMssXmlConverter"));
+}
+
 ConversionResult MusxToMssXmlConverter::convert(const IRandomAccessReader& input,
                                                 std::ostream& output,
-                                                const ConversionOptions& options) const
+                                                const Options& options) const
 {
     auto context = makeMssContext(options, "input.musx");
 
@@ -75,9 +82,16 @@ ConversionResult MusxToMssXmlConverter::convert(const IRandomAccessReader& input
     return {};
 }
 
+ConversionResult MusxToMssXmlConverter::convert(const IRandomAccessReader& input,
+                                                std::ostream& output,
+                                                const ConversionRequest& request) const
+{
+    return convert(input, output, optionsFromRequest<Options>(request, "MusxToMssXmlConverter"));
+}
+
 ConversionResult EnigmaXmlToMssXmlMultiOutputConverter::convert(std::span<const std::byte> input,
                                                                 const MultiOutputCallback& outputCallback,
-                                                                const ConversionOptions& options) const
+                                                                const Options& options) const
 {
     auto buffer = copyBytes(input);
     auto context = makeMssContext(options, "input.enigmaxml");
@@ -86,14 +100,28 @@ ConversionResult EnigmaXmlToMssXmlMultiOutputConverter::convert(std::span<const 
     return {};
 }
 
+ConversionResult EnigmaXmlToMssXmlMultiOutputConverter::convert(std::span<const std::byte> input,
+                                                                const MultiOutputCallback& outputCallback,
+                                                                const ConversionRequest& request) const
+{
+    return convert(input, outputCallback, optionsFromRequest<Options>(request, "EnigmaXmlToMssXmlMultiOutputConverter"));
+}
+
 ConversionResult MusxToMssXmlMultiOutputConverter::convert(const IRandomAccessReader& input,
                                                            const MultiOutputCallback& outputCallback,
-                                                           const ConversionOptions& options) const
+                                                           const Options& options) const
 {
     auto context = makeMssContext(options, "input.musx");
 
     denigma::mss::convert(enigmaxml::extractMusxInputData(input, context), context, outputCallback);
     return {};
+}
+
+ConversionResult MusxToMssXmlMultiOutputConverter::convert(const IRandomAccessReader& input,
+                                                           const MultiOutputCallback& outputCallback,
+                                                           const ConversionRequest& request) const
+{
+    return convert(input, outputCallback, optionsFromRequest<Options>(request, "MusxToMssXmlMultiOutputConverter"));
 }
 
 void registerConverters(ConverterRegistry& registry)

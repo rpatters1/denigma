@@ -42,46 +42,67 @@ namespace denigma {
 
 namespace {
 
-ConversionOptions makeConversionOptions(const DenigmaContext& denigmaContext)
+CommonOptions makeCommonOptions(const DenigmaContext& denigmaContext)
 {
-    ConversionOptions options;
+    CommonOptions options;
     options.sourceName = denigmaContext.inputFilePath.string();
     options.validate = !denigmaContext.noValidate;
+    return options;
+}
+
+formats::mnx::Options makeMnxOptions(const DenigmaContext& denigmaContext)
+{
+    formats::mnx::Options options;
+    options.common = makeCommonOptions(denigmaContext);
     options.indentSpaces = denigmaContext.indentSpaces;
     options.cueLayer = denigmaContext.cueLayer;
-    options.mnxSchema = denigmaContext.mnxSchema;
-    options.mnxIncludeTempoTool = denigmaContext.includeTempoTool;
-    options.mnxSplitInstruments = denigmaContext.mnxSplitInstruments;
-    options.mssAllPartsAndScore = denigmaContext.allPartsAndScore;
-    options.mssPartName = denigmaContext.partName;
+    options.schema = denigmaContext.mnxSchema;
+    options.includeTempoTool = denigmaContext.includeTempoTool;
+    options.splitInstruments = denigmaContext.mnxSplitInstruments;
+    return options;
+}
+
+formats::mss::Options makeMssOptions(const DenigmaContext& denigmaContext)
+{
+    formats::mss::Options options;
+    options.common = makeCommonOptions(denigmaContext);
+    options.allPartsAndScore = denigmaContext.allPartsAndScore;
+    options.partName = denigmaContext.partName;
+    return options;
+}
+
+formats::svg::Options makeSvgOptions(const DenigmaContext& denigmaContext)
+{
+    formats::svg::Options options;
+    options.common = makeCommonOptions(denigmaContext);
     switch (denigmaContext.svgUnit) {
     case musx::util::SvgConvert::SvgUnit::None:
-        options.svgUnit = SvgUnit::None;
+        options.unit = formats::svg::Unit::None;
         break;
     case musx::util::SvgConvert::SvgUnit::Pixels:
-        options.svgUnit = SvgUnit::Pixels;
+        options.unit = formats::svg::Unit::Pixels;
         break;
     case musx::util::SvgConvert::SvgUnit::Points:
-        options.svgUnit = SvgUnit::Points;
+        options.unit = formats::svg::Unit::Points;
         break;
     case musx::util::SvgConvert::SvgUnit::Picas:
-        options.svgUnit = SvgUnit::Picas;
+        options.unit = formats::svg::Unit::Picas;
         break;
     case musx::util::SvgConvert::SvgUnit::Centimeters:
-        options.svgUnit = SvgUnit::Centimeters;
+        options.unit = formats::svg::Unit::Centimeters;
         break;
     case musx::util::SvgConvert::SvgUnit::Millimeters:
-        options.svgUnit = SvgUnit::Millimeters;
+        options.unit = formats::svg::Unit::Millimeters;
         break;
     case musx::util::SvgConvert::SvgUnit::Inches:
-        options.svgUnit = SvgUnit::Inches;
+        options.unit = formats::svg::Unit::Inches;
         break;
     }
-    options.svgScale = denigmaContext.svgScale;
-    options.svgUsePageScale = denigmaContext.svgUsePageScale;
-    options.svgShapeDefs.reserve(denigmaContext.svgShapeDefs.size());
+    options.scale = denigmaContext.svgScale;
+    options.usePageScale = denigmaContext.svgUsePageScale;
+    options.shapeDefs.reserve(denigmaContext.svgShapeDefs.size());
     for (const auto shapeDef : denigmaContext.svgShapeDefs) {
-        options.svgShapeDefs.push_back(static_cast<int>(shapeDef));
+        options.shapeDefs.push_back(static_cast<int>(shapeDef));
     }
     return options;
 }
@@ -114,7 +135,8 @@ void exportMnxJsonWithAdapter(const std::filesystem::path& outputPath,
     output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     output.open(outputPath, std::ios::out | std::ios::binary);
 
-    converter->convert(enigmaXmlBytes(inputData), output, makeConversionOptions(denigmaContext));
+    const auto options = makeMnxOptions(denigmaContext);
+    converter->convert(enigmaXmlBytes(inputData), output, ConversionRequest{ &options });
     output.close();
 }
 
@@ -137,6 +159,7 @@ void exportMssWithAdapter(const std::filesystem::path& outputPath,
     }
 
     size_t generatedCount = 0;
+    const auto options = makeMssOptions(denigmaContext);
     converter->convert(enigmaXmlBytes(inputData), [&](std::string_view suggestedName, std::span<const std::byte> mssData) {
         std::filesystem::path qualifiedOutputPath = outputPath;
         if (!suggestedName.empty()) {
@@ -152,7 +175,7 @@ void exportMssWithAdapter(const std::filesystem::path& outputPath,
         output.write(reinterpret_cast<const char*>(mssData.data()), static_cast<std::streamsize>(mssData.size()));
         output.close();
         ++generatedCount;
-    }, makeConversionOptions(denigmaContext));
+    }, ConversionRequest{ &options });
 
     if (generatedCount == 0) {
         denigmaContext.logMessage(LogMsg() << "No MSS files were written.", LogSeverity::Warning);
@@ -221,12 +244,13 @@ void exportSvgWithAdapter(const std::filesystem::path& outputPath,
     };
 
     std::vector<PendingSvg> pendingSvgs;
+    const auto options = makeSvgOptions(denigmaContext);
     converter->convert(enigmaXmlBytes(inputData), [&](std::string_view suggestedName, std::span<const std::byte> svgData) {
         std::string data;
         data.resize(svgData.size());
         std::memcpy(data.data(), svgData.data(), svgData.size());
         pendingSvgs.push_back(PendingSvg{ shapeCmperFromSuggestedSvgName(suggestedName), std::move(data) });
-    }, makeConversionOptions(denigmaContext));
+    }, ConversionRequest{ &options });
 
     const bool multipleShapes = pendingSvgs.size() > 1;
     size_t generatedCount = 0;

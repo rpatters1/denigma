@@ -43,11 +43,11 @@ TEST(ConverterApi, EnigmaXmlToMssXmlWritesToStream)
     ASSERT_NE(converter, nullptr);
 
     std::ostringstream output;
-    denigma::ConversionOptions options;
-    options.sourceName = "notAscii-其れ.enigmaxml";
+    denigma::formats::mss::Options options;
+    options.common.sourceName = "notAscii-其れ.enigmaxml";
     const auto result = converter->convert(std::as_bytes(std::span<const char>(input.data(), input.size())),
                                            output,
-                                           options);
+                                           denigma::ConversionRequest{ &options });
 
     EXPECT_TRUE(result.diagnostics.empty());
 
@@ -74,9 +74,9 @@ TEST(ConverterApi, MusxToMssXmlWritesToStream)
 
     denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
     std::ostringstream output;
-    denigma::ConversionOptions options;
-    options.sourceName = "notAscii-其れ.musx";
-    const auto result = converter->convert(input, output, options);
+    denigma::formats::mss::Options options;
+    options.common.sourceName = "notAscii-其れ.musx";
+    const auto result = converter->convert(input, output, denigma::ConversionRequest{ &options });
 
     EXPECT_TRUE(result.diagnostics.empty());
 
@@ -109,15 +109,15 @@ TEST(ConverterApi, MusxToMssXmlInvokesOutputCallbackForParts)
 
     std::vector<Output> outputs;
     denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
-    denigma::ConversionOptions options;
-    options.sourceName = "notAscii-其れ.musx";
-    options.mssAllPartsAndScore = true;
+    denigma::formats::mss::Options options;
+    options.common.sourceName = "notAscii-其れ.musx";
+    options.allPartsAndScore = true;
     const auto result = converter->convert(input, [&](std::string_view suggestedName, std::span<const std::byte> data) {
         std::string outputData;
         outputData.resize(data.size());
         std::memcpy(outputData.data(), data.data(), data.size());
         outputs.push_back(Output{ std::string(suggestedName), std::move(outputData) });
-    }, options);
+    }, denigma::ConversionRequest{ &options });
 
     EXPECT_TRUE(result.diagnostics.empty());
     ASSERT_GE(outputs.size(), 2);

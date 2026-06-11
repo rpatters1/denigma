@@ -18,9 +18,22 @@
  */
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include "denigma/conversion.h"
 
 namespace denigma::formats::mss {
+
+/// Options for MuseScore style XML converters.
+struct Options final : public IOptions
+{
+    CommonOptions common;
+    /// Emit the score plus all linked parts for multi-output conversion.
+    bool allPartsAndScore{ false };
+    /// Optional part-name prefix for multi-output conversion.
+    std::optional<std::string> partName;
+};
 
 /// Converter adapter for Enigma XML input to MuseScore style XML output.
 class EnigmaXmlToMssXmlConverter final : public IConverter
@@ -32,7 +45,12 @@ public:
     /// Converts Enigma XML from memory and writes MuseScore style XML to the provided stream.
     ConversionResult convert(std::span<const std::byte> input,
                              std::ostream& output,
-                             const ConversionOptions& options = {}) const override;
+                             const Options& options = {}) const;
+
+    /// Converts Enigma XML using type-erased registry options.
+    ConversionResult convert(std::span<const std::byte> input,
+                             std::ostream& output,
+                             const ConversionRequest& request = {}) const override;
 };
 
 /// Converter adapter for MUSX archive input to MuseScore style XML output.
@@ -45,7 +63,12 @@ public:
     /// Extracts a MUSX archive and writes MuseScore style XML to the provided stream.
     ConversionResult convert(const IRandomAccessReader& input,
                              std::ostream& output,
-                             const ConversionOptions& options = {}) const override;
+                             const Options& options = {}) const;
+
+    /// Extracts a MUSX archive using type-erased registry options.
+    ConversionResult convert(const IRandomAccessReader& input,
+                             std::ostream& output,
+                             const ConversionRequest& request = {}) const override;
 };
 
 /// Converter adapter for Enigma XML input to one or more MuseScore style XML outputs.
@@ -58,7 +81,12 @@ public:
     /// Converts Enigma XML from memory and invokes outputCallback for each MSS document.
     ConversionResult convert(std::span<const std::byte> input,
                              const MultiOutputCallback& outputCallback,
-                             const ConversionOptions& options = {}) const override;
+                             const Options& options = {}) const;
+
+    /// Converts Enigma XML using type-erased registry options.
+    ConversionResult convert(std::span<const std::byte> input,
+                             const MultiOutputCallback& outputCallback,
+                             const ConversionRequest& request = {}) const override;
 };
 
 /// Converter adapter for MUSX archive input to one or more MuseScore style XML outputs.
@@ -71,7 +99,12 @@ public:
     /// Extracts a MUSX archive and invokes outputCallback for each MSS document.
     ConversionResult convert(const IRandomAccessReader& input,
                              const MultiOutputCallback& outputCallback,
-                             const ConversionOptions& options = {}) const override;
+                             const Options& options = {}) const;
+
+    /// Extracts a MUSX archive using type-erased registry options.
+    ConversionResult convert(const IRandomAccessReader& input,
+                             const MultiOutputCallback& outputCallback,
+                             const ConversionRequest& request = {}) const override;
 };
 
 /// Registers all MSS format converters with the supplied registry.

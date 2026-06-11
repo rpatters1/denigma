@@ -18,9 +18,37 @@
  */
 #pragma once
 
+#include <vector>
+
 #include "denigma/conversion.h"
 
 namespace denigma::formats::svg {
+
+/// Unit suffix used by SVG output dimensions.
+enum class Unit
+{
+    None,
+    Pixels,
+    Points,
+    Picas,
+    Centimeters,
+    Millimeters,
+    Inches
+};
+
+/// Options for SVG converters.
+struct Options final : public IOptions
+{
+    CommonOptions common;
+    /// Unit suffix for SVG width and height output.
+    Unit unit{ Unit::Points };
+    /// Extra scale multiplier for SVG output when page scaling is not active.
+    double scale{ 1.0 };
+    /// Optional ShapeDef identifiers for SVG conversion.
+    std::vector<int> shapeDefs;
+    /// Use Finale page-format scaling.
+    bool usePageScale{ false };
+};
 
 /// Converter adapter for Enigma XML input to zero or more SVG documents.
 class EnigmaXmlToSvgConverter final : public IMultiOutputConverter
@@ -32,7 +60,12 @@ public:
     /// Converts Enigma XML from memory and invokes outputCallback for each SVG document.
     ConversionResult convert(std::span<const std::byte> input,
                              const MultiOutputCallback& outputCallback,
-                             const ConversionOptions& options = {}) const override;
+                             const Options& options = {}) const;
+
+    /// Converts Enigma XML using type-erased registry options.
+    ConversionResult convert(std::span<const std::byte> input,
+                             const MultiOutputCallback& outputCallback,
+                             const ConversionRequest& request = {}) const override;
 };
 
 /// Converter adapter for MUSX archive input to zero or more SVG documents.
@@ -45,7 +78,12 @@ public:
     /// Extracts a MUSX archive and invokes outputCallback for each SVG document.
     ConversionResult convert(const IRandomAccessReader& input,
                              const MultiOutputCallback& outputCallback,
-                             const ConversionOptions& options = {}) const override;
+                             const Options& options = {}) const;
+
+    /// Extracts a MUSX archive using type-erased registry options.
+    ConversionResult convert(const IRandomAccessReader& input,
+                             const MultiOutputCallback& outputCallback,
+                             const ConversionRequest& request = {}) const override;
 };
 
 /// Registers all SVG format converters with the supplied registry.

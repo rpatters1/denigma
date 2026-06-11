@@ -40,9 +40,9 @@ TEST(ConverterApi, EnigmaXmlToSvgInvokesOutputCallback)
     const auto* converter = registry.findMultiOutput(denigma::FormatId::EnigmaXml, denigma::FormatId::Svg);
     ASSERT_NE(converter, nullptr);
 
-    denigma::ConversionOptions options;
-    options.sourceName = "notAscii-其れ.enigmaxml";
-    options.svgShapeDefs = { 3 };
+    denigma::formats::svg::Options options;
+    options.common.sourceName = "notAscii-其れ.enigmaxml";
+    options.shapeDefs = { 3 };
 
     std::vector<std::pair<std::string, std::string>> outputs;
     const auto result = converter->convert(
@@ -53,7 +53,7 @@ TEST(ConverterApi, EnigmaXmlToSvgInvokesOutputCallback)
             std::memcpy(svgText.data(), data.data(), data.size());
             outputs.emplace_back(std::string(suggestedName), std::move(svgText));
         },
-        options);
+        denigma::ConversionRequest{ &options });
 
     EXPECT_TRUE(result.diagnostics.empty());
     ASSERT_EQ(outputs.size(), 1u);
@@ -71,9 +71,9 @@ TEST(ConverterApi, MusxToSvgInvokesOutputCallback)
     ASSERT_NE(converter, nullptr);
 
     denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
-    denigma::ConversionOptions options;
-    options.sourceName = "notAscii-其れ.musx";
-    options.svgShapeDefs = { 3 };
+    denigma::formats::svg::Options options;
+    options.common.sourceName = "notAscii-其れ.musx";
+    options.shapeDefs = { 3 };
 
     std::vector<std::pair<std::string, std::string>> outputs;
     const auto result = converter->convert(
@@ -84,7 +84,7 @@ TEST(ConverterApi, MusxToSvgInvokesOutputCallback)
             std::memcpy(svgText.data(), data.data(), data.size());
             outputs.emplace_back(std::string(suggestedName), std::move(svgText));
         },
-        options);
+        denigma::ConversionRequest{ &options });
 
     EXPECT_TRUE(result.diagnostics.empty());
     ASSERT_EQ(outputs.size(), 1u);

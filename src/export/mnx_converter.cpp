@@ -33,18 +33,18 @@ namespace denigma::formats::mnx {
 
 namespace {
 
-DenigmaContext makeMnxContext(const ConversionOptions& options, const std::filesystem::path& defaultSourceName)
+DenigmaContext makeMnxContext(const Options& options, const std::filesystem::path& defaultSourceName)
 {
     DenigmaContext context("denigma");
-    context.inputFilePath = options.sourceName.empty()
+    context.inputFilePath = options.common.sourceName.empty()
         ? defaultSourceName
-        : std::filesystem::path(options.sourceName);
-    context.noValidate = !options.validate;
+        : std::filesystem::path(options.common.sourceName);
+    context.noValidate = !options.common.validate;
     context.indentSpaces = options.indentSpaces;
     context.cueLayer = options.cueLayer;
-    context.mnxSchema = options.mnxSchema;
-    context.includeTempoTool = options.mnxIncludeTempoTool;
-    context.mnxSplitInstruments = options.mnxSplitInstruments;
+    context.mnxSchema = options.schema;
+    context.includeTempoTool = options.includeTempoTool;
+    context.mnxSplitInstruments = options.splitInstruments;
     return context;
 }
 
@@ -52,7 +52,7 @@ DenigmaContext makeMnxContext(const ConversionOptions& options, const std::files
 
 ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte> input,
                                                       std::ostream& output,
-                                                      const ConversionOptions& options) const
+                                                      const Options& options) const
 {
     Buffer buffer;
     buffer.reserve(input.size());
@@ -66,14 +66,28 @@ ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte>
     return {};
 }
 
+ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte> input,
+                                                      std::ostream& output,
+                                                      const ConversionRequest& request) const
+{
+    return convert(input, output, optionsFromRequest<Options>(request, "EnigmaXmlToMnxJsonConverter"));
+}
+
 ConversionResult MusxToMnxJsonConverter::convert(const IRandomAccessReader& input,
                                                  std::ostream& output,
-                                                 const ConversionOptions& options) const
+                                                 const Options& options) const
 {
     auto context = makeMnxContext(options, "input.musx");
 
     mnxexp::exportJson(output, enigmaxml::extractMusxInputData(input, context), context);
     return {};
+}
+
+ConversionResult MusxToMnxJsonConverter::convert(const IRandomAccessReader& input,
+                                                 std::ostream& output,
+                                                 const ConversionRequest& request) const
+{
+    return convert(input, output, optionsFromRequest<Options>(request, "MusxToMnxJsonConverter"));
 }
 
 void registerConverters(ConverterRegistry& registry)

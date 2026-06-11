@@ -21,9 +21,28 @@
  */
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include "denigma/conversion.h"
 
 namespace denigma::formats::mnx {
+
+/// Options for MNX JSON converters.
+struct Options final : public IOptions
+{
+    CommonOptions common;
+    /// Number of spaces used for formatted JSON output, or std::nullopt for compact output.
+    std::optional<int> indentSpaces{ 4 };
+    /// Optional cue layer to omit because MNX does not currently support cues.
+    std::optional<int> cueLayer;
+    /// Optional MNX JSON schema contents used for validation.
+    std::optional<std::string> schema;
+    /// Include Finale Tempo Tool changes.
+    bool includeTempoTool{ false };
+    /// Split Finale instruments into separate MNX parts.
+    bool splitInstruments{ false };
+};
 
 /// Converter adapter for Enigma XML input to MNX JSON output.
 class EnigmaXmlToMnxJsonConverter final : public IConverter
@@ -35,7 +54,12 @@ public:
     /// Converts Enigma XML from memory and writes MNX JSON to the provided stream.
     ConversionResult convert(std::span<const std::byte> input,
                              std::ostream& output,
-                             const ConversionOptions& options = {}) const override;
+                             const Options& options = {}) const;
+
+    /// Converts Enigma XML using type-erased registry options.
+    ConversionResult convert(std::span<const std::byte> input,
+                             std::ostream& output,
+                             const ConversionRequest& request = {}) const override;
 };
 
 /// Converter adapter for MUSX archive input to MNX JSON output.
@@ -48,7 +72,12 @@ public:
     /// Extracts a MUSX archive and writes MNX JSON to the provided stream.
     ConversionResult convert(const IRandomAccessReader& input,
                              std::ostream& output,
-                             const ConversionOptions& options = {}) const override;
+                             const Options& options = {}) const;
+
+    /// Extracts a MUSX archive using type-erased registry options.
+    ConversionResult convert(const IRandomAccessReader& input,
+                             std::ostream& output,
+                             const ConversionRequest& request = {}) const override;
 };
 
 /// Registers all MNX format converters with the supplied registry.

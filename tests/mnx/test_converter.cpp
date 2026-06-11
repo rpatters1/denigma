@@ -44,13 +44,13 @@ TEST(ConverterApi, EnigmaXmlToMnxJsonWritesToStream)
     ASSERT_NE(converter, nullptr);
 
     std::ostringstream output;
-    denigma::ConversionOptions options;
-    options.sourceName = "notAscii-其れ.enigmaxml";
-    options.validate = false;
+    denigma::formats::mnx::Options options;
+    options.common.sourceName = "notAscii-其れ.enigmaxml";
+    options.common.validate = false;
     options.indentSpaces = 2;
     const auto result = converter->convert(std::as_bytes(std::span<const char>(input.data(), input.size())),
                                            output,
-                                           options);
+                                           denigma::ConversionRequest{ &options });
 
     EXPECT_TRUE(result.diagnostics.empty());
 
@@ -73,11 +73,11 @@ TEST(ConverterApi, MusxToMnxJsonWritesToStream)
 
     denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
     std::ostringstream output;
-    denigma::ConversionOptions options;
-    options.sourceName = "notAscii-其れ.musx";
-    options.validate = false;
+    denigma::formats::mnx::Options options;
+    options.common.sourceName = "notAscii-其れ.musx";
+    options.common.validate = false;
     options.indentSpaces = 2;
-    const auto result = converter->convert(input, output, options);
+    const auto result = converter->convert(input, output, denigma::ConversionRequest{ &options });
 
     EXPECT_TRUE(result.diagnostics.empty());
 

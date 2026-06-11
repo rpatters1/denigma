@@ -22,6 +22,12 @@
 
 namespace denigma::formats::enigmaxml {
 
+/// Options for MUSX to Enigma XML conversion.
+struct Options final : public IOptions
+{
+    CommonOptions common;
+};
+
 /// Converter adapter for MUSX archive input to Enigma XML output.
 class MusxToEnigmaXmlConverter final : public IReaderConverter
 {
@@ -32,7 +38,12 @@ public:
     /// Extracts Enigma XML from a MUSX random-access reader and writes it to the provided stream.
     ConversionResult convert(const IRandomAccessReader& input,
                              std::ostream& output,
-                             const ConversionOptions& options = {}) const override;
+                             const Options& options = {}) const;
+
+    /// Extracts Enigma XML using type-erased registry options.
+    ConversionResult convert(const IRandomAccessReader& input,
+                             std::ostream& output,
+                             const ConversionRequest& request = {}) const override;
 };
 
 /// Registers all Enigma XML format converters with the supplied registry.

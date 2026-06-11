@@ -24,7 +24,6 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
-#include <optional>
 #include <ostream>
 #include <span>
 #include <stdexcept>
@@ -51,18 +50,6 @@ enum class FormatId
     Svg
 };
 
-/// Unit suffix used by SVG output dimensions.
-enum class SvgUnit
-{
-    None,
-    Pixels,
-    Points,
-    Picas,
-    Centimeters,
-    Millimeters,
-    Inches
-};
-
 /// A non-fatal message emitted by a converter.
 struct Diagnostic
 {
@@ -78,35 +65,27 @@ struct Diagnostic
     std::string message;                 ///< Human-readable diagnostic text.
 };
 
-/// Common options accepted by public converter adapters.
-struct ConversionOptions
+/// Options common to all public converter adapters.
+struct CommonOptions
 {
     /// Caller-supplied source name used for diagnostics and metadata.
     std::string sourceName;
     /// Enables converter-specific output validation when supported.
     bool validate{ true };
-    /// Number of spaces used for formatted text output, or std::nullopt for compact output.
-    std::optional<int> indentSpaces{ 4 };
-    /// Optional cue layer to omit when converting to formats that do not support cues.
-    std::optional<int> cueLayer;
-    /// Optional MNX JSON schema contents used for MNX validation.
-    std::optional<std::string> mnxSchema;
-    /// Include Finale Tempo Tool changes in MNX output when supported.
-    bool mnxIncludeTempoTool{ false };
-    /// Split Finale instruments into separate MNX parts when supported.
-    bool mnxSplitInstruments{ false };
-    /// Emit the score plus all linked parts for MSS multi-output conversion.
-    bool mssAllPartsAndScore{ false };
-    /// Optional part-name prefix for MSS multi-output conversion.
-    std::optional<std::string> mssPartName;
-    /// Unit suffix for SVG width and height output.
-    SvgUnit svgUnit{ SvgUnit::Points };
-    /// Extra scale multiplier for SVG output when page scaling is not active.
-    double svgScale{ 1.0 };
-    /// Optional ShapeDef identifiers for SVG conversion.
-    std::vector<int> svgShapeDefs;
-    /// Use Finale page-format scaling for SVG conversion when supported.
-    bool svgUsePageScale{ false };
+};
+
+/// Base class for adapter-specific option structs.
+class IOptions
+{
+public:
+    virtual ~IOptions() = default;
+};
+
+/// Type-erased request used by registry-based converter calls.
+struct ConversionRequest
+{
+    /// Adapter-specific options. Must remain valid for the duration of the conversion call.
+    const IOptions* options{};
 };
 
 /// Result metadata returned after a conversion completes.
@@ -114,6 +93,19 @@ struct ConversionResult
 {
     std::vector<Diagnostic> diagnostics; ///< Non-fatal diagnostics emitted during conversion.
 };
+
+/// Returns typed options from an erased request, or default options when none were supplied.
+template <typename OptionsT>
+OptionsT optionsFromRequest(const ConversionRequest& request, std::string_view converterName)
+{
+    if (!request.options) {
+        return {};
+    }
+    if (const auto* options = dynamic_cast<const OptionsT*>(request.options)) {
+        return *options;
+    }
+    throw std::invalid_argument(std::string(converterName) + " received incompatible conversion options.");
+}
 
 /// Public interface implemented by each conversion adapter.
 class IConverter
@@ -129,7 +121,7 @@ public:
     /// Converts the input memory buffer and writes the converted output to the provided stream.
     virtual ConversionResult convert(std::span<const std::byte> input,
                                      std::ostream& output,
-                                     const ConversionOptions& options = {}) const = 0;
+                                     const ConversionRequest& request = {}) const = 0;
 };
 
 /// Public interface implemented by adapters whose input is a random-access container.
@@ -146,7 +138,7 @@ public:
     /// Converts the input reader and writes the converted output to the provided stream.
     virtual ConversionResult convert(const IRandomAccessReader& input,
                                      std::ostream& output,
-                                     const ConversionOptions& options = {}) const = 0;
+                                     const ConversionRequest& request = {}) const = 0;
 };
 
 /// Callback used by converters that may emit zero, one, or many output buffers.
@@ -166,7 +158,7 @@ public:
     /// Converts the input memory buffer and invokes outputCallback once for each generated output.
     virtual ConversionResult convert(std::span<const std::byte> input,
                                      const MultiOutputCallback& outputCallback,
-                                     const ConversionOptions& options = {}) const = 0;
+                                     const ConversionRequest& request = {}) const = 0;
 };
 
 /// Public interface implemented by reader-backed adapters that may produce multiple output documents.
@@ -183,7 +175,7 @@ public:
     /// Converts the input reader and invokes outputCallback once for each generated output.
     virtual ConversionResult convert(const IRandomAccessReader& input,
                                      const MultiOutputCallback& outputCallback,
-                                     const ConversionOptions& options = {}) const = 0;
+                                     const ConversionRequest& request = {}) const = 0;
 };
 
 /// Lightweight registry for locating converters by source and target format.

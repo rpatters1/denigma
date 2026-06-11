@@ -30,35 +30,35 @@ namespace denigma::formats::svg {
 
 namespace {
 
-musx::util::SvgConvert::SvgUnit toMusxSvgUnit(SvgUnit unit)
+musx::util::SvgConvert::SvgUnit toMusxSvgUnit(Unit unit)
 {
     switch (unit) {
-    case SvgUnit::None:
+    case Unit::None:
         return musx::util::SvgConvert::SvgUnit::None;
-    case SvgUnit::Pixels:
+    case Unit::Pixels:
         return musx::util::SvgConvert::SvgUnit::Pixels;
-    case SvgUnit::Points:
+    case Unit::Points:
         return musx::util::SvgConvert::SvgUnit::Points;
-    case SvgUnit::Picas:
+    case Unit::Picas:
         return musx::util::SvgConvert::SvgUnit::Picas;
-    case SvgUnit::Centimeters:
+    case Unit::Centimeters:
         return musx::util::SvgConvert::SvgUnit::Centimeters;
-    case SvgUnit::Millimeters:
+    case Unit::Millimeters:
         return musx::util::SvgConvert::SvgUnit::Millimeters;
-    case SvgUnit::Inches:
+    case Unit::Inches:
         return musx::util::SvgConvert::SvgUnit::Inches;
     }
     return musx::util::SvgConvert::SvgUnit::Points;
 }
 
-void applySvgOptions(DenigmaContext& context, const ConversionOptions& options)
+void applySvgOptions(DenigmaContext& context, const Options& options)
 {
-    context.noValidate = !options.validate;
-    context.svgUnit = toMusxSvgUnit(options.svgUnit);
-    context.svgScale = options.svgScale;
-    context.svgUsePageScale = options.svgUsePageScale;
-    context.svgShapeDefs.reserve(options.svgShapeDefs.size());
-    for (const int shapeDef : options.svgShapeDefs) {
+    context.noValidate = !options.common.validate;
+    context.svgUnit = toMusxSvgUnit(options.unit);
+    context.svgScale = options.scale;
+    context.svgUsePageScale = options.usePageScale;
+    context.svgShapeDefs.reserve(options.shapeDefs.size());
+    for (const int shapeDef : options.shapeDefs) {
         context.svgShapeDefs.push_back(static_cast<musx::dom::Cmper>(shapeDef));
     }
 }
@@ -67,7 +67,7 @@ void applySvgOptions(DenigmaContext& context, const ConversionOptions& options)
 
 ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> input,
                                                   const MultiOutputCallback& outputCallback,
-                                                  const ConversionOptions& options) const
+                                                  const Options& options) const
 {
     Buffer buffer;
     buffer.reserve(input.size());
@@ -76,27 +76,41 @@ ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> inp
     }
 
     DenigmaContext context("denigma");
-    context.inputFilePath = options.sourceName.empty()
+    context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.enigmaxml")
-        : std::filesystem::path(options.sourceName);
+        : std::filesystem::path(options.common.sourceName);
     applySvgOptions(context, options);
 
     svgexp::convert(CommandInputData{ std::move(buffer), std::nullopt, {} }, context, outputCallback);
     return {};
 }
 
+ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> input,
+                                                  const MultiOutputCallback& outputCallback,
+                                                  const ConversionRequest& request) const
+{
+    return convert(input, outputCallback, optionsFromRequest<Options>(request, "EnigmaXmlToSvgConverter"));
+}
+
 ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
                                              const MultiOutputCallback& outputCallback,
-                                             const ConversionOptions& options) const
+                                             const Options& options) const
 {
     DenigmaContext context("denigma");
-    context.inputFilePath = options.sourceName.empty()
+    context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.musx")
-        : std::filesystem::path(options.sourceName);
+        : std::filesystem::path(options.common.sourceName);
     applySvgOptions(context, options);
 
     svgexp::convert(enigmaxml::extractMusxInputData(input, context), context, outputCallback);
     return {};
+}
+
+ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
+                                             const MultiOutputCallback& outputCallback,
+                                             const ConversionRequest& request) const
+{
+    return convert(input, outputCallback, optionsFromRequest<Options>(request, "MusxToSvgConverter"));
 }
 
 void registerConverters(ConverterRegistry& registry)
