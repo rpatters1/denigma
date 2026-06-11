@@ -314,59 +314,6 @@ add_custom_target(PrintConfig ALL
 
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
 
-set(DENIGMA_CORE_SOURCES
-    src/denigma.cpp
-    src/finale_options.cpp
-)
-
-set(DENIGMA_CLASSIFY_SOURCES
-    src/classify/articulations.cpp
-    src/classify/clefs.cpp
-    src/classify/dynamics.cpp
-    src/classify/jumps.cpp
-)
-
-set(DENIGMA_EXPORT_COMMAND_SOURCES
-    src/export/export.cpp
-)
-
-set(DENIGMA_FORMAT_ENIGMAXML_SOURCES
-    src/export/enigmaxml.cpp
-)
-
-set(DENIGMA_FORMAT_MNX_SOURCES
-    src/export/mnx.cpp
-    src/export/mnx_converter.cpp
-    src/export/mnx_enums.cpp
-    src/export/mnx_formatted_text.cpp
-    src/export/mnx_global.cpp
-    src/export/mnx_layouts.cpp
-    src/export/mnx_mapping.cpp
-    src/export/mnx_markings.cpp
-    src/export/mnx_parts.cpp
-    src/export/mnx_sequences.cpp
-)
-
-set(DENIGMA_FORMAT_MSS_SOURCES
-    src/export/mss.cpp
-)
-
-set(DENIGMA_FORMAT_SVG_SOURCES
-    src/export/svg.cpp
-)
-
-set(DENIGMA_MASSAGE_SOURCES
-    src/massage/massage.cpp
-    src/massage/musicxml.cpp
-)
-
-set(DENIGMA_UTILS_SOURCES
-    src/utils/textmetrics.cpp
-    src/utils/smufl_support.cpp
-    src/utils/utf8_iterator.cpp
-    src/utils/ziputils.cpp
-)
-
 # Define an interface library for shared include paths, dependencies, and precompiled headers.
 add_library(denigma_internal_deps INTERFACE)
 target_include_directories(denigma_internal_deps INTERFACE
@@ -395,159 +342,9 @@ function(add_denigma_internal_test_library target_name)
     target_compile_definitions(${target_name} PRIVATE DENIGMA_TEST)
 endfunction()
 
-add_denigma_internal_library(denigma_core ${DENIGMA_CORE_SOURCES})
-add_denigma_internal_library(denigma_classify ${DENIGMA_CLASSIFY_SOURCES})
-add_denigma_internal_library(denigma_massage ${DENIGMA_MASSAGE_SOURCES})
-add_denigma_internal_library(denigma_utils ${DENIGMA_UTILS_SOURCES})
-add_denigma_internal_library(denigma_format_enigmaxml ${DENIGMA_FORMAT_ENIGMAXML_SOURCES})
-add_denigma_internal_library(denigma_format_mnx ${DENIGMA_FORMAT_MNX_SOURCES})
-add_denigma_internal_library(denigma_format_mss ${DENIGMA_FORMAT_MSS_SOURCES})
-add_denigma_internal_library(denigma_format_svg ${DENIGMA_FORMAT_SVG_SOURCES})
-add_denigma_internal_library(denigma_export ${DENIGMA_EXPORT_COMMAND_SOURCES})
+option(denigma_BUILD_TESTING "Build the Denigma test suite" ON)
 
-target_link_libraries(denigma_core PUBLIC musx pugixml)
-
-target_link_libraries(denigma_utils
-    PUBLIC
-        denigma_core
-        musx
-        pugixml
-    PRIVATE
-        denigma_minizip
-        ${_denigma_zlib_target}
-        nlohmann_json::nlohmann_json
-        pugixml
-        smufl_mapping
-        ${DENIGMA_TEXT_METRICS_LIBS}
-)
-target_include_directories(denigma_utils PRIVATE ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS})
-target_compile_definitions(denigma_utils PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
-
-target_link_libraries(denigma_classify
-    PUBLIC
-        musx
-        pugixml
-    PRIVATE
-        denigma_utils
-)
-
-target_link_libraries(denigma_massage
-    PUBLIC
-        denigma_core
-    PRIVATE
-        denigma_format_enigmaxml
-        denigma_utils
-        pugixml
-        musx
-)
-
-target_link_libraries(denigma_format_enigmaxml
-    PUBLIC
-        denigma_core
-    PRIVATE
-        denigma_utils
-        denigma_minizip
-        ${_denigma_zlib_target}
-        musx
-)
-
-target_link_libraries(denigma_format_mnx
-    PUBLIC
-        denigma_core
-        denigma_classify
-        denigma_utils
-        mnxdom
-        musx
-)
-
-target_link_libraries(denigma_format_mss
-    PUBLIC
-        denigma_core
-    PRIVATE
-        denigma_utils
-        pugixml
-        musx
-)
-
-target_link_libraries(denigma_format_svg
-    PUBLIC
-        denigma_core
-    PRIVATE
-        denigma_utils
-        musx
-)
-
-target_link_libraries(denigma_export PUBLIC
-    denigma_core
-    denigma_format_enigmaxml
-    denigma_format_mnx
-    denigma_format_mss
-    denigma_format_svg
-)
-
-add_denigma_internal_test_library(denigma_core_test ${DENIGMA_CORE_SOURCES})
-add_denigma_internal_test_library(denigma_massage_test ${DENIGMA_MASSAGE_SOURCES})
-add_denigma_internal_test_library(denigma_format_enigmaxml_test ${DENIGMA_FORMAT_ENIGMAXML_SOURCES})
-add_denigma_internal_test_library(denigma_format_mnx_test ${DENIGMA_FORMAT_MNX_SOURCES})
-add_denigma_internal_test_library(denigma_format_mss_test ${DENIGMA_FORMAT_MSS_SOURCES})
-add_denigma_internal_test_library(denigma_format_svg_test ${DENIGMA_FORMAT_SVG_SOURCES})
-add_denigma_internal_library(denigma_export_test ${DENIGMA_EXPORT_COMMAND_SOURCES})
-
-target_link_libraries(denigma_core_test PUBLIC musx pugixml)
-
-target_link_libraries(denigma_massage_test
-    PUBLIC
-        denigma_core_test
-    PRIVATE
-        denigma_format_enigmaxml_test
-        denigma_utils
-        pugixml
-        musx
-)
-
-target_link_libraries(denigma_format_enigmaxml_test
-    PUBLIC
-        denigma_core_test
-    PRIVATE
-        denigma_utils
-        denigma_minizip
-        ${_denigma_zlib_target}
-        musx
-)
-
-target_link_libraries(denigma_format_mnx_test
-    PUBLIC
-        denigma_core_test
-        denigma_classify
-        denigma_utils
-        mnxdom
-        musx
-)
-
-target_link_libraries(denigma_format_mss_test
-    PUBLIC
-        denigma_core_test
-    PRIVATE
-        denigma_utils
-        pugixml
-        musx
-)
-
-target_link_libraries(denigma_format_svg_test
-    PUBLIC
-        denigma_core_test
-    PRIVATE
-        denigma_utils
-        musx
-)
-
-target_link_libraries(denigma_export_test PUBLIC
-    denigma_core_test
-    denigma_format_enigmaxml_test
-    denigma_format_mnx_test
-    denigma_format_mss_test
-    denigma_format_svg_test
-)
+add_subdirectory(src)
 
 # Add executable target
 add_executable(denigma
@@ -591,8 +388,6 @@ elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
         VERBATIM
     )
 endif()
-
-option(denigma_BUILD_TESTING "Build the Denigma test suite" ON)
 
 if(denigma_BUILD_TESTING)
     message(STATUS "Configuring tests for denigma_BUILD_TESTING.")
