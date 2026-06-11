@@ -32,11 +32,15 @@
 #include <string_view>
 #include <vector>
 
+#include "denigma/io/random_access_reader.h"
+
 namespace denigma {
 
 /// Stable identifiers for converter input and output formats.
 enum class FormatId
 {
+    /// Finale MUSX archive.
+    Musx,
     /// Finale Enigma XML.
     EnigmaXml,
     /// MNX JSON as produced by mnxdom.
@@ -100,6 +104,23 @@ public:
                                      const ConversionOptions& options = {}) const = 0;
 };
 
+/// Public interface implemented by adapters whose input is a random-access container.
+class IReaderConverter
+{
+public:
+    virtual ~IReaderConverter() = default;
+
+    /// Returns the source format accepted by this converter.
+    [[nodiscard]] virtual FormatId sourceFormat() const = 0;
+    /// Returns the target format produced by this converter.
+    [[nodiscard]] virtual FormatId targetFormat() const = 0;
+
+    /// Converts the input reader and writes the converted output to the provided stream.
+    virtual ConversionResult convert(const IRandomAccessReader& input,
+                                     std::ostream& output,
+                                     const ConversionOptions& options = {}) const = 0;
+};
+
 /// Callback used by converters that may emit zero, one, or many output buffers.
 using MultiOutputCallback = std::function<void(std::string_view suggestedName, std::span<const std::byte> data)>;
 
@@ -142,6 +163,15 @@ public:
         m_multiOutputConverters.emplace_back(std::move(converter));
     }
 
+    /// Adds a reader-backed converter to the registry.
+    void add(std::unique_ptr<IReaderConverter> converter)
+    {
+        if (!converter) {
+            throw std::invalid_argument("converter cannot be null");
+        }
+        m_readerConverters.emplace_back(std::move(converter));
+    }
+
     /// Returns the first registered converter matching the requested formats, or nullptr.
     [[nodiscard]] const IConverter* find(FormatId sourceFormat, FormatId targetFormat) const
     {
@@ -164,9 +194,21 @@ public:
         return nullptr;
     }
 
+    /// Returns the first registered reader-backed converter matching the requested formats, or nullptr.
+    [[nodiscard]] const IReaderConverter* findReader(FormatId sourceFormat, FormatId targetFormat) const
+    {
+        for (const auto& converter : m_readerConverters) {
+            if (converter->sourceFormat() == sourceFormat && converter->targetFormat() == targetFormat) {
+                return converter.get();
+            }
+        }
+        return nullptr;
+    }
+
 private:
     std::vector<std::unique_ptr<IConverter>> m_converters;
     std::vector<std::unique_ptr<IMultiOutputConverter>> m_multiOutputConverters;
+    std::vector<std::unique_ptr<IReaderConverter>> m_readerConverters;
 };
 
 } // namespace denigma

@@ -25,14 +25,17 @@
 #include <vector>
 #include <optional>
 
+#include "denigma/io/random_access_reader.h"
 #include "denigma.h"
 
 namespace denigma {
 namespace enigmaxml {
 
 Buffer extract(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
+Buffer extract(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext);
 Buffer read(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
 CommandInputData extractInputData(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
+CommandInputData extractInputData(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext);
 CommandInputData readInputData(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
 void write(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 void writeMusx(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);

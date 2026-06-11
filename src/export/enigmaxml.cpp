@@ -256,6 +256,22 @@ static CommandInputData readMusxArchive(const std::filesystem::path& musxPath, c
     return result;
 }
 
+static CommandInputData readMusxArchive(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext)
+{
+    auto archiveFiles = utils::readMusxArchiveFiles(reader, denigmaContext);
+    musx::encoder::ScoreFileEncoder::recodeBuffer(archiveFiles.scoreDat);
+
+    CommandInputData result;
+    result.primaryBuffer = gunzipBuffer(archiveFiles.scoreDat);
+    if (archiveFiles.notationMetadata.has_value()) {
+        result.notationMetadata = Buffer(
+            archiveFiles.notationMetadata->begin(),
+            archiveFiles.notationMetadata->end());
+    }
+    result.embeddedGraphics = std::move(archiveFiles.embeddedGraphics);
+    return result;
+}
+
 Buffer read(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
@@ -310,6 +326,25 @@ Buffer extract(const std::filesystem::path& inputPath, const DenigmaContext& den
     }
 }
 
+Buffer extract(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Extracting from random-access reader");
+        return {};
+    }
+#endif
+    try {
+        std::string buffer = utils::readFile(reader, SCORE_DAT_NAME, denigmaContext);
+        musx::encoder::ScoreFileEncoder::recodeBuffer(buffer);
+        return gunzipBuffer(buffer);
+    } catch (const std::exception& ex) {
+        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from random-access reader", LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        throw;
+    }
+}
+
 CommandInputData extractInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
 #ifdef DENIGMA_TEST
@@ -322,6 +357,23 @@ CommandInputData extractInputData(const std::filesystem::path& inputPath, const 
         return readMusxArchive(inputPath, denigmaContext);
     } catch (const std::exception& ex) {
         denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << utils::asUtf8Bytes(inputPath), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        throw;
+    }
+}
+
+CommandInputData extractInputData(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Extracting from random-access reader");
+        return {};
+    }
+#endif
+    try {
+        return readMusxArchive(reader, denigmaContext);
+    } catch (const std::exception& ex) {
+        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from random-access reader", LogSeverity::Error);
         denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
         throw;
     }

@@ -10,6 +10,7 @@ if(denigma_BUILD_TESTING)
         xml_compare.cpp
         test_articulations.cpp
         test_clefs.cpp
+        test_enigmaxml_converter.cpp
         test_export.cpp
         test_dynamics.cpp
         test_logging.cpp
