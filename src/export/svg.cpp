@@ -21,7 +21,12 @@
  */
 #include "export/svg.h"
 
+#include <cstddef>
+#include <cstring>
 #include <fstream>
+#include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "musx/musx.h"
@@ -117,11 +122,13 @@ std::vector<MusxInstance<others::ShapeDef>> selectShapes(const DocumentPtr& docu
 
 } // namespace
 
-void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+void convert(const CommandInputData& inputData,
+             const DenigmaContext& denigmaContext,
+             const MultiOutputCallback& outputCallback)
 {
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
+        denigmaContext.logMessage(LogMsg() << "Converting SVG data");
         return;
     }
 #endif
@@ -135,7 +142,6 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
 
     const bool usePageFormatScaling = denigmaContext.svgUsePageScale;
     const double svgScale = denigmaContext.svgScale;
-    const bool multipleShapes = shapes.size() > 1;
     const auto glyphMetrics = textmetrics::makeSvgGlyphMetricsCallback(denigmaContext);
     denigmaContext.logMessage(LogMsg() << "SVG scaling pageScale=" << (usePageFormatScaling ? "on" : "off")
                                        << " user=" << svgScale
@@ -144,10 +150,6 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
 
     size_t generatedCount = 0;
     for (const auto& shape : shapes) {
-        const auto resolvedOutputPath = resolveOutputPath(outputPath, shape->getCmper(), denigmaContext.outputIsFilename, multipleShapes);
-        if (!denigmaContext.validatePathsAndOptions(resolvedOutputPath)) {
-            continue;
-        }
         const std::string svgData = usePageFormatScaling
             ? musx::util::SvgConvert::toSvgWithPageFormatScaling(*shape, denigmaContext.svgUnit, glyphMetrics)
             : musx::util::SvgConvert::toSvg(*shape, svgScale, denigmaContext.svgUnit, glyphMetrics);
@@ -157,10 +159,63 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
                                       LogSeverity::Warning);
             continue;
         }
+        const std::string suggestedName = "shape-" + std::to_string(shape->getCmper()) + ".svg";
+        outputCallback(suggestedName, std::as_bytes(std::span<const char>(svgData.data(), svgData.size())));
+        ++generatedCount;
+    }
+
+    if (generatedCount == 0) {
+        denigmaContext.logMessage(LogMsg() << "No SVG data was generated.", LogSeverity::Warning);
+    }
+}
+
+void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
+        return;
+    }
+#endif
+
+    struct PendingSvg
+    {
+        Cmper shapeCmper{};
+        std::string data;
+    };
+
+    std::vector<PendingSvg> pendingSvgs;
+    convert(inputData, denigmaContext, [&](std::string_view suggestedName, std::span<const std::byte> svgData) {
+        std::string shapeSuffix;
+        const std::string suggestedNameString(suggestedName);
+        constexpr std::string_view prefix = "shape-";
+        constexpr std::string_view suffix = ".svg";
+        if (suggestedNameString.rfind(prefix, 0) == 0
+            && suggestedNameString.size() > prefix.size() + suffix.size()
+            && suggestedNameString.ends_with(suffix)) {
+            shapeSuffix = suggestedNameString.substr(prefix.size(), suggestedNameString.size() - prefix.size() - suffix.size());
+        }
+        Cmper shapeCmper{};
+        if (!shapeSuffix.empty()) {
+            shapeCmper = static_cast<Cmper>(std::stol(shapeSuffix));
+        }
+        std::string data;
+        data.resize(svgData.size());
+        std::memcpy(data.data(), svgData.data(), svgData.size());
+        pendingSvgs.push_back(PendingSvg{ shapeCmper, std::move(data) });
+    });
+
+    const bool multipleShapes = pendingSvgs.size() > 1;
+    size_t generatedCount = 0;
+    for (const auto& pendingSvg : pendingSvgs) {
+        const auto resolvedOutputPath = resolveOutputPath(outputPath, pendingSvg.shapeCmper, denigmaContext.outputIsFilename, multipleShapes);
+        if (!denigmaContext.validatePathsAndOptions(resolvedOutputPath)) {
+            continue;
+        }
         std::ofstream out;
         out.exceptions(std::ios::failbit | std::ios::badbit);
         out.open(resolvedOutputPath, std::ios::out | std::ios::binary);
-        out.write(svgData.data(), static_cast<std::streamsize>(svgData.size()));
+        out.write(pendingSvg.data.data(), static_cast<std::streamsize>(pendingSvg.data.size()));
         out.close();
         ++generatedCount;
     }

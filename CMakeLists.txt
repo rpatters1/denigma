@@ -314,10 +314,16 @@ add_custom_target(PrintConfig ALL
 
 include("${CMAKE_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
 
-# Define an interface library for shared include paths, dependencies, and precompiled headers.
+add_library(denigma_conversion INTERFACE)
+add_library(denigma::conversion ALIAS denigma_conversion)
+target_include_directories(denigma_conversion INTERFACE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_compile_features(denigma_conversion INTERFACE cxx_std_23)
+
+# Define an interface library for internal include paths and precompiled headers.
 add_library(denigma_internal_deps INTERFACE)
 target_include_directories(denigma_internal_deps INTERFACE
-    ${CMAKE_SOURCE_DIR}/include
     ${GENERATED_DIR}
     ${CMAKE_SOURCE_DIR}/src
 )
@@ -334,7 +340,12 @@ target_link_libraries(denigma_internal_deps INTERFACE denigma_pch)
 
 function(add_denigma_internal_library target_name)
     add_library(${target_name} STATIC ${ARGN})
-    target_link_libraries(${target_name} PUBLIC denigma_internal_deps)
+    target_link_libraries(${target_name}
+        PUBLIC
+            denigma_conversion
+        PRIVATE
+            denigma_internal_deps
+    )
 endfunction()
 
 function(add_denigma_internal_test_library target_name)

@@ -22,6 +22,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -39,7 +40,9 @@ enum class FormatId
     /// Finale Enigma XML.
     EnigmaXml,
     /// MNX JSON as produced by mnxdom.
-    MnxJson
+    MnxJson,
+    /// Scalable Vector Graphics XML.
+    Svg
 };
 
 /// A non-fatal message emitted by a converter.
@@ -66,6 +69,10 @@ struct ConversionOptions
     bool validate{ true };
     /// Number of spaces used for formatted text output, or std::nullopt for compact output.
     std::optional<int> indentSpaces{ 4 };
+    /// Optional ShapeDef identifiers for SVG conversion.
+    std::vector<int> svgShapeDefs;
+    /// Use Finale page-format scaling for SVG conversion when supported.
+    bool svgUsePageScale{ false };
 };
 
 /// Result metadata returned after a conversion completes.
@@ -91,6 +98,26 @@ public:
                                      const ConversionOptions& options = {}) const = 0;
 };
 
+/// Callback used by converters that may emit zero, one, or many output buffers.
+using MultiOutputCallback = std::function<void(std::string_view suggestedName, std::span<const std::byte> data)>;
+
+/// Public interface implemented by adapters that may produce multiple output documents.
+class IMultiOutputConverter
+{
+public:
+    virtual ~IMultiOutputConverter() = default;
+
+    /// Returns the source format accepted by this converter.
+    [[nodiscard]] virtual FormatId sourceFormat() const = 0;
+    /// Returns the target format produced by this converter.
+    [[nodiscard]] virtual FormatId targetFormat() const = 0;
+
+    /// Converts the input memory buffer and invokes outputCallback once for each generated output.
+    virtual ConversionResult convert(std::span<const std::byte> input,
+                                     const MultiOutputCallback& outputCallback,
+                                     const ConversionOptions& options = {}) const = 0;
+};
+
 /// Lightweight registry for locating converters by source and target format.
 class ConverterRegistry
 {
@@ -104,6 +131,15 @@ public:
         m_converters.emplace_back(std::move(converter));
     }
 
+    /// Adds a multi-output converter to the registry.
+    void add(std::unique_ptr<IMultiOutputConverter> converter)
+    {
+        if (!converter) {
+            throw std::invalid_argument("converter cannot be null");
+        }
+        m_multiOutputConverters.emplace_back(std::move(converter));
+    }
+
     /// Returns the first registered converter matching the requested formats, or nullptr.
     [[nodiscard]] const IConverter* find(FormatId sourceFormat, FormatId targetFormat) const
     {
@@ -115,8 +151,20 @@ public:
         return nullptr;
     }
 
+    /// Returns the first registered multi-output converter matching the requested formats, or nullptr.
+    [[nodiscard]] const IMultiOutputConverter* findMultiOutput(FormatId sourceFormat, FormatId targetFormat) const
+    {
+        for (const auto& converter : m_multiOutputConverters) {
+            if (converter->sourceFormat() == sourceFormat && converter->targetFormat() == targetFormat) {
+                return converter.get();
+            }
+        }
+        return nullptr;
+    }
+
 private:
     std::vector<std::unique_ptr<IConverter>> m_converters;
+    std::vector<std::unique_ptr<IMultiOutputConverter>> m_multiOutputConverters;
 };
 
 } // namespace denigma

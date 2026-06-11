@@ -8,9 +8,6 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -21,18 +18,24 @@
  */
 #pragma once
 
-#include <filesystem>
-
 #include "denigma/conversion.h"
-#include "denigma.h"
 
-namespace denigma {
-namespace svgexp {
+namespace denigma::formats::svg {
 
-void convert(const CommandInputData& inputData,
-             const DenigmaContext& denigmaContext,
-             const MultiOutputCallback& outputCallback);
-void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+/// Converter adapter for Enigma XML input to zero or more SVG documents.
+class EnigmaXmlToSvgConverter final : public IMultiOutputConverter
+{
+public:
+    [[nodiscard]] FormatId sourceFormat() const override { return FormatId::EnigmaXml; }
+    [[nodiscard]] FormatId targetFormat() const override { return FormatId::Svg; }
 
-} // namespace svgexp
-} // namespace denigma
+    /// Converts Enigma XML from memory and invokes outputCallback for each SVG document.
+    ConversionResult convert(std::span<const std::byte> input,
+                             const MultiOutputCallback& outputCallback,
+                             const ConversionOptions& options = {}) const override;
+};
+
+/// Registers all SVG format converters with the supplied registry.
+void registerConverters(ConverterRegistry& registry);
+
+} // namespace denigma::formats::svg

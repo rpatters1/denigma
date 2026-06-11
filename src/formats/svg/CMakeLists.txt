@@ -1,5 +1,6 @@
 set(DENIGMA_FORMAT_SVG_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/../../export/svg.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/../../export/svg_converter.cpp
 )
 
 add_denigma_internal_library(denigma_format_svg ${DENIGMA_FORMAT_SVG_SOURCES})
