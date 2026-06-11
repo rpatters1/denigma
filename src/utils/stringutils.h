@@ -24,7 +24,6 @@
 #include <string>
 #include <string_view>
 #include <ostream>
-#include <fstream>
 #include <exception>
 #include <filesystem>
 #include <algorithm>
@@ -214,21 +213,6 @@ inline std::string toLowerCase(const std::string& inp)
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return toLowerCase(c); });
     return s;
-}
-
-inline std::string fileToString(const std::filesystem::path& pathToRead)
-{
-    std::ifstream file;
-    file.exceptions(std::ios::failbit | std::ios::badbit);
-    file.open(pathToRead, std::ios::binary | std::ios::ate);
-
-    // Preallocate retval based on file size
-    std::streamsize fileSize = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    std::string retval(static_cast<std::size_t>(fileSize), 0);
-    file.read(retval.data(), fileSize);
-    return retval;
 }
 
 #if defined(STRINGUTILS_DEFINED_CPS)

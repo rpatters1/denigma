@@ -1,24 +1,51 @@
-set(DENIGMA_UTILS_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/random_access_reader.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/textmetrics.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/smufl_support.cpp
+add_denigma_internal_library(denigma_utf8
     ${CMAKE_CURRENT_LIST_DIR}/utf8_iterator.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/ziputils.cpp
 )
 
-add_denigma_internal_library(denigma_utils ${DENIGMA_UTILS_SOURCES})
-target_link_libraries(denigma_utils
+add_denigma_internal_library(denigma_smufl_support
+    ${CMAKE_CURRENT_LIST_DIR}/smufl_support.cpp
+)
+target_link_libraries(denigma_smufl_support
+    PUBLIC
+        musx
+    PRIVATE
+        denigma_utf8
+        nlohmann_json::nlohmann_json
+        smufl_mapping
+)
+
+add_denigma_internal_library(denigma_textmetrics
+    ${CMAKE_CURRENT_LIST_DIR}/textmetrics.cpp
+)
+target_link_libraries(denigma_textmetrics
     PUBLIC
         denigma_core
         musx
+    PRIVATE
+        denigma_smufl_support
+        ${DENIGMA_TEXT_METRICS_LIBS}
+)
+target_include_directories(denigma_textmetrics PRIVATE ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS})
+target_compile_definitions(denigma_textmetrics PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
+
+add_denigma_internal_library(denigma_zip
+    ${CMAKE_CURRENT_LIST_DIR}/ziputils.cpp
+)
+target_link_libraries(denigma_zip
+    PUBLIC
+        denigma_core
+        denigma_io
         pugixml
     PRIVATE
         denigma_minizip
         ${_denigma_zlib_target}
-        nlohmann_json::nlohmann_json
-        pugixml
-        smufl_mapping
-        ${DENIGMA_TEXT_METRICS_LIBS}
 )
-target_include_directories(denigma_utils PRIVATE ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS})
-target_compile_definitions(denigma_utils PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
+
+add_library(denigma_utils INTERFACE)
+target_link_libraries(denigma_utils
+    INTERFACE
+        denigma_smufl_support
+        denigma_textmetrics
+        denigma_utf8
+        denigma_zip
+)

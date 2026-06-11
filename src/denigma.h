@@ -104,8 +104,6 @@ struct arg_string : public std::string
 };
 #endif
 
-using MusxReader = ::musx::xml::pugi::Document;
-
 using Buffer = std::vector<char>;
 using LogMsg = std::stringstream;
 

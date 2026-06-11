@@ -21,17 +21,19 @@
  */
 #include <istream>
 #include <array>
+#include <fstream>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 
 #include "smufl_support.h"
 
 #include "nlohmann/json.hpp"
-#include "ziputils.h"
 
 #include "musx/musx.h"
 #include "smufl_mapping.h"
+#include "utils/stringutils.h"
 #include "utils/utf8_iterator.h"
 
 using namespace musx::dom;

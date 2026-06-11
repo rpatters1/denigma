@@ -30,6 +30,7 @@
 #include <vector>
 
 #include "musx/musx.h"
+#include "musx_reader.h"
 #include "utils/stringutils.h"
 #include "utils/textmetrics.h"
 

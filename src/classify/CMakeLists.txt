@@ -9,7 +9,7 @@ add_denigma_internal_library(denigma_classify ${DENIGMA_CLASSIFY_SOURCES})
 target_link_libraries(denigma_classify
     PUBLIC
         musx
-        pugixml
     PRIVATE
-        denigma_utils
+        smufl_mapping
+        denigma_utf8
 )

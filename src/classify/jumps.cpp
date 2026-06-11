@@ -25,8 +25,9 @@
 #include <string>
 #include <string_view>
 
-#include "utils/smufl_support.h"
+#include "smufl_mapping.h"
 #include "utils/stringutils.h"
+#include "utils/utf8_iterator.h"
 
 namespace denigma::classify {
 
@@ -102,8 +103,18 @@ Jump classifyJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatDef
         return Jump::None;
     }
 
-    const auto glyphName = utils::smuflGlyphNameForFont(def->font, repeatText->text);
-    const auto glyphNameView = glyphName ? std::optional<std::string_view>(*glyphName) : std::nullopt;
+    std::optional<std::string_view> glyphNameView;
+    if (def->font) {
+        if (const auto codepoint = utils::utf8ToCodepoint(repeatText->text)) {
+            if (const auto* glyphName = smufl_mapping::getGlyphNameForFont(
+                    def->font->getName(),
+                    *codepoint,
+                    def->font->calcIsSMuFL(),
+                    smufl_mapping::SmuflGlyphSource::Finale)) {
+                glyphNameView = *glyphName;
+            }
+        }
+    }
     return classifyJumpTextAndGlyph(repeatText->text, glyphNameView);
 }
 

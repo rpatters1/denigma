@@ -25,6 +25,7 @@
 #include <optional>
 #include <memory>
 #include <chrono>
+#include <fstream>
 #include <regex>
 #include <stdexcept>
 #include <clocale>
@@ -89,6 +90,20 @@ static int showHelpPage(const std::string_view& programName)
     std::cout << "Relative log paths for --log are resolved from the top-level input folder." << std::endl;
 
     return 1;
+}
+
+static std::string fileToString(const std::filesystem::path& pathToRead)
+{
+    std::ifstream file;
+    file.exceptions(std::ios::failbit | std::ios::badbit);
+    file.open(pathToRead, std::ios::binary | std::ios::ate);
+
+    const std::streamsize fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::string retval(static_cast<std::size_t>(fileSize), 0);
+    file.read(retval.data(), fileSize);
+    return retval;
 }
 
 using namespace denigma;
@@ -260,7 +275,7 @@ int _MAIN(int argc, arg_char* argv[])
         }
         denigmaContext.startLogging(defaultLogPath.value_or(std::filesystem::current_path()), argc, argv);
         if (denigmaContext.mnxSchemaPath.has_value() && !denigmaContext.mnxSchema.has_value()) {
-            denigmaContext.mnxSchema = utils::fileToString(denigmaContext.mnxSchemaPath.value());
+            denigmaContext.mnxSchema = fileToString(denigmaContext.mnxSchemaPath.value());
         }
         // process files
         for (const auto& path : pathsToProcess) {

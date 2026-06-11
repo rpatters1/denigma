@@ -226,7 +226,7 @@ endif()
 # Compile definitions
 #set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
 #set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
-set(MUSX_USE_PUGIXML ON CACHE BOOL "Enable pugixml parsing classes" FORCE)
+unset(MUSX_USE_PUGIXML CACHE)
 
 # temporary for reference and debugging
 set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
@@ -432,9 +432,3 @@ if(DOXYGEN_FOUND)
 elseif(denigma_BUILD_DOCS)
     message(FATAL_ERROR "denigma_BUILD_DOCS is ON, but Doxygen was not found.")
 endif()
-
-get_target_property(defs musx INTERFACE_COMPILE_DEFINITIONS)
-message(STATUS "musx INTERFACE definitions: ${defs}")
-
-get_target_property(defs denigma INTERFACE_COMPILE_DEFINITIONS)
-message(STATUS "denigma INTERFACE definitions: ${defs}")

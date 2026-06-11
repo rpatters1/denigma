@@ -63,10 +63,12 @@ if(denigma_BUILD_TESTING)
         denigma_utils
         denigma_internal_deps
         denigma_minizip
+        pugixml
     )
 
     target_compile_definitions(denigma_tests PRIVATE
         MUSX_TEST_DATA_PATH="${musx_SOURCE_DIR}/tests/data"
+        MUSX_USE_PUGIXML
     )
 
     # Define testing-specific preprocessor macro

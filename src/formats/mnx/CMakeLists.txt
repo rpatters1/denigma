@@ -21,4 +21,6 @@ target_link_libraries(denigma_format_mnx
         musx
     PRIVATE
         denigma_format_enigmaxml
+        pugixml
 )
+target_compile_definitions(denigma_format_mnx PRIVATE MUSX_USE_PUGIXML)

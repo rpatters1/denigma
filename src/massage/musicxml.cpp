@@ -29,6 +29,7 @@
 #include <regex>
 
 #include "musx/musx.h"
+#include "musx_reader.h"
 #include "pugixml.hpp"
 
 #include "denigma.h"
