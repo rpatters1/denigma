@@ -1,6 +1,6 @@
 set(DENIGMA_FORMAT_ENIGMAXML_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/../../export/enigmaxml.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/../../export/enigmaxml_converter.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/enigmaxml.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/enigmaxml_converter.cpp
 )
 
 add_denigma_internal_library(denigma_format_enigmaxml ${DENIGMA_FORMAT_ENIGMAXML_SOURCES})

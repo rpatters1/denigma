@@ -23,8 +23,8 @@
 #include <vector>
 
 #include "denigma.h"
-#include "export/enigmaxml.h"
-#include "export/svg.h"
+#include "formats/enigmaxml/enigmaxml.h"
+#include "svg.h"
 
 namespace denigma::formats::svg {
 

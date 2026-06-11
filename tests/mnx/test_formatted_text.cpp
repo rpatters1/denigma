@@ -24,7 +24,7 @@
 
 #include "gtest/gtest.h"
 
-#include "export/mnx_formatted_text.h"
+#include "formats/mnx/mnx_formatted_text.h"
 #include "musx/musx.h"
 
 using namespace denigma::mnxexp;

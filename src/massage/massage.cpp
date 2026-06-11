@@ -29,7 +29,7 @@
 
 #include "massage/massage.h"
 #include "massage/musicxml.h"
-#include "export/enigmaxml.h"
+#include "formats/enigmaxml/enigmaxml.h"
 
 namespace denigma {
 

@@ -26,7 +26,7 @@
 
 #include "gtest/gtest.h"
 #include "denigma.h"
-#include "export/mnx_markings.h"
+#include "formats/mnx/mnx_markings.h"
 #include "test_utils.h"
 
 using namespace denigma;

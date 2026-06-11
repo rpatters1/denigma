@@ -23,8 +23,8 @@
 #include <vector>
 
 #include "denigma.h"
-#include "export/enigmaxml.h"
-#include "export/mss.h"
+#include "formats/enigmaxml/enigmaxml.h"
+#include "mss.h"
 
 namespace denigma::formats::mss {
 

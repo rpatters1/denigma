@@ -36,7 +36,7 @@
 #include "denigma/formats/mnx.h"
 #include "denigma/formats/svg.h"
 #include "export/export.h"
-#include "export/enigmaxml.h"
+#include "formats/enigmaxml/enigmaxml.h"
 
 namespace denigma {
 

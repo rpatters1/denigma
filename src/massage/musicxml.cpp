@@ -34,7 +34,7 @@
 #include "denigma.h"
 #include "massage/massage.h"
 #include "massage/musicxml.h"
-#include "export/enigmaxml.h"
+#include "formats/enigmaxml/enigmaxml.h"
 #include "utils/ziputils.h"
 
 constexpr double EDU_PER_QUARTER = 1024.0;

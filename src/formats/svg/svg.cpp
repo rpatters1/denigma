@@ -19,7 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "export/svg.h"
+#include "svg.h"
 
 #include <cstddef>
 #include <cstring>

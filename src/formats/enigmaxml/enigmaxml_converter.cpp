@@ -21,7 +21,7 @@
 #include <memory>
 
 #include "denigma.h"
-#include "export/enigmaxml.h"
+#include "enigmaxml.h"
 
 namespace denigma::formats::enigmaxml {
 

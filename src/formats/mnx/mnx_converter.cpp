@@ -26,8 +26,8 @@
 #include <vector>
 
 #include "denigma.h"
-#include "export/enigmaxml.h"
-#include "export/mnx.h"
+#include "formats/enigmaxml/enigmaxml.h"
+#include "mnx.h"
 
 namespace denigma::formats::mnx {
 
