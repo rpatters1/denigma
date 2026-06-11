@@ -20,19 +20,68 @@
  * THE SOFTWARE.
  */
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <array>
+#include <cstddef>
+#include <span>
+#include <stdexcept>
 #include <unordered_map>
 #include <optional>
 
+#include "denigma/formats/mnx.h"
 #include "export/export.h"
 #include "export/enigmaxml.h"
 #include "export/mss.h"
-#include "export/mnx.h"
 #include "export/svg.h"
 
 namespace denigma {
+
+namespace {
+
+ConversionOptions makeMnxConversionOptions(const DenigmaContext& denigmaContext)
+{
+    ConversionOptions options;
+    options.sourceName = denigmaContext.inputFilePath.string();
+    options.validate = !denigmaContext.noValidate;
+    options.indentSpaces = denigmaContext.indentSpaces;
+    options.cueLayer = denigmaContext.cueLayer;
+    options.mnxSchema = denigmaContext.mnxSchema;
+    options.mnxIncludeTempoTool = denigmaContext.includeTempoTool;
+    options.mnxSplitInstruments = denigmaContext.mnxSplitInstruments;
+    return options;
+}
+
+void exportMnxJsonWithAdapter(const std::filesystem::path& outputPath,
+                              const CommandInputData& inputData,
+                              const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
+        return;
+    }
+#endif
+    if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
+
+    ConverterRegistry registry;
+    formats::mnx::registerConverters(registry);
+    const auto* converter = registry.find(FormatId::EnigmaXml, FormatId::MnxJson);
+    if (!converter) {
+        throw std::logic_error("MNX JSON converter is not registered.");
+    }
+
+    std::ofstream output;
+    output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+    output.open(outputPath, std::ios::out | std::ios::binary);
+
+    const auto input = std::as_bytes(std::span(inputData.primaryBuffer.data(), inputData.primaryBuffer.size()));
+    converter->convert(input, output, makeMnxConversionOptions(denigmaContext));
+    output.close();
+}
+
+} // namespace
 
 // Input format processors
 constexpr auto inputProcessors = []() {
@@ -61,8 +110,8 @@ constexpr auto outputProcessors = []() {
             { ENIGMAXML_EXTENSION, enigmaxml::write },
             { MSS_EXTENSION, mss::convert },
             { SVG_EXTENSION, svgexp::convert },
-            { MNX_EXTENSION, mnxexp::exportMnx },
-            { JSON_EXTENSION, mnxexp::exportJson },
+            { MNX_EXTENSION, exportMnxJsonWithAdapter },
+            { JSON_EXTENSION, exportMnxJsonWithAdapter },
         });
     }();
 

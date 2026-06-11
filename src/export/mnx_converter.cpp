@@ -31,6 +31,25 @@
 
 namespace denigma::formats::mnx {
 
+namespace {
+
+DenigmaContext makeMnxContext(const ConversionOptions& options, const std::filesystem::path& defaultSourceName)
+{
+    DenigmaContext context("denigma");
+    context.inputFilePath = options.sourceName.empty()
+        ? defaultSourceName
+        : std::filesystem::path(options.sourceName);
+    context.noValidate = !options.validate;
+    context.indentSpaces = options.indentSpaces;
+    context.cueLayer = options.cueLayer;
+    context.mnxSchema = options.mnxSchema;
+    context.includeTempoTool = options.mnxIncludeTempoTool;
+    context.mnxSplitInstruments = options.mnxSplitInstruments;
+    return context;
+}
+
+} // namespace
+
 ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte> input,
                                                       std::ostream& output,
                                                       const ConversionOptions& options) const
@@ -41,12 +60,7 @@ ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte>
         buffer.push_back(static_cast<char>(value));
     }
 
-    DenigmaContext context("denigma");
-    context.inputFilePath = options.sourceName.empty()
-        ? std::filesystem::path("input.enigmaxml")
-        : std::filesystem::path(options.sourceName);
-    context.noValidate = !options.validate;
-    context.indentSpaces = options.indentSpaces;
+    auto context = makeMnxContext(options, "input.enigmaxml");
 
     mnxexp::exportJson(output, CommandInputData{ std::move(buffer), std::nullopt, {} }, context);
     return {};
@@ -56,12 +70,7 @@ ConversionResult MusxToMnxJsonConverter::convert(const IRandomAccessReader& inpu
                                                  std::ostream& output,
                                                  const ConversionOptions& options) const
 {
-    DenigmaContext context("denigma");
-    context.inputFilePath = options.sourceName.empty()
-        ? std::filesystem::path("input.musx")
-        : std::filesystem::path(options.sourceName);
-    context.noValidate = !options.validate;
-    context.indentSpaces = options.indentSpaces;
+    auto context = makeMnxContext(options, "input.musx");
 
     mnxexp::exportJson(output, enigmaxml::extractInputData(input, context), context);
     return {};

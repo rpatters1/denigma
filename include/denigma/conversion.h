@@ -75,6 +75,14 @@ struct ConversionOptions
     bool validate{ true };
     /// Number of spaces used for formatted text output, or std::nullopt for compact output.
     std::optional<int> indentSpaces{ 4 };
+    /// Optional cue layer to omit when converting to formats that do not support cues.
+    std::optional<int> cueLayer;
+    /// Optional MNX JSON schema contents used for MNX validation.
+    std::optional<std::string> mnxSchema;
+    /// Include Finale Tempo Tool changes in MNX output when supported.
+    bool mnxIncludeTempoTool{ false };
+    /// Split Finale instruments into separate MNX parts when supported.
+    bool mnxSplitInstruments{ false };
     /// Optional ShapeDef identifiers for SVG conversion.
     std::vector<int> svgShapeDefs;
     /// Use Finale page-format scaling for SVG conversion when supported.
