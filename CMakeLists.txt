@@ -336,6 +336,7 @@ set(DENIGMA_FORMAT_ENIGMAXML_SOURCES
 
 set(DENIGMA_FORMAT_MNX_SOURCES
     src/export/mnx.cpp
+    src/export/mnx_converter.cpp
     src/export/mnx_enums.cpp
     src/export/mnx_formatted_text.cpp
     src/export/mnx_global.cpp
@@ -369,6 +370,7 @@ set(DENIGMA_UTILS_SOURCES
 # Define an interface library for shared include paths, dependencies, and precompiled headers.
 add_library(denigma_internal_deps INTERFACE)
 target_include_directories(denigma_internal_deps INTERFACE
+    ${CMAKE_SOURCE_DIR}/include
     ${GENERATED_DIR}
     ${CMAKE_SOURCE_DIR}/src
 )

@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <map>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -230,6 +231,7 @@ void createSequences(const MnxMusxMappingPtr& context,
 void finalizeJumpTies(const MnxMusxMappingPtr& context);
 
 void exportJson(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+void exportJson(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 void exportMnx(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
 template <typename ToEnum, typename FromEnum>

@@ -22,6 +22,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <ostream>
 #include <unordered_map>
 
 #include "mnx.h"
@@ -199,16 +200,8 @@ static void createMappings(const MnxMusxMappingPtr& context)
     }
 }
 
-void exportJson(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+static std::unique_ptr<mnx::Document> createMnxDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
-#ifdef DENIGMA_TEST
-    if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
-        return;
-    }
-#endif
-    if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
-
     DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
     if (!inputData.embeddedGraphics.empty()) {
         embeddedGraphicFiles.reserve(inputData.embeddedGraphics.size());
@@ -245,28 +238,61 @@ void exportJson(const std::filesystem::path& outputPath, const CommandInputData&
             << " cue frames because MNX does not currently support cues.");
     }
 
+    return std::move(context->mnxDocument);
+}
+
+static void validateMnxDocument(const mnx::Document& mnxDocument, const DenigmaContext& denigmaContext)
+{
     if (!denigmaContext.noValidate) {
         denigmaContext.logMessage(LogMsg() << "Validation starting.", LogSeverity::Verbose);
-        if (auto validateResult = mnx::validation::schemaValidate(*context->mnxDocument, denigmaContext.mnxSchema); !validateResult) {
+        if (auto validateResult = mnx::validation::schemaValidate(mnxDocument, denigmaContext.mnxSchema); !validateResult) {
             denigmaContext.logMessage(LogMsg() << "Schema validation errors:", LogSeverity::Warning);
             for (const auto& error : validateResult.errors) {
                 denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), LogSeverity::Warning);
             }
         } else {
             denigmaContext.logMessage(LogMsg() << "Schema validation succeeded.");
-            if (auto semanticResult = mnx::validation::semanticValidate(*context->mnxDocument); !semanticResult) {
+            if (auto semanticResult = mnx::validation::semanticValidate(mnxDocument); !semanticResult) {
                 denigmaContext.logMessage(LogMsg() << "Semantic validation errors:", LogSeverity::Warning);
                 for (const auto& error : semanticResult.errors) {
                     denigmaContext.logMessage(LogMsg() << "    " << error.to_string(4), LogSeverity::Warning);
                 }
             } else {
-                size_t layoutSize = context->mnxDocument->layouts() ? context->mnxDocument->layouts().value().size() : 0;
-                denigmaContext.logMessage(LogMsg() << "Semantic validation complete (" << context->mnxDocument->global().measures().size() << " measures, "
-                    << context->mnxDocument->parts().size() << " parts, " << layoutSize << " layouts).");
+                size_t layoutSize = mnxDocument.layouts() ? mnxDocument.layouts().value().size() : 0;
+                denigmaContext.logMessage(LogMsg() << "Semantic validation complete (" << mnxDocument.global().measures().size() << " measures, "
+                    << mnxDocument.parts().size() << " parts, " << layoutSize << " layouts).");
             }
         }
-        context->mnxDocument->save(outputPath, denigmaContext.indentSpaces.value_or(-1));
     }
+}
+
+static void writeMnxDocumentJson(std::ostream& output, const mnx::Document& mnxDocument, const DenigmaContext& denigmaContext)
+{
+    output << mnxDocument.root()->dump(denigmaContext.indentSpaces.value_or(-1));
+}
+
+void exportJson(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+{
+    auto mnxDocument = createMnxDocument(inputData, denigmaContext);
+    validateMnxDocument(*mnxDocument, denigmaContext);
+    writeMnxDocumentJson(output, *mnxDocument, denigmaContext);
+}
+
+void exportJson(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
+        return;
+    }
+#endif
+    if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
+
+    std::ofstream output;
+    output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+    output.open(outputPath, std::ios::out | std::ios::binary);
+    exportJson(output, inputData, denigmaContext);
+    output.close();
 }
 
 void exportMnx(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
