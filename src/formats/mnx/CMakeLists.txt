@@ -11,10 +11,12 @@ set(DENIGMA_FORMAT_MNX_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/mnx_sequences.cpp
 )
 
-add_denigma_internal_library(denigma_format_mnx ${DENIGMA_FORMAT_MNX_SOURCES})
+add_denigma_internal_library(denigma_mnx ${DENIGMA_FORMAT_MNX_SOURCES})
+add_library(denigma::mnx ALIAS denigma_mnx)
+add_library(denigma_format_mnx ALIAS denigma_mnx)
 # MNX needs mnxdom/json and classifiers, but it does not use text metrics.
 # Keep denigma_textmetrics out of this target unless MNX starts measuring glyphs.
-target_link_libraries(denigma_format_mnx
+target_link_libraries(denigma_mnx
     PUBLIC
         denigma_core
         denigma_classify
@@ -27,4 +29,4 @@ target_link_libraries(denigma_format_mnx
 )
 # This opt-in is local because only mnx.cpp instantiates musx::xml::pugi::Document.
 # Do not re-enable MUSX_USE_PUGIXML globally on musx.
-target_compile_definitions(denigma_format_mnx PRIVATE MUSX_USE_PUGIXML)
+target_compile_definitions(denigma_mnx PRIVATE MUSX_USE_PUGIXML)

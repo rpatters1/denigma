@@ -27,7 +27,7 @@
 
 #include "mnx_fwd.h"
 #include "utils/smufl_support.h"
-#include "classify/articulations.h"
+#include "denigma/classify/articulations.h"
 
 using namespace musx::dom;
 using namespace musx::util;

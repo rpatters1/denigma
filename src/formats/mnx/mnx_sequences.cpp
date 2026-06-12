@@ -25,7 +25,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "classify/articulations.h"
+#include "denigma/classify/articulations.h"
 #include "mnx.h"
 #include "utils/smufl_support.h"
 

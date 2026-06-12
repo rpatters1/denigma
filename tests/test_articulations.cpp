@@ -24,7 +24,7 @@
 #include <filesystem>
 #include <vector>
 
-#include "classify/articulations.h"
+#include "denigma/classify/articulations.h"
 #include "musx/musx.h"
 #include "test_utils.h"
 

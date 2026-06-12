@@ -21,7 +21,7 @@
  */
 #include "gtest/gtest.h"
 
-#include "classify/jumps.h"
+#include "denigma/classify/jumps.h"
 #include "musx/musx.h"
 
 using namespace denigma::classify;

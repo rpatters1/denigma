@@ -38,7 +38,7 @@
 #include "mnx_fwd.h"
 #include "mnx_mapping.h"
 #include "mnx_markings.h"
-#include "classify/jumps.h"
+#include "denigma/classify/jumps.h"
 
 using namespace musx::dom;
 using namespace musx::util;

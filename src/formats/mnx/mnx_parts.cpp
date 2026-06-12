@@ -27,8 +27,8 @@
 #include <unordered_set>
 
 #include "mnx.h"
-#include "classify/clefs.h"
-#include "classify/dynamics.h"
+#include "denigma/classify/clefs.h"
+#include "denigma/classify/dynamics.h"
 
 namespace denigma {
 namespace mnxexp {

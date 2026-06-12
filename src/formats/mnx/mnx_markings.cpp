@@ -23,7 +23,7 @@
 #include <string_view>
 #include <stdexcept>
 
-#include "classify/articulations.h"
+#include "denigma/classify/articulations.h"
 #include "mnx.h"
 #include "mnx_mapping.h"
 #include "utils/smufl_support.h"

@@ -19,7 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "classify/dynamics.h"
+#include "denigma/classify/dynamics.h"
 
 #include <algorithm>
 #include <cctype>

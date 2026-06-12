@@ -52,6 +52,7 @@ if(denigma_BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/src       # Source files
         ${CMAKE_CURRENT_SOURCE_DIR}   # base test directory
         ${GENERATED_DIR}              # Generated files
+        "${zlib_SOURCE_DIR}/contrib/minizip"
     )
 
     # Tests intentionally aggregate broad dependencies and may opt into pugixml
@@ -59,11 +60,9 @@ if(denigma_BUILD_TESTING)
     target_link_libraries(denigma_tests PRIVATE
         denigma_export_test
         denigma_massage_test
-        denigma_classify
         denigma_core_test
         denigma_utils
         denigma_internal_deps
-        denigma_minizip
         pugixml
     )
 

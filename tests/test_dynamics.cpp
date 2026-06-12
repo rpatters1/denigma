@@ -26,7 +26,7 @@
 
 #include "gtest/gtest.h"
 
-#include "classify/dynamics.h"
+#include "denigma/classify/dynamics.h"
 #include "musx/musx.h"
 
 using namespace denigma::classify;

@@ -25,6 +25,7 @@
 
 namespace denigma::classify {
 
+/// Jump or repeat-text classes recognized by the classifier.
 enum class Jump
 {
     None,
@@ -40,6 +41,7 @@ enum class Jump
     DsAlCoda
 };
 
+/// Classifies a Finale text repeat definition as a jump or repeat-text marker.
 Jump classifyJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatDef>& def);
 
 } // namespace denigma::classify

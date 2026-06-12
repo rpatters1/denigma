@@ -30,8 +30,10 @@
 
 namespace denigma::classify {
 
+/// Classification for a standard articulation mark.
 struct StandardArticulation
 {
+    /// Standard articulation types recognized by the classifier.
     enum class Type
     {
         Accent,
@@ -47,23 +49,30 @@ struct StandardArticulation
         Unstress
     };
 
+    /// One or more articulation types represented by the source symbol.
     std::vector<Type> types;
 };
 
+/// Classification for tremolo articulation marks.
 struct Tremolo
 {
+    /// Distinguishes measured from unmeasured tremolo marks.
     enum class Style
     {
         Measured,
         Unmeasured
     };
 
+    /// Tremolo style.
     Style style{};
+    /// Number of tremolo strokes.
     int marks{};
 };
 
+/// Classification for fermata articulation marks.
 struct Fermata
 {
+    /// Visual fermata shape.
     enum class Shape
     {
         Normal,
@@ -76,6 +85,7 @@ struct Fermata
         Curlew
     };
 
+    /// Finale playback-duration class associated with the fermata.
     enum class Duration
     {
         Auto,
@@ -85,12 +95,16 @@ struct Fermata
         VeryLong
     };
 
+    /// Visual fermata shape.
     Shape shape{};
+    /// Playback-duration class.
     Duration duration{};
 };
 
+/// Classification for breath marks and caesuras.
 struct BreathMark
 {
+    /// Breath mark or caesura type.
     enum class Type
     {
         Comma,
@@ -105,11 +119,14 @@ struct BreathMark
         CaesuraSingleStroke
     };
 
+    /// Classified breath mark type.
     Type type{};
 };
 
+/// Classification for arpeggio articulation marks.
 struct Arpeggio
 {
+    /// Arpeggio type.
     enum class Type
     {
         VerticalSegment,
@@ -118,39 +135,52 @@ struct Arpeggio
         Down
     };
 
+    /// Classified arpeggio type.
     Type type{};
 };
 
+/// Classification for Finale vertical entry bracket shapes.
 struct VerticalEntryBracket
 {
 };
 
+/// Variant payload for articulation classification.
 using ArticulationValue = std::variant<std::monostate, StandardArticulation, Tremolo, Fermata, BreathMark, Arpeggio, VerticalEntryBracket>;
 
+/// Result returned by articulation classification.
 struct ArticulationClassification
 {
+    /// Classified articulation payload, or std::monostate when no articulation was recognized.
     ArticulationValue value{};
+    /// SMuFL glyph name associated with the recognized symbol, when available.
     std::optional<std::string> glyphName;
 
+    /// Returns true when the source was recognized as an articulation.
     bool isArticulation() const noexcept
     { return !std::holds_alternative<std::monostate>(value); }
 
+    /// Returns true when the source was recognized as an articulation.
     explicit operator bool() const noexcept
     { return isArticulation(); }
 
+    /// Returns the classified payload as T, or nullptr when it has another type.
     template <typename T>
     const T* as() const noexcept
     { return std::get_if<T>(&value); }
 
+    /// Returns true when the classified payload has type T.
     template <typename T>
     bool is() const noexcept
     { return std::holds_alternative<T>(value); }
 };
 
+/// Classifies the selected symbol from an articulation assignment.
 ArticulationClassification classifyArticulation(
     const musx::dom::details::ArticulationAssign::SelectedSymbolContext& context);
+/// Classifies a Finale articulation definition.
 ArticulationClassification classifyArticulation(
     const musx::dom::MusxInstance<musx::dom::others::ArticulationDef>& def);
+/// Classifies an articulation symbol from a font and character code.
 ArticulationClassification classifyArticulationSymbol(
     const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, char32_t symbol);
 

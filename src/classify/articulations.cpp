@@ -19,7 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "classify/articulations.h"
+#include "denigma/classify/articulations.h"
 
 #include <string_view>
 #include <utility>

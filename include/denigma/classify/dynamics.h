@@ -28,6 +28,7 @@
 
 namespace denigma::classify {
 
+/// Dynamic marking classes recognized by the classifier.
 enum class Dynamic
 {
     None,
@@ -62,20 +63,28 @@ enum class Dynamic
     n
 };
 
+/// Result returned by dynamic classification.
 struct DynamicClassification
 {
+    /// Classified dynamic.
     Dynamic dynamic{};
+    /// True when the source expression includes extra non-dynamic text.
     bool hasAdditionalText{};
 
+    /// Returns true when the source was recognized as a dynamic.
     bool isDynamic() const noexcept
     { return dynamic != Dynamic::None; }
 
+    /// Returns true when the source was recognized as a dynamic.
     explicit operator bool() const noexcept
     { return isDynamic(); }
 };
 
+/// Classifies a Finale text expression definition as a dynamic marking.
 DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);
+/// Returns the canonical text spelling for a dynamic.
 std::string dynamicCanonicalText(Dynamic dynamic);
+/// Returns canonical SMuFL glyph names for a dynamic.
 std::vector<std::string> dynamicCanonicalGlyphs(Dynamic dynamic);
 
 } // namespace denigma::classify
