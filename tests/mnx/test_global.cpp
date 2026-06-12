@@ -103,7 +103,7 @@ TEST(MnxGlobal, TempoToolChanges)
 
     for (size_t x = 0; x < 4; x++)
     {
-        auto musxTempoChanges = musxDoc->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, static_cast<MeasCmper>(x) + 1);
+        auto musxTempoChanges = musxDoc->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, static_cast<Cmper>(x + 1));
         auto mnxTempoChanges = measures[x].tempos();
         ASSERT_GT(musxTempoChanges.size(), 0);
         ASSERT_TRUE(mnxTempoChanges);

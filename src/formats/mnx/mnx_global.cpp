@@ -47,7 +47,8 @@ static void assignBarline(
                     // force normal on final bar
                     mnxMeasure.ensure_barline(mnx::BarlineType::Regular);
                 } else if (!isForFinalMeasure && musxBarlineOptions->drawDoubleBarlineBeforeKeyChanges) {
-                    if (const auto& nextMeasure = musxMeasure->getDocument()->getOthers()->get<others::Measure>(SCORE_PARTID, musxMeasure->getCmper() + 1)) {
+                    if (const auto& nextMeasure = musxMeasure->getDocument()->getOthers()->get<others::Measure>(
+                            SCORE_PARTID, static_cast<Cmper>(musxMeasure->getCmper() + 1))) {
                         if (!musxMeasure->createKeySignature()->isSame(*nextMeasure->createKeySignature().get())) {
                             mnxMeasure.ensure_barline(mnx::BarlineType::Double);
                         }
