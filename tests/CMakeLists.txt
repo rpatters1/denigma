@@ -55,8 +55,8 @@ if(denigma_BUILD_TESTING)
         "${zlib_SOURCE_DIR}/contrib/minizip"
     )
 
-    # Tests intentionally aggregate broad dependencies and may opt into pugixml
-    # directly. Do not copy this dependency shape into production converter libs.
+    # Tests intentionally aggregate broad dependencies. Do not copy this
+    # dependency shape into production converter libs.
     target_link_libraries(denigma_tests PRIVATE
         denigma_export_test
         denigma_massage_test
@@ -68,7 +68,6 @@ if(denigma_BUILD_TESTING)
 
     target_compile_definitions(denigma_tests PRIVATE
         MUSX_TEST_DATA_PATH="${musx_SOURCE_DIR}/tests/data"
-        MUSX_USE_PUGIXML
     )
 
     # Define testing-specific preprocessor macro

@@ -19,22 +19,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#pragma once
 
-#ifndef MUSX_USE_PUGIXML
-#define MUSX_USE_PUGIXML
-#define DENIGMA_UNDEFINE_MUSX_USE_PUGIXML
-#endif
+// Anchor translation unit for the shared internal-library precompiled header.
+namespace denigma::detail {
 
-#include "musx/xml/PugiXmlImpl.h"
+void commonPchAnchor() {}
 
-#ifdef DENIGMA_UNDEFINE_MUSX_USE_PUGIXML
-#undef MUSX_USE_PUGIXML
-#undef DENIGMA_UNDEFINE_MUSX_USE_PUGIXML
-#endif
-
-namespace denigma {
-
-using MusxReader = ::musx::xml::pugi::Document;
-
-}
+} // namespace denigma::detail

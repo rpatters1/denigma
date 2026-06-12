@@ -15,9 +15,6 @@ target_link_libraries(denigma_massage
         pugixml
         musx
 )
-# Local opt-in for the pugi-backed musx reader used by MusicXML massage only.
-target_compile_definitions(denigma_massage PRIVATE MUSX_USE_PUGIXML)
-
 if(denigma_BUILD_TESTING)
     add_denigma_internal_test_library(denigma_massage_test ${DENIGMA_MASSAGE_SOURCES})
     target_link_libraries(denigma_massage_test
@@ -29,5 +26,4 @@ if(denigma_BUILD_TESTING)
             pugixml
             musx
     )
-    target_compile_definitions(denigma_massage_test PRIVATE MUSX_USE_PUGIXML)
 endif()

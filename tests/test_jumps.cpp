@@ -21,6 +21,7 @@
  */
 #include "gtest/gtest.h"
 
+#include "core/musx_reader.h"
 #include "denigma/classify/jumps.h"
 #include "musx/musx.h"
 
@@ -65,7 +66,7 @@ static TextRepeatContext makeTextRepeatContext(const std::string& text, const st
 </finale>)xml";
 
     std::vector<char> buffer(xml.begin(), xml.end());
-    auto document = musx::factory::DocumentFactory::create<musx::xml::pugi::Document>(buffer);
+    auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     return { document, document->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, 1) };
 }
 

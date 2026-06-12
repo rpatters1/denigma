@@ -27,6 +27,3 @@ target_link_libraries(denigma_mnx
         denigma_format_enigmaxml
         pugixml
 )
-# This opt-in is local because only mnx.cpp instantiates musx::xml::pugi::Document.
-# Do not re-enable MUSX_USE_PUGIXML globally on musx.
-target_compile_definitions(denigma_mnx PRIVATE MUSX_USE_PUGIXML)

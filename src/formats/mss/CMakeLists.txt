@@ -18,6 +18,3 @@ target_link_libraries(denigma_mss
         pugixml
         musx
 )
-# This opt-in is local because only this adapter constructs pugi-backed musx
-# documents. Do not move MUSX_USE_PUGIXML to the musx target.
-target_compile_definitions(denigma_mss PRIVATE MUSX_USE_PUGIXML)

@@ -26,6 +26,7 @@
 
 #include "gtest/gtest.h"
 #include "core/denigma.h"
+#include "core/musx_reader.h"
 #include "mnxdom.h"
 #include "test_utils.h"
 #include "musx/musx.h"
@@ -93,7 +94,7 @@ TEST(MnxGlobal, TempoToolChanges)
 
     std::vector<char> xmlBuf;
     readFile(inputPath.parent_path() / "tempo_changes.enigmaxml", xmlBuf);
-    auto musxDoc = musx::factory::DocumentFactory::create<musx::xml::pugi::Document>(xmlBuf);
+    auto musxDoc = musx::factory::DocumentFactory::create<MusxReader>(xmlBuf);
     ASSERT_TRUE(musxDoc);
 
     auto mnxDoc = mnx::Document::create(inputPath.parent_path() / "tempo_changes.mnx");

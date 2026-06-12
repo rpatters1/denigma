@@ -232,14 +232,6 @@ else()
     message(STATUS "Using GitHub for MUSX C++ DOM (${MUSXDOM_GIT_TAG_OR_BRANCH})")
 endif()
 
-# Compile definitions
-#set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
-#set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
-# Do not enable MUSX_USE_PUGIXML globally on musx. That would make musx export
-# pugixml to every consumer. The few targets that instantiate the pugi-backed
-# musx reader opt in with target-local compile definitions instead.
-unset(MUSX_USE_PUGIXML CACHE)
-
 # temporary for reference and debugging
 set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
 #set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Enable throwing on unknown XML" FORCE)
@@ -340,31 +332,44 @@ target_include_directories(denigma_internal_deps INTERFACE
     ${PROJECT_SOURCE_DIR}/src
 )
 
-# Define an interface library for precompiled headers.
-add_library(denigma_pch INTERFACE)
-target_precompile_headers(denigma_pch INTERFACE
+# Define a concrete precompiled-header host. CMake propagates INTERFACE PCH
+# settings as a header list, which makes every consumer build its own PCH. The
+# internal libraries below reuse this target's compiled PCH where their compile
+# definitions stay compatible with it.
+add_library(denigma_common_pch STATIC
+    ${PROJECT_SOURCE_DIR}/src/common_pch.cpp
+)
+target_link_libraries(denigma_common_pch PRIVATE denigma_conversion)
+target_include_directories(denigma_common_pch PRIVATE
+    ${GENERATED_DIR}
+    ${PROJECT_SOURCE_DIR}/src
+)
+target_precompile_headers(denigma_common_pch PRIVATE
     <algorithm>
     <functional>
     <string>
     <memory>
 )
-target_link_libraries(denigma_internal_deps INTERFACE denigma_pch)
 
 # Internal library targets are still intended to become externally consumable
 # conversion libraries. Keep dependencies on each target precise; avoid using
 # this helper as a reason to hide broad dependency aggregates in every library.
 function(add_denigma_internal_library target_name)
-    add_library(${target_name} STATIC ${ARGN})
+    cmake_parse_arguments(DENIGMA_INTERNAL_LIBRARY "NO_COMMON_PCH" "" "" ${ARGN})
+    add_library(${target_name} STATIC ${DENIGMA_INTERNAL_LIBRARY_UNPARSED_ARGUMENTS})
     target_link_libraries(${target_name}
         PUBLIC
             denigma_conversion
         PRIVATE
             denigma_internal_deps
     )
+    if(NOT DENIGMA_INTERNAL_LIBRARY_NO_COMMON_PCH)
+        target_precompile_headers(${target_name} REUSE_FROM denigma_common_pch)
+    endif()
 endfunction()
 
 function(add_denigma_internal_test_library target_name)
-    add_denigma_internal_library(${target_name} ${ARGN})
+    add_denigma_internal_library(${target_name} NO_COMMON_PCH ${ARGN})
     target_compile_definitions(${target_name} PRIVATE DENIGMA_TEST)
 endfunction()
 
