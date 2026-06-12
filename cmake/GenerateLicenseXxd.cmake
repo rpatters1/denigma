@@ -12,7 +12,7 @@ if(DEFINED freetype_SOURCE_DIR AND EXISTS "${freetype_SOURCE_DIR}")
 endif()
 
 set(LICENSE_FILES
-    "${CMAKE_SOURCE_DIR}/LICENSE"
+    "${PROJECT_SOURCE_DIR}/LICENSE"
     "${musx_SOURCE_DIR}/LICENSE"
     "${mnxdom_SOURCE_DIR}/LICENSE"
     "${smufl_mapping_SOURCE_DIR}/LICENSE"

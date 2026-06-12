@@ -5,11 +5,20 @@ cmake_minimum_required(VERSION 3.22)
 project(denigma VERSION 3.1.0)
 
 # Specify C++ standard and minimum macOS version
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(DENIGMA_CXX_STANDARD "23" CACHE STRING "C++ standard used to build Denigma; must be at least 20")
+set_property(CACHE DENIGMA_CXX_STANDARD PROPERTY STRINGS 20 23 26)
+if(NOT DENIGMA_CXX_STANDARD MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "DENIGMA_CXX_STANDARD must be numeric")
+endif()
+if(DENIGMA_CXX_STANDARD LESS 20)
+    message(FATAL_ERROR "DENIGMA_CXX_STANDARD must be at least 20")
+endif()
+set(CMAKE_CXX_STANDARD ${DENIGMA_CXX_STANDARD})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Prevent in-source builds
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
     message(FATAL_ERROR "In-source builds are not allowed. Please use a separate directory for building.\n"
                         "For example:\n"
                         "  cmake -S . -B build\n"
@@ -24,12 +33,12 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
 endif()
 
-message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "C++ Standard: ${DENIGMA_CXX_STANDARD}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Configution Types: ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "Generator: ${CMAKE_GENERATOR}")
@@ -76,10 +85,10 @@ include(FetchContent)
 set(BUILD_SHARED_LIBS OFF)
 
 # Define output directory for executables
-set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/build")
+set(OUTPUT_DIR "${PROJECT_BINARY_DIR}/build")
 
 #define other directories
-set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
+set(GENERATED_DIR "${PROJECT_BINARY_DIR}/generated")
 set(SMUFL_METADATA_DIR "${CMAKE_CURRENT_LIST_DIR}/smufl")
 
 # Set output directory for compiled executable
@@ -211,7 +220,7 @@ set(MUSX_LOCAL_PATH "" CACHE STRING "Path to local Musx C++ DOM checkout relativ
 
 if(MUSX_LOCAL_PATH)
     # Combine the source directory with the relative path to get an absolute path.
-    get_filename_component(MUSX_LOCAL_PATH_ABS "${CMAKE_SOURCE_DIR}/${MUSX_LOCAL_PATH}" ABSOLUTE)
+    get_filename_component(MUSX_LOCAL_PATH_ABS "${PROJECT_SOURCE_DIR}/${MUSX_LOCAL_PATH}" ABSOLUTE)
     if(EXISTS "${MUSX_LOCAL_PATH_ABS}/CMakeLists.txt")
         message(STATUS "Local Musx C++ DOM found at ${MUSX_LOCAL_PATH_ABS}")
         # Set the FetchContent source directory to the computed absolute path.
@@ -255,7 +264,7 @@ set(MNXDOM_LOCAL_PATH "" CACHE STRING "Path to local MNX C++ DOM checkout relati
 
 if(MNXDOM_LOCAL_PATH)
     # Combine the source directory with the relative path to get an absolute path.
-    get_filename_component(MNXDOM_LOCAL_PATH_ABS "${CMAKE_SOURCE_DIR}/${MNXDOM_LOCAL_PATH}" ABSOLUTE)
+    get_filename_component(MNXDOM_LOCAL_PATH_ABS "${PROJECT_SOURCE_DIR}/${MNXDOM_LOCAL_PATH}" ABSOLUTE)
     if(EXISTS "${MNXDOM_LOCAL_PATH_ABS}/CMakeLists.txt")
         message(STATUS "Local MNX C++ DOM found at ${MNXDOM_LOCAL_PATH_ABS}")
         # Set the FetchContent source directory to the computed absolute path.
@@ -285,7 +294,7 @@ set(SMUFL_MAPPING_LOCAL_PATH "" CACHE STRING "Path to local Smufl Mapping Librar
 
 if(SMUFL_MAPPING_LOCAL_PATH)
     # Combine the source directory with the relative path to get an absolute path.
-    get_filename_component(SMUFL_MAPPING_LOCAL_PATH_ABS "${CMAKE_SOURCE_DIR}/${SMUFL_MAPPING_LOCAL_PATH}" ABSOLUTE)
+    get_filename_component(SMUFL_MAPPING_LOCAL_PATH_ABS "${PROJECT_SOURCE_DIR}/${SMUFL_MAPPING_LOCAL_PATH}" ABSOLUTE)
     if(EXISTS "${SMUFL_MAPPING_LOCAL_PATH_ABS}/CMakeLists.txt")
         message(STATUS "Local Smufl Mapping Library found at ${SMUFL_MAPPING_LOCAL_PATH_ABS}")
         # Set the FetchContent source directory to the computed absolute path.
@@ -315,20 +324,20 @@ add_custom_target(PrintConfig ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Active build configuration: $<CONFIG>"
 )
 
-include("${CMAKE_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
+include("${PROJECT_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
 
 add_library(denigma_conversion INTERFACE)
 add_library(denigma::conversion ALIAS denigma_conversion)
 target_include_directories(denigma_conversion INTERFACE
-    ${CMAKE_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/include
 )
-target_compile_features(denigma_conversion INTERFACE cxx_std_23)
+target_compile_features(denigma_conversion INTERFACE cxx_std_20)
 
 # Define an interface library for internal include paths and precompiled headers.
 add_library(denigma_internal_deps INTERFACE)
 target_include_directories(denigma_internal_deps INTERFACE
     ${GENERATED_DIR}
-    ${CMAKE_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/src
 )
 
 # Define an interface library for precompiled headers.
@@ -372,7 +381,7 @@ add_executable(denigma
 # For the denigma target specifically
 if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
     set_target_properties(denigma PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/${CMAKE_BUILD_TYPE}
+        RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/build/${CMAKE_BUILD_TYPE}
     )
 endif()
 
@@ -418,8 +427,8 @@ find_package(Doxygen QUIET)
 
 if(DOXYGEN_FOUND)
     configure_file(
-        ${CMAKE_SOURCE_DIR}/docs/Doxyfile.in
-        ${CMAKE_BINARY_DIR}/Doxyfile
+        ${PROJECT_SOURCE_DIR}/docs/Doxyfile.in
+        ${PROJECT_BINARY_DIR}/Doxyfile
         @ONLY
     )
 
@@ -429,9 +438,9 @@ if(DOXYGEN_FOUND)
     endif()
 
     add_custom_target(denigma_docs ${_denigma_docs_all}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/docs/api
-        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/docs/api
+        COMMAND ${DOXYGEN_EXECUTABLE} ${PROJECT_BINARY_DIR}/Doxyfile
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
         COMMENT "Generating Denigma public API documentation"
         VERBATIM
     )
