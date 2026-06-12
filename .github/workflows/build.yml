@@ -64,17 +64,6 @@ jobs:
       - name: Configure with CMake
         run: cmake -G "${{ matrix.generator }}" -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Show bad Ninja line
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          $lines = Get-Content build/build.ninja
-          $start = [Math]::Max(0, 230 - 5)
-          $end = [Math]::Min($lines.Length - 1, 230 + 5)
-          for ($i = $start; $i -le $end; $i++) {
-            "{0}: {1}" -f ($i + 1), $lines[$i]
-          }
-
       - name: Build
         run: cmake --build build --parallel 2
         
