@@ -52,6 +52,7 @@ if(denigma_BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/src       # Source files
         ${CMAKE_CURRENT_SOURCE_DIR}   # base test directory
         ${GENERATED_DIR}              # Generated files
+        "${zlib_SOURCE_DIR}"          # zlib.h included by minizip headers
         "${zlib_SOURCE_DIR}/contrib/minizip"
     )
 
