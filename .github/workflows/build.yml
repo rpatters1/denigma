@@ -65,7 +65,7 @@ jobs:
         run: cmake -G "${{ matrix.generator }}" -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --parallel 2
+        run: cmake --build build
         
       # Run Tests
       - name: Run Tests

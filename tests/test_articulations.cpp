@@ -141,7 +141,7 @@ TEST(ArticulationClassification, ClassifiesVerticalEntryBracketShapes)
 
     auto sourceEntry = musx::dom::EntryInfoPtr::fromEntryNumber(document, SCORE_PARTID, 131);
     ASSERT_TRUE(sourceEntry);
-    auto assign = document->getDetails()->get<details::ArticulationAssign>(SCORE_PARTID, 131, 0);
+    auto assign = document->getDetails()->get<details::ArticulationAssign>(SCORE_PARTID, 131, Inci{0});
     ASSERT_TRUE(assign);
     const auto symbolContext = assign->calcSelectedSymbolContext(sourceEntry);
     ASSERT_TRUE(symbolContext);
