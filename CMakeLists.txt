@@ -147,7 +147,10 @@ if(WIN32)
 endif()
 
 add_library(denigma_minizip STATIC ${_denigma_minizip_sources})
-target_include_directories(denigma_minizip PUBLIC "${zlib_SOURCE_DIR}/contrib/minizip")
+target_include_directories(denigma_minizip PUBLIC
+    "${zlib_SOURCE_DIR}"
+    "${zlib_SOURCE_DIR}/contrib/minizip"
+)
 target_link_libraries(denigma_minizip PUBLIC ${_denigma_zlib_target})
 
 include(cmake/Dependencies.cmake) # GitHub branches/tags for MNX and MUSX
