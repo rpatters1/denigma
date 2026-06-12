@@ -25,6 +25,7 @@
 #include "core/denigma.h"
 #include "formats/enigmaxml/enigmaxml.h"
 #include "svg.h"
+#include "utils/stringutils.h"
 
 namespace denigma::formats::svg {
 
@@ -78,7 +79,7 @@ ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> inp
     DenigmaContext context("denigma");
     context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.enigmaxml")
-        : std::filesystem::path(options.common.sourceName);
+        : utils::utf8ToPath(options.common.sourceName);
     applySvgOptions(context, options);
 
     svgexp::convert(CommandInputData{ std::move(buffer), std::nullopt, {} }, context, outputCallback);
@@ -99,7 +100,7 @@ ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
     DenigmaContext context("denigma");
     context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.musx")
-        : std::filesystem::path(options.common.sourceName);
+        : utils::utf8ToPath(options.common.sourceName);
     applySvgOptions(context, options);
 
     svgexp::convert(enigmaxml::extractMusxInputData(input, context), context, outputCallback);

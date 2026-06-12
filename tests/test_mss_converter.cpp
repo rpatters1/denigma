@@ -35,7 +35,7 @@ TEST(ConverterApi, EnigmaXmlToMssXmlWritesToStream)
     setupTestDataPaths();
 
     std::vector<char> input;
-    readFile(getInputPath() / "reference" / "notAscii-其れ.enigmaxml", input);
+    readFile(getInputPath() / "reference" / utils::utf8ToPath("notAscii-其れ.enigmaxml"), input);
 
     denigma::ConverterRegistry registry;
     denigma::formats::mss::registerConverters(registry);
@@ -72,7 +72,7 @@ TEST(ConverterApi, MusxToMssXmlWritesToStream)
     const auto* converter = registry.findReader(denigma::FormatId::Musx, denigma::FormatId::MssXml);
     ASSERT_NE(converter, nullptr);
 
-    denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
+    denigma::FileRandomAccessReader input(getInputPath() / utils::utf8ToPath("notAscii-其れ.musx"));
     std::ostringstream output;
     denigma::formats::mss::Options options;
     options.common.sourceName = "notAscii-其れ.musx";
@@ -108,7 +108,7 @@ TEST(ConverterApi, MusxToMssXmlInvokesOutputCallbackForParts)
     };
 
     std::vector<Output> outputs;
-    denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
+    denigma::FileRandomAccessReader input(getInputPath() / utils::utf8ToPath("notAscii-其れ.musx"));
     denigma::formats::mss::Options options;
     options.common.sourceName = "notAscii-其れ.musx";
     options.allPartsAndScore = true;

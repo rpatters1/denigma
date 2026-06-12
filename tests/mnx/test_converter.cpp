@@ -36,7 +36,7 @@ TEST(ConverterApi, EnigmaXmlToMnxJsonWritesToStream)
     setupTestDataPaths();
 
     std::vector<char> input;
-    readFile(getInputPath() / "reference" / "notAscii-其れ.enigmaxml", input);
+    readFile(getInputPath() / "reference" / utils::utf8ToPath("notAscii-其れ.enigmaxml"), input);
 
     denigma::ConverterRegistry registry;
     denigma::formats::mnx::registerConverters(registry);
@@ -71,7 +71,7 @@ TEST(ConverterApi, MusxToMnxJsonWritesToStream)
     const auto* converter = registry.findReader(denigma::FormatId::Musx, denigma::FormatId::MnxJson);
     ASSERT_NE(converter, nullptr);
 
-    denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
+    denigma::FileRandomAccessReader input(getInputPath() / utils::utf8ToPath("notAscii-其れ.musx"));
     std::ostringstream output;
     denigma::formats::mnx::Options options;
     options.common.sourceName = "notAscii-其れ.musx";

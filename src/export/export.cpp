@@ -37,6 +37,7 @@
 #include "denigma/formats/svg.h"
 #include "export/export.h"
 #include "formats/enigmaxml/enigmaxml.h"
+#include "utils/stringutils.h"
 
 namespace denigma {
 
@@ -45,7 +46,7 @@ namespace {
 CommonOptions makeCommonOptions(const DenigmaContext& denigmaContext)
 {
     CommonOptions options;
-    options.sourceName = denigmaContext.inputFilePath.string();
+    options.sourceName = utils::pathToString(denigmaContext.inputFilePath);
     options.validate = !denigmaContext.noValidate;
     return options;
 }

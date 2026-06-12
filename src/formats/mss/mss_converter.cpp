@@ -25,6 +25,7 @@
 #include "core/denigma.h"
 #include "formats/enigmaxml/enigmaxml.h"
 #include "mss.h"
+#include "utils/stringutils.h"
 
 namespace denigma::formats::mss {
 
@@ -35,7 +36,7 @@ DenigmaContext makeMssContext(const Options& options, const std::filesystem::pat
     DenigmaContext context("denigma");
     context.inputFilePath = options.common.sourceName.empty()
         ? defaultSourceName
-        : std::filesystem::path(options.common.sourceName);
+        : utils::utf8ToPath(options.common.sourceName);
     context.noValidate = !options.common.validate;
     context.allPartsAndScore = options.allPartsAndScore;
     context.partName = options.partName;

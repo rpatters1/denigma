@@ -51,7 +51,7 @@ TEST(ConverterApi, ConcreteConverterAcceptsTypedOptions)
     setupTestDataPaths();
 
     std::vector<char> input;
-    readFile(getInputPath() / "reference" / "notAscii-其れ.enigmaxml", input);
+    readFile(getInputPath() / "reference" / utils::utf8ToPath("notAscii-其れ.enigmaxml"), input);
 
     denigma::formats::mnx::EnigmaXmlToMnxJsonConverter converter;
     denigma::formats::mnx::Options options;

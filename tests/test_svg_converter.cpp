@@ -33,7 +33,7 @@ TEST(ConverterApi, EnigmaXmlToSvgInvokesOutputCallback)
     setupTestDataPaths();
 
     std::vector<char> input;
-    readFile(getInputPath() / "reference" / "notAscii-其れ.enigmaxml", input);
+    readFile(getInputPath() / "reference" / utils::utf8ToPath("notAscii-其れ.enigmaxml"), input);
 
     denigma::ConverterRegistry registry;
     denigma::formats::svg::registerConverters(registry);
@@ -70,7 +70,7 @@ TEST(ConverterApi, MusxToSvgInvokesOutputCallback)
     const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::Svg);
     ASSERT_NE(converter, nullptr);
 
-    denigma::FileRandomAccessReader input(getInputPath() / "notAscii-其れ.musx");
+    denigma::FileRandomAccessReader input(getInputPath() / utils::utf8ToPath("notAscii-其れ.musx"));
     denigma::formats::svg::Options options;
     options.common.sourceName = "notAscii-其れ.musx";
     options.shapeDefs = { 3 };

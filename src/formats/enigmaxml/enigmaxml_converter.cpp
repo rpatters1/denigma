@@ -22,6 +22,7 @@
 
 #include "core/denigma.h"
 #include "enigmaxml.h"
+#include "utils/stringutils.h"
 
 namespace denigma::formats::enigmaxml {
 
@@ -32,7 +33,7 @@ ConversionResult MusxToEnigmaXmlConverter::convert(const IRandomAccessReader& in
     DenigmaContext context("denigma");
     context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.musx")
-        : std::filesystem::path(options.common.sourceName);
+        : utils::utf8ToPath(options.common.sourceName);
     context.noValidate = !options.common.validate;
 
     const Buffer buffer = denigma::enigmaxml::extractMusxInputData(input, context).primaryBuffer;
