@@ -1,5 +1,9 @@
 name: Build and Test Denigma
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
@@ -31,6 +35,10 @@ jobs:
           submodules: true  # Clone submodules recursively
           fetch-depth: 0    # Ensure full history for submodules
 
+      - name: Set up MSVC
+        if: matrix.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
+
       # Display Preinstalled Tools
       - name: Display preinstalled tools
         run: |
@@ -49,7 +57,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           ninja --version && echo "Ninja already installed" || choco install ninja -y
-          
+
       - name: Verify Ninja Installation
         run: ninja --version || echo "Ninja is not available on this platform"
 
