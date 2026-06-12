@@ -1,3 +1,6 @@
+# The dependencies of each util library are deliberately kept as light as possible.
+# Be wary of adding more dependencies, as they bubble up the dependency chain.
+
 add_denigma_internal_library(denigma_utf8
     ${CMAKE_CURRENT_LIST_DIR}/utf8_iterator.cpp
 )
