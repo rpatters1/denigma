@@ -66,6 +66,7 @@ if(MSVC)
     add_compile_options(/Zc:__cplusplus) # force MSVC to report correct c++ version
     add_compile_options(/DNOMINMAX) # do not use min and max macros from Win32
     add_compile_options(/bigobj) # stoopid Microsoft can't handle industrial size without holding its hand
+    add_compile_options(/Zc:preprocessor) # so stoopid we have to do this in 2026
 endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
