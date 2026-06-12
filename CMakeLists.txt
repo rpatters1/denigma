@@ -149,6 +149,7 @@ endif()
 add_library(denigma_minizip STATIC ${_denigma_minizip_sources})
 target_include_directories(denigma_minizip PUBLIC
     "${zlib_SOURCE_DIR}"
+    "${zlib_BINARY_DIR}"
     "${zlib_SOURCE_DIR}/contrib/minizip"
 )
 target_link_libraries(denigma_minizip PUBLIC ${_denigma_zlib_target})

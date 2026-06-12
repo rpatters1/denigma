@@ -57,6 +57,7 @@ if(denigma_BUILD_TESTING)
         ${CMAKE_CURRENT_SOURCE_DIR}   # base test directory
         ${GENERATED_DIR}              # Generated files
         "${zlib_SOURCE_DIR}"          # zlib.h included by minizip headers
+        "${zlib_BINARY_DIR}"          # generated zconf.h included by zlib.h
         "${zlib_SOURCE_DIR}/contrib/minizip"
     )
 
@@ -87,6 +88,7 @@ if(denigma_BUILD_TESTING)
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${GENERATED_DIR}
         "${zlib_SOURCE_DIR}"
+        "${zlib_BINARY_DIR}"
         "${zlib_SOURCE_DIR}/contrib/minizip"
     )
     target_link_libraries(denigma_tests_pch PRIVATE
