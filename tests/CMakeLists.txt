@@ -8,11 +8,11 @@ if(denigma_BUILD_TESTING)
         if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
             # Extra warnings for Clang/AppleClang
             target_compile_options(${target_name} PRIVATE -Wno-c++20-extensions -Wall -Wextra -Werror -Wpedantic)
-        elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-            # Extra warnings for MSVC
-            target_compile_options(${target_name} PRIVATE /W4 /WX)
-        endif()
-    endfunction()
+    elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        # Extra warnings for MSVC
+        target_compile_options(${target_name} PRIVATE /W4 /WX)
+    endif()
+endfunction()
 
     # Add an executable for the test suite
     add_executable(denigma_tests
