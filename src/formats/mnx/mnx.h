@@ -30,8 +30,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "denigma.h"
-#include "finale_options.h"
+#include "core/denigma.h"
+#include "core/finale_options.h"
 #include "musx/musx.h"
 #include "mnxdom.h"
 

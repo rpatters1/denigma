@@ -3,6 +3,9 @@ set(DENIGMA_EXPORT_COMMAND_SOURCES
 )
 
 add_denigma_internal_library(denigma_export ${DENIGMA_EXPORT_COMMAND_SOURCES})
+# Export is a CLI orchestration layer and intentionally aggregates all format
+# libraries. External projects that need one converter should link that converter
+# directly instead of linking denigma_export.
 target_link_libraries(denigma_export PUBLIC
     denigma_core
     denigma_format_enigmaxml

@@ -24,7 +24,7 @@
 #include <filesystem>
 
 #include "denigma/conversion.h"
-#include "denigma.h"
+#include "core/denigma.h"
 
 namespace denigma {
 namespace svgexp {

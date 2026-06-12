@@ -26,7 +26,7 @@
 #include <unordered_map>
 
 #include "mnx.h"
-#include "musx_reader.h"
+#include "core/musx_reader.h"
 
 using namespace musx::dom;
 using namespace musx::factory;

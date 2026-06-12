@@ -4,6 +4,8 @@ set(DENIGMA_MASSAGE_SOURCES
 )
 
 add_denigma_internal_library(denigma_massage ${DENIGMA_MASSAGE_SOURCES})
+# Massage is CLI-only for now. It may carry broader dependencies than converter
+# libraries, but keep those dependencies from leaking into core or format libs.
 target_link_libraries(denigma_massage
     PUBLIC
         denigma_core
@@ -13,6 +15,7 @@ target_link_libraries(denigma_massage
         pugixml
         musx
 )
+# Local opt-in for the pugi-backed musx reader used by MusicXML massage only.
 target_compile_definitions(denigma_massage PRIVATE MUSX_USE_PUGIXML)
 
 if(denigma_BUILD_TESTING)

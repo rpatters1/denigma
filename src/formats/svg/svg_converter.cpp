@@ -22,7 +22,7 @@
 #include <memory>
 #include <vector>
 
-#include "denigma.h"
+#include "core/denigma.h"
 #include "formats/enigmaxml/enigmaxml.h"
 #include "svg.h"
 

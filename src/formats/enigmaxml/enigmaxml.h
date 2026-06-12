@@ -26,7 +26,7 @@
 #include <optional>
 
 #include "denigma/io/random_access_reader.h"
-#include "denigma.h"
+#include "core/denigma.h"
 
 namespace denigma {
 namespace enigmaxml {

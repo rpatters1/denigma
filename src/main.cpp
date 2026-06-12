@@ -32,7 +32,7 @@
 
 #include "musx/musx.h"
 
-#include "denigma.h"
+#include "core/denigma.h"
 #include "export/export.h"
 #include "massage/massage.h"
 #include "utils/stringutils.h"

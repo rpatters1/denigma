@@ -20,6 +20,9 @@ target_link_libraries(denigma_smufl_support
 add_denigma_internal_library(denigma_textmetrics
     ${CMAKE_CURRENT_LIST_DIR}/textmetrics.cpp
 )
+# Text metrics brings platform/font resolver dependencies. Link it directly from
+# converters that measure text, such as SVG and MSS; do not add it to
+# denigma_utils or MNX/EnigmaXML will inherit the whole font stack.
 target_link_libraries(denigma_textmetrics
     PUBLIC
         denigma_core
@@ -34,6 +37,8 @@ target_compile_definitions(denigma_textmetrics PRIVATE ${DENIGMA_TEXT_METRICS_DE
 add_denigma_internal_library(denigma_zip
     ${CMAKE_CURRENT_LIST_DIR}/ziputils.cpp
 )
+# Zip support depends on minizip/zlib and pugixml for container metadata. Keep
+# it separate so pure XML/string converters do not pull archive support.
 target_link_libraries(denigma_zip
     PUBLIC
         denigma_core
@@ -45,10 +50,12 @@ target_link_libraries(denigma_zip
 )
 
 add_library(denigma_utils INTERFACE)
+# This is a compatibility aggregate for existing internal code. Treat additions
+# here as high risk: anything linked here follows every converter that uses
+# denigma_utils. Prefer linking the narrow util library at the call site.
 target_link_libraries(denigma_utils
     INTERFACE
         denigma_smufl_support
-        denigma_textmetrics
         denigma_utf8
         denigma_zip
 )

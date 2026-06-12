@@ -12,6 +12,8 @@ set(DENIGMA_FORMAT_MNX_SOURCES
 )
 
 add_denigma_internal_library(denigma_format_mnx ${DENIGMA_FORMAT_MNX_SOURCES})
+# MNX needs mnxdom/json and classifiers, but it does not use text metrics.
+# Keep denigma_textmetrics out of this target unless MNX starts measuring glyphs.
 target_link_libraries(denigma_format_mnx
     PUBLIC
         denigma_core
@@ -23,4 +25,6 @@ target_link_libraries(denigma_format_mnx
         denigma_format_enigmaxml
         pugixml
 )
+# This opt-in is local because only mnx.cpp instantiates musx::xml::pugi::Document.
+# Do not re-enable MUSX_USE_PUGIXML globally on musx.
 target_compile_definitions(denigma_format_mnx PRIVATE MUSX_USE_PUGIXML)

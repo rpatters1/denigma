@@ -27,7 +27,7 @@
 
 #include "nlohmann/json.hpp"
 
-#include "denigma.h"
+#include "core/denigma.h"
 
 class ArgList {
 public:

@@ -25,7 +25,7 @@
 #include <fstream>
 
 #include "gtest/gtest.h"
-#include "denigma.h"
+#include "core/denigma.h"
 #include "mnxdom.h"
 #include "test_utils.h"
 #include "musx/musx.h"

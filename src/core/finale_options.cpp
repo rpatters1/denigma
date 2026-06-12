@@ -19,7 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "finale_options.h"
+#include "core/finale_options.h"
 
 #include <stdexcept>
 #include <string>

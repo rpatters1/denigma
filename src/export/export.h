@@ -21,7 +21,7 @@
  */
 #pragma once
 
-#include "denigma.h"
+#include "core/denigma.h"
 
 namespace denigma {
 

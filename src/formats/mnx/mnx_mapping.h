@@ -24,7 +24,7 @@
 #include <filesystem>
 #include <optional>
 
-#include "denigma.h"
+#include "core/denigma.h"
 #include "musx/musx.h"
 #include "mnxdom.h"
 

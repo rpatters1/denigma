@@ -54,7 +54,8 @@ if(denigma_BUILD_TESTING)
         ${GENERATED_DIR}              # Generated files
     )
 
-    # Link libraries used by denigma
+    # Tests intentionally aggregate broad dependencies and may opt into pugixml
+    # directly. Do not copy this dependency shape into production converter libs.
     target_link_libraries(denigma_tests PRIVATE
         denigma_export_test
         denigma_massage_test

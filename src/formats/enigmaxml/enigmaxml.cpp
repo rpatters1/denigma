@@ -40,7 +40,7 @@
 
 #include "musx/musx.h"
 
-#include "denigma.h"
+#include "core/denigma.h"
 #include "enigmaxml.h"
 #include "utils/ziputils.h"
 #include "score_encoder/score_encoder.h"

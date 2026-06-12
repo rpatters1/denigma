@@ -4,13 +4,18 @@ set(DENIGMA_FORMAT_SVG_SOURCES
 )
 
 add_denigma_internal_library(denigma_format_svg ${DENIGMA_FORMAT_SVG_SOURCES})
+# SVG measures text and parses musx through the pugi backend. Keep textmetrics
+# and pugixml PRIVATE so non-SVG consumers do not inherit font/XML backends.
 target_link_libraries(denigma_format_svg
     PUBLIC
         denigma_core
     PRIVATE
         denigma_format_enigmaxml
+        denigma_textmetrics
         denigma_utils
         musx
         pugixml
 )
+# This opt-in is local because only this adapter constructs pugi-backed musx
+# documents. Do not move MUSX_USE_PUGIXML to the musx target.
 target_compile_definitions(denigma_format_svg PRIVATE MUSX_USE_PUGIXML)

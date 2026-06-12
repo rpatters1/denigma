@@ -226,6 +226,9 @@ endif()
 # Compile definitions
 #set(MUSX_USE_TINYXML2 ON CACHE BOOL "Disable tinyxml2 parsing classes" FORCE)
 #set(MUSX_USE_RAPIDXML ON CACHE BOOL "Enable rapidxml parsing classes" FORCE)
+# Do not enable MUSX_USE_PUGIXML globally on musx. That would make musx export
+# pugixml to every consumer. The few targets that instantiate the pugi-backed
+# musx reader opt in with target-local compile definitions instead.
 unset(MUSX_USE_PUGIXML CACHE)
 
 # temporary for reference and debugging
@@ -338,6 +341,9 @@ target_precompile_headers(denigma_pch INTERFACE
 )
 target_link_libraries(denigma_internal_deps INTERFACE denigma_pch)
 
+# Internal library targets are still intended to become externally consumable
+# conversion libraries. Keep dependencies on each target precise; avoid using
+# this helper as a reason to hide broad dependency aggregates in every library.
 function(add_denigma_internal_library target_name)
     add_library(${target_name} STATIC ${ARGN})
     target_link_libraries(${target_name}

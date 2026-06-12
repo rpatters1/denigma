@@ -24,7 +24,7 @@
 #include <iterator>
 
 #include "gtest/gtest.h"
-#include "denigma.h"
+#include "core/denigma.h"
 #include "test_utils.h"
 
 using namespace denigma;

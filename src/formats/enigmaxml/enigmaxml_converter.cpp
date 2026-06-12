@@ -20,7 +20,7 @@
 
 #include <memory>
 
-#include "denigma.h"
+#include "core/denigma.h"
 #include "enigmaxml.h"
 
 namespace denigma::formats::enigmaxml {

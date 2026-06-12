@@ -29,7 +29,7 @@
 
 #include "gtest/gtest.h"
 #include "denigma/io/random_access_reader.h"
-#include "denigma.h"
+#include "core/denigma.h"
 #include "test_utils.h"
 #include "unzip.h"
 #include "utils/ziputils.h"

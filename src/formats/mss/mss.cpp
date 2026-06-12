@@ -34,12 +34,12 @@
 #include <string_view>
 #include <utility>
 
-#include "denigma.h"
+#include "core/denigma.h"
 
-#include "finale_options.h"
+#include "core/finale_options.h"
 #include "mss.h"
 #include "musx/musx.h"
-#include "musx_reader.h"
+#include "core/musx_reader.h"
 #include "pugixml.hpp"
 #include "utils/stringutils.h"
 #include "utils/smufl_support.h"

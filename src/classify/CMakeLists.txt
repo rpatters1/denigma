@@ -7,6 +7,8 @@ set(DENIGMA_CLASSIFY_SOURCES
 
 # The dependencies here are deliberately kept as light as possible.
 # Be careful about adding dependencies to this or to its dependencies.
+# Classifiers intentionally depend on musxdom plus smufl_mapping. They should
+# not depend on json, pugixml, text metrics, zip, or full denigma_utils.
 
 add_denigma_internal_library(denigma_classify ${DENIGMA_CLASSIFY_SOURCES})
 target_link_libraries(denigma_classify

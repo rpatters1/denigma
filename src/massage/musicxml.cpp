@@ -29,10 +29,10 @@
 #include <regex>
 
 #include "musx/musx.h"
-#include "musx_reader.h"
+#include "core/musx_reader.h"
 #include "pugixml.hpp"
 
-#include "denigma.h"
+#include "core/denigma.h"
 #include "massage/massage.h"
 #include "massage/musicxml.h"
 #include "formats/enigmaxml/enigmaxml.h"
