@@ -400,7 +400,7 @@ target_link_libraries(denigma PRIVATE
 
 set(DEPLOY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/denigma)
 
-if(MSVC)
+if(CMAKE_GENERATOR MATCHES "^Visual Studio")
     add_custom_command(
         TARGET denigma
         POST_BUILD
