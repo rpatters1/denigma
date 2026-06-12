@@ -343,7 +343,10 @@ target_include_directories(denigma_internal_deps INTERFACE
 add_library(denigma_common_pch STATIC
     ${PROJECT_SOURCE_DIR}/src/common_pch.cpp
 )
-target_link_libraries(denigma_common_pch PRIVATE denigma_conversion)
+target_link_libraries(denigma_common_pch PRIVATE
+    denigma_conversion
+    musx
+)
 target_include_directories(denigma_common_pch PRIVATE
     ${GENERATED_DIR}
     ${PROJECT_SOURCE_DIR}/src
@@ -353,6 +356,7 @@ target_precompile_headers(denigma_common_pch PRIVATE
     <functional>
     <string>
     <memory>
+    <musx/musx.h>
 )
 
 # Internal library targets are still intended to become externally consumable
