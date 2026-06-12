@@ -232,7 +232,7 @@ TEST(MnxParts, DynamicsGraceIndices)
         auto dynamics = measure.dynamics().value();
         ASSERT_GE(dynamics.size(), 2);
         EXPECT_EQ(dynamics[0].position().graceIndex(), std::nullopt);
-        EXPECT_EQ(dynamics[1].position().graceIndex(), 0);
+        EXPECT_EQ(dynamics[1].position().graceIndex(), musx::dom::LayerIndex{0});
     }
 
     {
@@ -240,10 +240,10 @@ TEST(MnxParts, DynamicsGraceIndices)
         ASSERT_TRUE(measure.dynamics().has_value());
         auto dynamics = measure.dynamics().value();
         ASSERT_GE(dynamics.size(), 4);
-        EXPECT_EQ(dynamics[0].position().graceIndex(), 3);
-        EXPECT_EQ(dynamics[1].position().graceIndex(), 2);
-        EXPECT_EQ(dynamics[2].position().graceIndex(), 1);
-        EXPECT_EQ(dynamics[3].position().graceIndex(), 0);
+        EXPECT_EQ(dynamics[0].position().graceIndex(), musx::dom::LayerIndex{3});
+        EXPECT_EQ(dynamics[1].position().graceIndex(), musx::dom::LayerIndex{2});
+        EXPECT_EQ(dynamics[2].position().graceIndex(), musx::dom::LayerIndex{1});
+        EXPECT_EQ(dynamics[3].position().graceIndex(), musx::dom::LayerIndex{0});
     }
 
     {
@@ -251,6 +251,6 @@ TEST(MnxParts, DynamicsGraceIndices)
         ASSERT_TRUE(measure.dynamics().has_value());
         auto dynamics = measure.dynamics().value();
         ASSERT_GE(dynamics.size(), 1);
-        EXPECT_EQ(dynamics[0].position().graceIndex(), 0);
+        EXPECT_EQ(dynamics[0].position().graceIndex(), musx::dom::LayerIndex{0});
     }
 }
