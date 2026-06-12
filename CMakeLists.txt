@@ -329,33 +329,27 @@ target_include_directories(denigma_conversion INTERFACE
 )
 target_compile_features(denigma_conversion INTERFACE cxx_std_20)
 
-# Define an interface library for internal include paths and precompiled headers.
+# Define an interface library for internal include paths.
 add_library(denigma_internal_deps INTERFACE)
 target_include_directories(denigma_internal_deps INTERFACE
     ${GENERATED_DIR}
     ${PROJECT_SOURCE_DIR}/src
 )
 
-# Define a concrete precompiled-header host. CMake propagates INTERFACE PCH
-# settings as a header list, which makes every consumer build its own PCH. The
-# internal libraries below reuse this target's compiled PCH where their compile
-# definitions stay compatible with it.
-add_library(denigma_common_pch STATIC
+# Define a concrete precompiled-header host for targets that compile with musx.
+# PCH reuse requires compatible compile definitions and include directories.
+add_library(denigma_musx_pch STATIC
     ${PROJECT_SOURCE_DIR}/src/common_pch.cpp
 )
-target_link_libraries(denigma_common_pch PRIVATE
+target_link_libraries(denigma_musx_pch PRIVATE
     denigma_conversion
     musx
 )
-target_include_directories(denigma_common_pch PRIVATE
+target_include_directories(denigma_musx_pch PRIVATE
     ${GENERATED_DIR}
     ${PROJECT_SOURCE_DIR}/src
 )
-target_precompile_headers(denigma_common_pch PRIVATE
-    <algorithm>
-    <functional>
-    <string>
-    <memory>
+target_precompile_headers(denigma_musx_pch PRIVATE
     <musx/musx.h>
 )
 
@@ -363,7 +357,7 @@ target_precompile_headers(denigma_common_pch PRIVATE
 # conversion libraries. Keep dependencies on each target precise; avoid using
 # this helper as a reason to hide broad dependency aggregates in every library.
 function(add_denigma_internal_library target_name)
-    cmake_parse_arguments(DENIGMA_INTERNAL_LIBRARY "NO_COMMON_PCH" "" "" ${ARGN})
+    cmake_parse_arguments(DENIGMA_INTERNAL_LIBRARY "MUSX_PCH" "" "" ${ARGN})
     add_library(${target_name} STATIC ${DENIGMA_INTERNAL_LIBRARY_UNPARSED_ARGUMENTS})
     target_link_libraries(${target_name}
         PUBLIC
@@ -371,13 +365,13 @@ function(add_denigma_internal_library target_name)
         PRIVATE
             denigma_internal_deps
     )
-    if(NOT DENIGMA_INTERNAL_LIBRARY_NO_COMMON_PCH)
-        target_precompile_headers(${target_name} REUSE_FROM denigma_common_pch)
+    if(DENIGMA_INTERNAL_LIBRARY_MUSX_PCH)
+        target_precompile_headers(${target_name} REUSE_FROM denigma_musx_pch)
     endif()
 endfunction()
 
 function(add_denigma_internal_test_library target_name)
-    add_denigma_internal_library(${target_name} NO_COMMON_PCH ${ARGN})
+    add_denigma_internal_library(${target_name} ${ARGN})
     target_compile_definitions(${target_name} PRIVATE DENIGMA_TEST)
 endfunction()
 

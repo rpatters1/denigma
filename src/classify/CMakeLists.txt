@@ -10,7 +10,7 @@ set(DENIGMA_CLASSIFY_SOURCES
 # Classifiers intentionally depend on musxdom plus smufl_mapping. They should
 # not depend on json, pugixml, text metrics, zip, or full denigma_utils.
 
-add_denigma_internal_library(denigma_classify ${DENIGMA_CLASSIFY_SOURCES})
+add_denigma_internal_library(denigma_classify MUSX_PCH ${DENIGMA_CLASSIFY_SOURCES})
 add_library(denigma::classify ALIAS denigma_classify)
 target_link_libraries(denigma_classify
     PUBLIC

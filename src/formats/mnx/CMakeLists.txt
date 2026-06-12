@@ -11,7 +11,7 @@ set(DENIGMA_FORMAT_MNX_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/mnx_sequences.cpp
 )
 
-add_denigma_internal_library(denigma_mnx ${DENIGMA_FORMAT_MNX_SOURCES})
+add_denigma_internal_library(denigma_mnx MUSX_PCH ${DENIGMA_FORMAT_MNX_SOURCES})
 add_library(denigma::mnx ALIAS denigma_mnx)
 add_library(denigma_format_mnx ALIAS denigma_mnx)
 # MNX needs mnxdom/json and classifiers, but it does not use text metrics.

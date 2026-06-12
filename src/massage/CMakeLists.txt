@@ -3,7 +3,7 @@ set(DENIGMA_MASSAGE_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/musicxml.cpp
 )
 
-add_denigma_internal_library(denigma_massage ${DENIGMA_MASSAGE_SOURCES})
+add_denigma_internal_library(denigma_massage MUSX_PCH ${DENIGMA_MASSAGE_SOURCES})
 # Massage is CLI-only for now. It may carry broader dependencies than converter
 # libraries, but keep those dependencies from leaking into core or format libs.
 target_link_libraries(denigma_massage

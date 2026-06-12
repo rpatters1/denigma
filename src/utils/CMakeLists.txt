@@ -5,7 +5,7 @@ add_denigma_internal_library(denigma_utf8
     ${CMAKE_CURRENT_LIST_DIR}/utf8_iterator.cpp
 )
 
-add_denigma_internal_library(denigma_smufl_support
+add_denigma_internal_library(denigma_smufl_support MUSX_PCH
     ${CMAKE_CURRENT_LIST_DIR}/smufl_support.cpp
 )
 target_link_libraries(denigma_smufl_support
@@ -17,7 +17,7 @@ target_link_libraries(denigma_smufl_support
         smufl_mapping
 )
 
-add_denigma_internal_library(denigma_textmetrics
+add_denigma_internal_library(denigma_textmetrics MUSX_PCH
     ${CMAKE_CURRENT_LIST_DIR}/textmetrics.cpp
 )
 # Text metrics brings platform/font resolver dependencies. Link it directly from
@@ -34,7 +34,7 @@ target_link_libraries(denigma_textmetrics
 target_include_directories(denigma_textmetrics PRIVATE ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS})
 target_compile_definitions(denigma_textmetrics PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
 
-add_denigma_internal_library(denigma_zip
+add_denigma_internal_library(denigma_zip MUSX_PCH
     ${CMAKE_CURRENT_LIST_DIR}/ziputils.cpp
 )
 # Zip support depends on minizip/zlib and pugixml for container metadata. Keep

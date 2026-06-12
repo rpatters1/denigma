@@ -3,7 +3,7 @@ set(DENIGMA_FORMAT_SVG_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/svg_converter.cpp
 )
 
-add_denigma_internal_library(denigma_svg ${DENIGMA_FORMAT_SVG_SOURCES})
+add_denigma_internal_library(denigma_svg MUSX_PCH ${DENIGMA_FORMAT_SVG_SOURCES})
 add_library(denigma::svg ALIAS denigma_svg)
 add_library(denigma_format_svg ALIAS denigma_svg)
 # SVG measures text and parses musx through the pugi backend. Keep textmetrics
