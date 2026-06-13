@@ -26,7 +26,8 @@
 
 namespace denigma {
 
-/// Random-access byte reader used for container formats such as MUSX.
+/// @class IRandomAccessReader
+/// @brief Random-access byte reader used for container formats such as MUSX.
 class IRandomAccessReader
 {
 public:
@@ -39,7 +40,8 @@ public:
     virtual std::size_t readAt(std::uint64_t offset, std::span<std::byte> output) const = 0;
 };
 
-/// Random-access reader backed by a filesystem file.
+/// @class FileRandomAccessReader
+/// @brief Random-access reader backed by a filesystem file.
 class FileRandomAccessReader final : public IRandomAccessReader
 {
 public:
@@ -54,7 +56,8 @@ private:
     std::uint64_t m_size{};
 };
 
-/// Random-access reader backed by caller-owned memory.
+/// @class BufferRandomAccessReader
+/// @brief Random-access reader backed by caller-owned memory.
 class BufferRandomAccessReader final : public IRandomAccessReader
 {
 public:

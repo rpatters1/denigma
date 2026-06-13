@@ -26,9 +26,11 @@
 
 #include "musx/musx.h"
 
-namespace denigma::classify {
+namespace denigma {
+namespace classify {
 
-/// Result returned by clef classification.
+/// @struct ClefClassification
+/// @brief Result returned by clef classification.
 struct ClefClassification
 {
     /// Classified music-theory clef type.
@@ -56,4 +58,5 @@ ClefClassification classifyClef(
     const musx::dom::MusxInstance<musx::dom::options::ClefOptions::ClefDef>& clefDef,
     const musx::dom::MusxInstance<musx::dom::others::Staff>& staff = nullptr);
 
-} // namespace denigma::classify
+} // namespace classify
+} // namespace denigma

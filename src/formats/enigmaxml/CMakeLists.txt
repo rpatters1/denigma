@@ -4,6 +4,7 @@ set(DENIGMA_FORMAT_ENIGMAXML_SOURCES
 )
 
 add_denigma_internal_library(denigma_format_enigmaxml MUSX_PCH ${DENIGMA_FORMAT_ENIGMAXML_SOURCES})
+add_library(denigma::enigmaxml ALIAS denigma_format_enigmaxml)
 # This adapter handles musx archive extraction and EnigmaXML pass-through. Keep
 # MNX/MSS/SVG/json/textmetrics dependencies out of this target.
 target_link_libraries(denigma_format_enigmaxml

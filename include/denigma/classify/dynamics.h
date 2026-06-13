@@ -26,9 +26,11 @@
 
 #include "musx/musx.h"
 
-namespace denigma::classify {
+namespace denigma {
+namespace classify {
 
-/// Dynamic marking classes recognized by the classifier.
+/// @enum Dynamic
+/// @brief Dynamic marking classes recognized by the classifier.
 enum class Dynamic
 {
     None,
@@ -63,7 +65,8 @@ enum class Dynamic
     n
 };
 
-/// Result returned by dynamic classification.
+/// @struct DynamicClassification
+/// @brief Result returned by dynamic classification.
 struct DynamicClassification
 {
     /// Classified dynamic.
@@ -87,4 +90,5 @@ std::string dynamicCanonicalText(Dynamic dynamic);
 /// Returns canonical SMuFL glyph names for a dynamic.
 std::vector<std::string> dynamicCanonicalGlyphs(Dynamic dynamic);
 
-} // namespace denigma::classify
+} // namespace classify
+} // namespace denigma
