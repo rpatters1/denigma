@@ -19,11 +19,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "classify/clefs.h"
+#include "denigma/classify/clefs.h"
 
 #include <string_view>
 
-#include "utils/smufl_support.h"
+#include "smufl_mapping.h"
 
 namespace denigma::classify {
 
@@ -78,7 +78,15 @@ ClefClassification classifyClef(
     std::optional<std::string> glyphName;
     if (!isBlank) {
         auto clefFont = clefDef->calcFont();
-        glyphName = utils::smuflGlyphNameForFont(clefFont, clefDef->clefChar);
+        if (clefFont) {
+            if (const auto* name = smufl_mapping::getGlyphNameForFont(
+                    clefFont->getName(),
+                    clefDef->clefChar,
+                    clefFont->calcIsSMuFL(),
+                    smufl_mapping::SmuflGlyphSource::Finale)) {
+                glyphName = std::string(*name);
+            }
+        }
     }
     std::optional<std::string_view> glyphNameView;
     if (glyphName) {

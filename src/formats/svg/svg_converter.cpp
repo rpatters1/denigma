@@ -1,0 +1,123 @@
+/*
+ * Copyright (C) 2026, Robert Patterson
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+#include "denigma/formats/svg.h"
+
+#include <filesystem>
+#include <memory>
+#include <vector>
+
+#include "core/denigma.h"
+#include "formats/enigmaxml/enigmaxml.h"
+#include "svg.h"
+#include "utils/stringutils.h"
+
+namespace denigma::formats::svg {
+
+namespace {
+
+musx::util::SvgConvert::SvgUnit toMusxSvgUnit(Unit unit)
+{
+    switch (unit) {
+    case Unit::None:
+        return musx::util::SvgConvert::SvgUnit::None;
+    case Unit::Pixels:
+        return musx::util::SvgConvert::SvgUnit::Pixels;
+    case Unit::Points:
+        return musx::util::SvgConvert::SvgUnit::Points;
+    case Unit::Picas:
+        return musx::util::SvgConvert::SvgUnit::Picas;
+    case Unit::Centimeters:
+        return musx::util::SvgConvert::SvgUnit::Centimeters;
+    case Unit::Millimeters:
+        return musx::util::SvgConvert::SvgUnit::Millimeters;
+    case Unit::Inches:
+        return musx::util::SvgConvert::SvgUnit::Inches;
+    }
+    return musx::util::SvgConvert::SvgUnit::Points;
+}
+
+void applySvgOptions(DenigmaContext& context, const Options& options)
+{
+    context.noValidate = !options.common.validate;
+    context.svgUnit = toMusxSvgUnit(options.unit);
+    context.svgScale = options.scale;
+    context.svgUsePageScale = options.usePageScale;
+    context.svgShapeDefs.reserve(options.shapeDefs.size());
+    for (const int shapeDef : options.shapeDefs) {
+        context.svgShapeDefs.push_back(static_cast<musx::dom::Cmper>(shapeDef));
+    }
+}
+
+} // namespace
+
+ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> input,
+                                                  const MultiOutputCallback& outputCallback,
+                                                  const Options& options) const
+{
+    Buffer buffer;
+    buffer.reserve(input.size());
+    for (const std::byte value : input) {
+        buffer.push_back(static_cast<char>(value));
+    }
+
+    DenigmaContext context("denigma");
+    context.inputFilePath = options.common.sourceName.empty()
+        ? std::filesystem::path("input.enigmaxml")
+        : utils::utf8ToPath(options.common.sourceName);
+    applySvgOptions(context, options);
+
+    svgexp::convert(CommandInputData{ std::move(buffer), std::nullopt, {} }, context, outputCallback);
+    return {};
+}
+
+ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> input,
+                                                  const MultiOutputCallback& outputCallback,
+                                                  const ConversionRequest& request) const
+{
+    return convert(input, outputCallback, optionsFromRequest<Options>(request, "EnigmaXmlToSvgConverter"));
+}
+
+ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
+                                             const MultiOutputCallback& outputCallback,
+                                             const Options& options) const
+{
+    DenigmaContext context("denigma");
+    context.inputFilePath = options.common.sourceName.empty()
+        ? std::filesystem::path("input.musx")
+        : utils::utf8ToPath(options.common.sourceName);
+    applySvgOptions(context, options);
+
+    svgexp::convert(enigmaxml::extractMusxInputData(input, context), context, outputCallback);
+    return {};
+}
+
+ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
+                                             const MultiOutputCallback& outputCallback,
+                                             const ConversionRequest& request) const
+{
+    return convert(input, outputCallback, optionsFromRequest<Options>(request, "MusxToSvgConverter"));
+}
+
+void registerConverters(ConverterRegistry& registry)
+{
+    registry.add(std::make_unique<EnigmaXmlToSvgConverter>());
+    registry.add(std::make_unique<MusxToSvgConverter>());
+}
+
+} // namespace denigma::formats::svg

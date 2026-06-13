@@ -19,7 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "denigma.h"
+#include "core/denigma.h"
 
 namespace denigma {
 #include "denigma_license.xxd"

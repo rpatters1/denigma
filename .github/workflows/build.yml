@@ -1,5 +1,9 @@
 name: Build and Test Denigma
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
@@ -21,7 +25,7 @@ jobs:
           - os: macos-latest
             generator: Ninja
           - os: windows-latest
-            generator: "Visual Studio 17 2022"
+            generator: Ninja
 
     steps:
       # Checkout the repository with submodules
@@ -30,6 +34,10 @@ jobs:
         with:
           submodules: true  # Clone submodules recursively
           fetch-depth: 0    # Ensure full history for submodules
+
+      - name: Set up MSVC
+        if: matrix.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
 
       # Display Preinstalled Tools
       - name: Display preinstalled tools
@@ -45,30 +53,20 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: brew install ninja || echo "Ninja already installed"
 
+      - name: Install Ninja on Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          ninja --version && echo "Ninja already installed" || choco install ninja -y
+
       - name: Verify Ninja Installation
-        if: matrix.os != 'windows-latest'
         run: ninja --version || echo "Ninja is not available on this platform"
 
-      # Configure on Linux and macOS
-      - name: Configure with CMake on Linux and macOS
-        if: matrix.os != 'windows-latest'
+      - name: Configure with CMake
         run: cmake -G "${{ matrix.generator }}" -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-      # Configure on Windows
-      - name: Configure with CMake on Windows
-        if: matrix.os == 'windows-latest'
-        run: cmake -G "${{ matrix.generator }}" -S . -B build
-
-      # Build on Linux and macOS
-      - name: Build on Linux and macOS
-        if: matrix.os != 'windows-latest'
+      - name: Build
         run: cmake --build build --parallel 2
-
-      # Build on Windows
-      - name: Build on Windows
-        if: matrix.os == 'windows-latest'
-        run: cmake --build build --config Release
-
+        
       # Run Tests
       - name: Run Tests
         run: ctest --test-dir build/tests --output-on-failure

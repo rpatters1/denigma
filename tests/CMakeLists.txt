@@ -4,12 +4,15 @@ if(denigma_BUILD_TESTING)
     # Enable testing in this directory
     enable_testing()
 
-    # Collect all .cpp files in the source directory
-    file(GLOB DENIGMA_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp"
-                            "${CMAKE_SOURCE_DIR}/src/classify/*.cpp"
-                            "${CMAKE_SOURCE_DIR}/src/export/*.cpp"
-                            "${CMAKE_SOURCE_DIR}/src/massage/*.cpp"
-                            "${CMAKE_SOURCE_DIR}/src/utils/*.cpp")
+    function(target_add_denigma_test_warnings target_name)
+        if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
+            # Extra warnings for Clang/AppleClang
+            target_compile_options(${target_name} PRIVATE -Wno-c++20-extensions -Wall -Wextra -Werror -Wpedantic)
+    elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        # Extra warnings for MSVC
+        target_compile_options(${target_name} PRIVATE /W4 /WX)
+    endif()
+endfunction()
 
     # Add an executable for the test suite
     add_executable(denigma_tests
@@ -17,13 +20,18 @@ if(denigma_BUILD_TESTING)
         xml_compare.cpp
         test_articulations.cpp
         test_clefs.cpp
+        test_enigmaxml_converter.cpp
         test_export.cpp
         test_dynamics.cpp
         test_logging.cpp
         test_massage.cpp
+        test_mss_converter.cpp
         test_options.cpp
+        test_svg_converter.cpp
+        test_typed_converter_options.cpp
         test_jumps.cpp
         mnx/test_beams.cpp
+        mnx/test_converter.cpp
         mnx/test_formatted_text.cpp
         mnx/test_global.cpp
         mnx/test_layouts.cpp
@@ -32,16 +40,11 @@ if(denigma_BUILD_TESTING)
         mnx/test_schema.cpp
         mnx/test_scores.cpp
         mnx/test_sequences.cpp
-        ${DENIGMA_SOURCES}
+        ${CMAKE_SOURCE_DIR}/src/main.cpp
+        ${CMAKE_SOURCE_DIR}/src/about.cpp
     )
 
-    if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
-        # Extra warnings for Clang/AppleClang
-        target_compile_options(denigma_tests PRIVATE -Wno-c++20-extensions -Wall -Wextra -Werror -Wpedantic)
-    elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        # Extra warnings for MSVC
-        target_compile_options(denigma_tests PRIVATE /W4 /WX)
-    endif()
+    target_add_denigma_test_warnings(denigma_tests)
 
     # Set the test app's output directory
     set_target_properties(denigma_tests PROPERTIES
@@ -53,20 +56,21 @@ if(denigma_BUILD_TESTING)
         ${CMAKE_SOURCE_DIR}/src       # Source files
         ${CMAKE_CURRENT_SOURCE_DIR}   # base test directory
         ${GENERATED_DIR}              # Generated files
+        "${zlib_SOURCE_DIR}"          # zlib.h included by minizip headers
+        "${zlib_BINARY_DIR}"          # generated zconf.h included by zlib.h
+        "${zlib_SOURCE_DIR}/contrib/minizip"
     )
 
-    # Link libraries used by denigma
+    # Tests intentionally aggregate broad dependencies. Do not copy this
+    # dependency shape into production converter libs.
     target_link_libraries(denigma_tests PRIVATE
-        denigma_pch                   # Precompiled headers
-        denigma_minizip
+        denigma_export_test
+        denigma_massage_test
+        denigma_core_test
+        denigma_utils
+        denigma_internal_deps
         pugixml
-        mnxdom
-        musx
-        smufl_mapping
-        ${DENIGMA_TEXT_METRICS_LIBS}
     )
-
-    target_compile_definitions(denigma_tests PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
 
     target_compile_definitions(denigma_tests PRIVATE
         MUSX_TEST_DATA_PATH="${musx_SOURCE_DIR}/tests/data"
@@ -75,8 +79,37 @@ if(denigma_BUILD_TESTING)
     # Define testing-specific preprocessor macro
     target_compile_definitions(denigma_tests PRIVATE DENIGMA_TEST)
 
+    add_library(denigma_tests_pch STATIC
+        ${CMAKE_SOURCE_DIR}/src/common_pch.cpp
+    )
+    target_add_denigma_test_warnings(denigma_tests_pch)
+    target_include_directories(denigma_tests_pch PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${GENERATED_DIR}
+        "${zlib_SOURCE_DIR}"
+        "${zlib_BINARY_DIR}"
+        "${zlib_SOURCE_DIR}/contrib/minizip"
+    )
+    target_link_libraries(denigma_tests_pch PRIVATE
+        denigma_export_test
+        denigma_massage_test
+        denigma_core_test
+        denigma_utils
+        denigma_internal_deps
+        pugixml
+    )
+    target_compile_definitions(denigma_tests_pch PRIVATE
+        MUSX_TEST_DATA_PATH="${musx_SOURCE_DIR}/tests/data"
+        DENIGMA_TEST
+    )
+    target_precompile_headers(denigma_tests_pch PRIVATE
+        <musx/musx.h>
+    )
+    target_precompile_headers(denigma_tests REUSE_FROM denigma_tests_pch)
+
     # Add test dependencies
-    add_dependencies(denigma_tests GenerateMnxSchemaXxd)
+    add_dependencies(denigma_tests GenerateLicenseXxd)
 
     # Add Google Test as a dependency
     FetchContent_Declare(

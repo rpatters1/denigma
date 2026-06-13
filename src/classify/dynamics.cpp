@@ -19,7 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "classify/dynamics.h"
+#include "denigma/classify/dynamics.h"
 
 #include <algorithm>
 #include <cctype>
@@ -28,7 +28,7 @@
 #include <string_view>
 #include <vector>
 
-#include "utils/smufl_support.h"
+#include "smufl_mapping.h"
 #include "utils/stringutils.h"
 #include "utils/utf8_iterator.h"
 
@@ -179,8 +179,12 @@ static void appendDynamicText(DynamicText& text, const std::string& chunk, const
     for (utils::Utf8Iterator iter(chunk); !iter.atEnd(); iter.next()) {
         const std::string codepointText = chunk.substr(iter.offset(), iter->byteCount);
         if (font) {
-            if (auto glyphName = utils::smuflGlyphNameForFont(font, codepointText)) {
-                if (const std::string glyphText = glyphNameToDynamicText(glyphName.value()); !glyphText.empty()) {
+            if (const auto* glyphName = smufl_mapping::getGlyphNameForFont(
+                    font->getName(),
+                    iter->codepoint,
+                    font->calcIsSMuFL(),
+                    smufl_mapping::SmuflGlyphSource::Finale)) {
+                if (const std::string glyphText = glyphNameToDynamicText(*glyphName); !glyphText.empty()) {
                     text.text += glyphText;
                     text.smuflGlyph.insert(text.smuflGlyph.end(), glyphText.size(), true);
                     continue;

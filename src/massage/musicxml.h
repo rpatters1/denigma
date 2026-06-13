@@ -25,7 +25,7 @@
 #include <vector>
 #include <optional>
 
-#include "denigma.h"
+#include "core/denigma.h"
 
 namespace denigma {
 namespace musicxml {

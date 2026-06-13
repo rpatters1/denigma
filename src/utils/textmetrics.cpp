@@ -39,7 +39,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "denigma.h"
+#include "core/denigma.h"
 #include "utils/stringutils.h"
 
 #if defined(DENIGMA_USE_DIRECTWRITE)

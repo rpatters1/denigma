@@ -21,7 +21,8 @@
  */
 #include "gtest/gtest.h"
 
-#include "classify/clefs.h"
+#include "core/musx_reader.h"
+#include "denigma/classify/clefs.h"
 #include "musx/musx.h"
 
 using namespace denigma::classify;
@@ -83,7 +84,7 @@ static ClefDefContext makeClefDefContext(int middleCPos, char32_t clefChar, int 
 </finale>)xml";
 
     std::vector<char> buffer(xml.begin(), xml.end());
-    auto document = musx::factory::DocumentFactory::create<musx::xml::pugi::Document>(buffer);
+    auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     return {
         document,
         document->getOptions()->get<options::ClefOptions>()->getClefDef(0),

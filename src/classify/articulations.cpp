@@ -19,12 +19,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "classify/articulations.h"
+#include "denigma/classify/articulations.h"
 
 #include <string_view>
 #include <utility>
 
-#include "utils/smufl_support.h"
+#include "smufl_mapping.h"
 
 namespace denigma::classify {
 
@@ -275,8 +275,14 @@ ArticulationClassification classifyArticulationSymbol(
     if (auto unicodeClassification = classifyUnicodeSymbol(symbol)) {
         return unicodeClassification;
     }
-    if (auto glyphName = utils::smuflGlyphNameForFont(fontInfo, symbol)) {
-        return classifyGlyphName(glyphName.value());
+    if (fontInfo) {
+        if (const auto* glyphName = smufl_mapping::getGlyphNameForFont(
+                fontInfo->getName(),
+                symbol,
+                fontInfo->calcIsSMuFL(),
+                smufl_mapping::SmuflGlyphSource::Finale)) {
+            return classifyGlyphName(std::string(*glyphName));
+        }
     }
     return {};
 }

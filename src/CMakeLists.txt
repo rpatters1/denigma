@@ -1,0 +1,7 @@
+add_subdirectory(core)
+add_subdirectory(io)
+add_subdirectory(utils)
+add_subdirectory(classify)
+add_subdirectory(formats)
+add_subdirectory(massage)
+add_subdirectory(export)

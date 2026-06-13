@@ -29,7 +29,7 @@
 
 #include "massage/massage.h"
 #include "massage/musicxml.h"
-#include "export/enigmaxml.h"
+#include "formats/enigmaxml/enigmaxml.h"
 
 namespace denigma {
 
@@ -40,7 +40,7 @@ static CommandInputData nullFunc(const std::filesystem::path&, const DenigmaCont
 
 static CommandInputData readMusicXml(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
-    return CommandInputData{ enigmaxml::read(inputPath, denigmaContext), std::nullopt, {} };
+    return enigmaxml::readEnigmaXmlInputData(inputPath, denigmaContext);
 }
 
 // Input format processors

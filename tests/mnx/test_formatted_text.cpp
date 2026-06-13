@@ -24,7 +24,8 @@
 
 #include "gtest/gtest.h"
 
-#include "export/mnx_formatted_text.h"
+#include "core/musx_reader.h"
+#include "formats/mnx/mnx_formatted_text.h"
 #include "musx/musx.h"
 
 using namespace denigma::mnxexp;
@@ -74,7 +75,7 @@ static RawTextContext makeRawTextContext(const std::string& enigmaText)
 </finale>)xml";
 
     std::vector<char> buffer(xml.begin(), xml.end());
-    auto document = musx::factory::DocumentFactory::create<musx::xml::pugi::Document>(buffer);
+    auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     auto text = document->getTexts()->get<texts::BlockText>(1);
     return { document, text, text->getRawTextCtx(text, SCORE_PARTID) };
 }

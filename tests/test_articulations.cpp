@@ -24,7 +24,8 @@
 #include <filesystem>
 #include <vector>
 
-#include "classify/articulations.h"
+#include "core/musx_reader.h"
+#include "denigma/classify/articulations.h"
 #include "musx/musx.h"
 #include "test_utils.h"
 
@@ -67,7 +68,7 @@ static ArticulationDefContext makeArticulationDefContext(char32_t character, con
 </finale>)xml";
 
     std::vector<char> buffer(xml.begin(), xml.end());
-    auto document = musx::factory::DocumentFactory::create<musx::xml::pugi::Document>(buffer);
+    auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     return { document, document->getOthers()->get<others::ArticulationDef>(SCORE_PARTID, 1) };
 }
 
@@ -135,12 +136,12 @@ TEST(ArticulationClassification, ClassifiesVerticalEntryBracketShapes)
 {
     std::vector<char> xml;
     readFile(std::filesystem::path(MUSX_TEST_DATA_PATH) / "nonArpeggios.enigmaxml", xml);
-    auto document = musx::factory::DocumentFactory::create<musx::xml::pugi::Document>(xml);
+    auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(xml);
     ASSERT_TRUE(document);
 
     auto sourceEntry = musx::dom::EntryInfoPtr::fromEntryNumber(document, SCORE_PARTID, 131);
     ASSERT_TRUE(sourceEntry);
-    auto assign = document->getDetails()->get<details::ArticulationAssign>(SCORE_PARTID, 131, 0);
+    auto assign = document->getDetails()->get<details::ArticulationAssign>(SCORE_PARTID, 131, Inci{0});
     ASSERT_TRUE(assign);
     const auto symbolContext = assign->calcSelectedSymbolContext(sourceEntry);
     ASSERT_TRUE(symbolContext);
