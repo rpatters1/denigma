@@ -21,6 +21,7 @@
  */
 #pragma once
 
+#include <cassert>
 #include <cstddef>
 #include <functional>
 #include <memory>

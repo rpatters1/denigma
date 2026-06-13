@@ -6,9 +6,14 @@ The public API accepts input as memory buffers or random-access readers and writ
 
 Clients that know the converter type at compile time can instantiate concrete adapters such as `denigma::formats::mnx::MusxToMnxJsonConverter` and pass that format's typed `Options` struct directly. This gives compile-time checking that, for example, MNX options are not accidentally passed to an SVG or MSS converter.
 
+The snippets below show only the Denigma headers needed for each example. Standard library includes are omitted for brevity.
+
 ### File-backed example
 
 ```cpp
+#include "denigma/formats/mnx.h"
+#include "denigma/io/random_access_reader.h"
+
 denigma::formats::mnx::MusxToMnxJsonConverter converter;
 denigma::formats::mnx::Options options{};
 options.common.sourceName = "score.musx";
@@ -20,6 +25,8 @@ converter.convert(input, output, options);
 ### In-memory example
 
 ```cpp
+#include "denigma/formats/mnx.h"
+
 denigma::formats::mnx::EnigmaXmlToMnxJsonConverter converter;
 denigma::formats::mnx::Options options{};
 std::vector<std::byte> inputBytes;
