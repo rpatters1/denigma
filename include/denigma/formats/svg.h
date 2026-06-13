@@ -22,9 +22,15 @@
 
 #include "denigma/conversion.h"
 
-namespace denigma::formats::svg {
+namespace denigma {
+namespace formats {
 
-/// Unit suffix used by SVG output dimensions.
+/// @namespace denigma::formats::svg
+/// @brief Conversion adapters for generating SVG output.
+namespace svg {
+
+/// @enum Unit
+/// @brief Unit suffix used by SVG output dimensions.
 enum class Unit
 {
     None,
@@ -36,7 +42,8 @@ enum class Unit
     Inches
 };
 
-/// Options for SVG converters.
+/// @struct Options
+/// @brief Options for SVG converters.
 struct Options final : public IOptions
 {
     /// Options common to all converters.
@@ -51,7 +58,8 @@ struct Options final : public IOptions
     bool usePageScale{ false };
 };
 
-/// Converter adapter for Enigma XML input to zero or more SVG documents.
+/// @class EnigmaXmlToSvgConverter
+/// @brief Converter adapter for Enigma XML input to zero or more SVG documents.
 class EnigmaXmlToSvgConverter final : public IMultiOutputConverter
 {
 public:
@@ -69,7 +77,8 @@ public:
                              const ConversionRequest& request = {}) const override;
 };
 
-/// Converter adapter for MUSX archive input to zero or more SVG documents.
+/// @class MusxToSvgConverter
+/// @brief Converter adapter for MUSX archive input to zero or more SVG documents.
 class MusxToSvgConverter final : public IReaderMultiOutputConverter
 {
 public:
@@ -90,4 +99,6 @@ public:
 /// Registers all SVG format converters with the supplied registry.
 void registerConverters(ConverterRegistry& registry);
 
-} // namespace denigma::formats::svg
+} // namespace svg
+} // namespace formats
+} // namespace denigma

@@ -23,9 +23,15 @@
 
 #include "denigma/conversion.h"
 
-namespace denigma::formats::mss {
+namespace denigma {
+namespace formats {
 
-/// Options for MuseScore style XML converters.
+/// @namespace denigma::formats::mss
+/// @brief Conversion adapters for generating MuseScore style XML.
+namespace mss {
+
+/// @struct Options
+/// @brief Options for MuseScore style XML converters.
 struct Options final : public IOptions
 {
     /// Options common to all converters.
@@ -36,7 +42,8 @@ struct Options final : public IOptions
     std::optional<std::string> partName;
 };
 
-/// Converter adapter for Enigma XML input to MuseScore style XML output.
+/// @class EnigmaXmlToMssXmlConverter
+/// @brief Converter adapter for Enigma XML input to MuseScore style XML output.
 class EnigmaXmlToMssXmlConverter final : public IConverter
 {
 public:
@@ -54,7 +61,8 @@ public:
                              const ConversionRequest& request = {}) const override;
 };
 
-/// Converter adapter for MUSX archive input to MuseScore style XML output.
+/// @class MusxToMssXmlConverter
+/// @brief Converter adapter for MUSX archive input to MuseScore style XML output.
 class MusxToMssXmlConverter final : public IReaderConverter
 {
 public:
@@ -72,7 +80,8 @@ public:
                              const ConversionRequest& request = {}) const override;
 };
 
-/// Converter adapter for Enigma XML input to one or more MuseScore style XML outputs.
+/// @class EnigmaXmlToMssXmlMultiOutputConverter
+/// @brief Converter adapter for Enigma XML input to one or more MuseScore style XML outputs.
 class EnigmaXmlToMssXmlMultiOutputConverter final : public IMultiOutputConverter
 {
 public:
@@ -90,7 +99,8 @@ public:
                              const ConversionRequest& request = {}) const override;
 };
 
-/// Converter adapter for MUSX archive input to one or more MuseScore style XML outputs.
+/// @class MusxToMssXmlMultiOutputConverter
+/// @brief Converter adapter for MUSX archive input to one or more MuseScore style XML outputs.
 class MusxToMssXmlMultiOutputConverter final : public IReaderMultiOutputConverter
 {
 public:
@@ -111,4 +121,6 @@ public:
 /// Registers all MSS format converters with the supplied registry.
 void registerConverters(ConverterRegistry& registry);
 
-} // namespace denigma::formats::mss
+} // namespace mss
+} // namespace formats
+} // namespace denigma

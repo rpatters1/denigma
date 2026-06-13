@@ -28,12 +28,18 @@
 
 #include "musx/musx.h"
 
-namespace denigma::classify {
+namespace denigma {
 
-/// Classification for a standard articulation mark.
+/// @namespace denigma::classify
+/// @brief Music classification helpers for Finale symbol extraction.
+namespace classify {
+
+/// @struct StandardArticulation
+/// @brief Classification for a standard articulation mark.
 struct StandardArticulation
 {
-    /// Standard articulation types recognized by the classifier.
+    /// @enum Type
+    /// @brief Standard articulation types recognized by the classifier.
     enum class Type
     {
         Accent,
@@ -53,10 +59,12 @@ struct StandardArticulation
     std::vector<Type> types;
 };
 
-/// Classification for tremolo articulation marks.
+/// @struct Tremolo
+/// @brief Classification for tremolo articulation marks.
 struct Tremolo
 {
-    /// Distinguishes measured from unmeasured tremolo marks.
+    /// @enum Style
+    /// @brief Distinguishes measured from unmeasured tremolo marks.
     enum class Style
     {
         Measured,
@@ -69,10 +77,12 @@ struct Tremolo
     int marks{};
 };
 
-/// Classification for fermata articulation marks.
+/// @struct Fermata
+/// @brief Classification for fermata articulation marks.
 struct Fermata
 {
-    /// Visual fermata shape.
+    /// @enum Shape
+    /// @brief Visual fermata shape.
     enum class Shape
     {
         Normal,
@@ -85,7 +95,8 @@ struct Fermata
         Curlew
     };
 
-    /// Finale playback-duration class associated with the fermata.
+    /// @enum Duration
+    /// @brief Finale playback-duration class associated with the fermata.
     enum class Duration
     {
         Auto,
@@ -101,10 +112,12 @@ struct Fermata
     Duration duration{};
 };
 
-/// Classification for breath marks and caesuras.
+/// @struct BreathMark
+/// @brief Classification for breath marks and caesuras.
 struct BreathMark
 {
-    /// Breath mark or caesura type.
+    /// @enum Type
+    /// @brief Breath mark or caesura type.
     enum class Type
     {
         Comma,
@@ -123,10 +136,12 @@ struct BreathMark
     Type type{};
 };
 
-/// Classification for arpeggio articulation marks.
+/// @struct Arpeggio
+/// @brief Classification for arpeggio articulation marks.
 struct Arpeggio
 {
-    /// Arpeggio type.
+    /// @enum Type
+    /// @brief Arpeggio type.
     enum class Type
     {
         VerticalSegment,
@@ -139,7 +154,8 @@ struct Arpeggio
     Type type{};
 };
 
-/// Classification for Finale vertical entry bracket shapes.
+/// @struct VerticalEntryBracket
+/// @brief Classification for Finale vertical entry bracket shapes.
 struct VerticalEntryBracket
 {
 };
@@ -147,7 +163,8 @@ struct VerticalEntryBracket
 /// Variant payload for articulation classification.
 using ArticulationValue = std::variant<std::monostate, StandardArticulation, Tremolo, Fermata, BreathMark, Arpeggio, VerticalEntryBracket>;
 
-/// Result returned by articulation classification.
+/// @struct ArticulationClassification
+/// @brief Result returned by articulation classification.
 struct ArticulationClassification
 {
     /// Classified articulation payload, or std::monostate when no articulation was recognized.
@@ -184,4 +201,5 @@ ArticulationClassification classifyArticulation(
 ArticulationClassification classifyArticulationSymbol(
     const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, char32_t symbol);
 
-} // namespace denigma::classify
+} // namespace classify
+} // namespace denigma

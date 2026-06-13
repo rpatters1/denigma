@@ -20,16 +20,26 @@
 
 #include "denigma/conversion.h"
 
-namespace denigma::formats::enigmaxml {
+namespace denigma {
 
-/// Options for MUSX to Enigma XML conversion.
+/// @namespace denigma::formats
+/// @brief Conversion adapters for Denigma output formats.
+namespace formats {
+
+/// @namespace denigma::formats::enigmaxml
+/// @brief Conversion adapters for extracting Finale Enigma XML.
+namespace enigmaxml {
+
+/// @struct Options
+/// @brief Options for MUSX to Enigma XML conversion.
 struct Options final : public IOptions
 {
     /// Options common to all converters.
     CommonOptions common;
 };
 
-/// Converter adapter for MUSX archive input to Enigma XML output.
+/// @class MusxToEnigmaXmlConverter
+/// @brief Converter adapter for MUSX archive input to Enigma XML output.
 class MusxToEnigmaXmlConverter final : public IReaderConverter
 {
 public:
@@ -50,4 +60,6 @@ public:
 /// Registers all Enigma XML format converters with the supplied registry.
 void registerConverters(ConverterRegistry& registry);
 
-} // namespace denigma::formats::enigmaxml
+} // namespace enigmaxml
+} // namespace formats
+} // namespace denigma

@@ -26,9 +26,15 @@
 
 #include "denigma/conversion.h"
 
-namespace denigma::formats::mnx {
+namespace denigma {
+namespace formats {
 
-/// Options for MNX JSON converters.
+/// @namespace denigma::formats::mnx
+/// @brief Conversion adapters for generating MNX JSON.
+namespace mnx {
+
+/// @struct Options
+/// @brief Options for MNX JSON converters.
 struct Options final : public IOptions
 {
     /// Options common to all converters.
@@ -45,7 +51,8 @@ struct Options final : public IOptions
     bool splitInstruments{ false };
 };
 
-/// Converter adapter for Enigma XML input to MNX JSON output.
+/// @class EnigmaXmlToMnxJsonConverter
+/// @brief Converter adapter for Enigma XML input to MNX JSON output.
 class EnigmaXmlToMnxJsonConverter final : public IConverter
 {
 public:
@@ -63,7 +70,8 @@ public:
                              const ConversionRequest& request = {}) const override;
 };
 
-/// Converter adapter for MUSX archive input to MNX JSON output.
+/// @class MusxToMnxJsonConverter
+/// @brief Converter adapter for MUSX archive input to MNX JSON output.
 class MusxToMnxJsonConverter final : public IReaderConverter
 {
 public:
@@ -84,4 +92,6 @@ public:
 /// Registers all MNX format converters with the supplied registry.
 void registerConverters(ConverterRegistry& registry);
 
-} // namespace denigma::formats::mnx
+} // namespace mnx
+} // namespace formats
+} // namespace denigma

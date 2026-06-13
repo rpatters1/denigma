@@ -23,9 +23,11 @@
 
 #include "musx/musx.h"
 
-namespace denigma::classify {
+namespace denigma {
+namespace classify {
 
-/// Jump or repeat-text classes recognized by the classifier.
+/// @enum Jump
+/// @brief Jump or repeat-text classes recognized by the classifier.
 enum class Jump
 {
     None,
@@ -44,4 +46,5 @@ enum class Jump
 /// Classifies a Finale text repeat definition as a jump or repeat-text marker.
 Jump classifyJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatDef>& def);
 
-} // namespace denigma::classify
+} // namespace classify
+} // namespace denigma
