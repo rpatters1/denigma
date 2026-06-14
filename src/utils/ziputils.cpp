@@ -123,7 +123,7 @@ static unzFile openZipForRead(const std::filesystem::path& zipFilePath, const De
 #endif
 
     if (!zip) {
-        denigmaContext.logMessage(LogMsg() << "unable to extract data from file " << utils::asUtf8Bytes(zipFilePath), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract data from file " << utils::asUtf8Bytes(zipFilePath), MessageSeverity::Error);
         throw std::runtime_error("unable to open zip archive");
     }
     return zip;
@@ -227,7 +227,7 @@ static unzFile openZipForRead(const IRandomAccessReader& reader, const DenigmaCo
 
     unzFile zip = unzOpen2_64(nullptr, &fileFuncs);
     if (!zip) {
-        denigmaContext.logMessage(LogMsg() << "unable to extract data from random-access zip reader", LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract data from random-access zip reader", MessageSeverity::Error);
         throw std::runtime_error("unable to open random-access zip archive");
     }
     return zip;
@@ -408,8 +408,8 @@ static std::string getMusicXmlScoreName(const std::filesystem::path& zipFilePath
         });
         return utils::utf8ToString(fileName);
     } catch (const std::exception& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to extract META-INF/container.xml from file " << utils::asUtf8Bytes(zipFilePath), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract META-INF/container.xml from file " << utils::asUtf8Bytes(zipFilePath), MessageSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
         throw;
     }
 }
@@ -546,7 +546,7 @@ bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const s
     zipFile outputZip = openZipForWrite(outputPath);
     if (!outputZip) {
         unzClose(inputZip);
-        denigmaContext.logMessage(LogMsg() << "unable to save data to file " << utils::asUtf8Bytes(outputPath), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to save data to file " << utils::asUtf8Bytes(outputPath), MessageSeverity::Error);
         throw std::runtime_error("unable to create output zip archive");
     }
 
@@ -568,8 +568,8 @@ bool iterateModifyFilesInPlace(const std::filesystem::path& zipFilePath, const s
         unzClose(inputZip);
         return retval;
     } catch (const std::exception& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to save data to file " << utils::asUtf8Bytes(outputPath), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to save data to file " << utils::asUtf8Bytes(outputPath), MessageSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
         zipClose(outputZip, nullptr);
         unzClose(inputZip);
         throw;

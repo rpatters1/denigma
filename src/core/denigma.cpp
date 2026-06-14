@@ -274,25 +274,25 @@ std::string getTimeStamp(const std::string& fmt)
     return timestamp.str();
 }
 
-void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity severity) const
+void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, MessageSeverity severity) const
 {
     auto getSeverityStr = [severity]() -> std::string {
             switch (severity) {
             default:
-            case LogSeverity::Info: return "";
-            case LogSeverity::Warning: return "[WARNING] ";
-            case LogSeverity::Error: return "[***ERROR***] ";
+            case MessageSeverity::Info: return "";
+            case MessageSeverity::Warning: return "[WARNING] ";
+            case MessageSeverity::Error: return "[***ERROR***] ";
             }
         };
     if (!alwaysShow) {
-        if (severity == LogSeverity::Verbose && (!verbose || quiet)) {
+        if (severity == MessageSeverity::Verbose && (!verbose || quiet)) {
             return;
         }
-        if (severity == LogSeverity::Info && quiet) {
+        if (severity == MessageSeverity::Info && quiet) {
             return;
         }
     }
-    if (severity == LogSeverity::Error) {
+    if (severity == MessageSeverity::Error) {
         errorOccurred = true;
     }
     msg.flush();
@@ -310,10 +310,10 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity sever
         LogMsg prefix = LogMsg() << "[" << getTimeStamp("%Y-%m-%d %H:%M:%S") << "] " << inputFile;
         prefix.flush();
         *logFile << prefix.str() << getSeverityStr() << msg.str() << std::endl;
-        if (severity == LogSeverity::Error) {
+        if (severity == MessageSeverity::Error) {
             *logFile << prefix.str() << "PROCESSING ABORTED" << std::endl;
         }
-        if (severity != LogSeverity::Error) {
+        if (severity != MessageSeverity::Error) {
             return;
         }
     }
@@ -341,13 +341,13 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity sever
 musx::util::Logger::LogCallback makeMusxLogCallback(const DenigmaContext& denigmaContext)
 {
     return [&denigmaContext](musx::util::Logger::LogLevel logLevel, const std::string& msg) {
-        const LogSeverity severity = [logLevel]() {
+        const MessageSeverity severity = [logLevel]() {
             switch (logLevel) {
             default:
-            case musx::util::Logger::LogLevel::Info: return LogSeverity::Info;
-            case musx::util::Logger::LogLevel::Warning: return LogSeverity::Warning;
-            case musx::util::Logger::LogLevel::Error: return LogSeverity::Error;
-            case musx::util::Logger::LogLevel::Verbose: return LogSeverity::Verbose;
+            case musx::util::Logger::LogLevel::Info: return MessageSeverity::Info;
+            case musx::util::Logger::LogLevel::Warning: return MessageSeverity::Warning;
+            case musx::util::Logger::LogLevel::Error: return MessageSeverity::Error;
+            case musx::util::Logger::LogLevel::Verbose: return MessageSeverity::Verbose;
             }
         }();
         denigmaContext.logMessage(LogMsg() << msg, severity);
@@ -388,7 +388,7 @@ bool DenigmaContext::validatePathsAndOptions(const std::filesystem::path& output
         if (overwriteExisting) {
             logMessage(LogMsg() << "Overwriting " << utils::asUtf8Bytes(outputFilePath));
         } else {
-            logMessage(LogMsg() << utils::asUtf8Bytes(outputFilePath) << " exists. Use --force to overwrite it.", LogSeverity::Warning);
+            logMessage(LogMsg() << utils::asUtf8Bytes(outputFilePath) << " exists. Use --force to overwrite it.", MessageSeverity::Warning);
             return false;
         }
     } else {
@@ -473,7 +473,7 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
             throw std::runtime_error("Input path " + utils::utf8ToString(inputPathUtf8) + " does not exist or is not a file or directory.");
         }
 //        if (!currentCommand->canProcess(inpFilePath)) {
-//            logMessage(LogMsg() << "Invalid input format for command: " << inpFilePath.u8string(), LogSeverity::Error);
+//            logMessage(LogMsg() << "Invalid input format for command: " << inpFilePath.u8string(), MessageSeverity::Error);
 //            return;
 //        }
         constexpr char kProcessingMessage[] = "Processing File: ";
@@ -524,9 +524,9 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
             }
         }
     } catch (const musx::xml::load_error& ex) {
-        logMessage(LogMsg() << "Load XML failed: " << ex.what(), true, LogSeverity::Error);
+        logMessage(LogMsg() << "Load XML failed: " << ex.what(), true, MessageSeverity::Error);
     } catch (const std::exception& e) {
-        logMessage(LogMsg() << e.what(), true, LogSeverity::Error);
+        logMessage(LogMsg() << e.what(), true, MessageSeverity::Error);
     }
 }
 

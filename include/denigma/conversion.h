@@ -31,6 +31,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 
 #include "denigma/io/random_access_reader.h"
 
@@ -49,9 +50,9 @@ enum class FormatId
     Svg         ///< Scalable Vector Graphics XML.
 };
 
-/// @enum LogSeverity
-/// @brief Severity for log messages emitted by converters.
-enum class LogSeverity
+/// @enum MessageSeverity
+/// @brief Severity for log messages and diagnostics emitted by converters.
+enum class MessageSeverity
 {
     Info,
     Warning,
@@ -63,16 +64,7 @@ enum class LogSeverity
 /// @brief A non-fatal message emitted by a converter.
 struct Diagnostic
 {
-    /// @enum Severity
-    /// @brief Diagnostic severity.
-    enum class Severity
-    {
-        Info,
-        Warning,
-        Error
-    };
-
-    Severity severity{ Severity::Info }; ///< Message severity.
+    MessageSeverity severity{ MessageSeverity::Info }; ///< Message severity.
     std::string message;                 ///< Human-readable diagnostic text.
 };
 
@@ -89,7 +81,7 @@ struct CommonOptions
     /// Suppresses info/verbose logging when true.
     bool quiet{ false };
     /// Optional callback that receives converter log messages.
-    std::function<void(LogSeverity severity, std::string_view message)> logCallback;
+    std::function<void(MessageSeverity severity, std::string_view message)> logCallback;
 };
 
 /// @class IOptions
@@ -110,9 +102,43 @@ struct ConversionRequest
 
 /// @struct ConversionResult
 /// @brief Result metadata returned after a conversion completes.
-struct ConversionResult
+class ConversionResult
 {
-    std::vector<Diagnostic> diagnostics; ///< Non-fatal diagnostics emitted during conversion.
+public:
+    /// Returns the diagnostics collected during conversion.
+    [[nodiscard]] std::span<const Diagnostic> diagnostics() const noexcept
+    {
+        return m_diagnostics;
+    }
+
+    /// Returns true when at least one diagnostic has severity Error.
+    [[nodiscard]] bool hasError() const noexcept
+    {
+        return m_hasError;
+    }
+
+    /// Returns true when the conversion completed without any error diagnostics.
+    explicit operator bool() const noexcept
+    {
+        return !hasError();
+    }
+
+    /// Adds a diagnostic and updates the error state if needed.
+    void addDiagnostic(MessageSeverity severity, std::string message)
+    {
+        addDiagnostic(Diagnostic{ severity, std::move(message) });
+    }
+
+    /// Adds a diagnostic and updates the error state if needed.
+    void addDiagnostic(Diagnostic diagnostic)
+    {
+        m_hasError = m_hasError || diagnostic.severity == MessageSeverity::Error;
+        m_diagnostics.push_back(std::move(diagnostic));
+    }
+
+private:
+    std::vector<Diagnostic> m_diagnostics;
+    bool m_hasError{};
 };
 
 /// @brief Returns typed options from an erased request, or default options when none were supplied.

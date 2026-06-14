@@ -35,7 +35,7 @@ mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const MnxMusxM
     if (duration <= 0 || (duration.denominator() & (duration.denominator() - 1)) != 0) {
         auto newValue = musx::util::Fraction(duration.calcEduDuration(), Edu(musx::dom::NoteType::Whole));
         context->logMessage(LogMsg() << "Value " << duration << " cannot be exactly converted to a note value quantity. Using closest approximation. ("
-            << newValue << ")", LogSeverity::Warning);
+            << newValue << ")", MessageSeverity::Warning);
         duration = newValue;
     }
 

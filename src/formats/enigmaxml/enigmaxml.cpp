@@ -276,10 +276,10 @@ CommandInputData readEnigmaXmlInputData(const std::filesystem::path& inputPath, 
         xmlFile.read(buffer.data(), fileSize);
         return CommandInputData{ std::move(buffer), std::nullopt, {} };
     } catch (const std::ios_base::failure& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to read " << utils::asUtf8Bytes(inputPath), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to read " << utils::asUtf8Bytes(inputPath), MessageSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), MessageSeverity::Error);
         if (const auto* ec = dynamic_cast<const std::error_code*>(&ex.code())) {
-            denigmaContext.logMessage(LogMsg() << "details: " << ec->message(), LogSeverity::Error);
+            denigmaContext.logMessage(LogMsg() << "details: " << ec->message(), MessageSeverity::Error);
         }
         throw;
     };
@@ -296,8 +296,8 @@ CommandInputData extractMusxInputData(const std::filesystem::path& inputPath, co
         FileRandomAccessReader reader(inputPath);
         return extractMusxInputData(reader, denigmaContext);
     } catch (const std::exception& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << utils::asUtf8Bytes(inputPath), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from file " << utils::asUtf8Bytes(inputPath), MessageSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
         throw;
     }
 }
@@ -312,8 +312,8 @@ CommandInputData extractMusxInputData(const IRandomAccessReader& reader, const D
     try {
         return readMusxArchive(reader, denigmaContext);
     } catch (const std::exception& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from random-access reader", LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to extract enigmaxml from random-access reader", MessageSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
         throw;
     }
 }
@@ -341,10 +341,10 @@ void writeEnigmaXml(const std::filesystem::path& outputPath, const CommandInputD
         xmlFile.write(xmlBuffer.data(), xmlBuffer.size());
     } catch (const std::ios_base::failure& ex) {
         std::stringstream sst;
-        denigmaContext.logMessage(LogMsg() << "unable to write " << utils::asUtf8Bytes(outputPath), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to write " << utils::asUtf8Bytes(outputPath), MessageSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "message: " << ex.what(), MessageSeverity::Error);
         if (const auto* ec = dynamic_cast<const std::error_code*>(&ex.code())) {
-            denigmaContext.logMessage(LogMsg() << "details: " << ec->message(), LogSeverity::Error);
+            denigmaContext.logMessage(LogMsg() << "details: " << ec->message(), MessageSeverity::Error);
         }
         throw;
     }
@@ -400,8 +400,8 @@ void writeMusxForCli(const std::filesystem::path& outputPath, const CommandInput
             throw std::runtime_error("unable to finalize musx archive");
         }
     } catch (const std::exception& ex) {
-        denigmaContext.logMessage(LogMsg() << "unable to write musx to " << utils::asUtf8Bytes(outputPath), LogSeverity::Error);
-        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << "unable to write musx to " << utils::asUtf8Bytes(outputPath), MessageSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
         throw;
     }
 }

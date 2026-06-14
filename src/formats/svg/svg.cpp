@@ -109,11 +109,11 @@ std::vector<MusxInstance<others::ShapeDef>> selectShapes(const DocumentPtr& docu
     for (Cmper shapeId : denigmaContext.svgShapeDefs) {
         auto shape = document->getOthers()->get<others::ShapeDef>(SCORE_PARTID, shapeId);
         if (!shape) {
-            denigmaContext.logMessage(LogMsg() << "Requested ShapeDef cmper " << shapeId << " was not found.", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "Requested ShapeDef cmper " << shapeId << " was not found.", MessageSeverity::Warning);
             continue;
         }
         if (shape->isBlank()) {
-            denigmaContext.logMessage(LogMsg() << "Requested ShapeDef cmper " << shapeId << " is blank and was skipped.", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "Requested ShapeDef cmper " << shapeId << " is blank and was skipped.", MessageSeverity::Warning);
             continue;
         }
         result.push_back(shape);
@@ -136,7 +136,7 @@ void convert(const CommandInputData& inputData,
     auto document = createDocument(inputData, denigmaContext);
     const auto shapes = selectShapes(document, denigmaContext);
     if (shapes.empty()) {
-        denigmaContext.logMessage(LogMsg() << "No ShapeDef entries matched the SVG export filters.", LogSeverity::Warning);
+        denigmaContext.logMessage(LogMsg() << "No ShapeDef entries matched the SVG export filters.", MessageSeverity::Warning);
         return;
     }
 
@@ -146,7 +146,7 @@ void convert(const CommandInputData& inputData,
     denigmaContext.logMessage(LogMsg() << "SVG scaling pageScale=" << (usePageFormatScaling ? "on" : "off")
                                        << " user=" << svgScale
                                        << " path=" << (usePageFormatScaling ? "toSvgWithPageFormatScaling" : "toSvg"),
-                              LogSeverity::Verbose);
+                              MessageSeverity::Verbose);
 
     size_t generatedCount = 0;
     for (const auto& shape : shapes) {
@@ -156,7 +156,7 @@ void convert(const CommandInputData& inputData,
         if (svgData.empty()) {
             denigmaContext.logMessage(LogMsg() << "ShapeDef cmper " << shape->getCmper()
                                                << " could not be converted to SVG (likely unresolved external graphic).",
-                                      LogSeverity::Warning);
+                                      MessageSeverity::Warning);
             continue;
         }
         const std::string suggestedName = "shape-" + std::to_string(shape->getCmper()) + ".svg";
@@ -165,7 +165,7 @@ void convert(const CommandInputData& inputData,
     }
 
     if (generatedCount == 0) {
-        denigmaContext.logMessage(LogMsg() << "No SVG data was generated.", LogSeverity::Warning);
+        denigmaContext.logMessage(LogMsg() << "No SVG data was generated.", MessageSeverity::Warning);
     }
 }
 
@@ -220,7 +220,7 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
     }
 
     if (generatedCount == 0) {
-        denigmaContext.logMessage(LogMsg() << "No SVG files were written.", LogSeverity::Warning);
+        denigmaContext.logMessage(LogMsg() << "No SVG files were written.", MessageSeverity::Warning);
     }
 }
 

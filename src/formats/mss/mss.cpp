@@ -361,7 +361,7 @@ static double calcMusicalSymbolScale(const MssPreferencesPtr& prefs, const FontI
         /// Should never happen: Assume text to symbols factor of 2
         symbolScale *= 2 / double(prefs->defaultMusicFont->fontSize);
         prefs->denigmaContext->logMessage(LogMsg() << "Unable to load text block font while calculating symbol scale. "
-            << "Assuming text-to-symbol factor of 2 for [" << fontInfo->getName() << "].", LogSeverity::Warning);
+            << "Assuming text-to-symbol factor of 2 for [" << fontInfo->getName() << "].", MessageSeverity::Warning);
     }
     return symbolScale;
 }
@@ -380,7 +380,7 @@ static void writeDefaultFontPref(XmlElement& styleElement, const MssPreferencesP
             writeFontPref(styleElement, namePrefix, fontPrefs.get());
         }
     } else {
-        prefs->denigmaContext->logMessage(LogMsg() << "unable to load default font pref for " << int(type), LogSeverity::Warning);
+        prefs->denigmaContext->logMessage(LogMsg() << "unable to load default font pref for " << int(type), MessageSeverity::Warning);
     }
 }
 
@@ -420,7 +420,7 @@ static void writeCategoryTextFontPref(XmlElement& styleElement, const MssPrefere
 {
     auto cat = prefs->document->getOthers()->get<others::MarkingCategory>(prefs->forPartId, Cmper(categoryType));
     if (!cat) {
-        prefs->denigmaContext->logMessage(LogMsg() << "unable to load category def for " << namePrefix, LogSeverity::Warning);
+        prefs->denigmaContext->logMessage(LogMsg() << "unable to load category def for " << namePrefix, MessageSeverity::Warning);
         return;
     }
     const FontInfo* categoryFont = nullptr;
@@ -430,7 +430,7 @@ static void writeCategoryTextFontPref(XmlElement& styleElement, const MssPrefere
         categoryFont = cat->textFont.get();
     }
     if (!categoryFont) {
-        prefs->denigmaContext->logMessage(LogMsg() << "marking category " << cat->getName() << " has no usable text font.", LogSeverity::Warning);
+        prefs->denigmaContext->logMessage(LogMsg() << "marking category " << cat->getName() << " has no usable text font.", MessageSeverity::Warning);
         return;
     }
     writeFontPref(styleElement, namePrefix, categoryFont);
@@ -444,7 +444,7 @@ static void writeCategoryTextFontPref(XmlElement& styleElement, const MssPrefere
             writeFramePrefs(styleElement, namePrefix, exp->getEnclosure().get());
             break;
         } else {
-            prefs->denigmaContext->logMessage(LogMsg() << "marking category " << cat->getName() << " has invalid text expression.", LogSeverity::Warning);
+            prefs->denigmaContext->logMessage(LogMsg() << "marking category " << cat->getName() << " has invalid text expression.", MessageSeverity::Warning);
         }
     }
 }
@@ -628,7 +628,7 @@ void writeMusicSpacingPrefs(XmlElement& styleElement, const MssPreferencesPtr& p
         if (it != prefs->tieOptions->tieConnectStyles.end() && it->second) {
             return it->second->offsetX;
         }
-        prefs->denigmaContext->logMessage(LogMsg() << "Missing tie connect style " << int(type) << " while setting minTieLength.", LogSeverity::Warning);
+        prefs->denigmaContext->logMessage(LogMsg() << "Missing tie connect style " << int(type) << " while setting minTieLength.", MessageSeverity::Warning);
         return 0;
     };
     setElementValue(styleElement, "minTieLength",
@@ -665,7 +665,7 @@ void writeNoteRelatedPrefs(XmlElement& styleElement, const MssPreferencesPtr& pr
         setElementValue(styleElement, "dotDotDistance", (prefs->augDotOptions->dotOffset + dotWidth.value()) / EVPU_PER_SPACE);
     } else {
         prefs->denigmaContext->logMessage(LogMsg() << "Unable to find augmentation dot width for music font [" << prefs->musicFontName
-            << "]. Dot-to-dot distance setting was skipped.", LogSeverity::Warning);
+            << "]. Dot-to-dot distance setting was skipped.", MessageSeverity::Warning);
     }
     setElementValue(styleElement, "articulationMag", museMagVal(prefs, options::FontOptions::FontType::Articulation));
     setElementValue(styleElement, "graceNoteMag", prefs->graceOptions->gracePerc / 100.0);
@@ -786,7 +786,7 @@ void writeMeasureNumberPrefs(XmlElement& styleElement, const MssPreferencesPtr& 
             }
             if (scorePart->showOnBottom) {
                 prefs->denigmaContext->logMessage(LogMsg() << "Show on Bottom not supported when other staves also show measure numbers.",
-                                                  LogSeverity::Warning);
+                                                  MessageSeverity::Warning);
             }
             return "on-so-staves";
         }();
@@ -925,7 +925,7 @@ void writeTupletPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 
     const auto& fontInfo = prefs->fontOptions->getFontInfo(options::FontOptions::FontType::Tuplet);
     if (!fontInfo) {
-        prefs->denigmaContext->logMessage(LogMsg() << "Unable to load font pref for tuplets", LogSeverity::Warning);
+        prefs->denigmaContext->logMessage(LogMsg() << "Unable to load font pref for tuplets", MessageSeverity::Warning);
         return;
     }
 
@@ -1156,9 +1156,9 @@ void convert(const CommandInputData& inputData,
     }
     if (!foundPart && denigmaContext.partName.has_value() && !denigmaContext.allPartsAndScore) {
         if (denigmaContext.partName->empty()) {
-            denigmaContext.logMessage(LogMsg() << "No parts were found in document", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "No parts were found in document", MessageSeverity::Warning);
         } else {
-            denigmaContext.logMessage(LogMsg() << "No part name starting with \"" << denigmaContext.partName.value() << "\" was found", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "No part name starting with \"" << denigmaContext.partName.value() << "\" was found", MessageSeverity::Warning);
         }
     }
 }
@@ -1187,7 +1187,7 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
     });
 
     if (generatedCount == 0) {
-        denigmaContext.logMessage(LogMsg() << "No MSS files were written.", LogSeverity::Warning);
+        denigmaContext.logMessage(LogMsg() << "No MSS files were written.", MessageSeverity::Warning);
     }
 }
 

@@ -259,7 +259,7 @@ static void assignTimeSignature(
                 count *= count.denominator();
             } else {
                 context->logMessage(LogMsg() << "Time signature in measure " << musxMeasure->getCmper()
-                    << " has fractional portion that could not be reduced.", LogSeverity::Warning);
+                    << " has fractional portion that could not be reduced.", MessageSeverity::Warning);
             }
         }
         mnxMeasure.ensure_time(count.quotient(), enumConvert<mnx::TimeSignatureUnit>(noteType));

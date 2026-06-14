@@ -23,6 +23,7 @@ endfunction()
         test_enigmaxml_converter.cpp
         test_export.cpp
         test_dynamics.cpp
+        test_conversion_result.cpp
         test_logging.cpp
         test_massage.cpp
         test_mss_converter.cpp

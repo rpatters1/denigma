@@ -126,7 +126,7 @@ static std::optional<ClefIndex> createClef(
     const MusxInstance<others::Staff>& musxStaff)
 {
     MUSX_ASSERT_IF(!musxStaff) {
-        context->logMessage(LogMsg() << "invalid or unmapped staff passed to createClef", LogSeverity::Warning);
+        context->logMessage(LogMsg() << "invalid or unmapped staff passed to createClef", MessageSeverity::Warning);
         return std::nullopt;
     }
     const auto& musxClef = context->finaleOptions.clefOptions->getClefDef(clefIndex);
@@ -159,7 +159,7 @@ static std::optional<ClefIndex> createClef(
         return clefIndex;
     } else {
         context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (glyph name is " << clef.glyphName.value_or("") << ")"
-            << " Clef change was skipped.", LogSeverity::Warning);
+            << " Clef change was skipped.", MessageSeverity::Warning);
     }
     return std::nullopt;
 };
@@ -183,7 +183,7 @@ static void createClefs(
             musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper(), location.calcEduDuration());
         if (!musxStaff) {
             context->logMessage(LogMsg() << mnxPartDisplayName(context, mnxPart)
-                << " has no staff information for staff " << staffCmper, LogSeverity::Warning);
+                << " has no staff information for staff " << staffCmper, MessageSeverity::Warning);
             return;
         }
         if (auto newClefIndex = createClef(context, mnxMeasure, mnxStaffNumber, clefIndex, location, musxStaff)) {
@@ -293,7 +293,7 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
             }
         } else if (attachment.entryInfo) {
             context->logMessage(LogMsg() << "Entry " << attachment.entryInfo->getEntry()->getEntryNumber()
-                << " was not mapped to an event or full measure rest", LogSeverity::Warning);
+                << " was not mapped to an event or full measure rest", MessageSeverity::Warning);
         } else {
             if (mnxMeasure.sequences().empty()) {
                 mnxMeasure.sequences().append();
@@ -333,10 +333,10 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
                                     attachBreathMark(calcAttachmentContext(asgn), breathMark.value());
                                 }
                             } else {
-                                context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, LogSeverity::Warning);
+                                context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, MessageSeverity::Warning);
                             }
                         } else {
-                            context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, LogSeverity::Warning);
+                            context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, MessageSeverity::Warning);
                         }
                     }
                 }
@@ -359,7 +359,7 @@ static void processSmartShapes(
         const auto assigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
         for (const auto& assign : assigns) {
             MUSX_ASSERT_IF(!assign) {
-                context->logMessage(LogMsg() << "skipping empty smart shape assignment for measure " << musxMeasure->getCmper(), LogSeverity::Warning);
+                context->logMessage(LogMsg() << "skipping empty smart shape assignment for measure " << musxMeasure->getCmper(), MessageSeverity::Warning);
                 continue;
             }
             if (assign->centerShapeNum != 0) {
@@ -442,7 +442,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
     auto mnxMeasures = part.create_measures();
     const auto it = context->part2Inst.find(part.id_or(""));
     if (it == context->part2Inst.end() || it->second.empty()) {
-        context->logMessage(LogMsg() << mnxPartDisplayName(context, part) << " is not mapped", LogSeverity::Warning);
+        context->logMessage(LogMsg() << mnxPartDisplayName(context, part) << " is not mapped", MessageSeverity::Warning);
     } else {
         context->currPartStaves = it->second;
     }
@@ -499,7 +499,7 @@ static void logNonBarlineInstrumentChanges(const MnxMusxMappingPtr& context, con
             context->logMessage(LogMsg() << "Instrument change for staff " << topStaffId
                 << " occurs inside measure " << point.measureId << " at edu "
                 << point.position.calcEduDuration() << ". Split-instruments export routes by measure start.",
-                LogSeverity::Warning);
+                MessageSeverity::Warning);
         }
     }
 }

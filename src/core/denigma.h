@@ -186,7 +186,7 @@ public:
     std::optional<std::filesystem::path> logFilePath;
     std::shared_ptr<std::ofstream> logFile;
     std::filesystem::path inputFilePath;
-    std::function<void(LogSeverity severity, std::string_view message)> logCallback;
+    std::function<void(MessageSeverity severity, std::string_view message)> logCallback;
 
     // Specific options for `massage` command
     bool refloatRests{ true };
@@ -234,7 +234,7 @@ public:
      * @param msg a utf-8 encoded message.
      * @param severity the message severity
     */
-    void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info) const
+    void logMessage(LogMsg&& msg, MessageSeverity severity = MessageSeverity::Info) const
     {
         logMessage(std::move(msg), false, severity);
     }
@@ -247,7 +247,7 @@ public:
     }
 
 private:
-    void logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity severity = LogSeverity::Info) const;
+    void logMessage(LogMsg&& msg, bool alwaysShow, MessageSeverity severity = MessageSeverity::Info) const;
 };
 
 /// @brief Returns a musx logging callback that forwards messages into the supplied denigma context.

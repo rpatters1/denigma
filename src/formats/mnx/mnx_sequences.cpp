@@ -288,7 +288,7 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
     const auto musxEntry = musxEntryInfo->getEntry();
     auto mnxPartMeasure = mnxEvent.getEnclosingElement<mnx::part::Measure>();
     ASSERT_IF(!mnxPartMeasure) {
-        context->logMessage(LogMsg() << "no part measure exists for " << mnxEvent.dump(4), LogSeverity::Warning);
+        context->logMessage(LogMsg() << "no part measure exists for " << mnxEvent.dump(4), MessageSeverity::Warning);
         return;
     }
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
@@ -342,7 +342,7 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
             if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
                 octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
             } else if (!musxNote.isSameNote(tiedFromNoteInfo)) {
-                context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", LogSeverity::Verbose);
+                context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", MessageSeverity::Verbose);
             }
         }
     }
@@ -422,7 +422,7 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
             mnxNote.set_staff(mnxNoteStaff.value());
         } else {
             context->logMessage(LogMsg() << " note has cross-staffing to a staff (" << noteStaff
-                << ") that is not included in the MNX part.", LogSeverity::Warning);
+                << ") that is not included in the MNX part.", MessageSeverity::Warning);
         }
     }
     createTies(context, mnxNote, musxNote);
@@ -466,7 +466,7 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnx::Content
 {
     auto sequence = content.getEnclosingElement<mnx::Sequence>();
     if (!sequence) {
-        context->logMessage(LogMsg() << " full measure rest could not be assigned to a top-level sequence.", LogSeverity::Warning);
+        context->logMessage(LogMsg() << " full measure rest could not be assigned to a top-level sequence.", MessageSeverity::Warning);
         return;
     }
 
@@ -514,7 +514,7 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
                 if (lyr->syllable > lyrText->syllables.size()) { // Finale syllable numbers are 1-based.
                     context->logMessage(LogMsg() << " Layer " << musxEntryInfo.getLayerIndex() + 1
                         << " Entry index " << musxEntryInfo.getIndexInFrame() << " has an invalid syllable number ("
-                        << lyr->syllable << ").", LogSeverity::Warning);
+                        << lyr->syllable << ").", MessageSeverity::Warning);
                 } else {
                     auto mnxLyrics = mnxEvent.ensure_lyrics();
                     auto mnxLyricsLines = mnxLyrics.ensure_lines();
@@ -569,7 +569,7 @@ static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& 
             mnxEvent.set_staff(mnxPartStaff.value());
         } else {
             context->logMessage(LogMsg() << " entry has cross-staffing to a staff (" << crossedStaffId.value()
-                << ") that is not included in the MNX part.", LogSeverity::Warning);
+                << ") that is not included in the MNX part.", MessageSeverity::Warning);
         }
     }
     const auto [freezeStem, upStem] = musxEntryInfo.calcEntryStemSettings();
@@ -633,12 +633,12 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             if (currElapsedDuration > measureDuration) {
                 if (auto prev = next.getPrevious(); prev && prev.getEffectiveElapsedDuration() < next.getEffectiveMeasureStaffDuration()) {
                     context->logMessage(LogMsg() << "Entry " << prev.getEntryInfo()->getEntry()->getEntryNumber() << " at index " << prev.getEntryInfo().getIndexInFrame()
-                        << " exceeds the measure length.", LogSeverity::Warning);
+                        << " exceeds the measure length.", MessageSeverity::Warning);
                 }
             }
             if (tupletIndex) { // keep tuplets together, even if they exceed the measure
                 context->logMessage(LogMsg()
-                    << "Tuplet exceeds the measure length. This is not supported in MNX. Results may be unpredictable.", LogSeverity::Warning);
+                    << "Tuplet exceeds the measure length. This is not supported in MNX. Results may be unpredictable.", MessageSeverity::Warning);
             }
         }
 
@@ -656,7 +656,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
                 context->logMessage(LogMsg() << "Entry " << entry->getEntryNumber()
                     << " has an instrument identity that differs from the active split part inside measure "
                     << entryInfo.getMeasure() << ". Emitting it in the current frame's part.",
-                    LogSeverity::Warning);
+                    MessageSeverity::Warning);
             }
         }
 
@@ -680,7 +680,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
                     const auto numBeams = next.getEntryInfo().calcNumberOfBeams();
                     const auto numFlagsInRef = calcNumberOfBeamsInEdu(tuplInfo.tuplet->calcReferenceDuration().calcEduDuration());
                     if (numFlagsInRef >= numBeams) {
-                        context->logMessage(LogMsg() << "not enough flags or beams to create a tremolo. Setting tremolo marks to 1.", LogSeverity::Warning);
+                        context->logMessage(LogMsg() << "not enough flags or beams to create a tremolo. Setting tremolo marks to 1.", MessageSeverity::Warning);
                     }
                     const int marks = static_cast<int>(numFlagsInRef < numBeams ? numBeams - numFlagsInRef : 0);
                     auto tremolo = createMultiNoteTremolo(content, tuplInfo, marks);

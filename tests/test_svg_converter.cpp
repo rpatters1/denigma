@@ -55,7 +55,7 @@ TEST(ConverterApi, EnigmaXmlToSvgInvokesOutputCallback)
         },
         denigma::ConversionRequest{ &options });
 
-    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_TRUE(result.diagnostics().empty());
     ASSERT_EQ(outputs.size(), 1u);
     EXPECT_EQ(outputs.front().first, "shape-3.svg");
     EXPECT_NE(outputs.front().second.find("<svg"), std::string::npos);
@@ -86,7 +86,7 @@ TEST(ConverterApi, MusxToSvgInvokesOutputCallback)
         },
         denigma::ConversionRequest{ &options });
 
-    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_TRUE(result.diagnostics().empty());
     ASSERT_EQ(outputs.size(), 1u);
     EXPECT_EQ(outputs.front().first, "shape-3.svg");
     EXPECT_NE(outputs.front().second.find("<svg"), std::string::npos);

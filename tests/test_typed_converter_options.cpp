@@ -64,7 +64,7 @@ TEST(ConverterApi, ConcreteConverterAcceptsTypedOptions)
                                           output,
                                           options);
 
-    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_TRUE(result.diagnostics().empty());
 
     const auto json = nlohmann::json::parse(output.str());
     EXPECT_TRUE(json.contains("mnx"));

@@ -39,22 +39,22 @@ namespace {
 musx::util::Logger::LogCallback makeMusxLogCallback(const MnxMusxMappingPtr& context)
 {
     return [context](musx::util::Logger::LogLevel logLevel, const std::string& msg) {
-        const LogSeverity severity = [logLevel]() {
+        const MessageSeverity severity = [logLevel]() {
             switch (logLevel) {
             default:
-            case musx::util::Logger::LogLevel::Info: return LogSeverity::Info;
-            case musx::util::Logger::LogLevel::Warning: return LogSeverity::Warning;
-            case musx::util::Logger::LogLevel::Error: return LogSeverity::Error;
-            case musx::util::Logger::LogLevel::Verbose: return LogSeverity::Verbose;
+            case musx::util::Logger::LogLevel::Info: return MessageSeverity::Info;
+            case musx::util::Logger::LogLevel::Warning: return MessageSeverity::Warning;
+            case musx::util::Logger::LogLevel::Error: return MessageSeverity::Error;
+            case musx::util::Logger::LogLevel::Verbose: return MessageSeverity::Verbose;
             }
         }();
-        context->logMessage(LogMsg() << msg, severity);
+        =context->logMessage(LogMsg() << msg, severity);
     };
 }
 
 } // namespace
 
-void MnxMusxMapping::logMessage(LogMsg&& msg, LogSeverity severity)
+void MnxMusxMapping::logMessage(LogMsg&& msg, MessageSeverity severity)
 {
     std::string logEntry;
     if (current.staff > 0 && current.meas > 0) {
@@ -266,18 +266,18 @@ static std::unique_ptr<mnx::Document> createMnxDocument(const CommandInputData& 
 static void validateMnxDocument(const mnx::Document& mnxDocument, const DenigmaContext& denigmaContext)
 {
     if (!denigmaContext.noValidate) {
-        denigmaContext.logMessage(LogMsg() << "Validation starting.", LogSeverity::Verbose);
+        denigmaContext.logMessage(LogMsg() << "Validation starting.", MessageSeverity::Verbose);
         if (auto validateResult = mnx::validation::schemaValidate(mnxDocument, denigmaContext.mnxSchema); !validateResult) {
-            denigmaContext.logMessage(LogMsg() << "Schema validation errors:", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "Schema validation errors:", MessageSeverity::Warning);
             for (const auto& error : validateResult.errors) {
-                denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), LogSeverity::Warning);
+                denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), MessageSeverity::Warning);
             }
         } else {
             denigmaContext.logMessage(LogMsg() << "Schema validation succeeded.");
             if (auto semanticResult = mnx::validation::semanticValidate(mnxDocument); !semanticResult) {
-                denigmaContext.logMessage(LogMsg() << "Semantic validation errors:", LogSeverity::Warning);
+                denigmaContext.logMessage(LogMsg() << "Semantic validation errors:", MessageSeverity::Warning);
                 for (const auto& error : semanticResult.errors) {
-                    denigmaContext.logMessage(LogMsg() << "    " << error.to_string(4), LogSeverity::Warning);
+                    denigmaContext.logMessage(LogMsg() << "    " << error.to_string(4), MessageSeverity::Warning);
                 }
             } else {
                 size_t layoutSize = mnxDocument.layouts() ? mnxDocument.layouts().value().size() : 0;

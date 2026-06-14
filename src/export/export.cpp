@@ -181,7 +181,7 @@ void exportMssWithAdapter(const std::filesystem::path& outputPath,
     }, ConversionRequest{ &options });
 
     if (generatedCount == 0) {
-        denigmaContext.logMessage(LogMsg() << "No MSS files were written.", LogSeverity::Warning);
+        denigmaContext.logMessage(LogMsg() << "No MSS files were written.", MessageSeverity::Warning);
     }
 }
 
@@ -272,7 +272,7 @@ void exportSvgWithAdapter(const std::filesystem::path& outputPath,
     }
 
     if (generatedCount == 0) {
-        denigmaContext.logMessage(LogMsg() << "No SVG files were written.", LogSeverity::Warning);
+        denigmaContext.logMessage(LogMsg() << "No SVG files were written.", MessageSeverity::Warning);
     }
 }
 

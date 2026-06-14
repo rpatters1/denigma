@@ -152,7 +152,7 @@ struct MnxMusxMapping
     }
 
     void setCurrentMeasureStaff(const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper);
-    void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
+    void logMessage(LogMsg&& msg, MessageSeverity severity = MessageSeverity::Info);
     void logDiscardedHeuristicCueHold();
     void logDiscardedCueLayerFrame(LayerIndex layer);
 };

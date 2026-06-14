@@ -127,7 +127,7 @@ int _MAIN(int argc, arg_char* argv[])
     try {
         args = denigmaContext.parseOptions(argc, argv);
     } catch (const std::exception& e) {
-        denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << e.what(), MessageSeverity::Error);
         return 1;
     }
 
@@ -235,7 +235,7 @@ int _MAIN(int argc, arg_char* argv[])
                         }
                     }
                     if (!entry.is_directory()) {
-                        denigmaContext.logMessage(LogMsg() << "considered file " << utils::asUtf8Bytes(entry.path()), LogSeverity::Verbose);
+                        denigmaContext.logMessage(LogMsg() << "considered file " << utils::asUtf8Bytes(entry.path()), MessageSeverity::Verbose);
                     }
                     if (entry.is_regular_file() && std::regex_match(entry.path().filename().native(), regex)) {
                         auto inputFilePath = entry.path();
@@ -270,7 +270,7 @@ int _MAIN(int argc, arg_char* argv[])
             denigmaContext.processFile(currentCommand, path, args);
         }
     } catch (const std::exception& e) {
-        denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << e.what(), MessageSeverity::Error);
     }
 
     denigmaContext.endLogging();

@@ -67,13 +67,13 @@ struct MassageMusicXmlContext
         currentMusicXmlPart = currentXmlMeasure = currentMeasure = currentStaff = currentStaffOffset = errorCount = 0;
     }
 
-    void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info);
+    void logMessage(LogMsg&& msg, MessageSeverity severity = MessageSeverity::Info);
     void logXmlNode(pugi::xml_node node);
 };
 
-void MassageMusicXmlContext::logMessage(LogMsg&& msg, LogSeverity severity)
+void MassageMusicXmlContext::logMessage(LogMsg&& msg, MessageSeverity severity)
 {
-    if (severity == LogSeverity::Error) {
+    if (severity == MessageSeverity::Error) {
         ++errorCount;
     }
     std::string logEntry;
@@ -104,7 +104,7 @@ void MassageMusicXmlContext::logXmlNode(pugi::xml_node node)
         LogMsg msg;
         msg << "MusicXml node:" << std::endl;
         node.print(msg);
-        logMessage(std::move(msg), LogSeverity::Verbose);
+        logMessage(std::move(msg), MessageSeverity::Verbose);
     }
 }
 
@@ -298,12 +298,12 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
     // been, so we will not change it unless it is proven to be broken.
     const auto iuList = context->musxDocument->getScrollViewStaves(context->musxPartId);
     if (iuList.empty()) {
-        context->logMessage(LogMsg() << "no staff list found for part", LogSeverity::Warning);
+        context->logMessage(LogMsg() << "no staff list found for part", MessageSeverity::Warning);
         return;
     }
     auto staff = iuList.getStaffInstanceAtIndex(Cmper(staffSlot));
     if (!staff) {
-        context->logMessage(LogMsg() << "staff not found for slot " << staffSlot, LogSeverity::Warning);
+        context->logMessage(LogMsg() << "staff not found for slot " << staffSlot, MessageSeverity::Warning);
         return;
     }
     auto gfHold = details::GFrameHoldContext(context->musxDocument, context->musxPartId, staff->getCmper(), measure);
@@ -327,14 +327,14 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
             };
             nextNote = findNextNote(nextNote);
             if (!nextNote) {
-                context->logMessage(LogMsg() << "xml notes do not match Finale file", LogSeverity::Warning);
+                context->logMessage(LogMsg() << "xml notes do not match Finale file", MessageSeverity::Warning);
                 return false;
             }
 
             auto* durationType = findDurationType(nextNote.child("type").text().get());
             if (!durationType) {
                 if (!nextNote.child("rest")) { // this is valid for full measure rests
-                    context->logMessage(LogMsg() << "xml note node has no type", LogSeverity::Warning);
+                    context->logMessage(LogMsg() << "xml note node has no type", MessageSeverity::Warning);
                     context->logXmlNode(nextNote);
                 }
                 return false;
@@ -353,7 +353,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 }
             }
             if (xmlNoteType != musxNoteType) {
-                context->logMessage(LogMsg() << "xml durations do not match Finale file: [" << Edu(entryNoteType) << ", " << durationType->first << "]", LogSeverity::Warning);
+                context->logMessage(LogMsg() << "xml durations do not match Finale file: [" << Edu(entryNoteType) << ", " << durationType->first << "]", MessageSeverity::Warning);
                 context->logXmlNode(nextNote);
                 return false;
             }
@@ -363,7 +363,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
                 ++numDots;
             }
             if (numDots != entryNumDots) {
-                context->logMessage(LogMsg() << "xml number of dots does not match Finale file: [" << entryNumDots << ", " << numDots << "]", LogSeverity::Warning);
+                context->logMessage(LogMsg() << "xml number of dots does not match Finale file: [" << entryNumDots << ", " << numDots << "]", MessageSeverity::Warning);
                 context->logXmlNode(nextNote);
                 return false;
             }
@@ -372,7 +372,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
             if (!entry->isNote) {
                 pugi::xml_node restElement = nextNote.child("rest");
                 if (!restElement) {
-                    context->logMessage(LogMsg() << "xml corresponding note value in Finale file is not a rest", LogSeverity::Warning);
+                    context->logMessage(LogMsg() << "xml corresponding note value in Finale file is not a rest", MessageSeverity::Warning);
                     context->logXmlNode(nextNote);
                     return false;
                 }
@@ -410,7 +410,7 @@ static void massageXmlWithFinaleDocument(pugi::xml_node xmlMeasure,
 void massageXml(pugi::xml_node scorePartWiseNode, const std::shared_ptr<MassageMusicXmlContext>& context)
 {
     if (!context->musxDocument && context->denigmaContext->refloatRests) {
-        context->logMessage(LogMsg() << "Corresponding Finale document not found.", LogSeverity::Warning);
+        context->logMessage(LogMsg() << "Corresponding Finale document not found.", MessageSeverity::Warning);
     }
 
     context->initCounts();
@@ -603,7 +603,7 @@ Cmper getMusxPartIdFromPartFileName(const std::string& partFileName, const std::
     if (std::regex_search(partFileName, match, pattern)) {
         partNumber = Cmper(std::stoi(match[1].str()));
     } else {
-        context->denigmaContext->logMessage(LogMsg() << "Unable to get part number from " << partFileName << ". Using score instead.", LogSeverity::Warning);
+        context->denigmaContext->logMessage(LogMsg() << "Unable to get part number from " << partFileName << ". Using score instead.", MessageSeverity::Warning);
     }
     return partNumber;
 }
@@ -773,9 +773,9 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 
     if (!processedAFile && denigmaContext.partName.has_value() && !denigmaContext.allPartsAndScore) {
         if (denigmaContext.partName->empty()) {
-            denigmaContext.logMessage(LogMsg() << "No parts were found in document", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "No parts were found in document", MessageSeverity::Warning);
         } else {
-            denigmaContext.logMessage(LogMsg() << "No part name starting with \"" << denigmaContext.partName.value() << "\" was found", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "No part name starting with \"" << denigmaContext.partName.value() << "\" was found", MessageSeverity::Warning);
         }
     }
 }
@@ -784,7 +784,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
 {
     MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     if (!utils::pathExtensionEquals(inputPath, MXL_EXTENSION)) {
-        denigmaContext.logMessage(LogMsg() << utils::asUtf8Bytes(inputPath) << " is not a .mxl file.", LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << utils::asUtf8Bytes(inputPath) << " is not a .mxl file.", MessageSeverity::Error);
         return;
     }
 
@@ -800,7 +800,7 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
         return;
     }
     if (!musicXml.empty()) {
-        denigmaContext.logMessage(LogMsg() << "ignoring input buffer", LogSeverity::Warning);
+        denigmaContext.logMessage(LogMsg() << "ignoring input buffer", MessageSeverity::Warning);
     }
 
     auto context = createContext(inputPath, denigmaContext);

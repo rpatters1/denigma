@@ -52,7 +52,7 @@ TEST(ConverterApi, EnigmaXmlToMnxJsonWritesToStream)
                                            output,
                                            denigma::ConversionRequest{ &options });
 
-    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_TRUE(result.diagnostics().empty());
 
     const std::string jsonText = output.str();
     ASSERT_FALSE(jsonText.empty());
@@ -79,7 +79,7 @@ TEST(ConverterApi, MusxToMnxJsonWritesToStream)
     options.indentSpaces = 2;
     const auto result = converter->convert(input, output, denigma::ConversionRequest{ &options });
 
-    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_TRUE(result.diagnostics().empty());
 
     const std::string jsonText = output.str();
     ASSERT_FALSE(jsonText.empty());
