@@ -257,6 +257,26 @@ private:
     void logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity severity = LogSeverity::Info) const;
 };
 
+/// @brief Returns a musx logging callback that forwards messages into the supplied denigma context.
+musx::util::Logger::LogCallback makeMusxLogCallback(const DenigmaContext& denigmaContext);
+
+/// @class MusxLoggerScope
+/// @brief Installs a musx logging callback for the lifetime of the scope and restores the previous one on exit.
+class MusxLoggerScope
+{
+public:
+    explicit MusxLoggerScope(musx::util::Logger::LogCallback callback);
+    ~MusxLoggerScope();
+
+    MusxLoggerScope(const MusxLoggerScope&) = delete;
+    MusxLoggerScope& operator=(const MusxLoggerScope&) = delete;
+    MusxLoggerScope(MusxLoggerScope&&) = delete;
+    MusxLoggerScope& operator=(MusxLoggerScope&&) = delete;
+
+private:
+    musx::util::Logger::LogCallback m_previousCallback;
+};
+
 class ICommand
 {
 public:

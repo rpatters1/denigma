@@ -21,6 +21,7 @@
  */
 #include "core/denigma.h"
 #include <limits>
+#include <iostream>
 
 namespace denigma {
 
@@ -301,6 +302,48 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity sever
 #else
     std::cerr << msg.str() << std::endl;
 #endif
+}
+
+musx::util::Logger::LogCallback makeMusxLogCallback(const DenigmaContext& denigmaContext)
+{
+    return [&denigmaContext](musx::util::Logger::LogLevel logLevel, const std::string& msg) {
+        const LogSeverity severity = [logLevel]() {
+            switch (logLevel) {
+            default:
+            case musx::util::Logger::LogLevel::Info: return LogSeverity::Info;
+            case musx::util::Logger::LogLevel::Warning: return LogSeverity::Warning;
+            case musx::util::Logger::LogLevel::Error: return LogSeverity::Error;
+            case musx::util::Logger::LogLevel::Verbose: return LogSeverity::Verbose;
+            }
+        }();
+        denigmaContext.logMessage(LogMsg() << msg, severity);
+    };
+}
+
+MusxLoggerScope::MusxLoggerScope(musx::util::Logger::LogCallback callback)
+    : m_previousCallback(musx::util::Logger::getCallback())
+{
+    musx::util::Logger::setCallback([callback = std::move(callback), previousCallback = m_previousCallback](
+                                         musx::util::Logger::LogLevel logLevel,
+                                         const std::string& msg) {
+        bool handled = false;
+        if (callback) {
+            callback(logLevel, msg);
+            handled = true;
+        }
+        if (previousCallback) {
+            previousCallback(logLevel, msg);
+            handled = true;
+        }
+        if (!handled) {
+            std::cerr << msg << std::endl;
+        }
+    });
+}
+
+MusxLoggerScope::~MusxLoggerScope()
+{
+    musx::util::Logger::setCallback(std::move(m_previousCallback));
 }
 
 bool DenigmaContext::validatePathsAndOptions(const std::filesystem::path& outputFilePath) const

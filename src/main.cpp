@@ -30,8 +30,6 @@
 #include <stdexcept>
 #include <clocale>
 
-#include "musx/musx.h"
-
 #include "core/denigma.h"
 #include "export/export.h"
 #include "massage/massage.h"
@@ -165,18 +163,7 @@ int _MAIN(int argc, arg_char* argv[])
         return showHelpPage(denigmaContext.programName);
     }
 
-    musx::util::Logger::setCallback([&denigmaContext](musx::util::Logger::LogLevel logLevel, const std::string& msg) {
-            LogSeverity logSeverity = [logLevel]() {
-                    switch (logLevel) {
-                        default:
-                        case musx::util::Logger::LogLevel::Info: return LogSeverity::Info;
-                        case musx::util::Logger::LogLevel::Warning: return LogSeverity::Warning;
-                        case musx::util::Logger::LogLevel::Error: return LogSeverity::Error;
-                        case musx::util::Logger::LogLevel::Verbose: return LogSeverity::Verbose;
-                    }
-                }();
-            denigmaContext.logMessage(LogMsg() << msg, logSeverity);
-        });
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
 
     // stupid omission from C++17 standard
     // see https://stackoverflow.com/questions/73555606/stdunordered-setstdfilesystempath-compile-error-on-clang-and-g-below
@@ -287,7 +274,6 @@ int _MAIN(int argc, arg_char* argv[])
     }
 
     denigmaContext.endLogging();
-    musx::util::Logger::setCallback(nullptr); // in case this is call from testing.
 
     return denigmaContext.errorOccurred;
 }
