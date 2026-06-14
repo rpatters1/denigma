@@ -296,8 +296,12 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, MessageSeverity s
         errorOccurred = true;
     }
     msg.flush();
+    const std::string text = msg.str();
+    if (conversionResult && (severity == MessageSeverity::Warning || severity == MessageSeverity::Error)) {
+        conversionResult->addDiagnostic(severity, text);
+    }
     if (logCallback) {
-        logCallback(severity, msg.str());
+        logCallback(severity, text);
         return;
     }
     const auto inputFileUtf8 = inputFilePath.filename().u8string();
@@ -309,7 +313,7 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, MessageSeverity s
     if (logFile && logFile->is_open()) {
         LogMsg prefix = LogMsg() << "[" << getTimeStamp("%Y-%m-%d %H:%M:%S") << "] " << inputFile;
         prefix.flush();
-        *logFile << prefix.str() << getSeverityStr() << msg.str() << std::endl;
+        *logFile << prefix.str() << getSeverityStr() << text << std::endl;
         if (severity == MessageSeverity::Error) {
             *logFile << prefix.str() << "PROCESSING ABORTED" << std::endl;
         }
@@ -324,7 +328,7 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, MessageSeverity s
         DWORD consoleMode{};
         if (::GetConsoleMode(hConsole, &consoleMode)) {
             std::wstringstream wMsg;
-            wMsg << utils::stringToWstring(msg.str()) << std::endl;
+            wMsg << utils::stringToWstring(text) << std::endl;
             DWORD written{};
             if (::WriteConsoleW(hConsole, wMsg.str().data(), static_cast<DWORD>(wMsg.str().size()), &written, nullptr)) {
                 return;
@@ -332,9 +336,9 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, MessageSeverity s
             std::wcerr << L"Failed to write message to console: " << ::GetLastError() << std::endl;
         }
     }
-    std::wcerr << utils::stringToWstring(msg.str()) << std::endl;
+    std::wcerr << utils::stringToWstring(text) << std::endl;
 #else
-    std::cerr << msg.str() << std::endl;
+    std::cerr << text << std::endl;
 #endif
 }
 

@@ -91,3 +91,38 @@ TEST(ConverterApi, MusxToSvgInvokesOutputCallback)
     EXPECT_EQ(outputs.front().first, "shape-3.svg");
     EXPECT_NE(outputs.front().second.find("<svg"), std::string::npos);
 }
+
+TEST(ConverterApi, MusxToSvgCollectsWarningsInConversionResult)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::svg::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::Svg);
+    ASSERT_NE(converter, nullptr);
+
+    denigma::FileRandomAccessReader input(getInputPath() / utils::utf8ToPath("notAscii-其れ.musx"));
+    denigma::formats::svg::Options options;
+    options.common.sourceName = "notAscii-其れ.musx";
+    options.common.logCallback = [](denigma::MessageSeverity, std::string_view) {};
+    options.shapeDefs = { 9999 };
+
+    std::vector<std::pair<std::string, std::string>> outputs;
+    const auto result = converter->convert(
+        input,
+        [&](std::string_view suggestedName, std::span<const std::byte> data) {
+            std::string svgText;
+            svgText.resize(data.size());
+            std::memcpy(svgText.data(), data.data(), data.size());
+            outputs.emplace_back(std::string(suggestedName), std::move(svgText));
+        },
+        denigma::ConversionRequest{ &options });
+
+    EXPECT_TRUE(result);
+    ASSERT_EQ(result.diagnostics().size(), 2u);
+    EXPECT_EQ(result.diagnostics().front().severity, denigma::MessageSeverity::Warning);
+    EXPECT_NE(result.diagnostics().front().message.find("Requested ShapeDef cmper 9999 was not found"), std::string::npos);
+    EXPECT_EQ(result.diagnostics().back().severity, denigma::MessageSeverity::Warning);
+    EXPECT_NE(result.diagnostics().back().message.find("No ShapeDef entries matched the SVG export filters"), std::string::npos);
+    EXPECT_TRUE(outputs.empty());
+}

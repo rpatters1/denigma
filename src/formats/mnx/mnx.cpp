@@ -48,7 +48,7 @@ musx::util::Logger::LogCallback makeMusxLogCallback(const MnxMusxMappingPtr& con
             case musx::util::Logger::LogLevel::Verbose: return MessageSeverity::Verbose;
             }
         }();
-        =context->logMessage(LogMsg() << msg, severity);
+        context->logMessage(LogMsg() << msg, severity);
     };
 }
 

@@ -187,6 +187,7 @@ public:
     std::shared_ptr<std::ofstream> logFile;
     std::filesystem::path inputFilePath;
     std::function<void(MessageSeverity severity, std::string_view message)> logCallback;
+    ConversionResult* conversionResult{};
 
     // Specific options for `massage` command
     bool refloatRests{ true };
