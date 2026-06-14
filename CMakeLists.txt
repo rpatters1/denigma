@@ -237,8 +237,9 @@ else()
     message(STATUS "Using GitHub for MUSX C++ DOM (${MUSXDOM_GIT_TAG_OR_BRANCH})")
 endif()
 
-# temporary for reference and debugging
-set(MUSX_DISPLAY_NODE_NAMES ON CACHE BOOL "Write node names to std::cout as they are processed" FORCE)
+# Temporary for reference and debugging. Pass a config-aware value into the
+# musx subproject so it only enables node-name display for Debug builds.
+set(MUSX_DISPLAY_NODE_NAMES "$<CONFIG:Debug>")
 #set(MUSX_THROW_ON_UNKNOWN_XML ON CACHE BOOL "Enable throwing on unknown XML" FORCE)
 #set(MUSX_THROW_ON_INTEGRITY_CHECK_FAIL ON CACHE BOOL "Enable throwing integrity check failures" FORCE)
 
