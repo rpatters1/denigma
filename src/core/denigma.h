@@ -30,6 +30,7 @@
 #include <functional>
 #include <cassert>
 
+#include "denigma/conversion.h"
 #include "musx/musx.h"
 #include "utils/stringutils.h"
 
@@ -139,15 +140,6 @@ inline decltype(Processors::value_type::processor) findProcessor(const Processor
     throw std::invalid_argument("Unsupported format: " + utils::utf8ToString(key));
 }
 
-/// @brief defines log message severity
-enum class LogSeverity
-{
-    Info,       ///< No error. The message is for information.
-    Warning,    ///< An event has occurred that may affect the result, but processing of output continues.
-    Error,      ///< Processing of the current file has aborted. This level usually occurs in catch blocks.
-    Verbose     ///< Only emit if --verbose option specified. The message is for information.
-};
-
 enum class MusicProgramPreset
 {
     Unspecified,
@@ -194,6 +186,7 @@ public:
     std::optional<std::filesystem::path> logFilePath;
     std::shared_ptr<std::ofstream> logFile;
     std::filesystem::path inputFilePath;
+    std::function<void(LogSeverity severity, std::string_view message)> logCallback;
 
     // Specific options for `massage` command
     bool refloatRests{ true };
@@ -272,9 +265,6 @@ public:
     MusxLoggerScope& operator=(const MusxLoggerScope&) = delete;
     MusxLoggerScope(MusxLoggerScope&&) = delete;
     MusxLoggerScope& operator=(MusxLoggerScope&&) = delete;
-
-private:
-    musx::util::Logger::LogCallback m_previousCallback;
 };
 
 class ICommand

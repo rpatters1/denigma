@@ -258,6 +258,7 @@ static CommandInputData readMusxArchive(const IRandomAccessReader& reader, const
 
 CommandInputData readEnigmaXmlInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Reading " << utils::asUtf8Bytes(inputPath));
         return {};
@@ -286,6 +287,7 @@ CommandInputData readEnigmaXmlInputData(const std::filesystem::path& inputPath, 
 
 CommandInputData extractMusxInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Extracting " << utils::asUtf8Bytes(inputPath));
         return {};
@@ -302,6 +304,7 @@ CommandInputData extractMusxInputData(const std::filesystem::path& inputPath, co
 
 CommandInputData extractMusxInputData(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Extracting from random-access reader");
         return {};
@@ -317,6 +320,7 @@ CommandInputData extractMusxInputData(const IRandomAccessReader& reader, const D
 
 void writeEnigmaXml(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Writing " << utils::asUtf8Bytes(outputPath));
         return;
@@ -348,6 +352,7 @@ void writeEnigmaXml(const std::filesystem::path& outputPath, const CommandInputD
 
 void writeMusxForCli(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Writing " << utils::asUtf8Bytes(outputPath));
         return;

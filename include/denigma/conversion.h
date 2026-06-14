@@ -49,6 +49,16 @@ enum class FormatId
     Svg         ///< Scalable Vector Graphics XML.
 };
 
+/// @enum LogSeverity
+/// @brief Severity for log messages emitted by converters.
+enum class LogSeverity
+{
+    Info,
+    Warning,
+    Error,
+    Verbose
+};
+
 /// @struct Diagnostic
 /// @brief A non-fatal message emitted by a converter.
 struct Diagnostic
@@ -74,6 +84,12 @@ struct CommonOptions
     std::string sourceName;
     /// Enables converter-specific output validation when supported.
     bool validate{ true };
+    /// Enables verbose logging when supported by the caller.
+    bool verbose{ false };
+    /// Suppresses info/verbose logging when true.
+    bool quiet{ false };
+    /// Optional callback that receives converter log messages.
+    std::function<void(LogSeverity severity, std::string_view message)> logCallback;
 };
 
 /// @class IOptions

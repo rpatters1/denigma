@@ -1112,6 +1112,7 @@ static void processPart(const DocumentPtr& document,
 
 void convert(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Converting MSS data");
         return;
@@ -1127,6 +1128,7 @@ void convert(const CommandInputData& inputData,
              const DenigmaContext& denigmaContext,
              const MultiOutputCallback& outputCallback)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Converting MSS data");
         return;
@@ -1163,6 +1165,7 @@ void convert(const CommandInputData& inputData,
 
 void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
         return;

@@ -22,10 +22,40 @@
 #include "core/denigma.h"
 #include <limits>
 #include <iostream>
+#include <mutex>
 
 namespace denigma {
 
 namespace {
+
+std::mutex g_musxLoggerMutex;
+musx::util::Logger::LogCallback g_originalMusxCallback;
+std::vector<musx::util::Logger::LogCallback> g_musxCallbackStack;
+bool g_musxBridgeInstalled{};
+
+musx::util::Logger::LogCallback makeMusxBridge()
+{
+    return [](musx::util::Logger::LogLevel logLevel, const std::string& msg) {
+        musx::util::Logger::LogCallback callback;
+        musx::util::Logger::LogCallback fallback;
+        {
+            std::lock_guard<std::mutex> lock(g_musxLoggerMutex);
+            if (!g_musxCallbackStack.empty()) {
+                callback = g_musxCallbackStack.back();
+            }
+            fallback = g_originalMusxCallback;
+        }
+        if (callback) {
+            callback(logLevel, msg);
+            return;
+        }
+        if (fallback) {
+            fallback(logLevel, msg);
+            return;
+        }
+        std::cerr << msg << std::endl;
+    };
+}
 
 musx::util::SvgConvert::SvgUnit parseSvgUnitOption(const std::string& input)
 {
@@ -266,6 +296,10 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity sever
         errorOccurred = true;
     }
     msg.flush();
+    if (logCallback) {
+        logCallback(severity, msg.str());
+        return;
+    }
     const auto inputFileUtf8 = inputFilePath.filename().u8string();
     std::string inputFile;
     utils::appendUtf8(inputFile, inputFileUtf8);
@@ -321,29 +355,26 @@ musx::util::Logger::LogCallback makeMusxLogCallback(const DenigmaContext& denigm
 }
 
 MusxLoggerScope::MusxLoggerScope(musx::util::Logger::LogCallback callback)
-    : m_previousCallback(musx::util::Logger::getCallback())
 {
-    musx::util::Logger::setCallback([callback = std::move(callback), previousCallback = m_previousCallback](
-                                         musx::util::Logger::LogLevel logLevel,
-                                         const std::string& msg) {
-        bool handled = false;
-        if (callback) {
-            callback(logLevel, msg);
-            handled = true;
-        }
-        if (previousCallback) {
-            previousCallback(logLevel, msg);
-            handled = true;
-        }
-        if (!handled) {
-            std::cerr << msg << std::endl;
-        }
-    });
+    std::lock_guard<std::mutex> lock(g_musxLoggerMutex);
+    if (!g_musxBridgeInstalled) {
+        g_originalMusxCallback = musx::util::Logger::getCallback();
+        musx::util::Logger::setCallback(makeMusxBridge());
+        g_musxBridgeInstalled = true;
+    }
+    g_musxCallbackStack.emplace_back(std::move(callback));
 }
 
 MusxLoggerScope::~MusxLoggerScope()
 {
-    musx::util::Logger::setCallback(std::move(m_previousCallback));
+    std::lock_guard<std::mutex> lock(g_musxLoggerMutex);
+    if (!g_musxCallbackStack.empty()) {
+        g_musxCallbackStack.pop_back();
+    }
+    if (g_musxCallbackStack.empty() && g_musxBridgeInstalled) {
+        musx::util::Logger::setCallback(std::move(g_originalMusxCallback));
+        g_musxBridgeInstalled = false;
+    }
 }
 
 bool DenigmaContext::validatePathsAndOptions(const std::filesystem::path& outputFilePath) const

@@ -41,6 +41,8 @@ DenigmaContext makeMnxContext(const Options& options, const std::filesystem::pat
         ? defaultSourceName
         : utils::utf8ToPath(options.common.sourceName);
     context.noValidate = !options.common.validate;
+    context.verbose = options.common.verbose;
+    context.quiet = options.common.quiet;
     context.indentSpaces = options.indentSpaces;
     context.cueLayer = options.cueLayer;
     context.mnxSchema = options.schema;
@@ -62,6 +64,8 @@ ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte>
     }
 
     auto context = makeMnxContext(options, "input.enigmaxml");
+    context.logCallback = options.common.logCallback;
+    MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
     mnxexp::exportJson(output, CommandInputData{ std::move(buffer), std::nullopt, {} }, context);
     return {};
@@ -79,6 +83,8 @@ ConversionResult MusxToMnxJsonConverter::convert(const IRandomAccessReader& inpu
                                                  const Options& options) const
 {
     auto context = makeMnxContext(options, "input.musx");
+    context.logCallback = options.common.logCallback;
+    MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
     mnxexp::exportJson(output, enigmaxml::extractMusxInputData(input, context), context);
     return {};

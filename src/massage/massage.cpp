@@ -136,12 +136,14 @@ bool MassageCommand::canProcess(const std::filesystem::path& inputPath) const
 
 CommandInputData MassageCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
     return inputProcessor(inputPath, denigmaContext);
 }
 
 void MassageCommand::processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
     outputProcessor(inputPath, outputPath, inputData.primaryBuffer, denigmaContext);
 }

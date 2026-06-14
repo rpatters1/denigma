@@ -718,6 +718,7 @@ pugi::xml_document openXmlDocument(const T& xmlData)
 
 void massage(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& xmlBuffer, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
 #ifdef DENIGMA_TEST
     if (denigmaContext.forTestOutput()) {
         denigmaContext.logMessage(LogMsg() << "Massaging " << utils::asUtf8Bytes(inputPath) << " to " << utils::asUtf8Bytes(outputPath));
@@ -781,6 +782,7 @@ void massage(const std::filesystem::path& inputPath, const std::filesystem::path
 
 void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath, const Buffer& musicXml, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     if (!utils::pathExtensionEquals(inputPath, MXL_EXTENSION)) {
         denigmaContext.logMessage(LogMsg() << utils::asUtf8Bytes(inputPath) << " is not a .mxl file.", LogSeverity::Error);
         return;

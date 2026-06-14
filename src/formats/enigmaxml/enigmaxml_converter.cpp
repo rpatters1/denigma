@@ -35,6 +35,8 @@ ConversionResult MusxToEnigmaXmlConverter::convert(const IRandomAccessReader& in
         ? std::filesystem::path("input.musx")
         : utils::utf8ToPath(options.common.sourceName);
     context.noValidate = !options.common.validate;
+    context.logCallback = options.common.logCallback;
+    MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
     const Buffer buffer = denigma::enigmaxml::extractMusxInputData(input, context).primaryBuffer;
     output.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));

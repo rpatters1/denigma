@@ -48,6 +48,8 @@ CommonOptions makeCommonOptions(const DenigmaContext& denigmaContext)
     CommonOptions options;
     options.sourceName = utils::pathToString(denigmaContext.inputFilePath);
     options.validate = !denigmaContext.noValidate;
+    options.verbose = denigmaContext.verbose;
+    options.quiet = denigmaContext.quiet;
     return options;
 }
 
@@ -382,12 +384,14 @@ bool ExportCommand::canProcess(const std::filesystem::path& inputPath) const
 
 CommandInputData ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
     return inputProcessor(inputPath, denigmaContext);
 }
 
 void ExportCommand::processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
     outputProcessor(outputPath, inputData, denigmaContext);
 }
