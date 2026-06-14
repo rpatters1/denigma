@@ -43,14 +43,14 @@ TEST(ConverterApi, MusxToEnigmaXmlWritesToStream)
     denigma::FileRandomAccessReader fileReader(getInputPath() / utils::utf8ToPath("notAscii-其れ.musx"));
     std::ostringstream fileOutput;
     const auto fileResult = converter->convert(fileReader, fileOutput, denigma::ConversionRequest{ &options });
-    EXPECT_TRUE(fileResult.diagnostics.empty());
+    EXPECT_TRUE(fileResult.diagnostics().empty());
 
     std::vector<char> musxInput;
     readFile(getInputPath() / utils::utf8ToPath("notAscii-其れ.musx"), musxInput);
     denigma::BufferRandomAccessReader bufferReader(std::as_bytes(std::span<const char>(musxInput.data(), musxInput.size())));
     std::ostringstream bufferOutput;
     const auto bufferResult = converter->convert(bufferReader, bufferOutput, denigma::ConversionRequest{ &options });
-    EXPECT_TRUE(bufferResult.diagnostics.empty());
+    EXPECT_TRUE(bufferResult.diagnostics().empty());
 
     std::vector<char> reference;
     readFile(getInputPath() / "reference" / utils::utf8ToPath("notAscii-其れ.enigmaxml"), reference);

@@ -49,7 +49,7 @@ TEST(ConverterApi, EnigmaXmlToMssXmlWritesToStream)
                                            output,
                                            denigma::ConversionRequest{ &options });
 
-    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_TRUE(result.diagnostics().empty());
 
     const std::string xmlText = output.str();
     ASSERT_FALSE(xmlText.empty());
@@ -78,7 +78,7 @@ TEST(ConverterApi, MusxToMssXmlWritesToStream)
     options.common.sourceName = "notAscii-其れ.musx";
     const auto result = converter->convert(input, output, denigma::ConversionRequest{ &options });
 
-    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_TRUE(result.diagnostics().empty());
 
     const std::string xmlText = output.str();
     ASSERT_FALSE(xmlText.empty());
@@ -119,7 +119,7 @@ TEST(ConverterApi, MusxToMssXmlInvokesOutputCallbackForParts)
         outputs.push_back(Output{ std::string(suggestedName), std::move(outputData) });
     }, denigma::ConversionRequest{ &options });
 
-    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_TRUE(result.diagnostics().empty());
     ASSERT_GE(outputs.size(), 2);
     EXPECT_EQ(outputs.front().suggestedName, "");
 

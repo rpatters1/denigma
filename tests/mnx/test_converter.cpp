@@ -19,11 +19,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <array>
 #include <cstddef>
 #include <sstream>
 #include <span>
 #include <string>
 #include <vector>
+#include <string_view>
 
 #include "gtest/gtest.h"
 
@@ -52,7 +54,7 @@ TEST(ConverterApi, EnigmaXmlToMnxJsonWritesToStream)
                                            output,
                                            denigma::ConversionRequest{ &options });
 
-    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_TRUE(result.diagnostics().empty());
 
     const std::string jsonText = output.str();
     ASSERT_FALSE(jsonText.empty());
@@ -79,7 +81,7 @@ TEST(ConverterApi, MusxToMnxJsonWritesToStream)
     options.indentSpaces = 2;
     const auto result = converter->convert(input, output, denigma::ConversionRequest{ &options });
 
-    EXPECT_TRUE(result.diagnostics.empty());
+    EXPECT_TRUE(result.diagnostics().empty());
 
     const std::string jsonText = output.str();
     ASSERT_FALSE(jsonText.empty());
@@ -87,4 +89,39 @@ TEST(ConverterApi, MusxToMnxJsonWritesToStream)
     ASSERT_TRUE(json.contains("mnx"));
     ASSERT_TRUE(json.contains("global"));
     ASSERT_TRUE(json.contains("parts"));
+}
+
+TEST(ConverterApi, EnigmaXmlToMnxJsonCollectsErrorDiagnosticsForInvalidXml)
+{
+    denigma::ConverterRegistry registry;
+    denigma::formats::mnx::registerConverters(registry);
+    const auto* converter = registry.find(denigma::FormatId::EnigmaXml, denigma::FormatId::MnxJson);
+    ASSERT_NE(converter, nullptr);
+
+    const std::array<std::byte, 7> input{
+        std::byte('n'),
+        std::byte('o'),
+        std::byte('t'),
+        std::byte(' '),
+        std::byte('x'),
+        std::byte('m'),
+        std::byte('l')
+    };
+
+    std::ostringstream output;
+    denigma::formats::mnx::Options options;
+    options.common.sourceName = "invalid.enigmaxml";
+    options.common.logCallback = [](denigma::MessageSeverity, std::string_view) {};
+    options.common.validate = false;
+    options.indentSpaces = 2;
+
+    const auto result = converter->convert(std::span<const std::byte>(input.data(), input.size()),
+                                           output,
+                                           denigma::ConversionRequest{ &options });
+
+    EXPECT_FALSE(result);
+    EXPECT_TRUE(result.hasError());
+    ASSERT_FALSE(result.diagnostics().empty());
+    EXPECT_EQ(result.diagnostics().back().severity, denigma::MessageSeverity::Error);
+    EXPECT_TRUE(output.str().empty());
 }

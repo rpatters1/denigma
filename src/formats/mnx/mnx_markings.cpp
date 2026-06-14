@@ -363,7 +363,7 @@ void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measur
     const auto bottomNote = findArepggioBoundaryNote(candidate.bottomEntry, false);
     if (!topNote || !bottomNote) {
         context->logMessage(LogMsg() << "skipping arpeggio because its note span could not be resolved.",
-            LogSeverity::Warning);
+            MessageSeverity::Warning);
         return;
     }
 
@@ -451,7 +451,7 @@ void finalizeArpeggios(const MnxMusxMappingPtr& context)
         const auto bottomNote = findArepggioBoundaryNote(candidate.bottomEntry, false);
         if (!topNote || !bottomNote) {
             context->logMessage(LogMsg() << "skipping arpeggio because its note span could not be resolved.",
-                LogSeverity::Warning);
+                MessageSeverity::Warning);
             continue;
         }
 
@@ -459,7 +459,7 @@ void finalizeArpeggios(const MnxMusxMappingPtr& context)
         const auto bottomPart = findMnxPartForNote(context, bottomNote.value());
         if (!topPart || !bottomPart) {
             context->logMessage(LogMsg() << "skipping arpeggio because its note span includes a staff that is not assigned to an MNX part.",
-                LogSeverity::Warning);
+                MessageSeverity::Warning);
             continue;
         }
 
@@ -469,7 +469,7 @@ void finalizeArpeggios(const MnxMusxMappingPtr& context)
         } else {
             targetParts = findAffectedMnxPartsForArpeggio(context, candidate);
             context->logMessage(LogMsg() << "splitting arpeggio across MNX part boundary into "
-                << mnxPartDisplayList(context, targetParts) << ".", LogSeverity::Info);
+                << mnxPartDisplayList(context, targetParts) << ".", MessageSeverity::Info);
         }
 
         bool emittedAny = false;
@@ -478,7 +478,7 @@ void finalizeArpeggios(const MnxMusxMappingPtr& context)
         }
         if (!emittedAny) {
             context->logMessage(LogMsg() << "skipping arpeggio because no valid MNX part span could be resolved.",
-                LogSeverity::Warning);
+                MessageSeverity::Warning);
         }
     }
 }

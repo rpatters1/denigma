@@ -41,6 +41,8 @@ DenigmaContext makeMnxContext(const Options& options, const std::filesystem::pat
         ? defaultSourceName
         : utils::utf8ToPath(options.common.sourceName);
     context.noValidate = !options.common.validate;
+    context.verbose = options.common.verbose;
+    context.quiet = options.common.quiet;
     context.indentSpaces = options.indentSpaces;
     context.cueLayer = options.cueLayer;
     context.mnxSchema = options.schema;
@@ -55,6 +57,7 @@ ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte>
                                                       std::ostream& output,
                                                       const Options& options) const
 {
+    ConversionResult result;
     Buffer buffer;
     buffer.reserve(input.size());
     for (const std::byte value : input) {
@@ -62,9 +65,17 @@ ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte>
     }
 
     auto context = makeMnxContext(options, "input.enigmaxml");
+    context.logCallback = options.common.logCallback;
+    context.conversionResult = &result;
+    MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
-    mnxexp::exportJson(output, CommandInputData{ std::move(buffer), std::nullopt, {} }, context);
-    return {};
+    try {
+        mnxexp::exportJson(output, CommandInputData{ std::move(buffer), std::nullopt, {} }, context);
+    } catch (const std::exception& ex) {
+        context.logMessage(LogMsg() << "unable to convert Enigma XML to MNX JSON", MessageSeverity::Error);
+        context.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
+    }
+    return result;
 }
 
 ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte> input,
@@ -78,10 +89,19 @@ ConversionResult MusxToMnxJsonConverter::convert(const IRandomAccessReader& inpu
                                                  std::ostream& output,
                                                  const Options& options) const
 {
+    ConversionResult result;
     auto context = makeMnxContext(options, "input.musx");
+    context.logCallback = options.common.logCallback;
+    context.conversionResult = &result;
+    MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
-    mnxexp::exportJson(output, enigmaxml::extractMusxInputData(input, context), context);
-    return {};
+    try {
+        mnxexp::exportJson(output, enigmaxml::extractMusxInputData(input, context), context);
+    } catch (const std::exception& ex) {
+        context.logMessage(LogMsg() << "unable to convert MUSX to MNX JSON", MessageSeverity::Error);
+        context.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
+    }
+    return result;
 }
 
 ConversionResult MusxToMnxJsonConverter::convert(const IRandomAccessReader& input,

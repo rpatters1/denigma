@@ -34,7 +34,27 @@ using namespace musx::factory;
 namespace denigma {
 namespace mnxexp {
 
-void MnxMusxMapping::logMessage(LogMsg&& msg, LogSeverity severity)
+namespace {
+
+musx::util::Logger::LogCallback makeMusxLogCallback(const MnxMusxMappingPtr& context)
+{
+    return [context](musx::util::Logger::LogLevel logLevel, const std::string& msg) {
+        const MessageSeverity severity = [logLevel]() {
+            switch (logLevel) {
+            default:
+            case musx::util::Logger::LogLevel::Info: return MessageSeverity::Info;
+            case musx::util::Logger::LogLevel::Warning: return MessageSeverity::Warning;
+            case musx::util::Logger::LogLevel::Error: return MessageSeverity::Error;
+            case musx::util::Logger::LogLevel::Verbose: return MessageSeverity::Verbose;
+            }
+        }();
+        context->logMessage(LogMsg() << msg, severity);
+    };
+}
+
+} // namespace
+
+void MnxMusxMapping::logMessage(LogMsg&& msg, MessageSeverity severity)
 {
     std::string logEntry;
     if (current.staff > 0 && current.meas > 0) {
@@ -221,6 +241,7 @@ static std::unique_ptr<mnx::Document> createMnxDocument(const CommandInputData& 
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnx::Document>();
     context->musxParts = others::PartDefinition::getInUserOrder(document);
+    MusxLoggerScope mnxMusxLogger(makeMusxLogCallback(context));
 
     createMappings(context);   // map repeat text, text exprs, articulations, etc. to semantic values
 
@@ -245,18 +266,18 @@ static std::unique_ptr<mnx::Document> createMnxDocument(const CommandInputData& 
 static void validateMnxDocument(const mnx::Document& mnxDocument, const DenigmaContext& denigmaContext)
 {
     if (!denigmaContext.noValidate) {
-        denigmaContext.logMessage(LogMsg() << "Validation starting.", LogSeverity::Verbose);
+        denigmaContext.logMessage(LogMsg() << "Validation starting.", MessageSeverity::Verbose);
         if (auto validateResult = mnx::validation::schemaValidate(mnxDocument, denigmaContext.mnxSchema); !validateResult) {
-            denigmaContext.logMessage(LogMsg() << "Schema validation errors:", LogSeverity::Warning);
+            denigmaContext.logMessage(LogMsg() << "Schema validation errors:", MessageSeverity::Warning);
             for (const auto& error : validateResult.errors) {
-                denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), LogSeverity::Warning);
+                denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), MessageSeverity::Warning);
             }
         } else {
             denigmaContext.logMessage(LogMsg() << "Schema validation succeeded.");
             if (auto semanticResult = mnx::validation::semanticValidate(mnxDocument); !semanticResult) {
-                denigmaContext.logMessage(LogMsg() << "Semantic validation errors:", LogSeverity::Warning);
+                denigmaContext.logMessage(LogMsg() << "Semantic validation errors:", MessageSeverity::Warning);
                 for (const auto& error : semanticResult.errors) {
-                    denigmaContext.logMessage(LogMsg() << "    " << error.to_string(4), LogSeverity::Warning);
+                    denigmaContext.logMessage(LogMsg() << "    " << error.to_string(4), MessageSeverity::Warning);
                 }
             } else {
                 size_t layoutSize = mnxDocument.layouts() ? mnxDocument.layouts().value().size() : 0;
@@ -274,6 +295,7 @@ static void writeMnxDocumentJson(std::ostream& output, const mnx::Document& mnxD
 
 void exportJson(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     auto mnxDocument = createMnxDocument(inputData, denigmaContext);
     validateMnxDocument(*mnxDocument, denigmaContext);
     writeMnxDocumentJson(output, *mnxDocument, denigmaContext);

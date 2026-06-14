@@ -21,10 +21,41 @@
  */
 #include "core/denigma.h"
 #include <limits>
+#include <iostream>
+#include <mutex>
 
 namespace denigma {
 
 namespace {
+
+std::mutex g_musxLoggerMutex;
+musx::util::Logger::LogCallback g_originalMusxCallback;
+std::vector<musx::util::Logger::LogCallback> g_musxCallbackStack;
+bool g_musxBridgeInstalled{};
+
+musx::util::Logger::LogCallback makeMusxBridge()
+{
+    return [](musx::util::Logger::LogLevel logLevel, const std::string& msg) {
+        musx::util::Logger::LogCallback callback;
+        musx::util::Logger::LogCallback fallback;
+        {
+            std::lock_guard<std::mutex> lock(g_musxLoggerMutex);
+            if (!g_musxCallbackStack.empty()) {
+                callback = g_musxCallbackStack.back();
+            }
+            fallback = g_originalMusxCallback;
+        }
+        if (callback) {
+            callback(logLevel, msg);
+            return;
+        }
+        if (fallback) {
+            fallback(logLevel, msg);
+            return;
+        }
+        std::cerr << msg << std::endl;
+    };
+}
 
 musx::util::SvgConvert::SvgUnit parseSvgUnitOption(const std::string& input)
 {
@@ -243,28 +274,36 @@ std::string getTimeStamp(const std::string& fmt)
     return timestamp.str();
 }
 
-void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity severity) const
+void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, MessageSeverity severity) const
 {
     auto getSeverityStr = [severity]() -> std::string {
             switch (severity) {
             default:
-            case LogSeverity::Info: return "";
-            case LogSeverity::Warning: return "[WARNING] ";
-            case LogSeverity::Error: return "[***ERROR***] ";
+            case MessageSeverity::Info: return "";
+            case MessageSeverity::Warning: return "[WARNING] ";
+            case MessageSeverity::Error: return "[***ERROR***] ";
             }
         };
     if (!alwaysShow) {
-        if (severity == LogSeverity::Verbose && (!verbose || quiet)) {
+        if (severity == MessageSeverity::Verbose && (!verbose || quiet)) {
             return;
         }
-        if (severity == LogSeverity::Info && quiet) {
+        if (severity == MessageSeverity::Info && quiet) {
             return;
         }
     }
-    if (severity == LogSeverity::Error) {
+    if (severity == MessageSeverity::Error) {
         errorOccurred = true;
     }
     msg.flush();
+    const std::string text = msg.str();
+    if (conversionResult && (severity == MessageSeverity::Warning || severity == MessageSeverity::Error)) {
+        conversionResult->addDiagnostic(severity, text);
+    }
+    if (logCallback) {
+        logCallback(severity, text);
+        return;
+    }
     const auto inputFileUtf8 = inputFilePath.filename().u8string();
     std::string inputFile;
     utils::appendUtf8(inputFile, inputFileUtf8);
@@ -274,11 +313,11 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity sever
     if (logFile && logFile->is_open()) {
         LogMsg prefix = LogMsg() << "[" << getTimeStamp("%Y-%m-%d %H:%M:%S") << "] " << inputFile;
         prefix.flush();
-        *logFile << prefix.str() << getSeverityStr() << msg.str() << std::endl;
-        if (severity == LogSeverity::Error) {
+        *logFile << prefix.str() << getSeverityStr() << text << std::endl;
+        if (severity == MessageSeverity::Error) {
             *logFile << prefix.str() << "PROCESSING ABORTED" << std::endl;
         }
-        if (severity != LogSeverity::Error) {
+        if (severity != MessageSeverity::Error) {
             return;
         }
     }
@@ -289,7 +328,7 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity sever
         DWORD consoleMode{};
         if (::GetConsoleMode(hConsole, &consoleMode)) {
             std::wstringstream wMsg;
-            wMsg << utils::stringToWstring(msg.str()) << std::endl;
+            wMsg << utils::stringToWstring(text) << std::endl;
             DWORD written{};
             if (::WriteConsoleW(hConsole, wMsg.str().data(), static_cast<DWORD>(wMsg.str().size()), &written, nullptr)) {
                 return;
@@ -297,10 +336,49 @@ void DenigmaContext::logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity sever
             std::wcerr << L"Failed to write message to console: " << ::GetLastError() << std::endl;
         }
     }
-    std::wcerr << utils::stringToWstring(msg.str()) << std::endl;
+    std::wcerr << utils::stringToWstring(text) << std::endl;
 #else
-    std::cerr << msg.str() << std::endl;
+    std::cerr << text << std::endl;
 #endif
+}
+
+musx::util::Logger::LogCallback makeMusxLogCallback(const DenigmaContext& denigmaContext)
+{
+    return [&denigmaContext](musx::util::Logger::LogLevel logLevel, const std::string& msg) {
+        const MessageSeverity severity = [logLevel]() {
+            switch (logLevel) {
+            default:
+            case musx::util::Logger::LogLevel::Info: return MessageSeverity::Info;
+            case musx::util::Logger::LogLevel::Warning: return MessageSeverity::Warning;
+            case musx::util::Logger::LogLevel::Error: return MessageSeverity::Error;
+            case musx::util::Logger::LogLevel::Verbose: return MessageSeverity::Verbose;
+            }
+        }();
+        denigmaContext.logMessage(LogMsg() << msg, severity);
+    };
+}
+
+MusxLoggerScope::MusxLoggerScope(musx::util::Logger::LogCallback callback)
+{
+    std::lock_guard<std::mutex> lock(g_musxLoggerMutex);
+    if (!g_musxBridgeInstalled) {
+        g_originalMusxCallback = musx::util::Logger::getCallback();
+        musx::util::Logger::setCallback(makeMusxBridge());
+        g_musxBridgeInstalled = true;
+    }
+    g_musxCallbackStack.emplace_back(std::move(callback));
+}
+
+MusxLoggerScope::~MusxLoggerScope()
+{
+    std::lock_guard<std::mutex> lock(g_musxLoggerMutex);
+    if (!g_musxCallbackStack.empty()) {
+        g_musxCallbackStack.pop_back();
+    }
+    if (g_musxCallbackStack.empty() && g_musxBridgeInstalled) {
+        musx::util::Logger::setCallback(std::move(g_originalMusxCallback));
+        g_musxBridgeInstalled = false;
+    }
 }
 
 bool DenigmaContext::validatePathsAndOptions(const std::filesystem::path& outputFilePath) const
@@ -314,7 +392,7 @@ bool DenigmaContext::validatePathsAndOptions(const std::filesystem::path& output
         if (overwriteExisting) {
             logMessage(LogMsg() << "Overwriting " << utils::asUtf8Bytes(outputFilePath));
         } else {
-            logMessage(LogMsg() << utils::asUtf8Bytes(outputFilePath) << " exists. Use --force to overwrite it.", LogSeverity::Warning);
+            logMessage(LogMsg() << utils::asUtf8Bytes(outputFilePath) << " exists. Use --force to overwrite it.", MessageSeverity::Warning);
             return false;
         }
     } else {
@@ -399,7 +477,7 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
             throw std::runtime_error("Input path " + utils::utf8ToString(inputPathUtf8) + " does not exist or is not a file or directory.");
         }
 //        if (!currentCommand->canProcess(inpFilePath)) {
-//            logMessage(LogMsg() << "Invalid input format for command: " << inpFilePath.u8string(), LogSeverity::Error);
+//            logMessage(LogMsg() << "Invalid input format for command: " << inpFilePath.u8string(), MessageSeverity::Error);
 //            return;
 //        }
         constexpr char kProcessingMessage[] = "Processing File: ";
@@ -450,9 +528,9 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
             }
         }
     } catch (const musx::xml::load_error& ex) {
-        logMessage(LogMsg() << "Load XML failed: " << ex.what(), true, LogSeverity::Error);
+        logMessage(LogMsg() << "Load XML failed: " << ex.what(), true, MessageSeverity::Error);
     } catch (const std::exception& e) {
-        logMessage(LogMsg() << e.what(), true, LogSeverity::Error);
+        logMessage(LogMsg() << e.what(), true, MessageSeverity::Error);
     }
 }
 

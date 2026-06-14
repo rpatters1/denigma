@@ -30,6 +30,7 @@
 #include <functional>
 #include <cassert>
 
+#include "denigma/conversion.h"
 #include "musx/musx.h"
 #include "utils/stringutils.h"
 
@@ -139,15 +140,6 @@ inline decltype(Processors::value_type::processor) findProcessor(const Processor
     throw std::invalid_argument("Unsupported format: " + utils::utf8ToString(key));
 }
 
-/// @brief defines log message severity
-enum class LogSeverity
-{
-    Info,       ///< No error. The message is for information.
-    Warning,    ///< An event has occurred that may affect the result, but processing of output continues.
-    Error,      ///< Processing of the current file has aborted. This level usually occurs in catch blocks.
-    Verbose     ///< Only emit if --verbose option specified. The message is for information.
-};
-
 enum class MusicProgramPreset
 {
     Unspecified,
@@ -194,6 +186,8 @@ public:
     std::optional<std::filesystem::path> logFilePath;
     std::shared_ptr<std::ofstream> logFile;
     std::filesystem::path inputFilePath;
+    std::function<void(MessageSeverity severity, std::string_view message)> logCallback;
+    ConversionResult* conversionResult{};
 
     // Specific options for `massage` command
     bool refloatRests{ true };
@@ -241,7 +235,7 @@ public:
      * @param msg a utf-8 encoded message.
      * @param severity the message severity
     */
-    void logMessage(LogMsg&& msg, LogSeverity severity = LogSeverity::Info) const
+    void logMessage(LogMsg&& msg, MessageSeverity severity = MessageSeverity::Info) const
     {
         logMessage(std::move(msg), false, severity);
     }
@@ -254,7 +248,24 @@ public:
     }
 
 private:
-    void logMessage(LogMsg&& msg, bool alwaysShow, LogSeverity severity = LogSeverity::Info) const;
+    void logMessage(LogMsg&& msg, bool alwaysShow, MessageSeverity severity = MessageSeverity::Info) const;
+};
+
+/// @brief Returns a musx logging callback that forwards messages into the supplied denigma context.
+musx::util::Logger::LogCallback makeMusxLogCallback(const DenigmaContext& denigmaContext);
+
+/// @class MusxLoggerScope
+/// @brief Installs a musx logging callback for the lifetime of the scope and restores the previous one on exit.
+class MusxLoggerScope
+{
+public:
+    explicit MusxLoggerScope(musx::util::Logger::LogCallback callback);
+    ~MusxLoggerScope();
+
+    MusxLoggerScope(const MusxLoggerScope&) = delete;
+    MusxLoggerScope& operator=(const MusxLoggerScope&) = delete;
+    MusxLoggerScope(MusxLoggerScope&&) = delete;
+    MusxLoggerScope& operator=(MusxLoggerScope&&) = delete;
 };
 
 class ICommand

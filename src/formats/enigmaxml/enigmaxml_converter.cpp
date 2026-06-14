@@ -30,15 +30,19 @@ ConversionResult MusxToEnigmaXmlConverter::convert(const IRandomAccessReader& in
                                                    std::ostream& output,
                                                    const Options& options) const
 {
+    ConversionResult result;
     DenigmaContext context("denigma");
     context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.musx")
         : utils::utf8ToPath(options.common.sourceName);
     context.noValidate = !options.common.validate;
+    context.logCallback = options.common.logCallback;
+    context.conversionResult = &result;
+    MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
     const Buffer buffer = denigma::enigmaxml::extractMusxInputData(input, context).primaryBuffer;
     output.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-    return {};
+    return result;
 }
 
 ConversionResult MusxToEnigmaXmlConverter::convert(const IRandomAccessReader& input,

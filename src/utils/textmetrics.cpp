@@ -70,7 +70,7 @@ namespace {
     static std::once_flag warningOnce;
     std::call_once(warningOnce, [&denigmaContext]() {
         denigmaContext.logMessage(LogMsg() << "FreeType text metrics backend is not enabled in this build. Falling back to heuristic text metrics.",
-                                  LogSeverity::Warning);
+                                  MessageSeverity::Warning);
     });
 }
 
@@ -340,7 +340,7 @@ private:
         }
         m_warnedBackendUnavailable = true;
         denigmaContext.logMessage(LogMsg() << "Unable to initialize FreeType text metrics backend. Falling back to heuristic text metrics.",
-                                  LogSeverity::Warning);
+                                  MessageSeverity::Warning);
     }
 
     void warnUnresolvedFamilyLocked(const DenigmaContext& denigmaContext, const std::string& familyName)
@@ -351,7 +351,7 @@ private:
         }
         denigmaContext.logMessage(LogMsg() << "Unable to resolve/load a font file for \"" << key
                                            << "\". Falling back to heuristic text metrics.",
-                                  LogSeverity::Warning);
+                                  MessageSeverity::Warning);
     }
 
     static std::vector<std::filesystem::path> candidateFontDirectories()
@@ -1171,7 +1171,7 @@ musx::util::SvgConvert::GlyphMetricsFn makeSvgGlyphMetricsCallback(const Denigma
                                         << " measuredDescent=" << measured->descent
                                         << " finalAscent=" << glyphAscent
                                         << " finalDescent=" << glyphDescent,
-                             LogSeverity::Verbose);
+                             MessageSeverity::Verbose);
         return musx::util::SvgConvert::GlyphMetrics{ measured->advance, glyphAscent, glyphDescent };
     };
 }

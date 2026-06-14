@@ -30,8 +30,6 @@
 #include <stdexcept>
 #include <clocale>
 
-#include "musx/musx.h"
-
 #include "core/denigma.h"
 #include "export/export.h"
 #include "massage/massage.h"
@@ -129,7 +127,7 @@ int _MAIN(int argc, arg_char* argv[])
     try {
         args = denigmaContext.parseOptions(argc, argv);
     } catch (const std::exception& e) {
-        denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << e.what(), MessageSeverity::Error);
         return 1;
     }
 
@@ -165,18 +163,7 @@ int _MAIN(int argc, arg_char* argv[])
         return showHelpPage(denigmaContext.programName);
     }
 
-    musx::util::Logger::setCallback([&denigmaContext](musx::util::Logger::LogLevel logLevel, const std::string& msg) {
-            LogSeverity logSeverity = [logLevel]() {
-                    switch (logLevel) {
-                        default:
-                        case musx::util::Logger::LogLevel::Info: return LogSeverity::Info;
-                        case musx::util::Logger::LogLevel::Warning: return LogSeverity::Warning;
-                        case musx::util::Logger::LogLevel::Error: return LogSeverity::Error;
-                        case musx::util::Logger::LogLevel::Verbose: return LogSeverity::Verbose;
-                    }
-                }();
-            denigmaContext.logMessage(LogMsg() << msg, logSeverity);
-        });
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
 
     // stupid omission from C++17 standard
     // see https://stackoverflow.com/questions/73555606/stdunordered-setstdfilesystempath-compile-error-on-clang-and-g-below
@@ -248,7 +235,7 @@ int _MAIN(int argc, arg_char* argv[])
                         }
                     }
                     if (!entry.is_directory()) {
-                        denigmaContext.logMessage(LogMsg() << "considered file " << utils::asUtf8Bytes(entry.path()), LogSeverity::Verbose);
+                        denigmaContext.logMessage(LogMsg() << "considered file " << utils::asUtf8Bytes(entry.path()), MessageSeverity::Verbose);
                     }
                     if (entry.is_regular_file() && std::regex_match(entry.path().filename().native(), regex)) {
                         auto inputFilePath = entry.path();
@@ -283,11 +270,10 @@ int _MAIN(int argc, arg_char* argv[])
             denigmaContext.processFile(currentCommand, path, args);
         }
     } catch (const std::exception& e) {
-        denigmaContext.logMessage(LogMsg() << e.what(), LogSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << e.what(), MessageSeverity::Error);
     }
 
     denigmaContext.endLogging();
-    musx::util::Logger::setCallback(nullptr); // in case this is call from testing.
 
     return denigmaContext.errorOccurred;
 }

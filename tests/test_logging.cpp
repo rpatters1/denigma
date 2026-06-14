@@ -22,9 +22,11 @@
 #include <string>
 #include <filesystem>
 #include <iterator>
+#include <string_view>
 
 #include "gtest/gtest.h"
 #include "core/denigma.h"
+#include "denigma/conversion.h"
 #include "test_utils.h"
 
 using namespace denigma;
@@ -146,4 +148,26 @@ TEST(Logging, AutoGlobSimulation)
     std::filesystem::current_path(currentPath);
     auto logPath = inputPath.parent_path() / (std::string(DENIGMA_NAME) + "-logs");
     EXPECT_FALSE(std::filesystem::exists(logPath)) << "no log file should have been created";
+}
+
+TEST(Logging, ConversionResultCollectsWarningAndErrorDiagnostics)
+{
+    denigma::ConversionResult result;
+    denigma::DenigmaContext context("denigma");
+    context.conversionResult = &result;
+    context.logCallback = [](denigma::MessageSeverity, std::string_view) {};
+
+    context.logMessage(denigma::LogMsg() << "warning message", denigma::MessageSeverity::Warning);
+    EXPECT_TRUE(result);
+    EXPECT_FALSE(result.hasError());
+    ASSERT_EQ(result.diagnostics().size(), 1u);
+    EXPECT_EQ(result.diagnostics().front().severity, denigma::MessageSeverity::Warning);
+    EXPECT_EQ(result.diagnostics().front().message, "warning message");
+
+    context.logMessage(denigma::LogMsg() << "error message", denigma::MessageSeverity::Error);
+    EXPECT_FALSE(result);
+    EXPECT_TRUE(result.hasError());
+    ASSERT_EQ(result.diagnostics().size(), 2u);
+    EXPECT_EQ(result.diagnostics().back().severity, denigma::MessageSeverity::Error);
+    EXPECT_EQ(result.diagnostics().back().message, "error message");
 }

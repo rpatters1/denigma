@@ -48,6 +48,11 @@ CommonOptions makeCommonOptions(const DenigmaContext& denigmaContext)
     CommonOptions options;
     options.sourceName = utils::pathToString(denigmaContext.inputFilePath);
     options.validate = !denigmaContext.noValidate;
+    options.verbose = denigmaContext.verbose;
+    options.quiet = denigmaContext.quiet;
+    options.logCallback = [&denigmaContext](MessageSeverity severity, std::string_view message) {
+        denigmaContext.logMessage(LogMsg() << message, severity);
+    };
     return options;
 }
 
@@ -179,7 +184,7 @@ void exportMssWithAdapter(const std::filesystem::path& outputPath,
     }, ConversionRequest{ &options });
 
     if (generatedCount == 0) {
-        denigmaContext.logMessage(LogMsg() << "No MSS files were written.", LogSeverity::Warning);
+        denigmaContext.logMessage(LogMsg() << "No MSS files were written.", MessageSeverity::Warning);
     }
 }
 
@@ -270,7 +275,7 @@ void exportSvgWithAdapter(const std::filesystem::path& outputPath,
     }
 
     if (generatedCount == 0) {
-        denigmaContext.logMessage(LogMsg() << "No SVG files were written.", LogSeverity::Warning);
+        denigmaContext.logMessage(LogMsg() << "No SVG files were written.", MessageSeverity::Warning);
     }
 }
 
@@ -382,12 +387,14 @@ bool ExportCommand::canProcess(const std::filesystem::path& inputPath) const
 
 CommandInputData ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
     return inputProcessor(inputPath, denigmaContext);
 }
 
 void ExportCommand::processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path&, const DenigmaContext& denigmaContext) const
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     auto outputProcessor = findProcessor(outputProcessors, outputPath.extension().u8string());
     outputProcessor(outputPath, inputData, denigmaContext);
 }

@@ -55,6 +55,8 @@ musx::util::SvgConvert::SvgUnit toMusxSvgUnit(Unit unit)
 void applySvgOptions(DenigmaContext& context, const Options& options)
 {
     context.noValidate = !options.common.validate;
+    context.verbose = options.common.verbose;
+    context.quiet = options.common.quiet;
     context.svgUnit = toMusxSvgUnit(options.unit);
     context.svgScale = options.scale;
     context.svgUsePageScale = options.usePageScale;
@@ -70,6 +72,7 @@ ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> inp
                                                   const MultiOutputCallback& outputCallback,
                                                   const Options& options) const
 {
+    ConversionResult result;
     Buffer buffer;
     buffer.reserve(input.size());
     for (const std::byte value : input) {
@@ -80,10 +83,13 @@ ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> inp
     context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.enigmaxml")
         : utils::utf8ToPath(options.common.sourceName);
+    context.logCallback = options.common.logCallback;
+    context.conversionResult = &result;
     applySvgOptions(context, options);
+    MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
     svgexp::convert(CommandInputData{ std::move(buffer), std::nullopt, {} }, context, outputCallback);
-    return {};
+    return result;
 }
 
 ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> input,
@@ -97,14 +103,18 @@ ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
                                              const MultiOutputCallback& outputCallback,
                                              const Options& options) const
 {
+    ConversionResult result;
     DenigmaContext context("denigma");
     context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.musx")
         : utils::utf8ToPath(options.common.sourceName);
+    context.logCallback = options.common.logCallback;
+    context.conversionResult = &result;
     applySvgOptions(context, options);
+    MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
     svgexp::convert(enigmaxml::extractMusxInputData(input, context), context, outputCallback);
-    return {};
+    return result;
 }
 
 ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
