@@ -50,6 +50,9 @@ CommonOptions makeCommonOptions(const DenigmaContext& denigmaContext)
     options.validate = !denigmaContext.noValidate;
     options.verbose = denigmaContext.verbose;
     options.quiet = denigmaContext.quiet;
+    options.logCallback = [&denigmaContext](MessageSeverity severity, std::string_view message) {
+        denigmaContext.logMessage(LogMsg() << message, severity);
+    };
     return options;
 }
 

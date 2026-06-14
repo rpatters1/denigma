@@ -80,8 +80,8 @@ struct CommonOptions
     bool verbose{ false };
     /// Suppresses info/verbose logging when true.
     bool quiet{ false };
-    /// Optional callback that receives converter log messages.
-    std::function<void(MessageSeverity severity, std::string_view message)> logCallback;
+    /// Optional callback that receives converter log messages. Defaults to no-op.
+    std::function<void(MessageSeverity severity, std::string_view message)> logCallback = [](MessageSeverity, std::string_view) {};
 };
 
 /// @class IOptions
