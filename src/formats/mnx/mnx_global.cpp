@@ -209,8 +209,7 @@ static void createTempos(const MnxMusxMappingPtr& context, mnx::global::Measure&
                 if (textExpr->playbackType == others::PlaybackType::Tempo && textExpr->auxData1 > 0) {
                     temposAtPositions.emplace(expAssign->eduPosition, textExpr);
                 }
-            }
-            else if (const auto shapeExpr = expAssign->getShapeExpression()) {
+            } else if (const auto shapeExpr = expAssign->getShapeExpression()) {
                 if (shapeExpr->playbackType == others::PlaybackType::Tempo && shapeExpr->auxData1 > 0) {
                     temposAtPositions.emplace(expAssign->eduPosition, shapeExpr);
                 }

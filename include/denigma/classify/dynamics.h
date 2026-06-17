@@ -21,6 +21,7 @@
  */
 #pragma once
 
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -73,6 +74,10 @@ struct DynamicClassification
     Dynamic dynamic{};
     /// True when the source expression includes extra non-dynamic text.
     bool hasAdditionalText{};
+    /// Plain text before the classified dynamic, normalized and edge-trimmed.
+    std::string prefixText;
+    /// Plain text after the classified dynamic, normalized and edge-trimmed.
+    std::string suffixText;
 
     /// Returns true when the source was recognized as a dynamic.
     bool isDynamic() const noexcept
