@@ -21,6 +21,7 @@ endfunction()
         test_articulations.cpp
         test_clefs.cpp
         test_enigmaxml_converter.cpp
+        test_expressions.cpp
         test_export.cpp
         test_dynamics.cpp
         test_conversion_result.cpp

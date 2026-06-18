@@ -24,6 +24,7 @@
 #include <fstream>
 #include <unordered_map>
 
+#include "denigma/classify/expressions.h"
 #include "mnx.h"
 #include "utils/smufl_support.h"
 
@@ -205,12 +206,13 @@ static void createTempos(const MnxMusxMappingPtr& context, mnx::global::Measure&
             if (!expAssign->calcIsAssignedInRequestedPart()) {
                 continue;
             }
-            if (const auto textExpr = expAssign->getTextExpression()) {
-                if (textExpr->playbackType == others::PlaybackType::Tempo && textExpr->auxData1 > 0) {
+            const auto classification = classify::classifyExpression(expAssign);
+            if (classification.type == classify::ExpressionType::TempoMark
+                && classification.tempo.beatsPerMinute > 0
+                && classification.tempo.beatUnitEdu > 0) {
+                if (const auto textExpr = expAssign->getTextExpression()) {
                     temposAtPositions.emplace(expAssign->eduPosition, textExpr);
-                }
-            } else if (const auto shapeExpr = expAssign->getShapeExpression()) {
-                if (shapeExpr->playbackType == others::PlaybackType::Tempo && shapeExpr->auxData1 > 0) {
+                } else if (const auto shapeExpr = expAssign->getShapeExpression()) {
                     temposAtPositions.emplace(expAssign->eduPosition, shapeExpr);
                 }
             }
@@ -231,9 +233,11 @@ static void createTempos(const MnxMusxMappingPtr& context, mnx::global::Measure&
     }
     for (const auto& it : temposAtPositions) {
         if (auto textExpr = std::dynamic_pointer_cast<const others::TextExpressionDef>(it.second)) {
-            createTempo(textExpr->value, textExpr->auxData1, it.first);
+            const auto classification = classify::classifyExpression(textExpr);
+            createTempo(classification.tempo.beatsPerMinute, classification.tempo.beatUnitEdu, it.first);
         } else if (auto shapeExpr = std::dynamic_pointer_cast<const others::ShapeExpressionDef>(it.second)) {
-            createTempo(shapeExpr->value, shapeExpr->auxData1, it.first);
+            const auto classification = classify::classifyExpression(shapeExpr);
+            createTempo(classification.tempo.beatsPerMinute, classification.tempo.beatUnitEdu, it.first);
         } else if (auto tempoChange = std::dynamic_pointer_cast<const others::TempoChange>(it.second)) {
             const auto noteType = tempoUnit.value_or(NoteType::Quarter);
             createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);

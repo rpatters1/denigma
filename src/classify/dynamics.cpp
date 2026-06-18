@@ -36,17 +36,6 @@ namespace denigma::classify {
 
 namespace {
 
-static std::string trimAscii(std::string_view text)
-{
-    while (!text.empty() && utils::isSpace(static_cast<unsigned char>(text.front()))) {
-        text.remove_prefix(1);
-    }
-    while (!text.empty() && utils::isSpace(static_cast<unsigned char>(text.back()))) {
-        text.remove_suffix(1);
-    }
-    return std::string(text);
-}
-
 struct DynamicText
 {
     std::string text;
@@ -300,8 +289,8 @@ static std::optional<DynamicTokenMatch> findDynamicToken(const DynamicText& text
 static DynamicClassification classifyNormalizedDynamicText(const DynamicText& text)
 {
     if (const auto match = findDynamicToken(text)) {
-        const std::string prefixText = trimAscii(std::string_view(text.text).substr(0, match->start));
-        const std::string suffixText = trimAscii(std::string_view(text.text).substr(match->start + match->length));
+        const std::string prefixText = utils::trimAscii(std::string_view(text.text).substr(0, match->start));
+        const std::string suffixText = utils::trimAscii(std::string_view(text.text).substr(match->start + match->length));
         return { match->dynamic, !prefixText.empty() || !suffixText.empty(), prefixText, suffixText };
     }
     if (isDynamicLikeText(text.text)) {
