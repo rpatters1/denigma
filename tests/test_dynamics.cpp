@@ -291,11 +291,29 @@ TEST(DynamicClassification, FlagsAdditionalText)
     EXPECT_TRUE(plain.isDynamic());
     EXPECT_EQ(plain.dynamic, Dynamic::pp);
     EXPECT_FALSE(plain.hasAdditionalText);
+    EXPECT_TRUE(plain.prefixText.empty());
+    EXPECT_TRUE(plain.suffixText.empty());
 
     const auto subito = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sub. pp");
     EXPECT_TRUE(subito);
     EXPECT_EQ(subito.dynamic, Dynamic::pp);
     EXPECT_TRUE(subito.hasAdditionalText);
+    EXPECT_EQ(subito.prefixText, "sub.");
+    EXPECT_TRUE(subito.suffixText.empty());
+
+    const auto suffix = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pp dolce");
+    EXPECT_TRUE(suffix);
+    EXPECT_EQ(suffix.dynamic, Dynamic::pp);
+    EXPECT_TRUE(suffix.hasAdditionalText);
+    EXPECT_TRUE(suffix.prefixText.empty());
+    EXPECT_EQ(suffix.suffixText, "dolce");
+
+    const auto prefixAndSuffix = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sub. pp possibile");
+    EXPECT_TRUE(prefixAndSuffix);
+    EXPECT_EQ(prefixAndSuffix.dynamic, Dynamic::pp);
+    EXPECT_TRUE(prefixAndSuffix.hasAdditionalText);
+    EXPECT_EQ(prefixAndSuffix.prefixText, "sub.");
+    EXPECT_EQ(prefixAndSuffix.suffixText, "possibile");
 
     const auto none = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)dolce");
     EXPECT_FALSE(none);
@@ -312,6 +330,14 @@ TEST(DynamicClassification, RequiresSpaceDelimitersForNonGlyphTokens)
     const auto glyphDynamic = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)cresc.^fontid(2)^size(24)^nfx(0)F");
     EXPECT_EQ(glyphDynamic.dynamic, Dynamic::mf);
     EXPECT_TRUE(glyphDynamic.hasAdditionalText);
+    EXPECT_EQ(glyphDynamic.prefixText, "cresc.");
+    EXPECT_TRUE(glyphDynamic.suffixText.empty());
+
+    const auto glyphDynamicWithSuffix = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)cresc.^fontid(2)^size(24)^nfx(0)F^fontid(1)^size(12)^nfx(0) subito");
+    EXPECT_EQ(glyphDynamicWithSuffix.dynamic, Dynamic::mf);
+    EXPECT_TRUE(glyphDynamicWithSuffix.hasAdditionalText);
+    EXPECT_EQ(glyphDynamicWithSuffix.prefixText, "cresc.");
+    EXPECT_EQ(glyphDynamicWithSuffix.suffixText, "subito");
 }
 
 TEST(DynamicClassification, ProvidesCanonicalText)

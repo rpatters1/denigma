@@ -36,17 +36,6 @@ namespace denigma::classify {
 
 namespace {
 
-static std::string trimAscii(std::string_view text)
-{
-    while (!text.empty() && utils::isSpace(static_cast<unsigned char>(text.front()))) {
-        text.remove_prefix(1);
-    }
-    while (!text.empty() && utils::isSpace(static_cast<unsigned char>(text.back()))) {
-        text.remove_suffix(1);
-    }
-    return std::string(text);
-}
-
 struct DynamicText
 {
     std::string text;
@@ -244,12 +233,6 @@ static bool isDynamicLikeText(std::string_view text)
     return dynamicLettersOnly;
 }
 
-static bool hasAdditionalText(std::string_view text, const DynamicTokenMatch& match)
-{
-    return !trimAscii(text.substr(0, match.start)).empty()
-        || !trimAscii(text.substr(match.start + match.length)).empty();
-}
-
 static bool isSmuflGlyphMatch(const DynamicText& text, const DynamicTokenMatch& match)
 {
     return std::all_of(text.smuflGlyph.begin() + static_cast<std::ptrdiff_t>(match.start),
@@ -306,10 +289,12 @@ static std::optional<DynamicTokenMatch> findDynamicToken(const DynamicText& text
 static DynamicClassification classifyNormalizedDynamicText(const DynamicText& text)
 {
     if (const auto match = findDynamicToken(text)) {
-        return { match->dynamic, hasAdditionalText(text.text, match.value()) };
+        const std::string prefixText = utils::trimAscii(std::string_view(text.text).substr(0, match->start));
+        const std::string suffixText = utils::trimAscii(std::string_view(text.text).substr(match->start + match->length));
+        return { match->dynamic, !prefixText.empty() || !suffixText.empty(), prefixText, suffixText };
     }
     if (isDynamicLikeText(text.text)) {
-        return { Dynamic::Other, false };
+        return { Dynamic::Other, false, {}, {} };
     }
     return {};
 }
@@ -327,7 +312,7 @@ DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::o
 
     auto rawTextCtx = def->getRawTextCtx(musx::dom::SCORE_PARTID);
     if (!rawTextCtx) {
-        return isDynamicsCategory ? DynamicClassification{ Dynamic::Other, true } : DynamicClassification{};
+        return isDynamicsCategory ? DynamicClassification{ Dynamic::Other, true, {}, {} } : DynamicClassification{};
     }
 
     DynamicText text;
@@ -341,7 +326,7 @@ DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::o
 
     DynamicClassification result = classifyNormalizedDynamicText(normalizeDynamicText(text));
     if (!result && isDynamicsCategory) {
-        return { Dynamic::Other, true };
+        return { Dynamic::Other, true, {}, {} };
     }
     return result;
 }

@@ -215,6 +215,17 @@ inline std::string toLowerCase(const std::string& inp)
     return s;
 }
 
+inline std::string trimAscii(std::string_view text)
+{
+    while (!text.empty() && isSpace(text.front())) {
+        text.remove_prefix(1);
+    }
+    while (!text.empty() && isSpace(text.back())) {
+        text.remove_suffix(1);
+    }
+    return std::string(text);
+}
+
 #if defined(STRINGUTILS_DEFINED_CPS)
 #undef CP_UTF8
 #undef CP_ACP
