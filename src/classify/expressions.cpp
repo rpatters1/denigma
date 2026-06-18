@@ -205,9 +205,20 @@ static std::optional<ExpressionClassification> classifyDynamicExpression(
     return result;
 }
 
+static std::string_view withoutFinalPeriods(std::string_view text)
+{
+    while (!text.empty() && text.back() == '.') {
+        text.remove_suffix(1);
+    }
+    return text;
+}
+
 static bool matchesAny(std::string_view text, const std::initializer_list<std::string_view>& values)
 {
-    return std::any_of(values.begin(), values.end(), [&](std::string_view value) { return text == value; });
+    const std::string_view comparableText = withoutFinalPeriods(text);
+    return std::any_of(values.begin(), values.end(), [&](std::string_view value) {
+        return comparableText == withoutFinalPeriods(value);
+    });
 }
 
 static Technique classifyTechnique(std::string_view normalizedText)
@@ -215,16 +226,64 @@ static Technique classifyTechnique(std::string_view normalizedText)
     if (matchesAny(normalizedText, { "arco" })) {
         return { TechniqueType::Arco, std::string(normalizedText) };
     }
-    if (matchesAny(normalizedText, { "pizz", "pizz.", "pizzicato" })) {
+    if (matchesAny(normalizedText, { "pizz", "pizzicato" })) {
         return { TechniqueType::Pizzicato, std::string(normalizedText) };
     }
-    if (matchesAny(normalizedText, { "con sord", "con sord.", "mute", "muted" })) {
+    if (matchesAny(normalizedText, { "col legno", "c. legno" })) {
+        return { TechniqueType::ColLegno, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "col legno battuto", "col legno batt", "c. legno battuto", "c. legno batt" })) {
+        return { TechniqueType::ColLegnoBattuto, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "col legno tratto", "col legno tratt", "c. legno tratto", "c. legno tratt" })) {
+        return { TechniqueType::ColLegnoTratto, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "sul pont", "sul ponticello", "s. pont" })) {
+        return { TechniqueType::SulPonticello, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "sul tasto", "s. tasto" })) {
+        return { TechniqueType::SulTasto, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "flautando", "flaut" })) {
+        return { TechniqueType::Flautando, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "ord", "ordinario" })) {
+        return { TechniqueType::Ordinario, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, {
+        "straight mute", "straight", "con sordino straight", "straight sord",
+        "metal mute", "wood mute", "fiber mute", "fibre mute"
+    })) {
+        return { TechniqueType::StraightMute, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "cup mute", "cup", "con sordino cup", "cup sord" })) {
+        return { TechniqueType::CupMute, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "harmon mute", "harmon", "wah-wah mute", "wah wah mute", "wah-wah", "wah wah" })) {
+        return { TechniqueType::HarmonMute, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "plunger mute", "plunger" })) {
+        return { TechniqueType::PlungerMute, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "bucket mute", "bucket" })) {
+        return { TechniqueType::BucketMute, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "solotone mute", "solotone" })) {
+        return { TechniqueType::SolotoneMute, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "stop mute", "brass mute" })) {
+        return { TechniqueType::StopMute, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "stopped", "stop" })) {
+        return { TechniqueType::Stopped, std::string(normalizedText) };
+    }
+    if (matchesAny(normalizedText, { "con sord", "mute", "muted" })) {
         return { TechniqueType::Mute, std::string(normalizedText) };
     }
-    if (matchesAny(normalizedText, { "senza sord", "senza sord.", "open" })) {
+    if (matchesAny(normalizedText, { "senza sord", "open" })) {
         return { TechniqueType::Open, std::string(normalizedText) };
     }
-    if (matchesAny(normalizedText, { "trem", "trem.", "tremolo" })) {
+    if (matchesAny(normalizedText, { "trem", "tremolo" })) {
         return { TechniqueType::Tremolo, std::string(normalizedText) };
     }
     return {};
@@ -249,11 +308,11 @@ static std::optional<ExpressionClassification> classifyTechnique(std::string_vie
 static bool isTempoAlterationText(std::string_view normalizedText)
 {
     return matchesAny(normalizedText, {
-        "accel", "accel.", "accelerando",
-        "rit", "rit.", "ritardando",
-        "rall", "rall.", "rallentando",
+        "accel", "accelerando",
+        "rit", "ritardando",
+        "rall", "rallentando",
         "a tempo", "tempo i", "tempo iº", "tempo primo",
-        "meno mosso", "piu mosso", "piu mosso."
+        "meno mosso", "piu mosso"
     });
 }
 

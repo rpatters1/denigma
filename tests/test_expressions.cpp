@@ -211,8 +211,9 @@ TEST(ExpressionClassification, UsesCategoryForTempoTechniqueAndRehearsalText)
     EXPECT_EQ(tempoAlteration.basis, ClassificationBasis::FinaleCategory);
 
     const auto technique = classifyExpression("sul pont.", ExpressionCategoryType::TechniqueText);
-    EXPECT_EQ(technique.type, ExpressionType::GenericText);
-    EXPECT_EQ(technique.basis, ClassificationBasis::FinaleCategory);
+    EXPECT_EQ(technique.type, ExpressionType::TechniqueText);
+    EXPECT_EQ(technique.basis, ClassificationBasis::FinaleCategoryConfirmed);
+    EXPECT_EQ(technique.technique.type, TechniqueType::SulPonticello);
 
     const auto rehearsal = classifyExpression("A", ExpressionCategoryType::RehearsalMarks);
     EXPECT_EQ(rehearsal.type, ExpressionType::RehearsalMark);
@@ -253,6 +254,63 @@ TEST(ExpressionClassification, CorrectsWeakCategoriesWithHeuristics)
     const auto tempoMark = classifyExpression("Allegro", ExpressionCategoryType::Invalid);
     EXPECT_EQ(tempoMark.type, ExpressionType::GenericText);
     EXPECT_EQ(tempoMark.basis, ClassificationBasis::FallbackToGenericText);
+}
+
+TEST(ExpressionClassification, ClassifiesStringTechniqueTokens)
+{
+    struct ExpectedTechnique
+    {
+        const char* text{};
+        TechniqueType type{};
+    };
+
+    const std::vector<ExpectedTechnique> expected = {
+        { "arco", TechniqueType::Arco },
+        { "pizz", TechniqueType::Pizzicato },
+        { "pizz.", TechniqueType::Pizzicato },
+        { "col legno", TechniqueType::ColLegno },
+        { "col legno.", TechniqueType::ColLegno },
+        { "c. legno.", TechniqueType::ColLegno },
+        { "col legno batt.", TechniqueType::ColLegnoBattuto },
+        { "c. legno battuto", TechniqueType::ColLegnoBattuto },
+        { "col legno tratt.", TechniqueType::ColLegnoTratto },
+        { "c. legno tratto", TechniqueType::ColLegnoTratto },
+        { "sul pont.", TechniqueType::SulPonticello },
+        { "s. pont", TechniqueType::SulPonticello },
+        { "sul tasto", TechniqueType::SulTasto },
+        { "s. tasto.", TechniqueType::SulTasto },
+        { "flaut", TechniqueType::Flautando },
+        { "flaut.", TechniqueType::Flautando },
+        { "flautando", TechniqueType::Flautando },
+        { "ordinario", TechniqueType::Ordinario },
+        { "ord", TechniqueType::Ordinario },
+        { "ord.", TechniqueType::Ordinario },
+        { "straight mute", TechniqueType::StraightMute },
+        { "straight", TechniqueType::StraightMute },
+        { "metal mute", TechniqueType::StraightMute },
+        { "wood mute", TechniqueType::StraightMute },
+        { "fiber mute", TechniqueType::StraightMute },
+        { "fibre mute", TechniqueType::StraightMute },
+        { "cup mute", TechniqueType::CupMute },
+        { "cup", TechniqueType::CupMute },
+        { "harmon mute", TechniqueType::HarmonMute },
+        { "wah-wah", TechniqueType::HarmonMute },
+        { "plunger mute", TechniqueType::PlungerMute },
+        { "bucket mute", TechniqueType::BucketMute },
+        { "solotone mute", TechniqueType::SolotoneMute },
+        { "stop mute", TechniqueType::StopMute },
+        { "brass mute", TechniqueType::StopMute },
+        { "stopped", TechniqueType::Stopped },
+        { "stop", TechniqueType::Stopped },
+        { "con sord.", TechniqueType::Mute }
+    };
+
+    for (const auto& item : expected) {
+        const auto result = classifyExpression(item.text, ExpressionCategoryType::ExpressiveText);
+        EXPECT_EQ(result.type, ExpressionType::TechniqueText) << item.text;
+        EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryCorrected) << item.text;
+        EXPECT_EQ(result.technique.type, item.type) << item.text;
+    }
 }
 
 TEST(ExpressionClassification, ClassifiesTempoPrimoAsTempoAlteration)
