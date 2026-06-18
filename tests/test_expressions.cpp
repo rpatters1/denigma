@@ -117,7 +117,7 @@ static TextExpressionContext makeTextExpressionContext(
     auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     MusxInstance<others::MeasureExprAssign> assignment;
     if (assignmentTopStaff) {
-        auto mutableAssignment = std::make_shared<others::MeasureExprAssign>(document, SCORE_PARTID, EnigmaBase::ShareMode::All, 1, Inci{ 0 });
+        auto mutableAssignment = std::make_shared<others::MeasureExprAssign>(document, SCORE_PARTID, EnigmaBase::ShareMode::All, Cmper{ 1 }, Inci{ 0 });
         mutableAssignment->textExprId = 1;
         mutableAssignment->staffAssign = static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
         assignment = mutableAssignment;
@@ -154,7 +154,7 @@ static ShapeExpressionContext makeShapeExpressionContext(
     auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     MusxInstance<others::MeasureExprAssign> assignment;
     if (assignmentTopStaff) {
-        auto mutableAssignment = std::make_shared<others::MeasureExprAssign>(document, SCORE_PARTID, EnigmaBase::ShareMode::All, 1, Inci{ 0 });
+        auto mutableAssignment = std::make_shared<others::MeasureExprAssign>(document, SCORE_PARTID, EnigmaBase::ShareMode::All, Cmper{ 1 }, Inci{ 0 });
         mutableAssignment->shapeExprId = 1;
         mutableAssignment->staffAssign = static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
         assignment = mutableAssignment;
@@ -179,7 +179,7 @@ static MusxInstance<others::MeasureExprAssign> makeStaffTextAssignment(
     StaffCmper staff,
     Inci inci = Inci{ 1 })
 {
-    auto assignment = std::make_shared<others::MeasureExprAssign>(document, SCORE_PARTID, EnigmaBase::ShareMode::All, 1, inci);
+    auto assignment = std::make_shared<others::MeasureExprAssign>(document, SCORE_PARTID, EnigmaBase::ShareMode::All, Cmper{ 1 }, inci);
     assignment->textExprId = textExpressionId;
     assignment->staffAssign = staff;
     return assignment;
