@@ -23,6 +23,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "denigma/classify/dynamics.h"
 #include "musx/musx.h"
@@ -110,12 +111,21 @@ struct ExpressionClassification
     TempoInfo tempo;
 };
 
+struct ExpressionAssignmentClassification
+{
+    musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign> assignment;
+    ExpressionClassification classification;
+};
+
 ExpressionClassification classifyExpression(
     std::string_view text,
     ExpressionCategoryType categoryType = ExpressionCategoryType::Invalid);
 
 ExpressionClassification classifyExpression(
     const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment);
+
+std::vector<ExpressionAssignmentClassification> classifyExpressionAssignments(
+    const musx::dom::MusxInstanceList<musx::dom::others::MeasureExprAssign>& assignments);
 
 ExpressionClassification classifyExpression(
     const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);

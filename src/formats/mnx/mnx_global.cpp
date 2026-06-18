@@ -202,11 +202,12 @@ static void createTempos(const MnxMusxMappingPtr& context, mnx::global::Measure&
         // Search in order of decreasing precedence: text exprs, then shape exprs, then tempo changes. Using emplace keeps the first one.
         // We want text exprs to be chosen over the others, if they coincide at a beat location.
         const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
-        for (const auto& expAssign : expAssigns) {
+        for (const auto& expAssignClassification : classify::classifyExpressionAssignments(expAssigns)) {
+            const auto& expAssign = expAssignClassification.assignment;
             if (!expAssign->calcIsAssignedInRequestedPart()) {
                 continue;
             }
-            const auto classification = classify::classifyExpression(expAssign);
+            const auto& classification = expAssignClassification.classification;
             if (classification.type == classify::ExpressionType::TempoMark
                 && classification.tempo.beatsPerMinute > 0
                 && classification.tempo.beatUnitEdu > 0) {

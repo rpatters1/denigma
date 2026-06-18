@@ -25,6 +25,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "utils/stringutils.h"
 
@@ -442,12 +443,13 @@ static std::optional<ExpressionClassification> classifyRehearsalMarkText(std::st
     return result;
 }
 
-static bool assignmentUsesStaffList(const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+static bool assignmentUsesTopStaff(const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
 {
-    return assignment && assignment->calcIsPartOfStaffListAssignment();
+    return assignment
+        && assignment->staffAssign == static_cast<musx::dom::StaffCmper>(musx::dom::others::StaffList::FloatingValues::TopStaff);
 }
 
-static ExpressionClassification classifyStaffListTextExpression(std::string_view normalizedText, CategoryType categoryType)
+static ExpressionClassification classifySystemTextExpression(std::string_view normalizedText, CategoryType categoryType)
 {
     if (const auto tempoAlteration = classifyTempoAlteration(normalizedText, categoryType, false)) {
         return *tempoAlteration;
@@ -471,6 +473,22 @@ static ExpressionClassification classifyStaffListTextExpression(std::string_view
     result.text = std::string(normalizedText);
     result.tempo.text = result.text;
     return result;
+}
+
+static bool sameExpressionDefinition(
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& left,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& right)
+{
+    if (!left || !right) {
+        return false;
+    }
+    if (left->textExprId || right->textExprId) {
+        return left->textExprId && right->textExprId && left->textExprId == right->textExprId;
+    }
+    if (left->shapeExprId || right->shapeExprId) {
+        return left->shapeExprId && right->shapeExprId && left->shapeExprId == right->shapeExprId;
+    }
+    return false;
 }
 
 static ExpressionClassification classifyGenericText(std::string_view normalizedText, CategoryType categoryType)
@@ -616,8 +634,29 @@ ExpressionClassification classifyExpression(
     if (hasTempoPlayback(def)) {
         return *classifyTempo(def, normalizedText, categoryType);
     }
-    if (assignmentUsesStaffList(assignment)) {
-        return classifyStaffListTextExpression(normalizedText, categoryType);
+    if (categoryType == CategoryType::RehearsalMarks) {
+        return *classifyRehearsalMark(normalizedText, categoryType);
+    }
+    if (categoryType == CategoryType::Dynamics) {
+        return *classifyDynamicExpression(def, normalizedText, categoryType);
+    }
+    if (categoryType == CategoryType::TempoMarks || categoryType == CategoryType::TempoAlterations) {
+        if (const auto tempoAlteration = classifyTempoAlteration(normalizedText, categoryType, false)) {
+            return *tempoAlteration;
+        }
+        if (const auto tempo = classifyTempo(normalizedText, categoryType, false)) {
+            return *tempo;
+        }
+        if (categoryType == CategoryType::TempoMarks) {
+            return *classifyTempo(normalizedText, categoryType);
+        }
+        return *classifyTempoAlteration(normalizedText, categoryType);
+    }
+    if (const auto dynamic = classifyDynamicExpression(def, normalizedText, categoryType)) {
+        return *dynamic;
+    }
+    if (assignmentUsesTopStaff(assignment)) {
+        return classifySystemTextExpression(normalizedText, categoryType);
     }
     return classifyExpression(def);
 }
@@ -631,8 +670,8 @@ ExpressionClassification classifyExpression(
     if (const auto tempo = classifyTempo(def, categoryType)) {
         return *tempo;
     }
-    if (assignmentUsesStaffList(assignment)) {
-        return classifyStaffListTextExpression({}, categoryType);
+    if (assignmentUsesTopStaff(assignment)) {
+        return classifySystemTextExpression({}, categoryType);
     }
     return classifyExpression(def);
 }
@@ -650,6 +689,29 @@ ExpressionClassification classifyExpression(
         return classifyExpression(shapeExpression, assignment);
     }
     return suppressShapeExpression();
+}
+
+std::vector<ExpressionAssignmentClassification> classifyExpressionAssignments(
+    const musx::dom::MusxInstanceList<musx::dom::others::MeasureExprAssign>& assignments)
+{
+    std::vector<ExpressionAssignmentClassification> results;
+    results.reserve(assignments.size());
+    for (const auto& assignment : assignments) {
+        results.push_back({ assignment, classifyExpression(assignment) });
+    }
+
+    for (const auto& topStaffResult : results) {
+        if (!assignmentUsesTopStaff(topStaffResult.assignment)) {
+            continue;
+        }
+        for (auto& result : results) {
+            if (sameExpressionDefinition(topStaffResult.assignment, result.assignment)) {
+                result.classification = topStaffResult.classification;
+            }
+        }
+    }
+
+    return results;
 }
 
 } // namespace denigma::classify

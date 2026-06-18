@@ -77,7 +77,7 @@ static TextExpressionContext makeTextExpressionContext(
     const std::string& text,
     ExpressionCategoryType categoryType = ExpressionCategoryType::Invalid,
     const std::string& playbackXml = {},
-    bool assignmentStaffList = false)
+    bool assignmentTopStaff = false)
 {
     std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
 <finale>
@@ -116,10 +116,10 @@ static TextExpressionContext makeTextExpressionContext(
     std::vector<char> buffer(xml.begin(), xml.end());
     auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     MusxInstance<others::MeasureExprAssign> assignment;
-    if (assignmentStaffList) {
+    if (assignmentTopStaff) {
         auto mutableAssignment = std::make_shared<others::MeasureExprAssign>(document, SCORE_PARTID, EnigmaBase::ShareMode::All, 1, Inci{ 0 });
         mutableAssignment->textExprId = 1;
-        mutableAssignment->staffList = 1;
+        mutableAssignment->staffAssign = static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
         assignment = mutableAssignment;
     }
     return {
@@ -132,7 +132,7 @@ static TextExpressionContext makeTextExpressionContext(
 static ShapeExpressionContext makeShapeExpressionContext(
     ExpressionCategoryType categoryType = ExpressionCategoryType::Invalid,
     const std::string& playbackXml = {},
-    bool assignmentStaffList = false)
+    bool assignmentTopStaff = false)
 {
     std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
 <finale>
@@ -153,10 +153,10 @@ static ShapeExpressionContext makeShapeExpressionContext(
     std::vector<char> buffer(xml.begin(), xml.end());
     auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     MusxInstance<others::MeasureExprAssign> assignment;
-    if (assignmentStaffList) {
+    if (assignmentTopStaff) {
         auto mutableAssignment = std::make_shared<others::MeasureExprAssign>(document, SCORE_PARTID, EnigmaBase::ShareMode::All, 1, Inci{ 0 });
         mutableAssignment->shapeExprId = 1;
-        mutableAssignment->staffList = 1;
+        mutableAssignment->staffAssign = static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
         assignment = mutableAssignment;
     }
     return {
@@ -171,6 +171,18 @@ static std::string tempoPlaybackXml(int bpm = 120, int beatUnitEdu = 1024)
     return "      <playType>time</playType>\n"
            "      <value>" + std::to_string(bpm) + "</value>\n"
            "      <auxdata1>" + std::to_string(beatUnitEdu) + "</auxdata1>\n";
+}
+
+static MusxInstance<others::MeasureExprAssign> makeStaffTextAssignment(
+    const DocumentPtr& document,
+    Cmper textExpressionId,
+    StaffCmper staff,
+    Inci inci = Inci{ 1 })
+{
+    auto assignment = std::make_shared<others::MeasureExprAssign>(document, SCORE_PARTID, EnigmaBase::ShareMode::All, 1, inci);
+    assignment->textExprId = textExpressionId;
+    assignment->staffAssign = staff;
+    return assignment;
 }
 
 } // namespace
@@ -327,7 +339,7 @@ TEST(ExpressionClassification, ClassifiesTempoPrimoAsTempoAlteration)
     }
 }
 
-TEST(ExpressionClassification, AssignmentStaffListForcesSystemTextClassification)
+TEST(ExpressionClassification, TopStaffAssignmentForcesSystemTextClassification)
 {
     const auto tempoMarkContext = makeTextExpressionContext("Andante", ExpressionCategoryType::Misc, {}, true);
     const auto tempoMark = classifyExpression(tempoMarkContext.assignment);
@@ -338,6 +350,12 @@ TEST(ExpressionClassification, AssignmentStaffListForcesSystemTextClassification
     const auto tempoAlteration = classifyExpression(tempoAlterationContext.assignment);
     EXPECT_EQ(tempoAlteration.type, ExpressionType::TempoAlteration);
     EXPECT_EQ(tempoAlteration.basis, ClassificationBasis::Heuristic);
+
+    const auto dynamicContext = makeTextExpressionContext("mf", ExpressionCategoryType::Misc, {}, true);
+    const auto dynamic = classifyExpression(dynamicContext.assignment);
+    EXPECT_EQ(dynamic.type, ExpressionType::Dynamic);
+    EXPECT_EQ(dynamic.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(dynamic.dynamic, Dynamic::mf);
 
     const auto rehearsalContext = makeTextExpressionContext("AA", ExpressionCategoryType::Misc, {}, true);
     const auto rehearsal = classifyExpression(rehearsalContext.assignment);
@@ -355,11 +373,43 @@ TEST(ExpressionClassification, AssignmentStaffListForcesSystemTextClassification
     EXPECT_EQ(fallback.basis, ClassificationBasis::Heuristic);
 }
 
-TEST(ExpressionClassification, NumericTextWithoutStaffListRemainsGeneric)
+TEST(ExpressionClassification, NumericTextWithoutTopStaffRemainsGeneric)
 {
     const auto result = classifyExpression("27", ExpressionCategoryType::Misc);
     EXPECT_EQ(result.type, ExpressionType::GenericText);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategory);
+}
+
+TEST(ExpressionClassification, BatchClassificationPropagatesTopStaffSystemTextByDefinition)
+{
+    const auto tempoAlterationContext = makeTextExpressionContext("rit.", ExpressionCategoryType::Misc, {}, true);
+    const auto realStaffTempoAlteration = makeStaffTextAssignment(tempoAlterationContext.document, 1, 1);
+    MusxInstanceList<others::MeasureExprAssign> tempoAlterationAssignments(tempoAlterationContext.document, SCORE_PARTID);
+    tempoAlterationAssignments.push_back(realStaffTempoAlteration);
+    tempoAlterationAssignments.push_back(tempoAlterationContext.assignment);
+
+    const auto singleRealStaffResult = classifyExpression(realStaffTempoAlteration);
+    EXPECT_EQ(singleRealStaffResult.type, ExpressionType::GenericText);
+
+    const auto tempoAlterationResults = classifyExpressionAssignments(tempoAlterationAssignments);
+    ASSERT_EQ(tempoAlterationResults.size(), 2);
+    EXPECT_EQ(tempoAlterationResults[0].classification.type, ExpressionType::TempoAlteration);
+    EXPECT_EQ(tempoAlterationResults[0].classification.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(tempoAlterationResults[1].classification.type, ExpressionType::TempoAlteration);
+    EXPECT_EQ(tempoAlterationResults[1].classification.basis, ClassificationBasis::Heuristic);
+
+    const auto rehearsalContext = makeTextExpressionContext("27", ExpressionCategoryType::Misc, {}, true);
+    const auto realStaffRehearsal = makeStaffTextAssignment(rehearsalContext.document, 1, 1);
+    MusxInstanceList<others::MeasureExprAssign> rehearsalAssignments(rehearsalContext.document, SCORE_PARTID);
+    rehearsalAssignments.push_back(realStaffRehearsal);
+    rehearsalAssignments.push_back(rehearsalContext.assignment);
+
+    const auto rehearsalResults = classifyExpressionAssignments(rehearsalAssignments);
+    ASSERT_EQ(rehearsalResults.size(), 2);
+    EXPECT_EQ(rehearsalResults[0].classification.type, ExpressionType::RehearsalMark);
+    EXPECT_EQ(rehearsalResults[0].classification.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(rehearsalResults[1].classification.type, ExpressionType::RehearsalMark);
+    EXPECT_EQ(rehearsalResults[1].classification.basis, ClassificationBasis::Heuristic);
 }
 
 TEST(ExpressionClassification, ExtractsTextExpressionTempoPlayback)
