@@ -27,7 +27,9 @@
 #include <string_view>
 #include <vector>
 
+#include "denigma/classify/articulations.h"
 #include "utils/stringutils.h"
+#include "utils/utf8_iterator.h"
 
 namespace denigma::classify {
 
@@ -100,6 +102,14 @@ static ClassificationBasis basisForRecognition(CategoryType categoryType, Catego
     if (categoryType == expectedCategory) {
         return ClassificationBasis::FinaleCategoryConfirmed;
     }
+    if (categoryType == CategoryType::Invalid || categoryType == CategoryType::Misc) {
+        return ClassificationBasis::Heuristic;
+    }
+    return ClassificationBasis::FinaleCategoryCorrected;
+}
+
+static ClassificationBasis basisForSymbolRecognition(CategoryType categoryType)
+{
     if (categoryType == CategoryType::Invalid || categoryType == CategoryType::Misc) {
         return ClassificationBasis::Heuristic;
     }
@@ -589,6 +599,46 @@ static std::string expressionText(const musx::dom::MusxInstance<musx::dom::other
     return rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
 }
 
+static std::optional<ExpressionClassification> classifySymbolExpression(
+    const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
+    CategoryType categoryType)
+{
+    if (!def) {
+        return std::nullopt;
+    }
+    auto rawTextCtx = def->getRawTextCtx(musx::dom::SCORE_PARTID);
+    if (!rawTextCtx) {
+        return std::nullopt;
+    }
+
+    const std::string text = rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
+    const auto symbol = utils::utf8ToCodepoint(text);
+    if (!symbol) {
+        return std::nullopt;
+    }
+
+    const auto classification = classifyArticulationSymbol(rawTextCtx.parseFirstFontInfo(), *symbol);
+    if (const auto* fermata = classification.as<classify::Fermata>()) {
+        ExpressionClassification result;
+        result.type = ExpressionType::Fermata;
+        result.basis = basisForSymbolRecognition(categoryType);
+        result.text = text;
+        result.fermata = *fermata;
+        result.glyphName = classification.glyphName;
+        return result;
+    }
+    if (const auto* breathMark = classification.as<classify::BreathMark>()) {
+        ExpressionClassification result;
+        result.type = ExpressionType::BreathMark;
+        result.basis = basisForSymbolRecognition(categoryType);
+        result.text = text;
+        result.breathMark = *breathMark;
+        result.glyphName = classification.glyphName;
+        return result;
+    }
+    return std::nullopt;
+}
+
 } // namespace
 
 ExpressionClassification classifyExpression(std::string_view text, ExpressionCategoryType categoryType)
@@ -627,6 +677,10 @@ ExpressionClassification classifyExpression(
 {
     const CategoryType categoryType = categoryTypeForExpression(def);
     const std::string normalizedText = normalizeExpressionText(expressionText(def));
+
+    if (const auto symbol = classifySymbolExpression(def, categoryType)) {
+        return *symbol;
+    }
 
     if (hasTempoPlayback(def)) {
         return *classifyTempo(def, normalizedText, categoryType);
@@ -675,6 +729,10 @@ ExpressionClassification classifyExpression(
 {
     const CategoryType categoryType = categoryTypeForExpression(def);
     const std::string normalizedText = normalizeExpressionText(expressionText(def));
+
+    if (const auto symbol = classifySymbolExpression(def, categoryType)) {
+        return *symbol;
+    }
 
     if (hasTempoPlayback(def)) {
         return *classifyTempo(def, normalizedText, categoryType);

@@ -21,10 +21,12 @@
  */
 #pragma once
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "denigma/classify/articulations.h"
 #include "denigma/classify/dynamics.h"
 #include "musx/musx.h"
 
@@ -38,6 +40,8 @@ using ExpressionCategoryType = musx::dom::others::MarkingCategory::CategoryType;
 enum class ExpressionType
 {
     Dynamic,
+    Fermata,
+    BreathMark,
     TempoMark,
     TempoAlteration,
     TechniqueText,
@@ -108,6 +112,9 @@ struct ExpressionClassification
     std::string dynamicPrefixText;
     std::string dynamicSuffixText;
     DynamicChange dynamicChange{ DynamicChange::Absolute };
+    Fermata fermata{};
+    BreathMark breathMark{};
+    std::optional<std::string> glyphName;
     Technique technique;
     TempoInfo tempo;
 };

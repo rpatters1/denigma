@@ -77,17 +77,23 @@ static TextExpressionContext makeTextExpressionContext(
     const std::string& text,
     ExpressionCategoryType categoryType = ExpressionCategoryType::Invalid,
     const std::string& playbackXml = {},
-    bool assignmentTopStaff = false)
+    bool assignmentTopStaff = false,
+    const std::string& fontName = "Times New Roman",
+    int charsetVal = 0)
 {
     std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
 <finale>
   <others>
     <fontName cmper="0">
       <charsetBank>Mac</charsetBank>
-      <charsetVal>0</charsetVal>
+      <charsetVal>)xml";
+    xml += std::to_string(charsetVal);
+    xml += R"xml(</charsetVal>
       <pitch>0</pitch>
       <family>0</family>
-      <name>Times New Roman</name>
+      <name>)xml";
+    xml += fontName;
+    xml += R"xml(</name>
     </fontName>
 )xml";
     xml += categoryXml(categoryType);
@@ -199,6 +205,34 @@ TEST(ExpressionClassification, ClassifiesConcreteDynamicsAndCarriesSurroundingTe
     EXPECT_EQ(result.dynamicPrefixText, "sub.");
     EXPECT_EQ(result.dynamicSuffixText, "possibile");
     EXPECT_EQ(result.dynamicChange, DynamicChange::Absolute);
+}
+
+TEST(ExpressionClassification, ClassifiesTextExpressionFermataAndBreathMarkSymbols)
+{
+    const auto fermataContext = makeTextExpressionContext("^fontid(0)^size(24)^nfx(0)U", ExpressionCategoryType::Misc, {}, false, "Maestro", 4095);
+    const auto fermata = classifyExpression(fermataContext.def);
+    EXPECT_EQ(fermata.type, ExpressionType::Fermata);
+    EXPECT_EQ(fermata.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(fermata.fermata.shape, Fermata::Shape::Normal);
+    EXPECT_EQ(fermata.fermata.duration, Fermata::Duration::Auto);
+    ASSERT_TRUE(fermata.glyphName.has_value());
+    EXPECT_EQ(*fermata.glyphName, "fermataAbove");
+
+    const auto breathContext = makeTextExpressionContext("^fontid(0)^size(24)^nfx(0),", ExpressionCategoryType::Misc, {}, false, "Maestro", 4095);
+    const auto breath = classifyExpression(breathContext.def);
+    EXPECT_EQ(breath.type, ExpressionType::BreathMark);
+    EXPECT_EQ(breath.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(breath.breathMark.type, BreathMark::Type::Comma);
+    ASSERT_TRUE(breath.glyphName.has_value());
+    EXPECT_EQ(*breath.glyphName, "breathMarkComma");
+}
+
+TEST(ExpressionClassification, RequiresSingleCodepointForTextExpressionSymbolClassification)
+{
+    const auto fermataContext = makeTextExpressionContext("^fontid(0)^size(24)^nfx(0)UU", ExpressionCategoryType::Misc, {}, false, "Maestro", 4095);
+    const auto fermata = classifyExpression(fermataContext.def);
+    EXPECT_EQ(fermata.type, ExpressionType::GenericText);
+    EXPECT_EQ(fermata.basis, ClassificationBasis::FinaleCategory);
 }
 
 TEST(ExpressionClassification, ClassifiesRelativeDynamicQualifiers)

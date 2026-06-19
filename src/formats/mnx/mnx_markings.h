@@ -39,10 +39,8 @@ mnx::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPl
 mnx::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
 
 std::optional<mnx::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement);
-std::optional<mnx::Fermata> calcFermata(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement = VerticalPlacement::Float);
 
 std::optional<mnx::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement);
-std::optional<mnx::sequence::BreathMark> calcBreathMark(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement = VerticalPlacement::Float);
 
 std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
     const EntryInfoPtr& sourceEntry,

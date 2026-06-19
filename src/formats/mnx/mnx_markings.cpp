@@ -106,19 +106,6 @@ std::optional<mnx::Fermata> makeFermata(const classify::Fermata& fermata, const 
     return result;
 }
 
-std::optional<mnx::Fermata> calcFermata(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement)
-{
-    const auto fontInfo = ctx.parseFirstFontInfo();
-    const auto symStr = ctx.getText(/*trimTags*/ true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-    if (const auto sym = utils::utf8ToCodepoint(symStr)) {
-        const auto classification = classify::classifyArticulationSymbol(fontInfo, sym.value());
-        if (const auto* fermata = classification.as<classify::Fermata>()) {
-            return makeFermata(*fermata, classification.glyphName, placement);
-        }
-    }
-    return std::nullopt;
-}
-
 std::optional<mnx::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement)
 {
     std::optional<mnx::BreathMarkSymbol> symbol;
@@ -150,19 +137,6 @@ std::optional<mnx::sequence::BreathMark> makeBreathMark(const classify::BreathMa
     result.set_symbol(symbol.value());
     result.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
     return result;
-}
-
-std::optional<mnx::sequence::BreathMark> calcBreathMark(const musx::util::EnigmaParsingContext& ctx, VerticalPlacement placement)
-{
-    const auto fontInfo = ctx.parseFirstFontInfo();
-    const auto symStr = ctx.getText(/*trimTags*/ true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-    if (const auto sym = utils::utf8ToCodepoint(symStr)) {
-        const auto classification = classify::classifyArticulationSymbol(fontInfo, sym.value());
-        if (const auto* breathMark = classification.as<classify::BreathMark>()) {
-            return makeBreathMark(*breathMark, placement);
-        }
-    }
-    return std::nullopt;
 }
 
 std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(

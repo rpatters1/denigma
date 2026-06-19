@@ -29,6 +29,7 @@
 #include "mnx.h"
 #include "denigma/classify/clefs.h"
 #include "denigma/classify/dynamics.h"
+#include "denigma/classify/expressions.h"
 
 namespace denigma {
 namespace mnxexp {
@@ -443,21 +444,24 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
             if (asgn->staffAssign == staffCmper && !asgn->hidden) {
                 if (asgn->textExprId) {
                     if (auto expr = asgn->getTextExpression()) {
-                        if (auto text = expr->getTextBlock()) {
-                            if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
-                                /// @todo Add calculation for above or below, rather than just Float, for marking placement
-                                if (auto dynamicClass = classify::classifyDynamic(expr)) {
-                                    appendDynamic(asgn, std::move(dynamicClass));
-                                } else if (auto fermata = calcFermata(rawTextCtx)) {
+                        if (auto text = expr->getTextBlock(); !text) {
+                            context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, MessageSeverity::Warning);
+                        } else if (!text->getRawTextCtx(SCORE_PARTID)) {
+                            context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, MessageSeverity::Warning);
+                        } else {
+                            const auto classification = classify::classifyExpression(expr);
+                            /// @todo Add calculation for above or below, rather than just Float, for marking placement
+                            if (classification.type == classify::ExpressionType::Dynamic && classification.dynamic != classify::Dynamic::None) {
+                                appendDynamic(asgn, classify::classifyDynamic(expr));
+                            } else if (classification.type == classify::ExpressionType::Fermata) {
+                                if (auto fermata = makeFermata(classification.fermata, classification.glyphName, VerticalPlacement::Float)) {
                                     attachFermata(asgn, expr, calcAttachmentContext(asgn), fermata.value());
-                                } else if (auto breathMark = calcBreathMark(rawTextCtx)) {
+                                }
+                            } else if (classification.type == classify::ExpressionType::BreathMark) {
+                                if (auto breathMark = makeBreathMark(classification.breathMark, VerticalPlacement::Float)) {
                                     attachBreathMark(calcAttachmentContext(asgn), breathMark.value());
                                 }
-                            } else {
-                                context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, MessageSeverity::Warning);
                             }
-                        } else {
-                            context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, MessageSeverity::Warning);
                         }
                     }
                 }

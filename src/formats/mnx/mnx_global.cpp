@@ -279,8 +279,9 @@ static void createBarlineFermata(const MnxMusxMappingPtr& context, mnx::global::
     for (const auto& exprAssign : exprAssigns) {
         if (!exprAssign->hidden && exprAssign->calcIsPartOfStaffListAssignment()) {
             if (const auto textExp = exprAssign->getTextExpression(); textExp && textExp->horzMeasExprAlign == others::HorizontalMeasExprAlign::RightBarline) {
-                if (const auto textCtx = textExp->getRawTextCtx(forPartId)) {
-                    if (const auto fermata = calcFermata(textCtx)) {
+                const auto classification = classify::classifyExpression(textExp);
+                if (classification.type == classify::ExpressionType::Fermata) {
+                    if (const auto fermata = makeFermata(classification.fermata, classification.glyphName, VerticalPlacement::Float)) {
                         mnxMeasure.set_fermata(fermata.value());
                         break;
                     }
