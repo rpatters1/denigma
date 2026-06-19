@@ -27,6 +27,8 @@
 #include <vector>
 
 #include "mnxdom.h"
+#include "FormattedText.h"
+
 #include "musx/musx.h"
 
 namespace denigma {

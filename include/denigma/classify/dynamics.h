@@ -108,6 +108,8 @@ DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::o
 std::string dynamicCanonicalText(Dynamic dynamic);
 /// Returns canonical SMuFL glyph names for a dynamic.
 std::vector<std::string> dynamicCanonicalGlyphs(Dynamic dynamic);
+/// Returns canonical per-letter SMuFL glyph names for a dynamic.
+std::vector<std::string> dynamicCanonicalLetterGlyphs(Dynamic dynamic);
 
 } // namespace classify
 } // namespace denigma

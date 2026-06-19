@@ -441,3 +441,19 @@ TEST(DynamicClassification, ProvidesCanonicalGlyphs)
     EXPECT_TRUE(dynamicCanonicalGlyphs(Dynamic::Other).empty());
     EXPECT_TRUE(dynamicCanonicalGlyphs(Dynamic::None).empty());
 }
+
+TEST(DynamicClassification, ProvidesCanonicalLetterGlyphs)
+{
+    EXPECT_EQ(dynamicCanonicalLetterGlyphs(Dynamic::mf), (std::vector<std::string>{ "dynamicMezzo", "dynamicForte" }));
+    EXPECT_EQ(dynamicCanonicalLetterGlyphs(Dynamic::fffff), (std::vector<std::string>{
+        "dynamicForte", "dynamicForte", "dynamicForte", "dynamicForte", "dynamicForte"
+    }));
+    EXPECT_EQ(dynamicCanonicalLetterGlyphs(Dynamic::sfpp), (std::vector<std::string>{
+        "dynamicSforzando", "dynamicForte", "dynamicPiano", "dynamicPiano"
+    }));
+    EXPECT_EQ(dynamicCanonicalLetterGlyphs(Dynamic::rfz), (std::vector<std::string>{
+        "dynamicRinforzando", "dynamicForte", "dynamicZ"
+    }));
+    EXPECT_TRUE(dynamicCanonicalLetterGlyphs(Dynamic::Other).empty());
+    EXPECT_TRUE(dynamicCanonicalLetterGlyphs(Dynamic::None).empty());
+}

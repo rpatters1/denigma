@@ -231,17 +231,143 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
         return result;
     };
 
-    auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const musx::util::EnigmaParsingContext& exprCtx, const classify::DynamicClassification& dynamicClass) {
+    auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, classify::DynamicClassification&& dynamicClass) {
         if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
             return;
         }
-        /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
-        const auto dynValue = classify::dynamicCanonicalText(dynamicClass.dynamic);
-        if (dynValue.empty()) {
+        std::optional<mnx::DynamicValue> dynValue;
+        std::optional<mnx::DynamicValue> attackValue;
+        std::vector<std::string> glyphs = std::move(dynamicClass.glyphs);
+        bool isAccent = false;
+        using DynType = classify::Dynamic;
+        switch (dynamicClass.dynamic) {
+            case DynType::pppppp:
+            case DynType::ppppp:
+            case DynType::pppp:
+                dynValue = mnx::DynamicValue::ppp;
+                if (!glyphs.empty()) {
+                    glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
+                }
+                break;
+            case DynType::ppp:
+                dynValue = mnx::DynamicValue::ppp;
+                break;
+            case DynType::pp:
+                dynValue = mnx::DynamicValue::pp;
+                break;
+            case DynType::p:
+                dynValue = mnx::DynamicValue::p;
+                break;
+            case DynType::mp:
+                dynValue = mnx::DynamicValue::mp;
+                break;
+            case DynType::mf:
+                dynValue = mnx::DynamicValue::mf;
+                break;
+            case DynType::f:
+                dynValue = mnx::DynamicValue::f;
+                break;
+            case DynType::ff:
+                dynValue = mnx::DynamicValue::ff;
+                break;
+            case DynType::fff:
+                dynValue = mnx::DynamicValue::fff;
+                break;
+            case DynType::ffff:
+            case DynType::fffff:
+            case DynType::ffffff:
+                dynValue = mnx::DynamicValue::fff;
+                if (!glyphs.empty()) {
+                    glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
+                }
+                break;
+            case DynType::fp:
+                attackValue = mnx::DynamicValue::f;
+                dynValue = mnx::DynamicValue::p;
+                break;
+            case DynType::ffp:
+                attackValue = mnx::DynamicValue::ff;
+                dynValue = mnx::DynamicValue::p;
+                break;
+            case DynType::fz:
+            case DynType::sf:
+            case DynType::sfz:
+            case DynType::rf:
+            case DynType::rfz:
+                dynValue = mnx::DynamicValue::f;
+                isAccent = true;
+                if (!glyphs.empty()) {
+                    glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
+                }
+                break;
+            case DynType::ffz:
+            case DynType::sffz:
+                dynValue = mnx::DynamicValue::ff;
+                isAccent = true;
+                if (!glyphs.empty()) {
+                    glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
+                }
+                break;
+            case DynType::pf:
+                attackValue = mnx::DynamicValue::p;
+                dynValue = mnx::DynamicValue::f;
+                break;
+            case DynType::sfp:
+            case DynType::sfzp:
+                attackValue = mnx::DynamicValue::f;
+                dynValue = mnx::DynamicValue::p;
+                isAccent = true;
+                if (!glyphs.empty()) {
+                    glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
+                }
+                break;
+            case DynType::sfpp:
+                attackValue = mnx::DynamicValue::f;
+                dynValue = mnx::DynamicValue::pp;
+                isAccent = true;
+                if (!glyphs.empty()) {
+                    glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
+                }
+                break;
+            case DynType::n:
+                dynValue = mnx::DynamicValue::n;
+                break;
+            case DynType::Other:
+            case DynType::None:
+                break;
+        }
+        if (!dynValue && (dynamicClass.change == classify::DynamicChange::Absolute || (dynamicClass.prefixText.empty() && dynamicClass.suffixText.empty()))) {
             return;
         }
-        auto mnxDynamic = mnxMeasure.ensure_dynamics().append(
-            dynValue, mnxFractionFromEdu(asgn->eduPosition));
+        auto mnxDynamic = [&]() -> mnx::part::DynamicGroup {
+            using DynRelType = classify::DynamicChange;
+            if (dynamicClass.change != DynRelType::Absolute) {
+                auto relValue = dynamicClass.change == DynRelType::RelativeIncrease
+                    ? mnx::DynamicRelativeValue::Louder
+                    : mnx::DynamicRelativeValue::Softer;
+                auto dyn = mnxMeasure.ensure_dynamics().append<mnx::part::DynamicRelative>(relValue, mnxFractionFromEdu(asgn->eduPosition));
+                if (dynValue) {
+                    dyn.set_value(dynValue.value());
+                }
+                return dyn;
+            } else if (isAccent) {
+                return mnxMeasure.ensure_dynamics().append<mnx::part::DynamicAccent>(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
+            } else {
+                return mnxMeasure.ensure_dynamics().append<mnx::part::DynamicImmediate>(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
+            }
+        }();
+        if (attackValue) {
+            mnxDynamic.set_attackValue(attackValue.value());
+        }
+        if (!dynamicClass.prefixText.empty()) {
+            mnxDynamic.set_prefix(dynamicClass.prefixText);
+        }
+        if (!dynamicClass.suffixText.empty()) {
+            mnxDynamic.set_suffix(dynamicClass.suffixText);
+        }
+        if (!glyphs.empty()) {
+            mnxDynamic.ensure_glyphs().assign(glyphs);
+        }
         const auto entryInfo = asgn->calcAssociatedEntry();
         int entryVoice = 1;
         LayerIndex voiceLayerIdx = asgn->layer > 0 ? asgn->layer - 1 : 0;
@@ -263,11 +389,6 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
                     mnxDynamic.position().set_graceIndex(0);
                 }
             }
-        }
-        auto fontInfo = exprCtx.parseFirstFontInfo();
-        std::string exprText = exprCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-        if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, exprText)) {
-            mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
         }
         if (asgn->layer > 0 || asgn->voice2 || (entryInfo && entryInfo->getEntry()->v2Launch)) {
             mnxDynamic.set_staff(mnxStaffNumber.value_or(1));
@@ -326,7 +447,7 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
                             if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
                                 /// @todo Add calculation for above or below, rather than just Float, for marking placement
                                 if (auto dynamicClass = classify::classifyDynamic(expr)) {
-                                    appendDynamic(asgn, rawTextCtx, dynamicClass);
+                                    appendDynamic(asgn, std::move(dynamicClass));
                                 } else if (auto fermata = calcFermata(rawTextCtx)) {
                                     attachFermata(asgn, expr, calcAttachmentContext(asgn), fermata.value());
                                 } else if (auto breathMark = calcBreathMark(rawTextCtx)) {

@@ -490,4 +490,42 @@ std::vector<std::string> dynamicCanonicalGlyphs(Dynamic dynamic)
     return {};
 }
 
+std::vector<std::string> dynamicCanonicalLetterGlyphs(Dynamic dynamic)
+{
+    switch (dynamic) {
+    case Dynamic::None:
+    case Dynamic::Other:
+        break;
+    case Dynamic::pppppp: return { "dynamicPiano", "dynamicPiano", "dynamicPiano", "dynamicPiano", "dynamicPiano", "dynamicPiano" };
+    case Dynamic::ppppp: return { "dynamicPiano", "dynamicPiano", "dynamicPiano", "dynamicPiano", "dynamicPiano" };
+    case Dynamic::pppp: return { "dynamicPiano", "dynamicPiano", "dynamicPiano", "dynamicPiano" };
+    case Dynamic::ppp: return { "dynamicPiano", "dynamicPiano", "dynamicPiano" };
+    case Dynamic::pp: return { "dynamicPiano", "dynamicPiano" };
+    case Dynamic::p: return { "dynamicPiano" };
+    case Dynamic::mp: return { "dynamicMezzo", "dynamicPiano" };
+    case Dynamic::mf: return { "dynamicMezzo", "dynamicForte" };
+    case Dynamic::f: return { "dynamicForte" };
+    case Dynamic::ff: return { "dynamicForte", "dynamicForte" };
+    case Dynamic::fff: return { "dynamicForte", "dynamicForte", "dynamicForte" };
+    case Dynamic::ffff: return { "dynamicForte", "dynamicForte", "dynamicForte", "dynamicForte" };
+    case Dynamic::fffff: return { "dynamicForte", "dynamicForte", "dynamicForte", "dynamicForte", "dynamicForte" };
+    case Dynamic::ffffff: return { "dynamicForte", "dynamicForte", "dynamicForte", "dynamicForte", "dynamicForte", "dynamicForte" };
+    case Dynamic::fp: return { "dynamicForte", "dynamicPiano" };
+    case Dynamic::ffp: return { "dynamicForte", "dynamicForte", "dynamicPiano" };
+    case Dynamic::fz: return { "dynamicForte", "dynamicZ" };
+    case Dynamic::ffz: return { "dynamicForte", "dynamicForte", "dynamicZ" };
+    case Dynamic::pf: return { "dynamicPiano", "dynamicForte" };
+    case Dynamic::sf: return { "dynamicSforzando", "dynamicForte" };
+    case Dynamic::sfp: return { "dynamicSforzando", "dynamicForte", "dynamicPiano" };
+    case Dynamic::sfpp: return { "dynamicSforzando", "dynamicForte", "dynamicPiano", "dynamicPiano" };
+    case Dynamic::sfz: return { "dynamicSforzando", "dynamicForte", "dynamicZ" };
+    case Dynamic::sffz: return { "dynamicSforzando", "dynamicForte", "dynamicForte", "dynamicZ" };
+    case Dynamic::sfzp: return { "dynamicSforzando", "dynamicForte", "dynamicZ", "dynamicPiano" };
+    case Dynamic::rf: return { "dynamicRinforzando", "dynamicForte" };
+    case Dynamic::rfz: return { "dynamicRinforzando", "dynamicForte", "dynamicZ" };
+    case Dynamic::n: return { "dynamicNiente" };
+    }
+    return {};
+}
+
 } // namespace denigma::classify
