@@ -107,6 +107,7 @@ struct ExpressionClassification
     Dynamic dynamic{};
     std::string dynamicPrefixText;
     std::string dynamicSuffixText;
+    DynamicChange dynamicChange{ DynamicChange::Absolute };
     Technique technique;
     TempoInfo tempo;
 };

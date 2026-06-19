@@ -66,6 +66,15 @@ enum class Dynamic
     n
 };
 
+/// @enum DynamicChange
+/// @brief Whether a classified dynamic is absolute or indicates relative motion.
+enum class DynamicChange
+{
+    Absolute,
+    RelativeIncrease,
+    RelativeDecrease
+};
+
 /// @struct DynamicClassification
 /// @brief Result returned by dynamic classification.
 struct DynamicClassification
@@ -78,6 +87,11 @@ struct DynamicClassification
     std::string prefixText;
     /// Plain text after the classified dynamic, normalized and edge-trimmed.
     std::string suffixText;
+    /// Glyph names that participated in the matched dynamic, in source order.
+    /// Empty when any matched character does not resolve to a glyph name.
+    std::vector<std::string> glyphs;
+    /// Relative direction inferred from unambiguous prefix or suffix qualifiers.
+    DynamicChange change{ DynamicChange::Absolute };
 
     /// Returns true when the source was recognized as a dynamic.
     bool isDynamic() const noexcept

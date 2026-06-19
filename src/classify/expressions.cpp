@@ -132,6 +132,57 @@ static bool isSpaceDelimitedMatch(std::string_view text, const TextTokenMatch& m
     return leftDelimited && rightDelimited;
 }
 
+static std::string_view withoutFinalPeriods(std::string_view text)
+{
+    while (!text.empty() && text.back() == '.') {
+        text.remove_suffix(1);
+    }
+    return text;
+}
+
+static DynamicChange qualifierChangeForText(std::string_view text)
+{
+    bool sawIncrease = false;
+    bool sawDecrease = false;
+
+    for (size_t start = 0; start < text.size();) {
+        while (start < text.size() && isBoundary(text[start])) {
+            ++start;
+        }
+        size_t end = start;
+        while (end < text.size() && !isBoundary(text[end])) {
+            ++end;
+        }
+        if (start < end) {
+            const std::string_view token = withoutFinalPeriods(text.substr(start, end - start));
+            if (token == "piu" || token == "più") {
+                sawIncrease = true;
+            } else if (token == "meno" || token == "menos") {
+                sawDecrease = true;
+            }
+        }
+        start = end;
+    }
+
+    if (sawIncrease == sawDecrease) {
+        return DynamicChange::Absolute;
+    }
+    return sawIncrease ? DynamicChange::RelativeIncrease : DynamicChange::RelativeDecrease;
+}
+
+static DynamicChange classifyDynamicChange(std::string_view prefixText, std::string_view suffixText)
+{
+    const DynamicChange prefixChange = qualifierChangeForText(prefixText);
+    const DynamicChange suffixChange = qualifierChangeForText(suffixText);
+    if (prefixChange == DynamicChange::Absolute) {
+        return suffixChange;
+    }
+    if (suffixChange == DynamicChange::Absolute || suffixChange == prefixChange) {
+        return prefixChange;
+    }
+    return DynamicChange::Absolute;
+}
+
 static std::optional<TextTokenMatch> findDynamicToken(std::string_view text)
 {
     if (const Dynamic exact = classifyExactDynamicToken(text); exact != Dynamic::None) {
@@ -171,6 +222,7 @@ static std::optional<ExpressionClassification> classifyDynamicExpression(std::st
         result.dynamic = match->dynamic;
         result.dynamicPrefixText = utils::trimAscii(normalizedText.substr(0, match->start));
         result.dynamicSuffixText = utils::trimAscii(normalizedText.substr(match->start + match->length));
+        result.dynamicChange = classifyDynamicChange(result.dynamicPrefixText, result.dynamicSuffixText);
         return result;
     }
     if (categoryType == CategoryType::Dynamics) {
@@ -203,15 +255,8 @@ static std::optional<ExpressionClassification> classifyDynamicExpression(
     result.dynamic = dynamicClass.dynamic;
     result.dynamicPrefixText = dynamicClass.prefixText;
     result.dynamicSuffixText = dynamicClass.suffixText;
+    result.dynamicChange = dynamicClass.change;
     return result;
-}
-
-static std::string_view withoutFinalPeriods(std::string_view text)
-{
-    while (!text.empty() && text.back() == '.') {
-        text.remove_suffix(1);
-    }
-    return text;
 }
 
 static bool matchesAny(std::string_view text, const std::initializer_list<std::string_view>& values)

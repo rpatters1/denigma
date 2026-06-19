@@ -198,6 +198,34 @@ TEST(ExpressionClassification, ClassifiesConcreteDynamicsAndCarriesSurroundingTe
     EXPECT_EQ(result.dynamic, Dynamic::pp);
     EXPECT_EQ(result.dynamicPrefixText, "sub.");
     EXPECT_EQ(result.dynamicSuffixText, "possibile");
+    EXPECT_EQ(result.dynamicChange, DynamicChange::Absolute);
+}
+
+TEST(ExpressionClassification, ClassifiesRelativeDynamicQualifiers)
+{
+    const auto increase = classifyExpression(
+        "piu mf",
+        ExpressionCategoryType::Dynamics);
+
+    EXPECT_EQ(increase.type, ExpressionType::Dynamic);
+    EXPECT_EQ(increase.dynamic, Dynamic::mf);
+    EXPECT_EQ(increase.dynamicChange, DynamicChange::RelativeIncrease);
+
+    const auto decrease = classifyExpression(
+        "menos mf",
+        ExpressionCategoryType::Dynamics);
+
+    EXPECT_EQ(decrease.type, ExpressionType::Dynamic);
+    EXPECT_EQ(decrease.dynamic, Dynamic::mf);
+    EXPECT_EQ(decrease.dynamicChange, DynamicChange::RelativeDecrease);
+
+    const auto gradual = classifyExpression(
+        "cresc. mf",
+        ExpressionCategoryType::Dynamics);
+
+    EXPECT_EQ(gradual.type, ExpressionType::Dynamic);
+    EXPECT_EQ(gradual.dynamic, Dynamic::mf);
+    EXPECT_EQ(gradual.dynamicChange, DynamicChange::Absolute);
 }
 
 TEST(ExpressionClassification, ClassifiesDynamicCategoryTextAsDynamicOther)
