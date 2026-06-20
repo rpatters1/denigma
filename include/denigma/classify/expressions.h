@@ -46,10 +46,12 @@ enum class ExpressionType
     Dynamic,
     Fermata,
     BreathMark,
+    NonArpeggio,
     TempoMark,
     TempoAlteration,
     TechniqueText,
     RehearsalMark,
+    Error,
     Suppress
 };
 
@@ -127,6 +129,11 @@ struct ExpressionBreathMark
     std::optional<std::string> glyphName;
 };
 
+struct ExpressionNonArpeggio
+{
+    musx::util::ArpeggioSpanCandidate candidate;
+};
+
 struct RehearsalMark
 {
     std::string text;
@@ -137,11 +144,16 @@ struct GenericText
     std::string text;
 };
 
+struct ExpressionError
+{
+    std::string message;
+};
+
 struct Suppress
 {
 };
 
-using ExpressionValue = std::variant<std::monostate, DynamicClassification, ExpressionFermata, ExpressionBreathMark, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, Suppress>;
+using ExpressionValue = std::variant<std::monostate, DynamicClassification, ExpressionFermata, ExpressionBreathMark, ExpressionNonArpeggio, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
 
 struct ExpressionClassification
 {
@@ -176,6 +188,9 @@ public:
     const ExpressionBreathMark& breathMark() const
     { return checkedPayload<ExpressionBreathMark, ExpressionType::BreathMark>("BreathMark"); }
 
+    const ExpressionNonArpeggio& nonArpeggio() const
+    { return checkedPayload<ExpressionNonArpeggio, ExpressionType::NonArpeggio>("NonArpeggio"); }
+
     const TempoMark& tempoMark() const
     { return checkedPayload<TempoMark, ExpressionType::TempoMark>("TempoMark"); }
 
@@ -190,6 +205,9 @@ public:
 
     const GenericText& genericText() const
     { return checkedPayload<GenericText, ExpressionType::GenericText>("GenericText"); }
+
+    const ExpressionError& error() const
+    { return checkedPayload<ExpressionError, ExpressionType::Error>("Error"); }
 };
 
 struct ExpressionAssignmentClassification

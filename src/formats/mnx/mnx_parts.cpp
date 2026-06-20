@@ -442,45 +442,33 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
                 continue;
             }
             if (asgn->staffAssign == staffCmper && !asgn->hidden) {
-                if (asgn->textExprId) {
+                const auto classification = classify::classifyExpression(asgn);
+                /// @todo Add calculation for above or below, rather than just Float, for marking placement
+                switch (classification.type) {
+                case classify::ExpressionType::Dynamic:
+                    appendDynamic(asgn, classification.dynamic());
+                    break;
+                case classify::ExpressionType::Fermata:
                     if (auto expr = asgn->getTextExpression()) {
-                        if (auto text = expr->getTextBlock(); !text) {
-                            context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, MessageSeverity::Warning);
-                        } else if (!text->getRawTextCtx(SCORE_PARTID)) {
-                            context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, MessageSeverity::Warning);
-                        } else {
-                            const auto classification = classify::classifyExpression(expr);
-                            /// @todo Add calculation for above or below, rather than just Float, for marking placement
-                            switch (classification.type) {
-                            case classify::ExpressionType::Dynamic:
-                                if (const auto* dynamic = classification.as<classify::DynamicClassification>()) {
-                                    appendDynamic(asgn, *dynamic);
-                                }
-                                break;
-                            case classify::ExpressionType::Fermata:
-                                if (const auto* fermata = classification.as<classify::ExpressionFermata>()) {
-                                    if (auto mnxFermata = makeFermata(fermata->fermata, fermata->glyphName, VerticalPlacement::Float)) {
-                                        attachFermata(asgn, expr, calcAttachmentContext(asgn), mnxFermata.value());
-                                    }
-                                }
-                                break;
-                            case classify::ExpressionType::BreathMark:
-                                if (const auto* breathMark = classification.as<classify::ExpressionBreathMark>()) {
-                                    if (auto mnxBreathMark = makeBreathMark(breathMark->breathMark, VerticalPlacement::Float)) {
-                                        attachBreathMark(calcAttachmentContext(asgn), mnxBreathMark.value());
-                                    }
-                                }
-                                break;
-                            default:
-                                break;
-                            }
+                        const auto& fermata = classification.fermata();
+                        if (auto mnxFermata = makeFermata(fermata.fermata, fermata.glyphName, VerticalPlacement::Float)) {
+                            attachFermata(asgn, expr, calcAttachmentContext(asgn), mnxFermata.value());
                         }
                     }
-                }
-                if (asgn->shapeExprId) {                    
-                    if (const auto candidate = musx::util::calcNonArpeggioSpanForAssignment(asgn)) {
-                        appendArpeggioCandidate(context, mnxMeasure, candidate.value());
+                    break;
+                case classify::ExpressionType::BreathMark:
+                    if (auto mnxBreathMark = makeBreathMark(classification.breathMark().breathMark, VerticalPlacement::Float)) {
+                        attachBreathMark(calcAttachmentContext(asgn), mnxBreathMark.value());
                     }
+                    break;
+                case classify::ExpressionType::NonArpeggio:
+                    appendArpeggioCandidate(context, mnxMeasure, classification.nonArpeggio().candidate);
+                    break;
+                case classify::ExpressionType::Error:
+                    context->logMessage(LogMsg() << classification.error().message, MessageSeverity::Warning);
+                    break;
+                default:
+                    break;
                 }
             }
         }

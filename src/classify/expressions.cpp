@@ -27,6 +27,7 @@
 #include <string_view>
 #include <vector>
 
+#include "core/denigma.h"
 #include "denigma/classify/articulations.h"
 #include "classify/classify.h"
 #include "utils/stringutils.h"
@@ -44,6 +45,7 @@ struct ResolvedTextExpression
     musx::util::EnigmaParsingContext rawTextCtx;
     std::string text;
     std::string normalizedText;
+    std::string errorMessage;
 };
 
 static std::string normalizeExpressionText(std::string_view text)
@@ -443,12 +445,32 @@ static ResolvedTextExpression resolveTextExpression(const musx::dom::MusxInstanc
     if (!def) {
         return result;
     }
+    if (const auto textBlock = def->getTextBlock(); !textBlock) {
+        result.errorMessage = (LogMsg() << "Text expression " << def->getCmper()
+            << " has non-existent text block " << def->textIdKey).str();
+        return result;
+    }
     result.rawTextCtx = def->getRawTextCtx(musx::dom::SCORE_PARTID);
     if (!result.rawTextCtx) {
+        result.errorMessage = (LogMsg() << "Text expression " << def->getCmper()
+            << " could not load EnigmaParsingContext for text block " << def->textIdKey).str();
         return result;
     }
     result.text = result.rawTextCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
     result.normalizedText = normalizeExpressionText(result.text);
+    return result;
+}
+
+static std::optional<ExpressionClassification> classifyTextExpressionError(const ResolvedTextExpression& resolved)
+{
+    if (resolved.errorMessage.empty()) {
+        return std::nullopt;
+    }
+
+    ExpressionClassification result;
+    result.type = ExpressionType::Error;
+    result.basis = ClassificationBasis::FallbackToGenericText;
+    result.value = ExpressionError{ resolved.errorMessage };
     return result;
 }
 
@@ -499,6 +521,9 @@ ExpressionClassification classifyExpression(
     const CategoryType categoryType = resolved.categoryType;
     const std::string_view normalizedText = resolved.normalizedText;
 
+    if (const auto error = classifyTextExpressionError(resolved)) {
+        return *error;
+    }
     if (const auto symbol = classifySymbolExpression(resolved)) {
         return withEnigmaCtx(*symbol, resolved);
     }
@@ -540,6 +565,15 @@ ExpressionClassification classifyExpression(
 
     if (const auto tempo = classifyTempo(def, categoryType)) {
         return *tempo;
+    }
+    if (assignment) {
+        if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForAssignment(assignment)) {
+            ExpressionClassification result;
+            result.type = ExpressionType::NonArpeggio;
+            result.basis = ClassificationBasis::FinaleCategory;
+            result.value = ExpressionNonArpeggio{ nonArpeggio.value() };
+            return result;
+        }
     }
     if (assignmentUsesTopStaff(assignment)) {
         return classifySystemTextExpression({}, {}, categoryType);
