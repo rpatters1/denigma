@@ -42,6 +42,7 @@ using CategoryType = ExpressionCategoryType;
 struct ResolvedTextExpression
 {
     CategoryType categoryType{ CategoryType::Invalid };
+    musx::dom::MusxInstance<musx::dom::others::TextExpressionDef> expressionDef;
     musx::util::EnigmaParsingContext rawTextCtx;
     std::string text;
     std::string normalizedText;
@@ -441,6 +442,7 @@ static CategoryType categoryTypeForExpression(const musx::dom::MusxInstance<musx
 static ResolvedTextExpression resolveTextExpression(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
 {
     ResolvedTextExpression result;
+    result.expressionDef = def;
     result.categoryType = categoryTypeForExpression(def);
     if (!def) {
         return result;
@@ -490,7 +492,8 @@ static std::optional<ExpressionClassification> classifySymbolExpression(const Re
         ExpressionClassification result;
         result.type = ExpressionType::Fermata;
         result.basis = basisForSymbolRecognition(resolved.categoryType);
-        result.value = ExpressionFermata{ *fermata, classification.glyphName };
+        result.value = ExpressionFermata{ *fermata, classification.glyphName,
+            resolved.expressionDef->horzMeasExprAlign == musx::dom::others::HorizontalMeasExprAlign::RightBarline };
         return result;
     }
     if (const auto* breathMark = classification.as<classify::BreathMark>()) {

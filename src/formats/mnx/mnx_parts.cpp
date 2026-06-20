@@ -399,9 +399,9 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
         }
     };
 
-    auto attachFermata = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const MusxInstance<others::TextExpressionDef>& expr,
+    auto attachFermata = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const denigma::classify::ExpressionFermata& fermataInfo,
                              const ExpressionAttachmentContext& attachment, const mnx::Fermata& fermata) {
-        if (asgn->calcIsPartOfStaffListAssignment() || expr->horzMeasExprAlign == others::HorizontalMeasExprAlign::RightBarline) {
+        if (asgn->calcIsPartOfStaffListAssignment() || fermataInfo.isRightBarline) {
             return;
         }
         if (attachment.entryTarget) {
@@ -448,14 +448,13 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
                 case classify::ExpressionType::Dynamic:
                     appendDynamic(asgn, classification.dynamic());
                     break;
-                case classify::ExpressionType::Fermata:
-                    if (auto expr = asgn->getTextExpression()) {
-                        const auto& fermata = classification.fermata();
-                        if (auto mnxFermata = makeFermata(fermata.fermata, fermata.glyphName, VerticalPlacement::Float)) {
-                            attachFermata(asgn, expr, calcAttachmentContext(asgn), mnxFermata.value());
-                        }
+                case classify::ExpressionType::Fermata: {
+                    const auto& fermata = classification.fermata();
+                    if (auto mnxFermata = makeFermata(fermata.fermata, fermata.glyphName, VerticalPlacement::Float)) {
+                        attachFermata(asgn, fermata, calcAttachmentContext(asgn), mnxFermata.value());
                     }
                     break;
+                }
                 case classify::ExpressionType::BreathMark:
                     if (auto mnxBreathMark = makeBreathMark(classification.breathMark().breathMark, VerticalPlacement::Float)) {
                         attachBreathMark(calcAttachmentContext(asgn), mnxBreathMark.value());

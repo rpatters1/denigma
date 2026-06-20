@@ -121,6 +121,7 @@ struct ExpressionFermata
 {
     Fermata fermata{};
     std::optional<std::string> glyphName;
+    bool isRightBarline{};
 };
 
 struct ExpressionBreathMark
