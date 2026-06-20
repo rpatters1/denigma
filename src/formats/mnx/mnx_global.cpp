@@ -208,9 +208,9 @@ static void createTempos(const MnxMusxMappingPtr& context, mnx::global::Measure&
                 continue;
             }
             const auto& classification = expAssignClassification.classification;
-            if (classification.type == classify::ExpressionType::TempoMark
-                && classification.tempo.beatsPerMinute > 0
-                && classification.tempo.beatUnitEdu > 0) {
+            if (const auto* tempo = classification.as<classify::TempoMark>();
+                tempo && tempo->tempo.beatsPerMinute > 0
+                && tempo->tempo.beatUnitEdu > 0) {
                 if (const auto textExpr = expAssign->getTextExpression()) {
                     temposAtPositions.emplace(expAssign->eduPosition, textExpr);
                 } else if (const auto shapeExpr = expAssign->getShapeExpression()) {
@@ -235,10 +235,12 @@ static void createTempos(const MnxMusxMappingPtr& context, mnx::global::Measure&
     for (const auto& it : temposAtPositions) {
         if (auto textExpr = std::dynamic_pointer_cast<const others::TextExpressionDef>(it.second)) {
             const auto classification = classify::classifyExpression(textExpr);
-            createTempo(classification.tempo.beatsPerMinute, classification.tempo.beatUnitEdu, it.first);
+            const auto* tempo = classification.as<classify::TempoMark>();
+            createTempo(tempo->tempo.beatsPerMinute, tempo->tempo.beatUnitEdu, it.first);
         } else if (auto shapeExpr = std::dynamic_pointer_cast<const others::ShapeExpressionDef>(it.second)) {
             const auto classification = classify::classifyExpression(shapeExpr);
-            createTempo(classification.tempo.beatsPerMinute, classification.tempo.beatUnitEdu, it.first);
+            const auto* tempo = classification.as<classify::TempoMark>();
+            createTempo(tempo->tempo.beatsPerMinute, tempo->tempo.beatUnitEdu, it.first);
         } else if (auto tempoChange = std::dynamic_pointer_cast<const others::TempoChange>(it.second)) {
             const auto noteType = tempoUnit.value_or(NoteType::Quarter);
             createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);
@@ -280,9 +282,9 @@ static void createBarlineFermata(const MnxMusxMappingPtr& context, mnx::global::
         if (!exprAssign->hidden && exprAssign->calcIsPartOfStaffListAssignment()) {
             if (const auto textExp = exprAssign->getTextExpression(); textExp && textExp->horzMeasExprAlign == others::HorizontalMeasExprAlign::RightBarline) {
                 const auto classification = classify::classifyExpression(textExp);
-                if (classification.type == classify::ExpressionType::Fermata) {
-                    if (const auto fermata = makeFermata(classification.fermata, classification.glyphName, VerticalPlacement::Float)) {
-                        mnxMeasure.set_fermata(fermata.value());
+                if (const auto* fermata = classification.as<classify::ExpressionFermata>()) {
+                    if (const auto mnxFermata = makeFermata(fermata->fermata, fermata->glyphName, VerticalPlacement::Float)) {
+                        mnxMeasure.set_fermata(mnxFermata.value());
                         break;
                     }
                 }

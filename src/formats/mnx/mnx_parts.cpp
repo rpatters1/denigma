@@ -232,7 +232,7 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
         return result;
     };
 
-    auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, classify::DynamicClassification&& dynamicClass) {
+    auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, classify::DynamicClassification dynamicClass) {
         if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
             return;
         }
@@ -451,16 +451,28 @@ static void processExpressions(const MnxMusxMappingPtr& context, const MusxInsta
                         } else {
                             const auto classification = classify::classifyExpression(expr);
                             /// @todo Add calculation for above or below, rather than just Float, for marking placement
-                            if (classification.type == classify::ExpressionType::Dynamic && classification.dynamic != classify::Dynamic::None) {
-                                appendDynamic(asgn, classify::classifyDynamic(expr));
-                            } else if (classification.type == classify::ExpressionType::Fermata) {
-                                if (auto fermata = makeFermata(classification.fermata, classification.glyphName, VerticalPlacement::Float)) {
-                                    attachFermata(asgn, expr, calcAttachmentContext(asgn), fermata.value());
+                            switch (classification.type) {
+                            case classify::ExpressionType::Dynamic:
+                                if (const auto* dynamic = classification.as<classify::DynamicClassification>()) {
+                                    appendDynamic(asgn, *dynamic);
                                 }
-                            } else if (classification.type == classify::ExpressionType::BreathMark) {
-                                if (auto breathMark = makeBreathMark(classification.breathMark, VerticalPlacement::Float)) {
-                                    attachBreathMark(calcAttachmentContext(asgn), breathMark.value());
+                                break;
+                            case classify::ExpressionType::Fermata:
+                                if (const auto* fermata = classification.as<classify::ExpressionFermata>()) {
+                                    if (auto mnxFermata = makeFermata(fermata->fermata, fermata->glyphName, VerticalPlacement::Float)) {
+                                        attachFermata(asgn, expr, calcAttachmentContext(asgn), mnxFermata.value());
+                                    }
                                 }
+                                break;
+                            case classify::ExpressionType::BreathMark:
+                                if (const auto* breathMark = classification.as<classify::ExpressionBreathMark>()) {
+                                    if (auto mnxBreathMark = makeBreathMark(breathMark->breathMark, VerticalPlacement::Float)) {
+                                        attachBreathMark(calcAttachmentContext(asgn), mnxBreathMark.value());
+                                    }
+                                }
+                                break;
+                            default:
+                                break;
                             }
                         }
                     }

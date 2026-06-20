@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "smufl_mapping.h"
+#include "classify/classify.h"
 #include "utils/stringutils.h"
 #include "utils/utf8_iterator.h"
 
@@ -384,16 +385,8 @@ static DynamicClassification classifyNormalizedDynamicText(const DynamicText& te
 
 } // namespace
 
-DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+DynamicClassification classifyDynamic(const musx::util::EnigmaParsingContext& rawTextCtx, bool isDynamicsCategory)
 {
-    if (!def) {
-        return {};
-    }
-
-    const auto cat = def->getDocument()->getOthers()->get<musx::dom::others::MarkingCategory>(def->getRequestedPartId(), def->categoryId);
-    const bool isDynamicsCategory = cat && cat->categoryType == musx::dom::others::MarkingCategory::CategoryType::Dynamics;
-
-    auto rawTextCtx = def->getRawTextCtx(musx::dom::SCORE_PARTID);
     if (!rawTextCtx) {
         return isDynamicsCategory ? DynamicClassification{ Dynamic::Other, true, {}, {}, {}, DynamicChange::Absolute } : DynamicClassification{};
     }
@@ -412,6 +405,17 @@ DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::o
         return { Dynamic::Other, true, {}, {}, {}, DynamicChange::Absolute };
     }
     return result;
+}
+
+DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+{
+    if (!def) {
+        return {};
+    }
+
+    const bool isDynamicsCategory = categoryTypeFromId(def->categoryId) == ExpressionCategoryType::Dynamics;
+
+    return classifyDynamic(def->getRawTextCtx(musx::dom::SCORE_PARTID), isDynamicsCategory);
 }
 
 std::string dynamicCanonicalText(Dynamic dynamic)

@@ -22,7 +22,6 @@
 #pragma once
 
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include "musx/musx.h"
@@ -104,6 +103,8 @@ struct DynamicClassification
 
 /// Classifies a Finale text expression definition as a dynamic marking.
 DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);
+/// Classifies an already-resolved Enigma text context as a dynamic marking.
+DynamicClassification classifyDynamic(const musx::util::EnigmaParsingContext& rawTextCtx, bool isDynamicsCategory = false);
 /// Returns the canonical text spelling for a dynamic.
 std::string dynamicCanonicalText(Dynamic dynamic);
 /// Returns canonical SMuFL glyph names for a dynamic.
