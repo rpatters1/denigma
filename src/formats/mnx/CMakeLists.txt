@@ -10,6 +10,7 @@ set(DENIGMA_FORMAT_MNX_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/mnx_markings.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mnx_parts.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mnx_sequences.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mnx_smartshapes.cpp
 )
 
 add_denigma_internal_library(denigma_mnx MUSX_PCH ${DENIGMA_FORMAT_MNX_SOURCES})
