@@ -212,7 +212,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
     if (asgn->layer > 0 || asgn->voice2 || (entryInfo && entryInfo->getEntry()->v2Launch)) {
         mnxDynamic.set_staff(mnxStaffNumber.value_or(1));
         mnxDynamic.set_voice(calcVoice(mnxStaffNumber.value_or(1), voiceLayerIdx, entryVoice));
-    } else if (mnxStaffNumber) {
+    } else if (mnxStaffNumber > 1) { // we get better import results not specifying the 1st staff number: this could become an option
         mnxDynamic.set_staff(mnxStaffNumber.value());
     }
 }

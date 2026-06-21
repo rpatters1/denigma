@@ -39,7 +39,7 @@ void appendHairpin(const MnxMusxMappingPtr&, mnx::part::Measure& mnxMeasure, std
     /// @todo Perhaps get smarter about setting start/end grace index using situational heuristics
     mnxDynamic.position().set_graceIndex(0);        // always after grace notes
     mnxDynamic.end().position().set_graceIndex(0);  // always after grace notes
-    if (mnxStaffNumber) {
+    if (mnxStaffNumber > 1) { // we get better import results not specifying the 1st staff number: this could become an option
         mnxDynamic.set_staff(mnxStaffNumber.value());
     }
 }
@@ -60,7 +60,8 @@ void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 continue;
             }
             const auto shape = context->document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum);
-            if (!shape || shape->startTermSeg->endPoint->staffId != context->current.staff) {
+            if (!shape || shape->startTermSeg->endPoint->staffId != context->current.staff
+                       || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()) {
                 continue;
             }
             using ST = musx::dom::others::SmartShape::ShapeType;
