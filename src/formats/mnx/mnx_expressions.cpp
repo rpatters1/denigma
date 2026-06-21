@@ -158,21 +158,21 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
     if (!dynValue && (dynamicClass.change == classify::DynamicChange::Absolute || (dynamicClass.prefixText.empty() && dynamicClass.suffixText.empty()))) {
         return;
     }
-    auto mnxDynamic = [&]() -> mnx::part::DynamicGroup {
+    auto mnxDynamic = [&]() -> mnx::part::DynamicGroupBase {
         using DynRelType = classify::DynamicChange;
         if (dynamicClass.change != DynRelType::Absolute) {
             auto relValue = dynamicClass.change == DynRelType::RelativeIncrease
                 ? mnx::DynamicRelativeValue::Louder
                 : mnx::DynamicRelativeValue::Softer;
-            auto dyn = mnxMeasure.ensure_dynamics().append<mnx::part::DynamicRelative>(relValue, mnxFractionFromEdu(asgn->eduPosition));
+            auto dyn = mnxMeasure.ensure_dynamics().appendRelative(relValue, mnxFractionFromEdu(asgn->eduPosition));
             if (dynValue) {
                 dyn.set_value(dynValue.value());
             }
             return dyn;
         } else if (isAccent) {
-            return mnxMeasure.ensure_dynamics().append<mnx::part::DynamicAccent>(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
+            return mnxMeasure.ensure_dynamics().appendAccent(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
         } else {
-            return mnxMeasure.ensure_dynamics().append<mnx::part::DynamicImmediate>(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
+            return mnxMeasure.ensure_dynamics().appendImmediate(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
         }
     }();
     if (attackValue) {

@@ -35,7 +35,7 @@ void appendHairpin(const MnxMusxMappingPtr&, mnx::part::Measure& mnxMeasure, std
     const auto endPos = mnx::MeasureRhythmicPosition::make(
         calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
         mnxFractionFromFraction(shape->endTermSeg->endPoint->calcGlobalPosition()));
-    auto mnxDynamic = mnxMeasure.ensure_dynamics().append<mnx::part::DynamicGradual>(wedgeType, startPos, endPos);
+    auto mnxDynamic = mnxMeasure.ensure_dynamics().appendGradual(wedgeType, startPos, endPos);
     /// @todo Perhaps get smarter about setting start/end grace index using situational heuristics
     mnxDynamic.position().set_graceIndex(0);        // always after grace notes
     mnxDynamic.end().position().set_graceIndex(0);  // always after grace notes
