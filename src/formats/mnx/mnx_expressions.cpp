@@ -270,7 +270,7 @@ void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 continue;
             }
             const auto classification = classify::classifyExpression(asgn);
-            auto placement = asgn->calcVerticalPlacementContext().placement;
+            auto placement = asgn->calcVerticalPlacementContext();
             switch (classification.type) {
             case classify::ExpressionType::Dynamic:
                 appendDynamic(context, mnxMeasure, mnxStaffNumber, asgn, classification.dynamic(), placement);
