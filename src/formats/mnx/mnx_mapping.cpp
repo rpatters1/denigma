@@ -85,5 +85,22 @@ mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& 
     return mnx::LyricLineType::Whole;
 }
 
+mnx::MultiStaffOrientation mnxMultiStaffOrientFromVerticalPlacement(const std::optional<int>& mnxStaffNumber, VerticalPlacement placement)
+{
+    auto result = enumConvert<mnx::MultiStaffOrientation>(placement);
+    if (mnxStaffNumber.has_value()) {
+        if (mnxStaffNumber == 1) {
+            if (placement == VerticalPlacement::Below) {
+                result = mnx::MultiStaffOrientation::Between;
+            }
+        } else {
+            if (placement == VerticalPlacement::Above) {
+                result = mnx::MultiStaffOrientation::Between;
+            }
+        }
+    }
+    return result;
+}
+
 } // namespace mnxexp
 } // namespace denigma

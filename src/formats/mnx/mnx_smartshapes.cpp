@@ -29,7 +29,7 @@ namespace mnxexp {
 
 namespace {
 void appendHairpin(const MnxMusxMappingPtr&, mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
-    const MusxInstance<others::SmartShape>& shape, mnx::DynamicWedgeType wedgeType)
+    const MusxInstance<others::SmartShape>& shape, mnx::DynamicWedgeType wedgeType, VerticalPlacement placement)
 {
     const auto startPos = mnxFractionFromFraction(shape->startTermSeg->endPoint->calcGlobalPosition());
     const auto endPos = mnx::MeasureRhythmicPosition::make(
@@ -39,6 +39,7 @@ void appendHairpin(const MnxMusxMappingPtr&, mnx::part::Measure& mnxMeasure, std
     /// @todo Perhaps get smarter about setting start/end grace index using situational heuristics
     mnxDynamic.position().set_graceIndex(0);        // always after grace notes
     mnxDynamic.end().position().set_graceIndex(0);  // always after grace notes
+    mnxDynamic.set_or_clear_orient(mnxMultiStaffOrientFromVerticalPlacement(mnxStaffNumber, placement));
     if (mnxStaffNumber > 1) { // we get better import results not specifying the 1st staff number: this could become an option
         mnxDynamic.set_staff(mnxStaffNumber.value());
     }
@@ -65,12 +66,13 @@ void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 continue;
             }
             using ST = musx::dom::others::SmartShape::ShapeType;
+            /// @todo properly compute VerticalPlacement
             switch (shape->shapeType) {
             case ST::Crescendo:
-                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnx::DynamicWedgeType::Increasing);
+                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnx::DynamicWedgeType::Increasing, VerticalPlacement::Float);
                 break;
             case ST::Decrescendo:
-                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnx::DynamicWedgeType::Decreasing);
+                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnx::DynamicWedgeType::Decreasing, VerticalPlacement::Float);
                 break;
             default:
                 if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForSmartShape(shape)) {

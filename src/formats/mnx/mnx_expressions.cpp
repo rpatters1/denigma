@@ -49,7 +49,7 @@ ExpressionAttachmentContext calcAttachmentContext(const MnxMusxMappingPtr& conte
 }
 
 void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
-    const MusxInstance<others::MeasureExprAssign>& asgn, classify::DynamicClassification dynamicClass)
+    const MusxInstance<others::MeasureExprAssign>& asgn, classify::DynamicClassification dynamicClass, VerticalPlacement placement)
 {
     if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
         return;
@@ -209,6 +209,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
             }
         }
     }
+    mnxDynamic.set_or_clear_orient(mnxMultiStaffOrientFromVerticalPlacement(mnxStaffNumber, placement));
     if (asgn->layer > 0 || asgn->voice2 || (entryInfo && entryInfo->getEntry()->v2Launch)) {
         mnxDynamic.set_staff(mnxStaffNumber.value_or(1));
         mnxDynamic.set_voice(calcVoice(mnxStaffNumber.value_or(1), voiceLayerIdx, entryVoice));
@@ -269,20 +270,20 @@ void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 continue;
             }
             const auto classification = classify::classifyExpression(asgn);
-            /// @todo Add calculation for above or below, rather than just Float, for marking placement
+            auto placement = asgn->calcVerticalPlacementContext().placement;
             switch (classification.type) {
             case classify::ExpressionType::Dynamic:
-                appendDynamic(context, mnxMeasure, mnxStaffNumber, asgn, classification.dynamic());
+                appendDynamic(context, mnxMeasure, mnxStaffNumber, asgn, classification.dynamic(), placement);
                 break;
             case classify::ExpressionType::Fermata: {
                 const auto& fermata = classification.fermata();
-                if (auto mnxFermata = makeFermata(fermata.fermata, fermata.glyphName, VerticalPlacement::Float)) {
+                if (auto mnxFermata = makeFermata(fermata.fermata, fermata.glyphName, placement)) {
                     attachFermata(context, mnxMeasure, asgn, fermata, calcAttachmentContext(context, asgn), mnxFermata.value());
                 }
                 break;
             }
             case classify::ExpressionType::BreathMark:
-                if (auto mnxBreathMark = makeBreathMark(classification.breathMark().breathMark, VerticalPlacement::Float)) {
+                if (auto mnxBreathMark = makeBreathMark(classification.breathMark().breathMark, placement)) {
                     attachBreathMark(context, calcAttachmentContext(context, asgn), mnxBreathMark.value());
                 }
                 break;
