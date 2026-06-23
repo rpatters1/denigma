@@ -93,8 +93,12 @@ struct DynamicClassification
     DynamicChange change{ DynamicChange::Absolute };
 
     /// Returns true when the source was recognized as a dynamic.
-    bool isDynamic() const noexcept
+    [[nodiscard]] bool isDynamic() const noexcept
     { return dynamic != Dynamic::None; }
+
+    /// Returns true when at least one of the dynamic text elements contains text
+    [[nodiscard]] bool containsText() const noexcept
+    { return !prefixText.empty() || !glyphs.empty() || !suffixText.empty(); }
 
     /// Returns true when the source was recognized as a dynamic.
     explicit operator bool() const noexcept

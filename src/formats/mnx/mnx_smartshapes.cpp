@@ -106,8 +106,8 @@ void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::
                         auto mnxOttava = mnxMeasure.ensure_ottavas().append(
                             enumConvert<mnx::OttavaAmount>(shape->shapeType),
                             mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
-                            calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
-                            mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint));
+                            mnx::MeasureRhythmicPosition::make(calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
+                                                               mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint)));
                         mnxOttava.end().position().set_graceIndex(0);   // guarantees inclusion of any grace notes at the end of the ottava
                         if (mnxStaffNumber) {
                             mnxOttava.set_staff(mnxStaffNumber.value());

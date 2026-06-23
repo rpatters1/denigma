@@ -48,25 +48,21 @@ ExpressionAttachmentContext calcAttachmentContext(const MnxMusxMappingPtr& conte
     return result;
 }
 
-void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
-    const MusxInstance<others::MeasureExprAssign>& asgn, classify::DynamicClassification dynamicClass, VerticalPlacement placement)
+std::pair<std::optional<mnx::DynamicValue>, std::optional<mnx::DynamicValue>> calcDynamicType(
+    classify::Dynamic dynamic, bool& copyGlyphs, bool& isAccent)
 {
-    if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
-        return;
-    }
     std::optional<mnx::DynamicValue> dynValue;
     std::optional<mnx::DynamicValue> attackValue;
-    std::vector<std::string> glyphs = std::move(dynamicClass.glyphs);
-    bool isAccent = false;
+    copyGlyphs = false;
+    isAccent = false;
+
     using DynType = classify::Dynamic;
-    switch (dynamicClass.dynamic) {
+    switch (dynamic) {
         case DynType::pppppp:
         case DynType::ppppp:
         case DynType::pppp:
             dynValue = mnx::DynamicValue::ppp;
-            if (!glyphs.empty()) {
-                glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
-            }
+            copyGlyphs = true;
             break;
         case DynType::ppp:
             dynValue = mnx::DynamicValue::ppp;
@@ -96,9 +92,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
         case DynType::fffff:
         case DynType::ffffff:
             dynValue = mnx::DynamicValue::fff;
-            if (!glyphs.empty()) {
-                glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
-            }
+            copyGlyphs = true;
             break;
         case DynType::fp:
             attackValue = mnx::DynamicValue::f;
@@ -115,17 +109,13 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
         case DynType::rfz:
             dynValue = mnx::DynamicValue::f;
             isAccent = true;
-            if (!glyphs.empty()) {
-                glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
-            }
+            copyGlyphs = true;
             break;
         case DynType::ffz:
         case DynType::sffz:
             dynValue = mnx::DynamicValue::ff;
             isAccent = true;
-            if (!glyphs.empty()) {
-                glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
-            }
+            copyGlyphs = true;
             break;
         case DynType::pf:
             attackValue = mnx::DynamicValue::p;
@@ -136,17 +126,13 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
             attackValue = mnx::DynamicValue::f;
             dynValue = mnx::DynamicValue::p;
             isAccent = true;
-            if (!glyphs.empty()) {
-                glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
-            }
+            copyGlyphs = true;
             break;
         case DynType::sfpp:
             attackValue = mnx::DynamicValue::f;
             dynValue = mnx::DynamicValue::pp;
             isAccent = true;
-            if (!glyphs.empty()) {
-                glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
-            }
+            copyGlyphs = true;
             break;
         case DynType::n:
             dynValue = mnx::DynamicValue::n;
@@ -155,9 +141,29 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
         case DynType::None:
             break;
     }
-    if (!dynValue && (dynamicClass.change == classify::DynamicChange::Absolute || (dynamicClass.prefixText.empty() && dynamicClass.suffixText.empty()))) {
+
+    return std::make_pair(dynValue, attackValue);
+}
+
+void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
+    const MusxInstance<others::MeasureExprAssign>& asgn, classify::DynamicClassification dynamicClass, VerticalPlacement placement)
+{
+    if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
         return;
     }
+
+    bool isAccent{};
+    bool copyGlyphs{};
+    const auto [dynValue, attackValue] = calcDynamicType(dynamicClass.dynamic, copyGlyphs, isAccent);
+    if (!dynValue && (dynamicClass.change == classify::DynamicChange::Absolute || !dynamicClass.containsText())) {
+        return;
+    }
+
+    std::vector<std::string> glyphs = std::move(dynamicClass.glyphs);
+    if (copyGlyphs && !glyphs.empty()) {
+        glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
+    }
+
     auto mnxDynamic = [&]() -> mnx::part::DynamicGroupBase {
         using DynRelType = classify::DynamicChange;
         if (dynamicClass.change != DynRelType::Absolute) {
