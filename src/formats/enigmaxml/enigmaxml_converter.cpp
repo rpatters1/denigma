@@ -24,7 +24,9 @@
 #include "enigmaxml.h"
 #include "utils/stringutils.h"
 
-namespace denigma::formats::enigmaxml {
+namespace denigma {
+namespace formats {
+namespace enigmaxml {
 
 ConversionResult MusxToEnigmaXmlConverter::convert(const IRandomAccessReader& input,
                                                    std::ostream& output,
@@ -40,7 +42,7 @@ ConversionResult MusxToEnigmaXmlConverter::convert(const IRandomAccessReader& in
     context.conversionResult = &result;
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
-    const Buffer buffer = denigma::enigmaxml::extractMusxInputData(input, context).primaryBuffer;
+    const Buffer buffer = detail::extractMusxInputData(input, context).primaryBuffer;
     output.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
     return result;
 }
@@ -57,4 +59,6 @@ void registerConverters(ConverterRegistry& registry)
     registry.add(std::make_unique<MusxToEnigmaXmlConverter>());
 }
 
-} // namespace denigma::formats::enigmaxml
+} // namespace enigmaxml
+} // namespace formats
+} // namespace denigma

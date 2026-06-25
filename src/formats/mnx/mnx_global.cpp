@@ -29,10 +29,12 @@
 #include "utils/smufl_support.h"
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
 static void assignBarline(
-    mnx::global::Measure& mnxMeasure,
+    mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
     const MusxInstance<options::BarlineOptions>& musxBarlineOptions,
     bool isForFinalMeasure)
@@ -46,26 +48,26 @@ static void assignBarline(
             case others::Measure::BarlineType::Normal:
                 if (isForFinalMeasure && !musxBarlineOptions->drawFinalBarlineOnLastMeas) {
                     // force normal on final bar
-                    mnxMeasure.ensure_barline(mnx::BarlineType::Regular);
+                    mnxMeasure.ensure_barline(mnxdom::BarlineType::Regular);
                 } else if (!isForFinalMeasure && musxBarlineOptions->drawDoubleBarlineBeforeKeyChanges) {
                     if (const auto& nextMeasure = musxMeasure->getDocument()->getOthers()->get<others::Measure>(
                             SCORE_PARTID, static_cast<Cmper>(musxMeasure->getCmper() + 1))) {
                         if (!musxMeasure->createKeySignature()->isSame(*nextMeasure->createKeySignature().get())) {
-                            mnxMeasure.ensure_barline(mnx::BarlineType::Double);
+                            mnxMeasure.ensure_barline(mnxdom::BarlineType::Double);
                         }
                     }
                 }
                 break;
             default:
-                mnxMeasure.ensure_barline(enumConvert<mnx::BarlineType>(musxMeasure->barlineType));
+                mnxMeasure.ensure_barline(enumConvert<mnxdom::BarlineType>(musxMeasure->barlineType));
                 break;
         }
     } else {
-        mnxMeasure.ensure_barline(mnx::BarlineType::NoBarline);
+        mnxMeasure.ensure_barline(mnxdom::BarlineType::NoBarline);
     }
 }
 
-static void createEnding(mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
+static void createEnding(mnxdom::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
     if (musxMeasure->hasEnding) {
         if (auto musxEnding = musxMeasure->getDocument()->getOthers()->get<others::RepeatEndingStart>(SCORE_PARTID, musxMeasure->getCmper())) {
@@ -108,7 +110,7 @@ static std::optional<MusxInstance<others::TextRepeatAssign>> searchForJump(const
 
 static void createFine(
     const MnxMusxMappingPtr& context,
-    mnx::global::Measure& mnxMeasure,
+    mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
     if (auto repeatAssign = searchForJump(context, classify::Jump::Fine, musxMeasure)) {
@@ -119,14 +121,14 @@ static void createFine(
 
 static void createJump(
     const MnxMusxMappingPtr& context,
-    mnx::global::Measure& mnxMeasure,
+    mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    constexpr auto jumpMapping = std::to_array<std::pair<classify::Jump, mnx::JumpType>>(
+    constexpr auto jumpMapping = std::to_array<std::pair<classify::Jump, mnxdom::JumpType>>(
     {
-        {classify::Jump::DalSegno, mnx::JumpType::Segno},
-        {classify::Jump::DsAlCoda, mnx::JumpType::Segno},
-        {classify::Jump::DsAlFine, mnx::JumpType::DsAlFine},
+        {classify::Jump::DalSegno, mnxdom::JumpType::Segno},
+        {classify::Jump::DsAlCoda, mnxdom::JumpType::Segno},
+        {classify::Jump::DsAlFine, mnxdom::JumpType::DsAlFine},
     });
 
     for (const auto& mapping : jumpMapping) {
@@ -138,7 +140,7 @@ static void createJump(
 }
 
 static void assignKey(
-    mnx::global::Measure& mnxMeasure,
+    mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
     std::optional<int>& prevKeyFifths)
 {
@@ -149,7 +151,7 @@ static void assignKey(
     }
 }
 
-static void assignDisplayNumber(mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
+static void assignDisplayNumber(mnxdom::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
     if (const auto displayNumber = musxMeasure->calcDisplayNumber()) {
         if (displayNumber.value() != musxMeasure->getCmper()) {
@@ -158,7 +160,7 @@ static void assignDisplayNumber(mnx::global::Measure& mnxMeasure, const MusxInst
     }
 }
 
-static void assignRepeats(mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
+static void assignRepeats(mnxdom::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
     if (musxMeasure->forwardRepeatBar) {
         mnxMeasure.ensure_repeatStart();
@@ -171,7 +173,7 @@ static void assignRepeats(mnx::global::Measure& mnxMeasure, const MusxInstance<o
 
 static void createSegno(
     const MnxMusxMappingPtr& context,
-    mnx::global::Measure& mnxMeasure,
+    mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
     if (auto repeatAssign = searchForJump(context, classify::Jump::Segno, musxMeasure)) {
@@ -187,7 +189,7 @@ static void createSegno(
     }
 }
 
-static void createTempos(const MnxMusxMappingPtr& context, mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
+static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
     auto createTempo = [&mnxMeasure](int bpm, Edu noteValue, Edu eduPosition) {
         auto mnxTempos = mnxMeasure.ensure_tempos();
@@ -251,7 +253,7 @@ static void createTempos(const MnxMusxMappingPtr& context, mnx::global::Measure&
 
 static void assignTimeSignature(
     const MnxMusxMappingPtr& context,
-    mnx::global::Measure& mnxMeasure,
+    mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
     MusxInstance<TimeSignature>& prevTimeSig)
 {
@@ -268,12 +270,12 @@ static void assignTimeSignature(
                     << " has fractional portion that could not be reduced.", MessageSeverity::Warning);
             }
         }
-        mnxMeasure.ensure_time(count.quotient(), enumConvert<mnx::TimeSignatureUnit>(noteType));
+        mnxMeasure.ensure_time(count.quotient(), enumConvert<mnxdom::TimeSignatureUnit>(noteType));
         prevTimeSig = timeSig;
     }
 }
 
-static void createBarlineFermata(const MnxMusxMappingPtr& context, mnx::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
+static void createBarlineFermata(const MnxMusxMappingPtr& context, mnxdom::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
     const auto& musxDocument = context->document;
     const auto forPartId = musxMeasure->getRequestedPartId();
@@ -341,7 +343,7 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
             auto mnxLineMetadata = mnxLyrics.lineMetadata().value();
             std::string lineId = calcLyricLineId(std::string(T::XmlNodeName), musxLyric->getTextNumber());
             context->lyricLineIds.emplace(lineId);
-            mnx::global::LyricLineMetadata metaData = mnxLineMetadata.append(lineId);
+            mnxdom::global::LyricLineMetadata metaData = mnxLineMetadata.append(lineId);
             std::string mnxLabel = std::string(T::XmlNodeName) + " " + std::to_string(musxLyric->getTextNumber());
             mnxLabel[0] = char(std::toupper(mnxLabel[0]));
             metaData.set_label(mnxLabel);
@@ -405,5 +407,7 @@ void createGlobal(const MnxMusxMappingPtr& context)
     createGlobalMeasures(context);
 }
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

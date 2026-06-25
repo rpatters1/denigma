@@ -30,9 +30,11 @@
 #include "utils/smufl_support.h"
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
-static void appendMeasureRemainderSpaces(mnx::sequence::SequenceContent content,
+static void appendMeasureRemainderSpaces(mnxdom::sequence::SequenceContent content,
     const musx::util::Fraction& elapsedInVoice,
     const musx::util::Fraction& measureDuration)
 {
@@ -76,62 +78,62 @@ static void appendMeasureRemainderSpaces(mnx::sequence::SequenceContent content,
     }
 }
 
-static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::sequence::SequenceContent content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int marks)
+static mnxdom::sequence::MultiNoteTremolo createMultiNoteTremolo(mnxdom::sequence::SequenceContent content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int marks)
 {
     const auto& musxTuplet = tupletInfo.tuplet;
     const auto entryCount = static_cast<unsigned>(tupletInfo.numEntries());
     const Edu eduRefDuration = (musxTuplet->calcReferenceDuration() / entryCount).calcEduDuration();
     auto mnxTremolo = content.appendMultiNoteTremolo(
         marks,
-        mnx::NoteValueQuantity::make(entryCount, mnxNoteValueFromEdu(eduRefDuration)));
+        mnxdom::NoteValueQuantity::make(entryCount, mnxNoteValueFromEdu(eduRefDuration)));
     /// @todo: additional fields (like noteheads) when defined by MNX committee.
     return mnxTremolo;
 }
 
-static mnx::sequence::Tuplet createTuplet(mnx::sequence::SequenceContent content, const musx::dom::EntryFrame::TupletInfo& tupletInfo)
+static mnxdom::sequence::Tuplet createTuplet(mnxdom::sequence::SequenceContent content, const musx::dom::EntryFrame::TupletInfo& tupletInfo)
 {
     const auto& musxTuplet = tupletInfo.tuplet;
     auto mnxTuplet = content.appendTuplet(
-        mnx::NoteValueQuantity::make(
+        mnxdom::NoteValueQuantity::make(
             static_cast<unsigned>(musxTuplet->displayNumber),
             mnxNoteValueFromEdu(musxTuplet->displayDuration)),
-        mnx::NoteValueQuantity::make(
+        mnxdom::NoteValueQuantity::make(
             static_cast<unsigned>(musxTuplet->referenceNumber),
             mnxNoteValueFromEdu(musxTuplet->referenceDuration)));
 
     mnxTuplet.set_or_clear_bracket([&]() {
         if (musxTuplet->brackStyle == details::TupletDef::BracketStyle::Nothing) {
-            return mnx::AutoYesNo::No;
+            return mnxdom::AutoYesNo::No;
         }
-        return enumConvert<mnx::AutoYesNo>(musxTuplet->autoBracketStyle);
+        return enumConvert<mnxdom::AutoYesNo>(musxTuplet->autoBracketStyle);
     }());
 
     mnxTuplet.set_or_clear_showNumber([&]() {
         switch (musxTuplet->numStyle) {
-            case details::TupletDef::NumberStyle::Number: return mnx::TupletDisplaySetting::Inner;
-            case details::TupletDef::NumberStyle::Nothing: return mnx::TupletDisplaySetting::NoNumber;
-            case details::TupletDef::NumberStyle::UseRatio: return mnx::TupletDisplaySetting::Both;
-            case details::TupletDef::NumberStyle::RatioPlusDenominatorNote: return mnx::TupletDisplaySetting::Both;
-            case details::TupletDef::NumberStyle::RatioPlusBothNotes: return mnx::TupletDisplaySetting::Both;
+            case details::TupletDef::NumberStyle::Number: return mnxdom::TupletDisplaySetting::Inner;
+            case details::TupletDef::NumberStyle::Nothing: return mnxdom::TupletDisplaySetting::NoNumber;
+            case details::TupletDef::NumberStyle::UseRatio: return mnxdom::TupletDisplaySetting::Both;
+            case details::TupletDef::NumberStyle::RatioPlusDenominatorNote: return mnxdom::TupletDisplaySetting::Both;
+            case details::TupletDef::NumberStyle::RatioPlusBothNotes: return mnxdom::TupletDisplaySetting::Both;
         }
-        return mnx::TupletDisplaySetting::Inner;
+        return mnxdom::TupletDisplaySetting::Inner;
     }());
 
     mnxTuplet.set_or_clear_showValue([&]() {
         switch (musxTuplet->numStyle) {
-            case details::TupletDef::NumberStyle::Number: return mnx::TupletDisplaySetting::NoNumber;
-            case details::TupletDef::NumberStyle::Nothing: return mnx::TupletDisplaySetting::NoNumber;
-            case details::TupletDef::NumberStyle::UseRatio: return mnx::TupletDisplaySetting::NoNumber;
-            case details::TupletDef::NumberStyle::RatioPlusDenominatorNote: return mnx::TupletDisplaySetting::Inner; // should be Outer, but this is not currently an option
-            case details::TupletDef::NumberStyle::RatioPlusBothNotes: return mnx::TupletDisplaySetting::Both;
+            case details::TupletDef::NumberStyle::Number: return mnxdom::TupletDisplaySetting::NoNumber;
+            case details::TupletDef::NumberStyle::Nothing: return mnxdom::TupletDisplaySetting::NoNumber;
+            case details::TupletDef::NumberStyle::UseRatio: return mnxdom::TupletDisplaySetting::NoNumber;
+            case details::TupletDef::NumberStyle::RatioPlusDenominatorNote: return mnxdom::TupletDisplaySetting::Inner; // should be Outer, but this is not currently an option
+            case details::TupletDef::NumberStyle::RatioPlusBothNotes: return mnxdom::TupletDisplaySetting::Both;
         }
-        return mnx::TupletDisplaySetting::NoNumber;
+        return mnxdom::TupletDisplaySetting::NoNumber;
     }());
 
     return mnxTuplet;
 }
 
-static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase& mnxNote, const NoteInfoPtr& musxNote)
+static void createTies(const MnxMusxMappingPtr& context, mnxdom::sequence::NoteBase& mnxNote, const NoteInfoPtr& musxNote)
 {
     bool tieCreated = false;
     if (musxNote->tieStart) {
@@ -145,14 +147,14 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
         }
         if (!mnxTie.lv()) {
             if (tiedTo.getEntryInfo().getVoice() == musxNote.getEntryInfo().getVoice()) {
-                mnxTie.set_targetType(mnx::TieTargetType::NextNote);
+                mnxTie.set_targetType(mnxdom::TieTargetType::NextNote);
             } else {
-                mnxTie.set_targetType(mnx::TieTargetType::CrossVoice);
+                mnxTie.set_targetType(mnxdom::TieTargetType::CrossVoice);
             }
         }
         if (auto tieAlter = context->document->getDetails()->getForNote<details::TieAlterStart>(musxNote)) {
             if (tieAlter->freezeDirection) {
-                mnxTie.set_side(tieAlter->down ? mnx::SlurTieSide::Down : mnx::SlurTieSide::Up);
+                mnxTie.set_side(tieAlter->down ? mnxdom::SlurTieSide::Down : mnxdom::SlurTieSide::Up);
             }
         }
         tieCreated = true;
@@ -163,9 +165,9 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
         auto mnxTies = mnxNote.ensure_ties();
         auto mnxTie = mnxTies.append();
         mnxTie.set_target(calcNoteId(musxTargetNote));
-        mnxTie.set_targetType(mnx::TieTargetType::Arpeggio);
+        mnxTie.set_targetType(mnxdom::TieTargetType::Arpeggio);
         if (tiedToInfo->direction != Curve::Unspecified) {
-            mnxTie.set_side(tiedToInfo->direction == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+            mnxTie.set_side(tiedToInfo->direction == Curve::Up ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down);
         }
         tieCreated = true;
     }
@@ -175,7 +177,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnx::sequence::NoteBase
             auto mnxTie = mnxTies.append();
             mnxTie.set_lv(true);
             if (pseudoTieInfo.direction != Curve::Unspecified) {
-                mnxTie.set_side(pseudoTieInfo.direction == Curve::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+                mnxTie.set_side(pseudoTieInfo.direction == Curve::Up ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down);
             }
         }
     }
@@ -213,16 +215,16 @@ static void deferJumpTies(const MnxMusxMappingPtr& context, const NoteInfoPtr& m
             std::nullopt
         };
         if (direction != CurveContourDirection::Unspecified) {
-            deferred.side = (direction == CurveContourDirection::Up) ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down;
+            deferred.side = (direction == CurveContourDirection::Up) ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down;
         }
         context->deferredJumpTies.push_back(std::move(deferred));
     }
 }
 
-static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
+static void createSlurs(const MnxMusxMappingPtr&, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
-    auto createOneSlur = [&](const EntryNumber targetEntry) -> mnx::sequence::Slur {
+    auto createOneSlur = [&](const EntryNumber targetEntry) -> mnxdom::sequence::Slur {
         auto mnxSlurs = mnxEvent.ensure_slurs();
         return mnxSlurs.append(calcEventId(targetEntry));
     };
@@ -235,9 +237,9 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
                 }
                 if (shape->calcIsSlur()) {
                     auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
-                    mnxSlur.set_lineType(shape->calcIsDashed() ? mnx::LineType::Dashed : mnx::LineType::Solid);
+                    mnxSlur.set_lineType(shape->calcIsDashed() ? mnxdom::LineType::Dashed : mnxdom::LineType::Solid);
                     if (auto contourDir = shape->calcContourDirection(); contourDir != CurveContourDirection::Unspecified) {
-                        mnxSlur.set_side(contourDir == CurveContourDirection::Up ? mnx::SlurTieSide::Up : mnx::SlurTieSide::Down);
+                        mnxSlur.set_side(contourDir == CurveContourDirection::Up ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down);
                     }
                 }
             }
@@ -245,12 +247,12 @@ static void createSlurs(const MnxMusxMappingPtr&, mnx::sequence::Event& mnxEvent
     }
 }
 
-static mnx::sequence::EventMarkingBase createEventMarking(
-    mnx::sequence::EventMarkings mnxMarkings,
+static mnxdom::sequence::EventMarkingBase createEventMarking(
+    mnxdom::sequence::EventMarkings mnxMarkings,
     classify::StandardArticulation::Type mark,
     const details::ArticulationAssign::SelectedSymbolContext& symbolContext)
 {
-    const auto setPointing = [&](auto marking) -> mnx::sequence::EventMarkingBase {
+    const auto setPointing = [&](auto marking) -> mnxdom::sequence::EventMarkingBase {
         const auto& symbol = symbolContext.symbol;
         marking.set_or_clear_pointing(calcPointing(symbol.font, symbol.character, symbolContext.placement));
         return marking;
@@ -260,9 +262,9 @@ static mnx::sequence::EventMarkingBase createEventMarking(
     case classify::StandardArticulation::Type::Accent:
         return mnxMarkings.ensure_accent();
     case classify::StandardArticulation::Type::BowDirectionDown:
-        return mnxMarkings.ensure_bowDirection(mnx::MarkingUpDown::Down);
+        return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Down);
     case classify::StandardArticulation::Type::BowDirectionUp:
-        return mnxMarkings.ensure_bowDirection(mnx::MarkingUpDown::Up);
+        return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Up);
     case classify::StandardArticulation::Type::SoftAccent:
         return mnxMarkings.ensure_softAccent();
     case classify::StandardArticulation::Type::Spiccato:
@@ -283,10 +285,10 @@ static mnx::sequence::EventMarkingBase createEventMarking(
     throw std::logic_error("Encountered unknown standard articulation type " + std::to_string(int(mark)));
 }
 
-static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
+static void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
-    auto mnxPartMeasure = mnxEvent.getEnclosingElement<mnx::part::Measure>();
+    auto mnxPartMeasure = mnxEvent.getEnclosingElement<mnxdom::part::Measure>();
     ASSERT_IF(!mnxPartMeasure) {
         context->logMessage(LogMsg() << "no part measure exists for " << mnxEvent.dump(4), MessageSeverity::Warning);
         return;
@@ -315,12 +317,12 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
                 } else if (const auto* tremolo = classification.as<classify::Tremolo>()) {
                     auto mnxMarkings = mnxEvent.ensure_markings();
                     auto mnxMarking = mnxMarkings.ensure_tremolo(tremolo->marks);
-                    mnxMarking.set_or_clear_orient(enumConvert<mnx::Orientation>(symbolContext->placement));
+                    mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(symbolContext->placement));
                 } else if (const auto* articulation = classification.as<classify::StandardArticulation>()) {
                     for (auto mark : articulation->types) {
                         auto mnxMarkings = mnxEvent.ensure_markings();
                         auto mnxMarking = createEventMarking(mnxMarkings, mark, symbolContext.value());
-                        mnxMarking.set_or_clear_orient(enumConvert<mnx::Orientation>(symbolContext->placement));
+                        mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(symbolContext->placement));
                     }
                 }
             }
@@ -328,7 +330,7 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnx::sequence
     }
 }
 
-mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote)
+mnxdom::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote)
 {
     auto [noteName, octave, alteration, _] = musxNote.calcNotePropertiesConcert();
     for (const auto& it : context->current.ottavasApplicableInMeasure) {
@@ -340,19 +342,19 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
                 tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
             }
             if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
-                octave += int(enumConvert<mnx::OttavaAmount>(shape->shapeType));
+                octave += int(enumConvert<mnxdom::OttavaAmount>(shape->shapeType));
             } else if (!musxNote.isSameNote(tiedFromNoteInfo)) {
                 context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", MessageSeverity::Verbose);
             }
         }
     }
     auto mnxNote = mnxEvent.ensure_notes().append(
-        mnx::sequence::Pitch::make(enumConvert<mnx::NoteStep>(noteName), octave, alteration));
+        mnxdom::sequence::Pitch::make(enumConvert<mnxdom::NoteStep>(noteName), octave, alteration));
     if (musxNote->freezeAcci || musxNote->parenAcci) {
         auto acciDisp = mnxNote.ensure_accidentalDisplay(musxNote->showAcci);
         acciDisp.set_or_clear_force(musxNote->freezeAcci);
         if (musxNote->parenAcci) {
-            acciDisp.ensure_enclosure(mnx::AccidentalEnclosureSymbol::Parentheses);
+            acciDisp.ensure_enclosure(mnxdom::AccidentalEnclosureSymbol::Parentheses);
         }
     }
     const auto musxEntry = musxNote.getEntryInfo()->getEntry();
@@ -364,11 +366,11 @@ mnx::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnx::sequ
     return mnxNote;
 }
 
-mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const MusxInstance<others::PercussionNoteInfo>& percNoteInfo,
+mnxdom::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const MusxInstance<others::PercussionNoteInfo>& percNoteInfo,
     const MusxInstance<others::Staff>& musxStaff)
 {
     auto mnxNote = mnxEvent.ensure_kitNotes().append(calcPercussionKitId(percNoteInfo));
-    auto part = mnxNote.getEnclosingElement<mnx::Part>();
+    auto part = mnxNote.getEnclosingElement<mnxdom::Part>();
     MNX_ASSERT_IF(!part.has_value()) {
         throw std::logic_error("Note created without a part.");
     }
@@ -396,15 +398,15 @@ mnx::sequence::KitNote createKitNote(const MnxMusxMappingPtr& context, mnx::sequ
 }
 
 template <typename MnxNoteType>
-static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote,
+static void createNote(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote,
     const MusxInstance<others::Staff>& musxStaff, const MusxInstance<others::PercussionNoteInfo>& percNoteInfo)
 {
-    static_assert(std::is_base_of_v<mnx::sequence::NoteBase, MnxNoteType>, "MnxNoteType must have base type NoteBase.");
+    static_assert(std::is_base_of_v<mnxdom::sequence::NoteBase, MnxNoteType>, "MnxNoteType must have base type NoteBase.");
 
     const auto musxEntry = musxNote.getEntryInfo()->getEntry();
 
     MnxNoteType mnxNote = [&]() {
-        if constexpr (std::is_same_v<MnxNoteType, mnx::sequence::Note>) {
+        if constexpr (std::is_same_v<MnxNoteType, mnxdom::sequence::Note>) {
             return createNormalNote(context, mnxEvent, musxNote);
         } else {
             MUSX_ASSERT_IF(!percNoteInfo) {
@@ -429,7 +431,7 @@ static void createNote(const MnxMusxMappingPtr& context, mnx::sequence::Event& m
     deferJumpTies(context, musxNote);
 }
 
-static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
+static void createNotes(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
     const MusxInstance<others::Staff>& musxStaff)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
@@ -437,14 +439,14 @@ static void createNotes(const MnxMusxMappingPtr& context, mnx::sequence::Event& 
     for (size_t x = 0; x < musxEntry->notes.size(); x++) {
         const auto mnxNote = NoteInfoPtr(musxEntryInfo, x);
         if (const auto percNoteInfo = mnxNote.calcPercussionNoteInfo()) {
-            createNote<mnx::sequence::KitNote>(context, mnxEvent, mnxNote, musxStaff, percNoteInfo);
+            createNote<mnxdom::sequence::KitNote>(context, mnxEvent, mnxNote, musxStaff, percNoteInfo);
         } else {
-            createNote<mnx::sequence::Note>(context, mnxEvent, mnxNote, musxStaff, nullptr);
+            createNote<mnxdom::sequence::Note>(context, mnxEvent, mnxNote, musxStaff, nullptr);
         }
     }
 }
 
-static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
+static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo,
     const MusxInstance<others::Staff>& musxStaff)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
@@ -454,17 +456,17 @@ static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnx::s
     if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
         auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
         auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView());
-        if (mnxEvent.duration().base() == mnx::NoteValueBase::Whole) {
+        if (mnxEvent.duration().base() == mnxdom::NoteValueBase::Whole) {
             staffPosition += 2; // compensate for discrepancy in Finale vs. MNX whole rest staff positions.
         }
         mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
     }
 }
 
-static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnx::sequence::SequenceContent content,
+static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnxdom::sequence::SequenceContent content,
     const EntryInfoPtr& musxEntryInfo)
 {
-    auto sequence = content.getEnclosingElement<mnx::Sequence>();
+    auto sequence = content.getEnclosingElement<mnxdom::Sequence>();
     if (!sequence) {
         context->logMessage(LogMsg() << " full measure rest could not be assigned to a top-level sequence.", MessageSeverity::Warning);
         return;
@@ -501,7 +503,7 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnx::sequenc
     content.clear();
 }
 
-static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
+static void createLyrics(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
 
@@ -532,7 +534,7 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
     createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, musxEntry->getEntryNumber()));
 }
 
-static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& context, mnx::sequence::SequenceContent content,
+static std::optional<mnxdom::sequence::Event> createEvent(const MnxMusxMappingPtr& context, mnxdom::sequence::SequenceContent content,
     EntryInfoPtr musxEntryInfo, bool effectiveHidden, bool hasVoice1Voice2,
     const MusxInstance<details::TupletDef>& tupletDef, bool forTremolo)
 {
@@ -575,10 +577,10 @@ static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& 
     const auto [freezeStem, upStem] = musxEntryInfo.calcEntryStemSettings();
     if (musxEntry->isNote && musxEntry->hasStem()) {
         if (freezeStem) {
-            mnxEvent.set_stemDirection(upStem ? mnx::StemDirection::Up : mnx::StemDirection::Down);
+            mnxEvent.set_stemDirection(upStem ? mnxdom::StemDirection::Up : mnxdom::StemDirection::Down);
         } else if (hasVoice1Voice2) {
             // force all stems in v1v2 contexts due to voices controlling stem direction otherwise.
-            mnxEvent.set_stemDirection(musxEntryInfo.calcUpStem() ? mnx::StemDirection::Up : mnx::StemDirection::Down);
+            mnxEvent.set_stemDirection(musxEntryInfo.calcUpStem() ? mnxdom::StemDirection::Up : mnxdom::StemDirection::Down);
         }
     }
 
@@ -592,7 +594,7 @@ static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& 
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
 static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingPtr& context,
-    mnx::sequence::SequenceContent content, const EntryInfoPtr::InterpretedIterator& firstEntryInfo,
+    mnxdom::sequence::SequenceContent content, const EntryInfoPtr::InterpretedIterator& firstEntryInfo,
     musx::util::Fraction& elapsedInSequence, bool hasVoice1Voice2,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt, bool inTremolo = false)
 {
@@ -724,7 +726,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
 }
 
 void createSequences(const MnxMusxMappingPtr& context,
-    mnx::part::Measure& mnxMeasure,
+    mnxdom::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
     const MusxInstance<others::Measure>& musxMeasure)
 {
@@ -768,19 +770,19 @@ void finalizeJumpTies(const MnxMusxMappingPtr& context)
     }
 
     std::unordered_set<std::string> clearedLvTies;
-    std::unordered_map<std::string, std::optional<mnx::SlurTieSide>> consensusSides;
+    std::unordered_map<std::string, std::optional<mnxdom::SlurTieSide>> consensusSides;
     for (const auto& deferred : context->deferredJumpTies) {
         const auto noteIt = context->noteJsonById.find(deferred.startNoteId);
         if (noteIt == context->noteJsonById.end()) {
             continue;
         }
 
-        mnx::sequence::NoteBase startNote(context->mnxDocument->root(), noteIt->second);
-        const auto consensusSide = [&]() -> std::optional<mnx::SlurTieSide> {
+        mnxdom::sequence::NoteBase startNote(context->mnxDocument->root(), noteIt->second);
+        const auto consensusSide = [&]() -> std::optional<mnxdom::SlurTieSide> {
             if (const auto cached = consensusSides.find(deferred.startNoteId); cached != consensusSides.end()) {
                 return cached->second;
             }
-            std::optional<mnx::SlurTieSide> side;
+            std::optional<mnxdom::SlurTieSide> side;
             bool hasNonLv = false;
             if (auto tiesOpt = startNote.ties()) {
                 auto ties = tiesOpt.value();
@@ -839,7 +841,7 @@ void finalizeJumpTies(const MnxMusxMappingPtr& context)
 
         auto mnxTie = mnxTies.append();
         mnxTie.set_target(deferred.endNoteId);
-        mnxTie.set_targetType(mnx::TieTargetType::CrossJump);
+        mnxTie.set_targetType(mnxdom::TieTargetType::CrossJump);
         if (deferred.side) {
             mnxTie.set_side(deferred.side.value());
         } else if (consensusSide) {
@@ -848,5 +850,7 @@ void finalizeJumpTies(const MnxMusxMappingPtr& context)
     }
 }
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

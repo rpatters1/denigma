@@ -33,14 +33,14 @@ using namespace denigma;
 
 TEST(MnxSequences, CalcPointing)
 {
-    using mnxexp::calcPointing;
+    using formats::mnx::detail::calcPointing;
 
-    EXPECT_EQ(calcPointing("articMarcatoAbove", VerticalPlacement::Above), mnx::MarkingUpDownAuto::Auto);
-    EXPECT_EQ(calcPointing("articMarcatoBelow", VerticalPlacement::Above), mnx::MarkingUpDownAuto::Down);
-    EXPECT_EQ(calcPointing("articMarcatoAbove", VerticalPlacement::Below), mnx::MarkingUpDownAuto::Up);
-    EXPECT_EQ(calcPointing("articMarcatoStaccatoBelowLegacy", VerticalPlacement::Above), mnx::MarkingUpDownAuto::Down);
-    EXPECT_EQ(calcPointing("fermataBelow", VerticalPlacement::Above), mnx::MarkingUpDownAuto::Down);
-    EXPECT_EQ(calcPointing("curlewSign", VerticalPlacement::Above), mnx::MarkingUpDownAuto::Auto);
+    EXPECT_EQ(calcPointing("articMarcatoAbove", VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Auto);
+    EXPECT_EQ(calcPointing("articMarcatoBelow", VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Down);
+    EXPECT_EQ(calcPointing("articMarcatoAbove", VerticalPlacement::Below), mnxdom::MarkingUpDownAuto::Up);
+    EXPECT_EQ(calcPointing("articMarcatoStaccatoBelowLegacy", VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Down);
+    EXPECT_EQ(calcPointing("fermataBelow", VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Down);
+    EXPECT_EQ(calcPointing("curlewSign", VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Auto);
 }
 
 TEST(MnxSequences, Voice2TripletAtEnd)
@@ -55,7 +55,7 @@ TEST(MnxSequences, Voice2TripletAtEnd)
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
-    auto doc = mnx::Document::create(inputPath.parent_path() / "v2triplet_at_end.mnx");
+    auto doc = mnxdom::Document::create(inputPath.parent_path() / "v2triplet_at_end.mnx");
 }
 
 TEST(MnxSequences, Voice2TupletIncomplete)
@@ -70,7 +70,7 @@ TEST(MnxSequences, Voice2TupletIncomplete)
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
-    auto doc = mnx::Document::create(inputPath.parent_path() / "v2tuplet_incomplete.mnx");
+    auto doc = mnxdom::Document::create(inputPath.parent_path() / "v2tuplet_incomplete.mnx");
 }
 
 TEST(MnxSequences, NestedTuplets)
@@ -85,7 +85,7 @@ TEST(MnxSequences, NestedTuplets)
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
-    auto doc = mnx::Document::create(inputPath.parent_path() / "tuplets_nested.mnx");
+    auto doc = mnxdom::Document::create(inputPath.parent_path() / "tuplets_nested.mnx");
 }
 
 TEST(MnxSequences, NestedTrailingSingletonTuplet)
@@ -100,5 +100,5 @@ TEST(MnxSequences, NestedTrailingSingletonTuplet)
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
-    auto doc = mnx::Document::create(inputPath.parent_path() / "tuplet-nested-singleton.mnx");
+    auto doc = mnxdom::Document::create(inputPath.parent_path() / "tuplet-nested-singleton.mnx");
 }

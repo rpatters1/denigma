@@ -25,14 +25,16 @@
 #include "mnx_markings.h"
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
 namespace {
-void appendHairpin(const MnxMusxMappingPtr&, mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
-    const MusxInstance<others::SmartShape>& shape, mnx::DynamicWedgeType wedgeType)
+void appendHairpin(const MnxMusxMappingPtr&, mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
+    const MusxInstance<others::SmartShape>& shape, mnxdom::DynamicWedgeType wedgeType)
 {
     const auto startPos = mnxFractionFromFraction(shape->startTermSeg->endPoint->calcGlobalPosition());
-    const auto endPos = mnx::MeasureRhythmicPosition::make(
+    const auto endPos = mnxdom::MeasureRhythmicPosition::make(
         calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
         mnxFractionFromFraction(shape->endTermSeg->endPoint->calcGlobalPosition()));
     auto mnxDynamic = mnxMeasure.ensure_dynamics().appendGradual(wedgeType, startPos, endPos);
@@ -47,7 +49,7 @@ void appendHairpin(const MnxMusxMappingPtr&, mnx::part::Measure& mnxMeasure, std
 } // namespace
 
 void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
-    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
+    mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     if (musxMeasure->hasSmartShape) {
         const auto assigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
@@ -68,10 +70,10 @@ void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<oth
             using ST = musx::dom::others::SmartShape::ShapeType;
             switch (shape->shapeType) {
             case ST::Crescendo:
-                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnx::DynamicWedgeType::Increasing);
+                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Increasing);
                 break;
             case ST::Decrescendo:
-                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnx::DynamicWedgeType::Decreasing);
+                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Decreasing);
                 break;
             default:
                 if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForSmartShape(shape)) {
@@ -84,7 +86,7 @@ void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<oth
 }
 
 void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
-    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
+    mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     const StaffCmper staffCmper = context->current.staff;
     context->current.ottavasApplicableInMeasure.clear();
@@ -104,9 +106,9 @@ void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::
                     context->current.ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
                     if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
                         auto mnxOttava = mnxMeasure.ensure_ottavas().append(
-                            enumConvert<mnx::OttavaAmount>(shape->shapeType),
+                            enumConvert<mnxdom::OttavaAmount>(shape->shapeType),
                             mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
-                            mnx::MeasureRhythmicPosition::make(calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
+                            mnxdom::MeasureRhythmicPosition::make(calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
                                                                mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint)));
                         mnxOttava.end().position().set_graceIndex(0);   // guarantees inclusion of any grace notes at the end of the ottava
                         if (mnxStaffNumber) {
@@ -120,5 +122,7 @@ void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::
     }
 }
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

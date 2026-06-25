@@ -25,7 +25,17 @@
 
  // Keep this header dependency free
 
-namespace denigma::mnxexp {
+namespace mnx {
+}
+namespace mnxdom = ::mnx;
+
+namespace denigma {
+namespace formats {
+namespace mnx {
+namespace detail {
 struct MnxMusxMapping;
 using MnxMusxMappingPtr = std::shared_ptr<MnxMusxMapping>;
-}
+} // namespace detail
+} // namespace mnx
+} // namespace formats
+} // namespace denigma

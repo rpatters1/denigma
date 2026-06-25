@@ -46,7 +46,9 @@
 #include "utils/textmetrics.h"
 
 namespace denigma {
+namespace formats {
 namespace mss {
+namespace detail {
 
 using namespace ::musx::dom;
 using namespace ::musx::factory;
@@ -1191,5 +1193,7 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
     }
 }
 
+} // namespace detail
 } // namespace mss
+} // namespace formats
 } // namespace denigma

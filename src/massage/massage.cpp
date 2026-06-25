@@ -40,7 +40,7 @@ static CommandInputData nullFunc(const std::filesystem::path&, const DenigmaCont
 
 static CommandInputData readMusicXml(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
-    return enigmaxml::readEnigmaXmlInputData(inputPath, denigmaContext);
+    return formats::enigmaxml::detail::readEnigmaXmlInputData(inputPath, denigmaContext);
 }
 
 // Input format processors

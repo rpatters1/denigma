@@ -44,7 +44,9 @@ using namespace musx::dom;
 using namespace musx::util;
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
 enum class EntryTargetKind
 {
@@ -55,7 +57,7 @@ enum class EntryTargetKind
 struct EntryTarget
 {
     EntryTargetKind kind;
-    mnx::json_pointer pointer;
+    mnxdom::json_pointer pointer;
 };
 
 // stoopid c++17 standard does not include a hash for tuple
@@ -80,7 +82,7 @@ struct MnxMusxMapping
     const DenigmaContext* denigmaContext;
     musx::dom::DocumentPtr document;
     FinaleOptions finaleOptions;
-    std::unique_ptr<mnx::Document> mnxDocument;
+    std::unique_ptr<mnxdom::Document> mnxDocument;
     MusxInstanceList<others::PartDefinition> musxParts;
 
     std::unordered_map<std::string, std::vector<StaffCmper>> part2Inst;
@@ -90,13 +92,13 @@ struct MnxMusxMapping
 
     // musx mappings
     std::unordered_map<Cmper, classify::Jump> textRepeat2Jump;
-    std::unordered_map<std::string, mnx::json_pointer> noteJsonById;
+    std::unordered_map<std::string, mnxdom::json_pointer> noteJsonById;
     std::unordered_map<EntryNumber, EntryTarget> entryTargetByNumber;
 
     struct DeferredJumpTie {
         std::string startNoteId;
         std::string endNoteId;
-        std::optional<mnx::SlurTieSide> side;
+        std::optional<mnxdom::SlurTieSide> side;
     };
 
     std::vector<DeferredJumpTie> deferredJumpTies;
@@ -158,7 +160,7 @@ struct MnxMusxMapping
 };
 
 std::string mnxPartDisplayName(const MnxMusxMappingPtr& context, const std::string& partId);
-std::string mnxPartDisplayName(const MnxMusxMappingPtr& context, const mnx::Part& part);
+std::string mnxPartDisplayName(const MnxMusxMappingPtr& context, const mnxdom::Part& part);
 std::string mnxPartDisplayList(const MnxMusxMappingPtr& context, const std::vector<std::string>& partIds);
 
 inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
@@ -225,7 +227,7 @@ void createLayouts(const MnxMusxMappingPtr& context);
 void createGlobal(const MnxMusxMappingPtr& context);
 void createParts(const MnxMusxMappingPtr& context);
 void createSequences(const MnxMusxMappingPtr& context,
-    mnx::part::Measure& mnxMeasure,
+    mnxdom::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
     const MusxInstance<others::Measure>& musxMeasure);
 void finalizeJumpTies(const MnxMusxMappingPtr& context);
@@ -237,5 +239,7 @@ void exportMnx(const std::filesystem::path& outputPath, const CommandInputData& 
 template <typename ToEnum, typename FromEnum>
 ToEnum enumConvert(FromEnum value);
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

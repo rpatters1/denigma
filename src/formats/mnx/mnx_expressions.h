@@ -31,10 +31,14 @@ using namespace musx::dom;
 using namespace musx::util;
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
 void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
-    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber);
+    mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber);
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

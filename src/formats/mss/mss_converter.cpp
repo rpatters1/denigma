@@ -27,7 +27,9 @@
 #include "mss.h"
 #include "utils/stringutils.h"
 
-namespace denigma::formats::mss {
+namespace denigma {
+namespace formats {
+namespace mss {
 
 namespace {
 
@@ -68,7 +70,7 @@ ConversionResult EnigmaXmlToMssXmlConverter::convert(std::span<const std::byte> 
     context.conversionResult = &result;
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
-    denigma::mss::convert(output, CommandInputData{ std::move(buffer), std::nullopt, {} }, context);
+    formats::mss::detail::convert(output, CommandInputData{ std::move(buffer), std::nullopt, {} }, context);
     return result;
 }
 
@@ -89,7 +91,7 @@ ConversionResult MusxToMssXmlConverter::convert(const IRandomAccessReader& input
     context.conversionResult = &result;
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
-    denigma::mss::convert(output, enigmaxml::extractMusxInputData(input, context), context);
+    formats::mss::detail::convert(output, formats::enigmaxml::detail::extractMusxInputData(input, context), context);
     return result;
 }
 
@@ -111,7 +113,7 @@ ConversionResult EnigmaXmlToMssXmlMultiOutputConverter::convert(std::span<const 
     context.conversionResult = &result;
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
-    denigma::mss::convert(CommandInputData{ std::move(buffer), std::nullopt, {} }, context, outputCallback);
+    formats::mss::detail::convert(CommandInputData{ std::move(buffer), std::nullopt, {} }, context, outputCallback);
     return result;
 }
 
@@ -132,7 +134,7 @@ ConversionResult MusxToMssXmlMultiOutputConverter::convert(const IRandomAccessRe
     context.conversionResult = &result;
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
-    denigma::mss::convert(enigmaxml::extractMusxInputData(input, context), context, outputCallback);
+    formats::mss::detail::convert(formats::enigmaxml::detail::extractMusxInputData(input, context), context, outputCallback);
     return result;
 }
 
@@ -151,4 +153,6 @@ void registerConverters(ConverterRegistry& registry)
     registry.add(std::make_unique<MusxToMssXmlMultiOutputConverter>());
 }
 
-} // namespace denigma::formats::mss
+} // namespace mss
+} // namespace formats
+} // namespace denigma

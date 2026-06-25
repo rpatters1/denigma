@@ -33,21 +33,25 @@ using namespace musx::dom;
 using namespace musx::util;
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
-mnx::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement);
-mnx::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
+mnxdom::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement);
+mnxdom::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
 
-std::optional<mnx::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement);
+std::optional<mnxdom::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement);
 
-std::optional<mnx::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement);
+std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement);
 
 std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
     const EntryInfoPtr& sourceEntry,
     const MusxInstance<details::ArticulationAssign>& assign,
     const classify::Arpeggio& arpeggio);
-void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
+void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
 void finalizeArpeggios(const MnxMusxMappingPtr& context);
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma
