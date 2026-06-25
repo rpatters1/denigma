@@ -125,13 +125,7 @@ struct CommandInputData
 template <typename Processors>
 inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, std::u8string_view extension)
 {
-    std::u8string key(extension);
-    std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
-        return static_cast<char8_t>(utils::toLowerCase(c));
-    });
-    if (key.rfind(u8".", 0) == 0) {
-        key = key.substr(1);
-    }
+    std::u8string key = utils::normalizedExtension(std::u8string(extension));
     for (const auto& p : processors) {
         if (key == p.extension) {
             return p.processor;

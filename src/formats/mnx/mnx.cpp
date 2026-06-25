@@ -163,18 +163,6 @@ std::string mnxPartDisplayList(const MnxMusxMappingPtr& context, const std::vect
     return result;
 }
 
-static std::string sourceFormatFromPath(const std::filesystem::path& path)
-{
-    std::u8string extension = path.extension().u8string();
-    if (!extension.empty() && extension.front() == u8'.') {
-        extension.erase(extension.begin());
-    }
-    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char ch) {
-        return static_cast<char8_t>(utils::toLowerCase(ch));
-    });
-    return extension.empty() ? std::string("unknown") : utils::utf8ToString(extension);
-}
-
 static void createMnx(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
@@ -189,7 +177,8 @@ static void createMnx(const MnxMusxMappingPtr& context)
 
     const auto& inputFilePath = context->denigmaContext->inputFilePath;
     auto source = mnx.ensure_mnxdom().ensure_source();
-    source.set_format(sourceFormatFromPath(inputFilePath));
+    const std::u8string sourceFormat = utils::normalizedPathExtension(inputFilePath);
+    source.set_format(sourceFormat.empty() ? std::string("unknown") : utils::utf8ToString(sourceFormat));
     if (!inputFilePath.empty()) {
         source.set_filename(utils::pathToString(inputFilePath.filename()));
     }
