@@ -29,7 +29,9 @@
 #include "core/denigma.h"
 
 namespace denigma {
+namespace formats {
 namespace enigmaxml {
+namespace detail {
 
 CommandInputData extractMusxInputData(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
 CommandInputData extractMusxInputData(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext);
@@ -37,5 +39,7 @@ CommandInputData readEnigmaXmlInputData(const std::filesystem::path& inputFile, 
 void writeEnigmaXml(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 void writeMusxForCli(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
+} // namespace detail
 } // namespace enigmaxml
+} // namespace formats
 } // namespace denigma

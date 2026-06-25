@@ -34,22 +34,24 @@
 #include "denigma/classify/dynamics.h"
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
 static void createBeams(
     const MnxMusxMappingPtr& context,
-    mnx::part::Measure mnxMeasure,
+    mnxdom::part::Measure mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
     const auto& musxDocument = musxMeasure->getDocument();
-    const auto mnxMeasures = mnxMeasure.parent<mnx::Array<mnx::part::Measure>>();
+    const auto mnxMeasures = mnxMeasure.parent<mnxdom::Array<mnxdom::part::Measure>>();
     const auto partId = musxMeasure->getRequestedPartId();
     if (context->current.gfhold) {
         if (context->current.cueDiscardPlan.discardWholeHold) {
             return; // skip cues until MNX spec includes them
         }
         auto processEntry = [&](const EntryInfoPtr& entryInfo) -> bool {
-            auto processBeam = [&](mnx::Array<mnx::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
+            auto processBeam = [&](mnxdom::Array<mnxdom::part::Beam>&& mnxBeams, unsigned beamNumber, const EntryInfoPtr& firstInBeam, auto&& self) -> void {
                 assert(firstInBeam.calcLowestBeamStart(/*considerBeamOverBarlines*/true) <= beamNumber);
                 auto beam = mnxBeams.append();
                 for (auto next = firstInBeam; next; next = next.getNextInBeamGroupAcrossBars(EntryInfoPtr::BeamIterationMode::Interpreted)) {
@@ -65,9 +67,9 @@ static void createBeams(
                             hookBeam.events().push_back(calcEventId(entryNumber));
                             if (entry->stemDetail) {
                                 if (auto manual = musxDocument->getDetails()->get<details::BeamStubDirection>(partId, entryNumber)) {
-                                    mnx::BeamHookDirection hookDir = manual->isLeft()
-                                                                     ? mnx::BeamHookDirection::Left
-                                                                     : mnx::BeamHookDirection::Right;
+                                    mnxdom::BeamHookDirection hookDir = manual->isLeft()
+                                                                     ? mnxdom::BeamHookDirection::Left
+                                                                     : mnxdom::BeamHookDirection::Right;
                                     hookBeam.set_direction(hookDir);
                                 }
                             }
@@ -122,7 +124,7 @@ static void createBeams(
 
 static std::optional<ClefIndex> createClef(
     const MnxMusxMappingPtr& context,
-    mnx::part::Measure& mnxMeasure,
+    mnxdom::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
     ClefIndex clefIndex,
     musx::util::Fraction location,
@@ -134,19 +136,19 @@ static std::optional<ClefIndex> createClef(
     }
     const auto& musxClef = context->finaleOptions.clefOptions->getClefDef(clefIndex);
     const auto clef = classify::classifyClef(musxClef, musxStaff);
-    std::optional<mnx::ClefSign> clefSign;
+    std::optional<mnxdom::ClefSign> clefSign;
     if (clef && !clef.isBlank && std::abs(clef.octave) <= 3) {
         switch (clef.type) {
-        case music_theory::ClefType::G: clefSign = mnx::ClefSign::GClef; break;
-        case music_theory::ClefType::C: clefSign = mnx::ClefSign::CClef; break;
-        case music_theory::ClefType::F: clefSign = mnx::ClefSign::FClef; break;
+        case music_theory::ClefType::G: clefSign = mnxdom::ClefSign::GClef; break;
+        case music_theory::ClefType::C: clefSign = mnxdom::ClefSign::CClef; break;
+        case music_theory::ClefType::F: clefSign = mnxdom::ClefSign::FClef; break;
         /// @todo handle Percussion and Tab cases when defined in mnx spec
         default: break;
         }
     }
     if (clefSign) {
         int staffPosition = mnxStaffPosition(musxStaff, musxClef->staffPosition);
-        auto mnxClef = mnxMeasure.ensure_clefs().append(clefSign.value(), staffPosition, mnx::OttavaAmountOrZero(clef.octave));
+        auto mnxClef = mnxMeasure.ensure_clefs().append(clefSign.value(), staffPosition, mnxdom::OttavaAmountOrZero(clef.octave));
         if (location) {
             mnxClef.ensure_position(mnxFractionFromFraction(location));
         }
@@ -169,8 +171,8 @@ static std::optional<ClefIndex> createClef(
 
 static void createClefs(
     const MnxMusxMappingPtr& context,
-    const mnx::Part& mnxPart,
-    mnx::part::Measure& mnxMeasure,
+    const mnxdom::Part& mnxPart,
+    mnxdom::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
     const MusxInstance<others::Measure>& musxMeasure,
     std::optional<ClefIndex>& prevClefIndex)
@@ -224,7 +226,7 @@ static MusxInstance<others::StaffComposite> findCompositeForIdentity(
     return nullptr;
 }
 
-static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
+static void createMeasures(const MnxMusxMappingPtr& context, mnxdom::Part& part)
 {
     auto& musxDocument = context->document;
     context->clearCounts();
@@ -320,7 +322,7 @@ static void mapPartToInstrumentStaves(const MnxMusxMappingPtr& context, const st
 
 static void populatePartMetadata(
     const MnxMusxMappingPtr& context,
-    mnx::Part& part,
+    mnxdom::Part& part,
     const std::string& id,
     const InstrumentInfo& instInfo,
     const MusxInstance<others::StaffComposite>& staff)
@@ -342,7 +344,7 @@ static void populatePartMetadata(
     const auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
     if (transpositionDisp || transpositionAlt) {
         auto transposition = part.ensure_transposition(
-            mnx::Interval::make(transpositionDisp,
+            mnxdom::Interval::make(transpositionDisp,
                                 music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt)));
         if (staff->transposition && !staff->transposition->noSimplifyKey && staff->transposition->keysig) {
             transposition.set_keyFifthsFlipAt(7 * music_theory::sign(staff->transposition->keysig->adjust));
@@ -396,5 +398,7 @@ void createParts(const MnxMusxMappingPtr& context)
     }
 }
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

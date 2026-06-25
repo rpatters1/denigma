@@ -30,7 +30,9 @@
 #include "mnx.h"
 #include "utils/stringutils.h"
 
-namespace denigma::formats::mnx {
+namespace denigma {
+namespace formats {
+namespace mnx {
 
 namespace {
 
@@ -70,7 +72,7 @@ ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte>
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
     try {
-        mnxexp::exportJson(output, CommandInputData{ std::move(buffer), std::nullopt, {} }, context);
+        detail::exportJson(output, CommandInputData{ std::move(buffer), std::nullopt, {} }, context);
     } catch (const std::exception& ex) {
         context.logMessage(LogMsg() << "unable to convert Enigma XML to MNX JSON", MessageSeverity::Error);
         context.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
@@ -96,7 +98,7 @@ ConversionResult MusxToMnxJsonConverter::convert(const IRandomAccessReader& inpu
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
     try {
-        mnxexp::exportJson(output, enigmaxml::extractMusxInputData(input, context), context);
+        detail::exportJson(output, formats::enigmaxml::detail::extractMusxInputData(input, context), context);
     } catch (const std::exception& ex) {
         context.logMessage(LogMsg() << "unable to convert MUSX to MNX JSON", MessageSeverity::Error);
         context.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
@@ -117,4 +119,6 @@ void registerConverters(ConverterRegistry& registry)
     registry.add(std::make_unique<MusxToMnxJsonConverter>());
 }
 
-} // namespace denigma::formats::mnx
+} // namespace mnx
+} // namespace formats
+} // namespace denigma

@@ -33,7 +33,9 @@ using namespace musx::dom;
 using namespace musx::factory;
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
 namespace {
 
@@ -130,7 +132,7 @@ std::optional<int> MnxMusxMapping::mnxPartStaffFromStaff(StaffCmper staff) const
     return static_cast<int>(std::distance(currPartStaves.begin(), it) + 1);
 }
 
-std::string mnxPartDisplayName(const MnxMusxMappingPtr&, const mnx::Part& part)
+std::string mnxPartDisplayName(const MnxMusxMappingPtr&, const mnxdom::Part& part)
 {
     const std::string partId = part.id_or(std::to_string(part.calcArrayIndex()));
     if (part.name() && !part.name().value().empty()) {
@@ -236,7 +238,7 @@ static void createMappings(const MnxMusxMappingPtr& context)
     }
 }
 
-static std::unique_ptr<mnx::Document> createMnxDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+static std::unique_ptr<mnxdom::Document> createMnxDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
     DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
     if (!inputData.embeddedGraphics.empty()) {
@@ -254,7 +256,7 @@ static std::unique_ptr<mnx::Document> createMnxDocument(const CommandInputData& 
         std::move(embeddedGraphicFiles));
     auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer, std::move(createOptions));
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
-    context->mnxDocument = std::make_unique<mnx::Document>();
+    context->mnxDocument = std::make_unique<mnxdom::Document>();
     context->musxParts = others::PartDefinition::getInUserOrder(document);
     MusxLoggerScope mnxMusxLogger(makeMusxLogCallback(context));
 
@@ -278,18 +280,18 @@ static std::unique_ptr<mnx::Document> createMnxDocument(const CommandInputData& 
     return std::move(context->mnxDocument);
 }
 
-static void validateMnxDocument(const mnx::Document& mnxDocument, const DenigmaContext& denigmaContext)
+static void validateMnxDocument(const mnxdom::Document& mnxDocument, const DenigmaContext& denigmaContext)
 {
     if (!denigmaContext.noValidate) {
         denigmaContext.logMessage(LogMsg() << "Validation starting.", MessageSeverity::Verbose);
-        if (auto validateResult = mnx::validation::schemaValidate(mnxDocument, denigmaContext.mnxSchema); !validateResult) {
+        if (auto validateResult = mnxdom::validation::schemaValidate(mnxDocument, denigmaContext.mnxSchema); !validateResult) {
             denigmaContext.logMessage(LogMsg() << "Schema validation errors:", MessageSeverity::Warning);
             for (const auto& error : validateResult.errors) {
                 denigmaContext.logMessage(LogMsg() << "    " << error.to_string(), MessageSeverity::Warning);
             }
         } else {
             denigmaContext.logMessage(LogMsg() << "Schema validation succeeded.");
-            if (auto semanticResult = mnx::validation::semanticValidate(mnxDocument); !semanticResult) {
+            if (auto semanticResult = mnxdom::validation::semanticValidate(mnxDocument); !semanticResult) {
                 denigmaContext.logMessage(LogMsg() << "Semantic validation errors:", MessageSeverity::Warning);
                 for (const auto& error : semanticResult.errors) {
                     denigmaContext.logMessage(LogMsg() << "    " << error.to_string(4), MessageSeverity::Warning);
@@ -303,7 +305,7 @@ static void validateMnxDocument(const mnx::Document& mnxDocument, const DenigmaC
     }
 }
 
-static void writeMnxDocumentJson(std::ostream& output, const mnx::Document& mnxDocument, const DenigmaContext& denigmaContext)
+static void writeMnxDocumentJson(std::ostream& output, const mnxdom::Document& mnxDocument, const DenigmaContext& denigmaContext)
 {
     output << mnxDocument.root()->dump(denigmaContext.indentSpaces.value_or(-1));
 }
@@ -338,5 +340,7 @@ void exportMnx(const std::filesystem::path& outputPath, const CommandInputData& 
     exportJson(outputPath, inputData, denigmaContext);
 }
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

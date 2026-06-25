@@ -35,7 +35,9 @@
 #include "utils/textmetrics.h"
 
 namespace denigma {
-namespace svgexp {
+namespace formats {
+namespace svg {
+namespace detail {
 
 using namespace musx::dom;
 using namespace musx::factory;
@@ -224,5 +226,7 @@ void convert(const std::filesystem::path& outputPath, const CommandInputData& in
     }
 }
 
-} // namespace svgexp
+} // namespace detail
+} // namespace svg
+} // namespace formats
 } // namespace denigma

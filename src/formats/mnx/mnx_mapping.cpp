@@ -22,15 +22,17 @@
 #include "mnx.h"
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
-mnx::NoteValue::Required mnxNoteValueFromEdu(Edu duration)
+mnxdom::NoteValue::Required mnxNoteValueFromEdu(Edu duration)
 {
     auto [base, dots] = calcDurationInfoFromEdu(duration);
-    return mnx::NoteValue::make(enumConvert<mnx::NoteValueBase>(base), dots);
+    return mnxdom::NoteValue::make(enumConvert<mnxdom::NoteValueBase>(base), dots);
 }
 
-mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration)
+mnxdom::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration)
 {
     if (duration <= 0 || (duration.denominator() & (duration.denominator() - 1)) != 0) {
         auto newValue = musx::util::Fraction(duration.calcEduDuration(), Edu(musx::dom::NoteType::Whole));
@@ -39,27 +41,27 @@ mnx::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const MnxMusxM
         duration = newValue;
     }
 
-    return mnx::NoteValueQuantity::make(
+    return mnxdom::NoteValueQuantity::make(
         static_cast<unsigned>(duration.numerator()),
         mnxNoteValueFromEdu(musx::util::Fraction(1, duration.denominator()).calcEduDuration()));
 }
 
-musx::util::Fraction fractionFromMnxFraction(const mnx::FractionValue& mnxFraction)
+musx::util::Fraction fractionFromMnxFraction(const mnxdom::FractionValue& mnxFraction)
 {
     return musx::util::Fraction(mnxFraction.numerator(), mnxFraction.denominator());
 }
 
-mnx::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction)
+mnxdom::FractionValue mnxFractionFromFraction(const musx::util::Fraction& fraction)
 {
-    return mnx::FractionValue(fraction.numerator(), fraction.denominator());
+    return mnxdom::FractionValue(fraction.numerator(), fraction.denominator());
 }
 
-mnx::FractionValue mnxFractionFromEdu(Edu eduValue)
+mnxdom::FractionValue mnxFractionFromEdu(Edu eduValue)
 {
     return mnxFractionFromFraction(musx::util::Fraction::fromEdu(eduValue));
 }
 
-mnx::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& endPoint)
+mnxdom::FractionValue mnxFractionFromSmartShapeEndPoint(const MusxInstance<smartshape::EndPoint>& endPoint)
 {
     // findExact true needed for ottavas. revisit as we add other items.
     if (auto entryInfo = endPoint->calcAssociatedEntry(/*findExact*/ true)) {
@@ -73,34 +75,36 @@ int mnxStaffPosition(const MusxInstance<others::Staff>& staff, int musxStaffPosi
     return musxStaffPosition - staff->calcMiddleStaffPosition();
 }
 
-mnx::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl)
+mnxdom::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl)
 {
     if (syl->hasHyphenBefore && syl->hasHyphenAfter) {
-        return mnx::LyricLineType::Middle;
+        return mnxdom::LyricLineType::Middle;
     } else if (syl->hasHyphenBefore && !syl->hasHyphenAfter) {
-        return mnx::LyricLineType::End;
+        return mnxdom::LyricLineType::End;
     } else if (!syl->hasHyphenBefore && syl->hasHyphenAfter) {
-        return mnx::LyricLineType::Start;
+        return mnxdom::LyricLineType::Start;
     }
-    return mnx::LyricLineType::Whole;
+    return mnxdom::LyricLineType::Whole;
 }
 
-mnx::MultiStaffOrientation mnxMultiStaffOrientFromVerticalPlacement(const std::optional<int>& mnxStaffNumber, VerticalPlacement placement)
+mnxdom::MultiStaffOrientation mnxMultiStaffOrientFromVerticalPlacement(const std::optional<int>& mnxStaffNumber, VerticalPlacement placement)
 {
-    auto result = enumConvert<mnx::MultiStaffOrientation>(placement);
+    auto result = enumConvert<mnxdom::MultiStaffOrientation>(placement);
     if (mnxStaffNumber.has_value()) {
         if (mnxStaffNumber == 1) {
             if (placement == VerticalPlacement::Below) {
-                result = mnx::MultiStaffOrientation::Between;
+                result = mnxdom::MultiStaffOrientation::Between;
             }
         } else {
             if (placement == VerticalPlacement::Above) {
-                result = mnx::MultiStaffOrientation::Between;
+                result = mnxdom::MultiStaffOrientation::Between;
             }
         }
     }
     return result;
 }
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

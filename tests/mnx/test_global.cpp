@@ -28,6 +28,8 @@
 #include "core/denigma.h"
 #include "core/musx_reader.h"
 #include "mnxdom.h"
+
+namespace mnxdom = ::mnx;
 #include "test_utils.h"
 #include "musx/musx.h"
 #include "formats/mnx/mnx.h"
@@ -45,7 +47,7 @@ TEST(MnxGlobal, Tempos)
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
-    auto doc = mnx::Document::create(inputPath.parent_path() / "tempo_text_shape.mnx");
+    auto doc = mnxdom::Document::create(inputPath.parent_path() / "tempo_text_shape.mnx");
     auto measures = doc.global().measures();
     ASSERT_GE(measures.size(), 1) << "should be at least one measure";
     auto tempos = measures[0].tempos();
@@ -97,7 +99,7 @@ TEST(MnxGlobal, TempoToolChanges)
     auto musxDoc = musx::factory::DocumentFactory::create<MusxReader>(xmlBuf);
     ASSERT_TRUE(musxDoc);
 
-    auto mnxDoc = mnx::Document::create(inputPath.parent_path() / "tempo_changes.mnx");
+    auto mnxDoc = mnxdom::Document::create(inputPath.parent_path() / "tempo_changes.mnx");
     auto measures = mnxDoc.global().measures();
     ASSERT_GE(measures.size(), 4) << "should be at least 4 measures";
 
@@ -112,7 +114,7 @@ TEST(MnxGlobal, TempoToolChanges)
             auto musxDura = musx::util::Fraction::fromEdu(musxTempoChanges[y]->eduPosition);
             musx::util::Fraction mnxDura;
             if (const auto location = mnxTempoChanges->at(y).location()) {
-                mnxDura = mnxexp::fractionFromMnxFraction(location->fraction());
+                mnxDura = formats::mnx::detail::fractionFromMnxFraction(location->fraction());
             }
             EXPECT_EQ(musxDura, mnxDura) << "measure positions are not the same";
         }
@@ -129,12 +131,12 @@ TEST(MnxGlobal, CompositeTime)
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
     });
 
-    auto doc = mnx::Document::create(inputPath.parent_path() / "timesigs_composite.mnx");
+    auto doc = mnxdom::Document::create(inputPath.parent_path() / "timesigs_composite.mnx");
     auto measures = doc.global().measures();
     ASSERT_GE(measures.size(), 1) << "should be at least one measure";
 
     auto time = measures[0].time();
     ASSERT_TRUE(time);
     EXPECT_EQ(time.value().count(), 133);
-    EXPECT_EQ(time.value().unit(), mnx::TimeSignatureUnit::Value32nd);
+    EXPECT_EQ(time.value().unit(), mnxdom::TimeSignatureUnit::Value32nd);
 }

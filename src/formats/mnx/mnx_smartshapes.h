@@ -31,15 +31,19 @@ using namespace musx::dom;
 using namespace musx::util;
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
 // all smart shapes except ottavas
 void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
-    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber);
+    mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber);
 
 // createOttavas is separate because it needs to run before sequence creation
 void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
-    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber);
+    mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber);
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

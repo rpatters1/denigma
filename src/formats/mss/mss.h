@@ -31,7 +31,9 @@
  //placeholder function
 
 namespace denigma {
+namespace formats {
 namespace mss {
+namespace detail {
 
 void convert(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 void convert(const CommandInputData& inputData,
@@ -39,5 +41,7 @@ void convert(const CommandInputData& inputData,
              const MultiOutputCallback& outputCallback);
 void convert(const std::filesystem::path& file, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
+} // namespace detail
 } // namespace mss
+} // namespace formats
 } // namespace denigma

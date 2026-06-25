@@ -25,7 +25,9 @@
 #include "denigma/classify/expressions.h"
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
 namespace {
 struct ExpressionAttachmentContext {
@@ -48,11 +50,11 @@ ExpressionAttachmentContext calcAttachmentContext(const MnxMusxMappingPtr& conte
     return result;
 }
 
-std::pair<std::optional<mnx::DynamicValue>, std::optional<mnx::DynamicValue>> calcDynamicType(
+std::pair<std::optional<mnxdom::DynamicValue>, std::optional<mnxdom::DynamicValue>> calcDynamicType(
     classify::Dynamic dynamic, bool& copyGlyphs, bool& isAccent)
 {
-    std::optional<mnx::DynamicValue> dynValue;
-    std::optional<mnx::DynamicValue> attackValue;
+    std::optional<mnxdom::DynamicValue> dynValue;
+    std::optional<mnxdom::DynamicValue> attackValue;
     copyGlyphs = false;
     isAccent = false;
 
@@ -61,81 +63,81 @@ std::pair<std::optional<mnx::DynamicValue>, std::optional<mnx::DynamicValue>> ca
         case DynType::pppppp:
         case DynType::ppppp:
         case DynType::pppp:
-            dynValue = mnx::DynamicValue::ppp;
+            dynValue = mnxdom::DynamicValue::ppp;
             copyGlyphs = true;
             break;
         case DynType::ppp:
-            dynValue = mnx::DynamicValue::ppp;
+            dynValue = mnxdom::DynamicValue::ppp;
             break;
         case DynType::pp:
-            dynValue = mnx::DynamicValue::pp;
+            dynValue = mnxdom::DynamicValue::pp;
             break;
         case DynType::p:
-            dynValue = mnx::DynamicValue::p;
+            dynValue = mnxdom::DynamicValue::p;
             break;
         case DynType::mp:
-            dynValue = mnx::DynamicValue::mp;
+            dynValue = mnxdom::DynamicValue::mp;
             break;
         case DynType::mf:
-            dynValue = mnx::DynamicValue::mf;
+            dynValue = mnxdom::DynamicValue::mf;
             break;
         case DynType::f:
-            dynValue = mnx::DynamicValue::f;
+            dynValue = mnxdom::DynamicValue::f;
             break;
         case DynType::ff:
-            dynValue = mnx::DynamicValue::ff;
+            dynValue = mnxdom::DynamicValue::ff;
             break;
         case DynType::fff:
-            dynValue = mnx::DynamicValue::fff;
+            dynValue = mnxdom::DynamicValue::fff;
             break;
         case DynType::ffff:
         case DynType::fffff:
         case DynType::ffffff:
-            dynValue = mnx::DynamicValue::fff;
+            dynValue = mnxdom::DynamicValue::fff;
             copyGlyphs = true;
             break;
         case DynType::fp:
-            attackValue = mnx::DynamicValue::f;
-            dynValue = mnx::DynamicValue::p;
+            attackValue = mnxdom::DynamicValue::f;
+            dynValue = mnxdom::DynamicValue::p;
             break;
         case DynType::ffp:
-            attackValue = mnx::DynamicValue::ff;
-            dynValue = mnx::DynamicValue::p;
+            attackValue = mnxdom::DynamicValue::ff;
+            dynValue = mnxdom::DynamicValue::p;
             break;
         case DynType::fz:
         case DynType::sf:
         case DynType::sfz:
         case DynType::rf:
         case DynType::rfz:
-            dynValue = mnx::DynamicValue::f;
+            dynValue = mnxdom::DynamicValue::f;
             isAccent = true;
             copyGlyphs = true;
             break;
         case DynType::ffz:
         case DynType::sffz:
-            dynValue = mnx::DynamicValue::ff;
+            dynValue = mnxdom::DynamicValue::ff;
             isAccent = true;
             copyGlyphs = true;
             break;
         case DynType::pf:
-            attackValue = mnx::DynamicValue::p;
-            dynValue = mnx::DynamicValue::f;
+            attackValue = mnxdom::DynamicValue::p;
+            dynValue = mnxdom::DynamicValue::f;
             break;
         case DynType::sfp:
         case DynType::sfzp:
-            attackValue = mnx::DynamicValue::f;
-            dynValue = mnx::DynamicValue::p;
+            attackValue = mnxdom::DynamicValue::f;
+            dynValue = mnxdom::DynamicValue::p;
             isAccent = true;
             copyGlyphs = true;
             break;
         case DynType::sfpp:
-            attackValue = mnx::DynamicValue::f;
-            dynValue = mnx::DynamicValue::pp;
+            attackValue = mnxdom::DynamicValue::f;
+            dynValue = mnxdom::DynamicValue::pp;
             isAccent = true;
             copyGlyphs = true;
             break;
         case DynType::n:
-            dynValue = mnx::DynamicValue::n;
+            dynValue = mnxdom::DynamicValue::n;
             break;
         case DynType::Other:
         case DynType::None:
@@ -145,7 +147,7 @@ std::pair<std::optional<mnx::DynamicValue>, std::optional<mnx::DynamicValue>> ca
     return std::make_pair(dynValue, attackValue);
 }
 
-void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
+void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
     const MusxInstance<others::MeasureExprAssign>& asgn, classify::DynamicClassification dynamicClass, VerticalPlacement placement)
 {
     if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
@@ -164,12 +166,12 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
         glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
     }
 
-    auto mnxDynamic = [&]() -> mnx::part::DynamicGroupBase {
+    auto mnxDynamic = [&]() -> mnxdom::part::DynamicGroupBase {
         using DynRelType = classify::DynamicChange;
         if (dynamicClass.change != DynRelType::Absolute) {
             auto relValue = dynamicClass.change == DynRelType::RelativeIncrease
-                ? mnx::DynamicRelativeValue::Louder
-                : mnx::DynamicRelativeValue::Softer;
+                ? mnxdom::DynamicRelativeValue::Louder
+                : mnxdom::DynamicRelativeValue::Softer;
             auto dyn = mnxMeasure.ensure_dynamics().appendRelative(relValue, mnxFractionFromEdu(asgn->eduPosition));
             if (dynValue) {
                 dyn.set_value(dynValue.value());
@@ -224,9 +226,9 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
     }
 }
 
-void attachFermata(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeasure,
+void attachFermata(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxMeasure,
     const MusxInstance<others::MeasureExprAssign>& asgn, const denigma::classify::ExpressionFermata& fermataInfo,
-    const ExpressionAttachmentContext& attachment, const mnx::Fermata& fermata)
+    const ExpressionAttachmentContext& attachment, const mnxdom::Fermata& fermata)
 {
     if (asgn->calcIsPartOfStaffListAssignment() || fermataInfo.isRightBarline) {
         return;
@@ -234,10 +236,10 @@ void attachFermata(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
     if (attachment.entryTarget) {
         switch (attachment.entryTarget->kind) {
         case EntryTargetKind::Event:
-            mnx::sequence::Event(context->mnxDocument->root(), attachment.entryTarget->pointer).set_fermata(fermata);
+            mnxdom::sequence::Event(context->mnxDocument->root(), attachment.entryTarget->pointer).set_fermata(fermata);
             break;
         case EntryTargetKind::FullMeasureRest:
-            mnx::sequence::FullMeasureRest(context->mnxDocument->root(), attachment.entryTarget->pointer).set_fermata(fermata);
+            mnxdom::sequence::FullMeasureRest(context->mnxDocument->root(), attachment.entryTarget->pointer).set_fermata(fermata);
             break;
         }
     } else if (attachment.entryInfo) {
@@ -256,15 +258,15 @@ void attachFermata(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxMeas
     }
 }
 
-void attachBreathMark(const MnxMusxMappingPtr& context, const ExpressionAttachmentContext& attachment, const mnx::sequence::BreathMark& breathMark) {
+void attachBreathMark(const MnxMusxMappingPtr& context, const ExpressionAttachmentContext& attachment, const mnxdom::sequence::BreathMark& breathMark) {
     if (attachment.entryTarget && attachment.entryTarget->kind == EntryTargetKind::Event) {
-        mnx::sequence::Event(context->mnxDocument->root(), attachment.entryTarget->pointer).ensure_markings().set_breath(breathMark);
+        mnxdom::sequence::Event(context->mnxDocument->root(), attachment.entryTarget->pointer).ensure_markings().set_breath(breathMark);
     }
 };
 } // namespace
 
 void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
-    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
+    mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     if (musxMeasure->hasExpression) {
         auto exprAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
@@ -306,5 +308,7 @@ void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<oth
     }
 }
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

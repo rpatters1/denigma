@@ -30,9 +30,11 @@
 #include "utils/utf8_iterator.h"
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
-mnx::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement)
+mnxdom::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement)
 {
     const auto endsWith = [&](const std::string_view suffix) {
         return glyphName.size() >= suffix.size()
@@ -43,30 +45,30 @@ mnx::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPl
     switch (placement) {
     case VerticalPlacement::Above:
         if (glyphIsBelow) {
-            return mnx::MarkingUpDownAuto::Down;
+            return mnxdom::MarkingUpDownAuto::Down;
         }
         break;
     case VerticalPlacement::Below:
         if (glyphIsAbove) {
-            return mnx::MarkingUpDownAuto::Up;
+            return mnxdom::MarkingUpDownAuto::Up;
         }
         break;
     case VerticalPlacement::Float:
     case VerticalPlacement::NotApplicable:
         break;
     }
-    return mnx::MarkingUpDownAuto::Auto;
+    return mnxdom::MarkingUpDownAuto::Auto;
 }
 
-mnx::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
+mnxdom::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
 {
     if (const auto glyphName = utils::smuflGlyphNameForFont(fontInfo, sym)) {
         return calcPointing(glyphName.value(), placement);
     }
-    return mnx::MarkingUpDownAuto::Auto;
+    return mnxdom::MarkingUpDownAuto::Auto;
 }
 
-std::optional<mnx::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement)
+std::optional<mnxdom::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement)
 {
     if (placement == VerticalPlacement::NotApplicable) {
         return std::nullopt;
@@ -74,53 +76,53 @@ std::optional<mnx::Fermata> makeFermata(const classify::Fermata& fermata, const 
 
     auto convertSymbol = [](classify::Fermata::Shape shape) {
         switch (shape) {
-        case classify::Fermata::Shape::Normal: return mnx::FermataSymbol::Normal;
-        case classify::Fermata::Shape::Angled: return mnx::FermataSymbol::Angled;
-        case classify::Fermata::Shape::DoubleAngled: return mnx::FermataSymbol::DoubleAngled;
-        case classify::Fermata::Shape::Square: return mnx::FermataSymbol::Square;
-        case classify::Fermata::Shape::DoubleSquare: return mnx::FermataSymbol::DoubleSquare;
-        case classify::Fermata::Shape::HalfCurve: return mnx::FermataSymbol::HalfCurve;
-        case classify::Fermata::Shape::DoubleDot: return mnx::FermataSymbol::DoubleDot;
-        case classify::Fermata::Shape::Curlew: return mnx::FermataSymbol::Curlew;
+        case classify::Fermata::Shape::Normal: return mnxdom::FermataSymbol::Normal;
+        case classify::Fermata::Shape::Angled: return mnxdom::FermataSymbol::Angled;
+        case classify::Fermata::Shape::DoubleAngled: return mnxdom::FermataSymbol::DoubleAngled;
+        case classify::Fermata::Shape::Square: return mnxdom::FermataSymbol::Square;
+        case classify::Fermata::Shape::DoubleSquare: return mnxdom::FermataSymbol::DoubleSquare;
+        case classify::Fermata::Shape::HalfCurve: return mnxdom::FermataSymbol::HalfCurve;
+        case classify::Fermata::Shape::DoubleDot: return mnxdom::FermataSymbol::DoubleDot;
+        case classify::Fermata::Shape::Curlew: return mnxdom::FermataSymbol::Curlew;
         }
         throw std::logic_error("Unhandled fermata shape.");
     };
     auto convertDuration = [](classify::Fermata::Duration duration) {
         switch (duration) {
-        case classify::Fermata::Duration::Auto: return mnx::FermataDuration::Auto;
-        case classify::Fermata::Duration::VeryShort: return mnx::FermataDuration::VeryShort;
-        case classify::Fermata::Duration::Short: return mnx::FermataDuration::Short;
-        case classify::Fermata::Duration::Long: return mnx::FermataDuration::Long;
-        case classify::Fermata::Duration::VeryLong: return mnx::FermataDuration::VeryLong;
+        case classify::Fermata::Duration::Auto: return mnxdom::FermataDuration::Auto;
+        case classify::Fermata::Duration::VeryShort: return mnxdom::FermataDuration::VeryShort;
+        case classify::Fermata::Duration::Short: return mnxdom::FermataDuration::Short;
+        case classify::Fermata::Duration::Long: return mnxdom::FermataDuration::Long;
+        case classify::Fermata::Duration::VeryLong: return mnxdom::FermataDuration::VeryLong;
         }
         throw std::logic_error("Unhandled fermata duration.");
     };
 
-    mnx::Fermata result;
+    mnxdom::Fermata result;
     result.set_or_clear_symbol(convertSymbol(fermata.shape));
     result.set_or_clear_duration(convertDuration(fermata.duration));
-    result.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
+    result.set_or_clear_orient(enumConvert<mnxdom::Orientation>(placement));
     if (glyphName) {
         result.set_or_clear_pointing(calcPointing(glyphName.value(), placement));
     }
     return result;
 }
 
-std::optional<mnx::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement)
+std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement)
 {
-    std::optional<mnx::BreathMarkSymbol> symbol;
+    std::optional<mnxdom::BreathMarkSymbol> symbol;
     switch (breathMark.type) {
     case classify::BreathMark::Type::Comma:
-        symbol = mnx::BreathMarkSymbol::Comma;
+        symbol = mnxdom::BreathMarkSymbol::Comma;
         break;
     case classify::BreathMark::Type::Tick:
-        symbol = mnx::BreathMarkSymbol::Tick;
+        symbol = mnxdom::BreathMarkSymbol::Tick;
         break;
     case classify::BreathMark::Type::Upbow:
-        symbol = mnx::BreathMarkSymbol::Upbow;
+        symbol = mnxdom::BreathMarkSymbol::Upbow;
         break;
     case classify::BreathMark::Type::Salzedo:
-        symbol = mnx::BreathMarkSymbol::Salzedo;
+        symbol = mnxdom::BreathMarkSymbol::Salzedo;
         break;
     case classify::BreathMark::Type::Caesura:
     case classify::BreathMark::Type::CaesuraCurved:
@@ -133,9 +135,9 @@ std::optional<mnx::sequence::BreathMark> makeBreathMark(const classify::BreathMa
     if (!symbol) {
         return std::nullopt;
     }
-    mnx::sequence::BreathMark result;
+    mnxdom::sequence::BreathMark result;
     result.set_symbol(symbol.value());
-    result.set_or_clear_orient(enumConvert<mnx::Orientation>(placement));
+    result.set_or_clear_orient(enumConvert<mnxdom::Orientation>(placement));
     return result;
 }
 
@@ -239,7 +241,7 @@ static std::optional<NoteInfoPtr> findArpeggioBoundaryNoteInCurrentPart(
     return findInEntry(fallbackEntry);
 }
 
-static void setArpeggioGraceIndex(mnx::RhythmicPosition position, const musx::util::ArpeggioSpanCandidate& candidate)
+static void setArpeggioGraceIndex(mnxdom::RhythmicPosition position, const musx::util::ArpeggioSpanCandidate& candidate)
 {
     if (candidate.sourceEntry->graceIndex) {
         position.set_graceIndex(candidate.sourceEntry.calcReverseGraceIndex());
@@ -248,7 +250,7 @@ static void setArpeggioGraceIndex(mnx::RhythmicPosition position, const musx::ut
     }
 }
 
-static void appendArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottomNote, mnx::part::Measure& mnxPartMeasure,
+static void appendArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottomNote, mnxdom::part::Measure& mnxPartMeasure,
     const musx::util::ArpeggioSpanCandidate& candidate)
 {
     const auto startId = [&]() -> std::string {
@@ -280,18 +282,18 @@ static void appendArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottom
 
     auto mnxArpeggio = mnxPartMeasure.ensure_arpeggios().append(
         mnxFractionFromFraction(candidate.sourceEntry.calcGlobalElapsedDuration()),
-        mnx::IdPair::make(startId, endId));
+        mnxdom::IdPair::make(startId, endId));
     setArpeggioGraceIndex(mnxArpeggio.position(), candidate);
 
     switch (candidate.direction) {
     case musx::util::ArpeggioDirection::Auto:
-        mnxArpeggio.set_or_clear_direction(mnx::MarkingUpDownAuto::Auto);
+        mnxArpeggio.set_or_clear_direction(mnxdom::MarkingUpDownAuto::Auto);
         break;
     case musx::util::ArpeggioDirection::Up:
-        mnxArpeggio.set_or_clear_direction(mnx::MarkingUpDownAuto::Up);
+        mnxArpeggio.set_or_clear_direction(mnxdom::MarkingUpDownAuto::Up);
         break;
     case musx::util::ArpeggioDirection::Down:
-        mnxArpeggio.set_or_clear_direction(mnx::MarkingUpDownAuto::Down);
+        mnxArpeggio.set_or_clear_direction(mnxdom::MarkingUpDownAuto::Down);
         break;
     }
 
@@ -307,16 +309,16 @@ static void appendArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottom
     }
 }
 
-static void appendNonArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottomNote, mnx::part::Measure& mnxPartMeasure,
+static void appendNonArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottomNote, mnxdom::part::Measure& mnxPartMeasure,
     const musx::util::ArpeggioSpanCandidate& candidate)
 {
     auto mnxNonArpeggio = mnxPartMeasure.ensure_nonArpeggios().append(
         mnxFractionFromFraction(candidate.sourceEntry.calcGlobalElapsedDuration()),
-        mnx::IdPair::make(calcNoteId(bottomNote), calcNoteId(topNote)));
+        mnxdom::IdPair::make(calcNoteId(bottomNote), calcNoteId(topNote)));
     setArpeggioGraceIndex(mnxNonArpeggio.position(), candidate);
 }
 
-static void appendArpeggioOrNonArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottomNote, mnx::part::Measure& mnxPartMeasure,
+static void appendArpeggioOrNonArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottomNote, mnxdom::part::Measure& mnxPartMeasure,
     const musx::util::ArpeggioSpanCandidate& candidate)
 {
     using SpanType = musx::util::ArpeggioSpanType;
@@ -330,7 +332,7 @@ static void appendArpeggioOrNonArpeggio(const NoteInfoPtr& topNote, const NoteIn
     }
 }
 
-void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measure&,
+void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnxdom::part::Measure&,
     const musx::util::ArpeggioSpanCandidate& candidate)
 {
     const auto topNote = findArepggioBoundaryNote(candidate.topEntry, true);
@@ -457,5 +459,7 @@ void finalizeArpeggios(const MnxMusxMappingPtr& context)
     }
 }
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

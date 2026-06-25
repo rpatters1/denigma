@@ -48,7 +48,11 @@
 constexpr char SCORE_DAT_NAME[] = "score.dat";
 
 namespace denigma {
+namespace formats {
 namespace enigmaxml {
+namespace detail {
+
+CommandInputData extractMusxInputData(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext);
 
 static Buffer gunzipBuffer(const std::string& compressedData)
 {
@@ -406,5 +410,7 @@ void writeMusxForCli(const std::filesystem::path& outputPath, const CommandInput
     }
 }
 
+} // namespace detail
 } // namespace enigmaxml
+} // namespace formats
 } // namespace denigma

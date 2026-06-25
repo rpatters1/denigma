@@ -31,8 +31,12 @@
 
 #include "musx/musx.h"
 
+#include "mnx_fwd.h"
+
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
 enum class MnxFormattedTextSymbolPolicy
 {
@@ -53,13 +57,15 @@ struct MnxFormattedTextOptions
 };
 
 void setFormattedText(
-    mnx::FormattedText dst,
+    mnxdom::FormattedText dst,
     const musx::util::EnigmaParsingContext& src,
     const MnxFormattedTextOptions& options = {});
 
-mnx::FormattedText makeFormattedText(
+mnxdom::FormattedText makeFormattedText(
     const musx::util::EnigmaParsingContext& src,
     const MnxFormattedTextOptions& options = {});
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

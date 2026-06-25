@@ -27,7 +27,9 @@
 #include "svg.h"
 #include "utils/stringutils.h"
 
-namespace denigma::formats::svg {
+namespace denigma {
+namespace formats {
+namespace svg {
 
 namespace {
 
@@ -88,7 +90,7 @@ ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> inp
     applySvgOptions(context, options);
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
-    svgexp::convert(CommandInputData{ std::move(buffer), std::nullopt, {} }, context, outputCallback);
+    formats::svg::detail::convert(CommandInputData{ std::move(buffer), std::nullopt, {} }, context, outputCallback);
     return result;
 }
 
@@ -113,7 +115,7 @@ ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
     applySvgOptions(context, options);
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
-    svgexp::convert(enigmaxml::extractMusxInputData(input, context), context, outputCallback);
+    formats::svg::detail::convert(formats::enigmaxml::detail::extractMusxInputData(input, context), context, outputCallback);
     return result;
 }
 
@@ -130,4 +132,6 @@ void registerConverters(ConverterRegistry& registry)
     registry.add(std::make_unique<MusxToSvgConverter>());
 }
 
-} // namespace denigma::formats::svg
+} // namespace svg
+} // namespace formats
+} // namespace denigma

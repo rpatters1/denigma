@@ -27,10 +27,12 @@
 #include "mnx.h"
 
 namespace denigma {
-namespace mnxexp {
+namespace formats {
+namespace mnx {
+namespace detail {
 
 // Helper function to create a JSON representation of a single staff
-static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
+static void buildMnxStaff(mnxdom::layout::Staff&& mnxStaff,
     const MnxMusxMappingPtr& context,
     const MusxInstance<others::Measure>& meas,
     const MusxInstance<others::StaffUsed>& staffSlot)
@@ -58,7 +60,7 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
                 if (staff->masks->fullName) {
                     mnxSource.set_label(staff->getFullInstrumentName());
                 } else {
-                    mnxSource.set_labelref(mnx::LabelRef::Name);
+                    mnxSource.set_labelref(mnxdom::LabelRef::Name);
                 }
             }
         } else {
@@ -68,7 +70,7 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
                 if (staff->masks->abrvName) {
                     mnxSource.set_label(staff->getAbbreviatedInstrumentName());
                 } else {
-                    mnxSource.set_labelref(mnx::LabelRef::ShortName);                    
+                    mnxSource.set_labelref(mnxdom::LabelRef::ShortName);                    
                 }
             }
         }
@@ -81,10 +83,10 @@ static void buildMnxStaff(mnx::layout::Staff&& mnxStaff,
         default:
             break;
         case StemDirection::AlwaysUp:
-            mnxSource.set_stem(mnx::StemDirection::Up);
+            mnxSource.set_stem(mnxdom::StemDirection::Up);
             break;
         case StemDirection::AlwaysDown:
-            mnxSource.set_stem(mnx::StemDirection::Down);
+            mnxSource.set_stem(mnxdom::StemDirection::Down);
             break;
         }
     }
@@ -114,7 +116,7 @@ static bool hasInstrumentStaffGroupMapping(
 }
 
 static void buildOrderedContent(
-    mnx::layout::LayoutContent&& content,
+    mnxdom::layout::LayoutContent&& content,
     const MnxMusxMappingPtr& context,
     const std::vector<details::StaffGroupInfo>& groups,
     const MusxInstanceList<others::StaffUsed>& systemStaves,
@@ -135,15 +137,15 @@ static void buildOrderedContent(
             auto mnxGroup = content.appendGroup();
             switch (group.group->drawBarlines) {
             case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves:
-                mnxGroup.set_or_clear_barlineStyle(mnx::StaffGroupBarlineStyle::Individual);
+                mnxGroup.set_or_clear_barlineStyle(mnxdom::StaffGroupBarlineStyle::Individual);
                 break;
             case details::StaffGroup::DrawBarlineStyle::ThroughStaves:
                 mnxGroup.set_or_clear_barlineStyle(hasInstrumentStaffGroupMapping(context, group)
-                    ? mnx::StaffGroupBarlineStyle::Instrument
-                    : mnx::StaffGroupBarlineStyle::Unified);
+                    ? mnxdom::StaffGroupBarlineStyle::Instrument
+                    : mnxdom::StaffGroupBarlineStyle::Unified);
                 break;
             case details::StaffGroup::DrawBarlineStyle::Mensurstriche:
-                mnxGroup.set_or_clear_barlineStyle(mnx::StaffGroupBarlineStyle::Mensurstrich);
+                mnxGroup.set_or_clear_barlineStyle(mnxdom::StaffGroupBarlineStyle::Mensurstrich);
                 break;
             }
             if (!group.group->hideName) {
@@ -160,10 +162,10 @@ static void buildOrderedContent(
                     break;
                 case details::Bracket::BracketStyle::DeskBracket: // until mnx provides a proper desk bracket.
                 case details::Bracket::BracketStyle::PianoBrace:
-                    mnxGroup.set_symbol(mnx::LayoutSymbol::Brace);
+                    mnxGroup.set_symbol(mnxdom::LayoutSymbol::Brace);
                     break;
                 default:
-                    mnxGroup.set_symbol(mnx::LayoutSymbol::Bracket);
+                    mnxGroup.set_symbol(mnxdom::LayoutSymbol::Bracket);
                     break;
                 }
             }
@@ -232,5 +234,7 @@ void createLayouts(const MnxMusxMappingPtr& context)
     }
 }
 
-} // namespace mnxexp
+} // namespace detail
+} // namespace mnx
+} // namespace formats
 } // namespace denigma

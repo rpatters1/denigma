@@ -27,12 +27,16 @@
 #include "core/denigma.h"
 
 namespace denigma {
-namespace svgexp {
+namespace formats {
+namespace svg {
+namespace detail {
 
 void convert(const CommandInputData& inputData,
              const DenigmaContext& denigmaContext,
              const MultiOutputCallback& outputCallback);
 void convert(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
-} // namespace svgexp
+} // namespace detail
+} // namespace svg
+} // namespace formats
 } // namespace denigma

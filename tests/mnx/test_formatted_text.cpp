@@ -28,7 +28,8 @@
 #include "formats/mnx/mnx_formatted_text.h"
 #include "musx/musx.h"
 
-using namespace denigma::mnxexp;
+namespace mnxdom = ::mnx;
+using namespace denigma::formats::mnx::detail;
 using namespace musx::dom;
 
 namespace {
@@ -88,7 +89,7 @@ TEST(MnxFormattedText, ConvertsStyledText)
 
     const auto formatted = makeFormattedText(ctx.parsingContext);
 
-    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+    EXPECT_EQ(mnxdom::json::parse(formatted.dump()), mnxdom::json::parse(R"json([
         {
             "text": "Bold Italic",
             "style": {
@@ -109,7 +110,7 @@ TEST(MnxFormattedText, ReplacesExistingContent)
 
     setFormattedText(formatted, secondCtx.parsingContext);
 
-    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+    EXPECT_EQ(mnxdom::json::parse(formatted.dump()), mnxdom::json::parse(R"json([
         {
             "text": "Second",
             "style": {
@@ -126,7 +127,7 @@ TEST(MnxFormattedText, ConvertsSmuflGlyphs)
 
     const auto formatted = makeFormattedText(ctx.parsingContext);
 
-    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+    EXPECT_EQ(mnxdom::json::parse(formatted.dump()), mnxdom::json::parse(R"json([
         {
             "type": "smufl",
             "glyphs": ["dynamicPiano"],
@@ -144,7 +145,7 @@ TEST(MnxFormattedText, PreservesMixedSmuflTextByDefault)
 
     const auto formatted = makeFormattedText(ctx.parsingContext);
 
-    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+    EXPECT_EQ(mnxdom::json::parse(formatted.dump()), mnxdom::json::parse(R"json([
         {
             "text": "p f",
             "style": {
@@ -161,7 +162,7 @@ TEST(MnxFormattedText, OmitsLegacyFontStyleFromSmuflGlyphs)
 
     const auto formatted = makeFormattedText(ctx.parsingContext);
 
-    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+    EXPECT_EQ(mnxdom::json::parse(formatted.dump()), mnxdom::json::parse(R"json([
         {
             "type": "smufl",
             "glyphs": ["dynamicPiano", "dynamicForte"]
@@ -177,7 +178,7 @@ TEST(MnxFormattedText, SplitsSmuflGlyphsFromMixedTextWhenRequested)
 
     const auto formatted = makeFormattedText(ctx.parsingContext, options);
 
-    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+    EXPECT_EQ(mnxdom::json::parse(formatted.dump()), mnxdom::json::parse(R"json([
         {
             "type": "smufl",
             "glyphs": ["dynamicPiano"]
@@ -211,7 +212,7 @@ TEST(MnxFormattedText, CallsOptionalChunkCallback)
 
     EXPECT_EQ(chunks, (std::vector<std::string>{ "Text ", "pf" }));
     EXPECT_EQ(glyphs, (std::vector<std::vector<std::string>>{ {}, { "dynamicPiano", "dynamicForte" } }));
-    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+    EXPECT_EQ(mnxdom::json::parse(formatted.dump()), mnxdom::json::parse(R"json([
         {
             "text": "Text ",
             "style": {
@@ -242,7 +243,7 @@ TEST(MnxFormattedText, ChunkCallbackPreservesTextPolicy)
 
     EXPECT_EQ(chunks, (std::vector<std::string>{ "pf" }));
     EXPECT_EQ(glyphs, (std::vector<std::vector<std::string>>{ {} }));
-    EXPECT_EQ(mnx::json::parse(formatted.dump()), mnx::json::parse(R"json([
+    EXPECT_EQ(mnxdom::json::parse(formatted.dump()), mnxdom::json::parse(R"json([
         {
             "text": "pf",
             "style": {
