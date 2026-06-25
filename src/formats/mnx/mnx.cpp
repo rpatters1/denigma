@@ -27,6 +27,7 @@
 
 #include "mnx.h"
 #include "core/musx_reader.h"
+#include "utils/stringutils.h"
 
 using namespace musx::dom;
 using namespace musx::factory;
@@ -162,6 +163,18 @@ std::string mnxPartDisplayList(const MnxMusxMappingPtr& context, const std::vect
     return result;
 }
 
+static std::string sourceFormatFromPath(const std::filesystem::path& path)
+{
+    std::u8string extension = path.extension().u8string();
+    if (!extension.empty() && extension.front() == u8'.') {
+        extension.erase(extension.begin());
+    }
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char ch) {
+        return static_cast<char8_t>(utils::toLowerCase(ch));
+    });
+    return extension.empty() ? std::string("unknown") : utils::utf8ToString(extension);
+}
+
 static void createMnx(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
@@ -173,6 +186,13 @@ static void createMnx(const MnxMusxMappingPtr& context)
     client.set_name(DENIGMA_NAME);
     client.set_version(DENIGMA_VERSION);
     client.set_commit(DENIGMA_GIT_COMMIT);
+
+    const auto& inputFilePath = context->denigmaContext->inputFilePath;
+    auto source = mnx.ensure_mnxdom().ensure_source();
+    source.set_format(sourceFormatFromPath(inputFilePath));
+    if (!inputFilePath.empty()) {
+        source.set_filename(utils::pathToString(inputFilePath.filename()));
+    }
 }
 
 static void createScores(const MnxMusxMappingPtr& context)
