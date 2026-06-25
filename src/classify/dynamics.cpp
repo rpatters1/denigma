@@ -330,6 +330,54 @@ static std::vector<std::string> matchedGlyphNames(const DynamicText& text, const
     return result;
 }
 
+static std::vector<std::string> knownGlyphNames(const DynamicText& text)
+{
+    std::vector<std::string> result;
+    std::optional<size_t> previousGlyphId;
+    for (size_t i = 0; i < text.glyphNames.size(); ++i) {
+        const auto& glyphName = text.glyphNames[i];
+        const auto& glyphId = text.glyphIds[i];
+        if (!glyphName || !glyphId) {
+            previousGlyphId.reset();
+            continue;
+        }
+        if (!previousGlyphId || *previousGlyphId != *glyphId) {
+            result.push_back(*glyphName);
+            previousGlyphId = glyphId;
+        }
+    }
+    return result;
+}
+
+static DynamicClassification makeOtherDynamicClassification(const DynamicText& text)
+{
+    const std::vector<std::string> glyphs = knownGlyphNames(text);
+    std::string prefixText;
+    std::string suffixText;
+
+    if (glyphs.empty()) {
+        prefixText = utils::trimAscii(text.text);
+    } else {
+        const auto firstGlyphIt = std::find_if(text.glyphNames.begin(), text.glyphNames.end(),
+            [](const std::optional<std::string>& glyphName) { return glyphName.has_value(); });
+        const auto lastGlyphIt = std::find_if(text.glyphNames.rbegin(), text.glyphNames.rend(),
+            [](const std::optional<std::string>& glyphName) { return glyphName.has_value(); });
+        const size_t firstGlyphIndex = static_cast<size_t>(std::distance(text.glyphNames.begin(), firstGlyphIt));
+        const size_t lastGlyphIndex = text.glyphNames.size() - static_cast<size_t>(std::distance(text.glyphNames.rbegin(), lastGlyphIt)) - 1;
+        prefixText = utils::trimAscii(std::string_view(text.text).substr(0, firstGlyphIndex));
+        suffixText = utils::trimAscii(std::string_view(text.text).substr(lastGlyphIndex + 1));
+    }
+
+    return {
+        Dynamic::Other,
+        !prefixText.empty() || !suffixText.empty(),
+        prefixText,
+        suffixText,
+        glyphs,
+        classifyDynamicChange(prefixText, suffixText)
+    };
+}
+
 static std::optional<DynamicTokenMatch> findDynamicToken(const DynamicText& text)
 {
     if (const Dynamic exact = classifyExactDynamicToken(text.text); exact != Dynamic::None) {
@@ -378,7 +426,7 @@ static DynamicClassification classifyNormalizedDynamicText(const DynamicText& te
         };
     }
     if (isDynamicLikeText(text.text)) {
-        return { Dynamic::Other, false, {}, {}, {}, DynamicChange::Absolute };
+        return makeOtherDynamicClassification(text);
     }
     return {};
 }
@@ -400,9 +448,10 @@ DynamicClassification classifyDynamic(const musx::util::EnigmaParsingContext& ra
         return true;
     }, musx::util::EnigmaString::EnigmaParsingOptions(musx::util::EnigmaString::AccidentalStyle::Unicode));
 
-    DynamicClassification result = classifyNormalizedDynamicText(normalizeDynamicText(text));
+    const DynamicText normalizedText = normalizeDynamicText(text);
+    DynamicClassification result = classifyNormalizedDynamicText(normalizedText);
     if (!result && isDynamicsCategory) {
-        return { Dynamic::Other, true, {}, {}, {}, DynamicChange::Absolute };
+        return makeOtherDynamicClassification(normalizedText);
     }
     return result;
 }

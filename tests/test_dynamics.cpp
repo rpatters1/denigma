@@ -323,6 +323,42 @@ TEST(DynamicClassification, DistinguishesOtherAndNone)
     EXPECT_EQ(classifyTestDynamicInDynamicsCategory("^fontid(1)^size(12)^nfx(0)dolce").dynamic, Dynamic::Other);
 }
 
+TEST(DynamicClassification, PreservesFallbackDataForOtherDynamics)
+{
+    const auto textOther = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffffff");
+    EXPECT_EQ(textOther.dynamic, Dynamic::Other);
+    EXPECT_TRUE(textOther.hasAdditionalText);
+    EXPECT_EQ(textOther.prefixText, "fffffff");
+    EXPECT_TRUE(textOther.suffixText.empty());
+    EXPECT_TRUE(textOther.glyphs.empty());
+
+    const auto glyphOther = classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE52F;&#xE52F;&#xE52F;&#xE522;");
+    EXPECT_EQ(glyphOther.dynamic, Dynamic::Other);
+    EXPECT_FALSE(glyphOther.hasAdditionalText);
+    EXPECT_TRUE(glyphOther.prefixText.empty());
+    EXPECT_TRUE(glyphOther.suffixText.empty());
+    EXPECT_EQ(glyphOther.glyphs, (std::vector<std::string>{ "dynamicFF", "dynamicFF", "dynamicFF", "dynamicForte" }));
+
+    const auto mixedOther = classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE52F;^fontid(1)^size(12)^nfx(0)fffff");
+    EXPECT_EQ(mixedOther.dynamic, Dynamic::Other);
+    EXPECT_TRUE(mixedOther.prefixText.empty());
+    EXPECT_EQ(mixedOther.suffixText, "fffff");
+    EXPECT_EQ(mixedOther.glyphs, (std::vector<std::string>{ "dynamicFF" }));
+
+    const auto categoryOther = classifyTestDynamicInDynamicsCategory("^fontid(1)^size(12)^nfx(0)dolce");
+    EXPECT_EQ(categoryOther.dynamic, Dynamic::Other);
+    EXPECT_TRUE(categoryOther.hasAdditionalText);
+    EXPECT_EQ(categoryOther.prefixText, "dolce");
+
+    const auto categoryGlyphOther = classifyTestDynamicInDynamicsCategory(
+        "^fontid(1)^size(12)^nfx(0)cresc. ^fontid(0)^size(24)^nfx(0)&#xE52F;&#xE52F;&#xE52F;&#xE522;^fontid(1)^size(12)^nfx(0) subito");
+    EXPECT_EQ(categoryGlyphOther.dynamic, Dynamic::Other);
+    EXPECT_TRUE(categoryGlyphOther.hasAdditionalText);
+    EXPECT_EQ(categoryGlyphOther.prefixText, "cresc.");
+    EXPECT_EQ(categoryGlyphOther.suffixText, "subito");
+    EXPECT_EQ(categoryGlyphOther.glyphs, (std::vector<std::string>{ "dynamicFF", "dynamicFF", "dynamicFF", "dynamicForte" }));
+}
+
 TEST(DynamicClassification, FlagsAdditionalText)
 {
     const auto plain = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pp");
