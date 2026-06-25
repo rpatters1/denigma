@@ -26,8 +26,6 @@
 #include "mnxdom.h"
 
 #include "mnx_fwd.h"
-#include "utils/smufl_support.h"
-#include "denigma/classify/articulations.h"
 
 using namespace musx::dom;
 using namespace musx::util;
@@ -35,19 +33,8 @@ using namespace musx::util;
 namespace denigma {
 namespace mnxexp {
 
-mnx::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement);
-mnx::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
-
-std::optional<mnx::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement);
-
-std::optional<mnx::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement);
-
-std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
-    const EntryInfoPtr& sourceEntry,
-    const MusxInstance<details::ArticulationAssign>& assign,
-    const classify::Arpeggio& arpeggio);
-void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnx::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
-void finalizeArpeggios(const MnxMusxMappingPtr& context);
+void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
+    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber);
 
 } // namespace mnxexp
 } // namespace denigma

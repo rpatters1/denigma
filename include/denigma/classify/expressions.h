@@ -21,10 +21,15 @@
  */
 #pragma once
 
+#include <cassert>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
+#include "denigma/classify/articulations.h"
 #include "denigma/classify/dynamics.h"
 #include "musx/musx.h"
 
@@ -37,12 +42,16 @@ using ExpressionCategoryType = musx::dom::others::MarkingCategory::CategoryType;
 /// @brief Exporter-neutral semantic classes for Finale/MUSX text expressions.
 enum class ExpressionType
 {
+    GenericText,
     Dynamic,
+    Fermata,
+    BreathMark,
+    NonArpeggio,
     TempoMark,
     TempoAlteration,
     TechniqueText,
     RehearsalMark,
-    GenericText,
+    Error,
     Suppress
 };
 
@@ -98,17 +107,108 @@ struct TempoInfo
     int beatUnitEdu{};
 };
 
+struct TempoMark
+{
+    TempoInfo tempo;
+};
+
+struct TempoAlteration
+{
+    TempoInfo tempo;
+};
+
+struct ExpressionFermata
+{
+    Fermata fermata{};
+    std::optional<std::string> glyphName;
+    bool isRightBarline{};
+};
+
+struct ExpressionBreathMark
+{
+    BreathMark breathMark{};
+    std::optional<std::string> glyphName;
+};
+
+struct ExpressionNonArpeggio
+{
+    musx::util::ArpeggioSpanCandidate candidate;
+};
+
+struct RehearsalMark
+{
+    std::string text;
+};
+
+struct GenericText
+{
+    std::string text;
+};
+
+struct ExpressionError
+{
+    std::string message;
+};
+
+struct Suppress
+{
+};
+
+using ExpressionValue = std::variant<std::monostate, DynamicClassification, ExpressionFermata, ExpressionBreathMark, ExpressionNonArpeggio, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
+
 struct ExpressionClassification
 {
     ExpressionType type{ ExpressionType::GenericText };
     ClassificationBasis basis{ ClassificationBasis::FallbackToGenericText };
-    std::string text;
+    std::optional<musx::util::EnigmaParsingContext> enigmaCtx;
+    ExpressionValue value{};
 
-    Dynamic dynamic{};
-    std::string dynamicPrefixText;
-    std::string dynamicSuffixText;
-    Technique technique;
-    TempoInfo tempo;
+    template <typename T>
+    const T* as() const noexcept
+    { return std::get_if<T>(&value); }
+
+private:
+    template <typename T, ExpressionType EnumVal>
+    const T& checkedPayload(const char* enumDesc) const
+    {
+        assert(type == EnumVal);
+        if (type != EnumVal) {
+            throw std::logic_error(std::string("ExpressionClassification type is not ") + enumDesc + ".");
+        }
+        return std::get<T>(value);
+    }
+
+public:
+
+    const DynamicClassification& dynamic() const
+    { return checkedPayload<DynamicClassification, ExpressionType::Dynamic>("Dynamic"); }
+
+    const ExpressionFermata& fermata() const
+    { return checkedPayload<ExpressionFermata, ExpressionType::Fermata>("Fermata"); }
+
+    const ExpressionBreathMark& breathMark() const
+    { return checkedPayload<ExpressionBreathMark, ExpressionType::BreathMark>("BreathMark"); }
+
+    const ExpressionNonArpeggio& nonArpeggio() const
+    { return checkedPayload<ExpressionNonArpeggio, ExpressionType::NonArpeggio>("NonArpeggio"); }
+
+    const TempoMark& tempoMark() const
+    { return checkedPayload<TempoMark, ExpressionType::TempoMark>("TempoMark"); }
+
+    const TempoAlteration& tempoAlteration() const
+    { return checkedPayload<TempoAlteration, ExpressionType::TempoAlteration>("TempoAlteration"); }
+
+    const Technique& technique() const
+    { return checkedPayload<Technique, ExpressionType::TechniqueText>("TechniqueText"); }
+
+    const RehearsalMark& rehearsalMark() const
+    { return checkedPayload<RehearsalMark, ExpressionType::RehearsalMark>("RehearsalMark"); }
+
+    const GenericText& genericText() const
+    { return checkedPayload<GenericText, ExpressionType::GenericText>("GenericText"); }
+
+    const ExpressionError& error() const
+    { return checkedPayload<ExpressionError, ExpressionType::Error>("Error"); }
 };
 
 struct ExpressionAssignmentClassification
@@ -118,28 +218,18 @@ struct ExpressionAssignmentClassification
 };
 
 ExpressionClassification classifyExpression(
-    std::string_view text,
-    ExpressionCategoryType categoryType = ExpressionCategoryType::Invalid);
-
-ExpressionClassification classifyExpression(
     const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment);
 
 std::vector<ExpressionAssignmentClassification> classifyExpressionAssignments(
     const musx::dom::MusxInstanceList<musx::dom::others::MeasureExprAssign>& assignments);
 
 ExpressionClassification classifyExpression(
-    const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);
-
-ExpressionClassification classifyExpression(
-    const musx::dom::MusxInstance<musx::dom::others::ShapeExpressionDef>& def);
-
-ExpressionClassification classifyExpression(
     const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
-    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment);
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment = {});
 
 ExpressionClassification classifyExpression(
     const musx::dom::MusxInstance<musx::dom::others::ShapeExpressionDef>& def,
-    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment);
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment = {});
 
 } // namespace classify
 } // namespace denigma

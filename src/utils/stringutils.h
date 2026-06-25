@@ -198,13 +198,25 @@ inline std::string pathToString(const std::filesystem::path& path)
     return utf8ToString(path.u8string());
 }
 
+inline std::u8string normalizedExtension(std::u8string extension)
+{
+    if (!extension.empty() && extension.front() == u8'.') {
+        extension.erase(extension.begin());
+    }
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) {
+        return static_cast<char8_t>(toLowerCase(c));
+    });
+    return extension;
+}
+
+inline std::u8string normalizedPathExtension(const std::filesystem::path& path)
+{
+    return normalizedExtension(path.extension().u8string());
+}
+
 inline bool pathExtensionEquals(const std::filesystem::path& path, std::u8string_view extensionWithoutDot)
 {
-    const auto extension = path.extension().u8string();
-    if (extension.size() != extensionWithoutDot.size() + 1 || extension.empty() || extension.front() != u8'.') {
-        return false;
-    }
-    return std::equal(extensionWithoutDot.begin(), extensionWithoutDot.end(), extension.begin() + 1);
+    return normalizedPathExtension(path) == normalizedExtension(std::u8string(extensionWithoutDot));
 }
 
 inline std::string toLowerCase(const std::string& inp)

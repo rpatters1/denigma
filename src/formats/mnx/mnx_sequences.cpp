@@ -32,7 +32,7 @@
 namespace denigma {
 namespace mnxexp {
 
-static void appendMeasureRemainderSpaces(mnx::ContentArray content,
+static void appendMeasureRemainderSpaces(mnx::sequence::SequenceContent content,
     const musx::util::Fraction& elapsedInVoice,
     const musx::util::Fraction& measureDuration)
 {
@@ -72,26 +72,26 @@ static void appendMeasureRemainderSpaces(mnx::ContentArray content,
     }
 
     for (auto it = groups.rbegin(); it != groups.rend(); ++it) {
-        content.append<mnx::sequence::Space>(mnxFractionFromEdu(*it));
+        content.appendSpace(mnxFractionFromEdu(*it));
     }
 }
 
-static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int marks)
+static mnx::sequence::MultiNoteTremolo createMultiNoteTremolo(mnx::sequence::SequenceContent content, const musx::dom::EntryFrame::TupletInfo& tupletInfo, int marks)
 {
     const auto& musxTuplet = tupletInfo.tuplet;
     const auto entryCount = static_cast<unsigned>(tupletInfo.numEntries());
     const Edu eduRefDuration = (musxTuplet->calcReferenceDuration() / entryCount).calcEduDuration();
-    auto mnxTremolo = content.append<mnx::sequence::MultiNoteTremolo>(
+    auto mnxTremolo = content.appendMultiNoteTremolo(
         marks,
         mnx::NoteValueQuantity::make(entryCount, mnxNoteValueFromEdu(eduRefDuration)));
     /// @todo: additional fields (like noteheads) when defined by MNX committee.
     return mnxTremolo;
 }
 
-static mnx::sequence::Tuplet createTuplet(mnx::ContentArray content, const musx::dom::EntryFrame::TupletInfo& tupletInfo)
+static mnx::sequence::Tuplet createTuplet(mnx::sequence::SequenceContent content, const musx::dom::EntryFrame::TupletInfo& tupletInfo)
 {
     const auto& musxTuplet = tupletInfo.tuplet;
-    auto mnxTuplet = content.append<mnx::sequence::Tuplet>(
+    auto mnxTuplet = content.appendTuplet(
         mnx::NoteValueQuantity::make(
             static_cast<unsigned>(musxTuplet->displayNumber),
             mnxNoteValueFromEdu(musxTuplet->displayDuration)),
@@ -461,7 +461,7 @@ static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnx::s
     }
 }
 
-static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnx::ContentArray content,
+static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnx::sequence::SequenceContent content,
     const EntryInfoPtr& musxEntryInfo)
 {
     auto sequence = content.getEnclosingElement<mnx::Sequence>();
@@ -532,7 +532,7 @@ static void createLyrics(const MnxMusxMappingPtr& context, mnx::sequence::Event&
     createLyricsType(musxEntry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, musxEntry->getEntryNumber()));
 }
 
-static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& context, mnx::ContentArray content,
+static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& context, mnx::sequence::SequenceContent content,
     EntryInfoPtr musxEntryInfo, bool effectiveHidden, bool hasVoice1Voice2,
     const MusxInstance<details::TupletDef>& tupletDef, bool forTremolo)
 {
@@ -540,7 +540,7 @@ static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& 
 
     if (effectiveHidden) {
         /// @todo include hidden entries perhaps, if MNX starts allowing them.
-        content.append<mnx::sequence::Space>(mnxFractionFromEdu(musxEntry->duration));
+        content.appendSpace(mnxFractionFromEdu(musxEntry->duration));
         return std::nullopt;
     }
 
@@ -555,7 +555,7 @@ static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& 
         effectiveDura = tupletDef->calcReferenceDuration().calcEduDuration();
     }
     const auto noteValue = mnxNoteValueFromEdu(effectiveDura);
-    auto mnxEvent = content.append<mnx::sequence::Event>(noteValue.base, noteValue.dots);
+    auto mnxEvent = content.appendEvent(noteValue.base, noteValue.dots);
     mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
     context->entryTargetByNumber.insert_or_assign(
         musxEntry->getEntryNumber(),
@@ -592,7 +592,7 @@ static std::optional<mnx::sequence::Event> createEvent(const MnxMusxMappingPtr& 
 
 /// @brief processes as many entries as it can and returns the next entry to process up to the caller
 static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingPtr& context,
-    mnx::ContentArray content, const EntryInfoPtr::InterpretedIterator& firstEntryInfo,
+    mnx::sequence::SequenceContent content, const EntryInfoPtr::InterpretedIterator& firstEntryInfo,
     musx::util::Fraction& elapsedInSequence, bool hasVoice1Voice2,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt, bool inTremolo = false)
 {
@@ -613,7 +613,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
         if (inGrace && !entry->graceNote) {
             return next;
         } else if (!inGrace && entry->graceNote) {
-            auto grace = content.append<mnx::sequence::Grace>();
+            auto grace = content.appendGrace();
             next = addEntryToContent(context, grace.content(), next, elapsedInSequence, hasVoice1Voice2, true);
             if (!musxGraceOptions) {
                 throw std::invalid_argument("Document contains no grace note options!");
@@ -646,7 +646,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
             throw std::logic_error("Next entry's elapsed duration value is smaller than tracked duration for sequence.");
         }
         if (currElapsedDuration > elapsedInSequence) {
-            content.append<mnx::sequence::Space>(mnxFractionFromFraction(currElapsedDuration - elapsedInSequence));
+            content.appendSpace(mnxFractionFromFraction(currElapsedDuration - elapsedInSequence));
             elapsedInSequence = currElapsedDuration;
         }
         if (context->currSplitInstrumentUuid) {

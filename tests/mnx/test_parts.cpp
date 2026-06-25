@@ -33,6 +33,21 @@ using namespace denigma;
 
 namespace {
 
+std::optional<unsigned> dynamicGraceIndex(const mnx::part::DynamicGroupBase& dynamic)
+{
+    if (dynamic.type() == mnx::part::DynamicImmediate::ContentTypeValue) {
+        return dynamic.get<mnx::part::DynamicImmediate>().position().graceIndex();
+    }
+    if (dynamic.type() == mnx::part::DynamicRelative::ContentTypeValue) {
+        return dynamic.get<mnx::part::DynamicRelative>().position().graceIndex();
+    }
+    if (dynamic.type() == mnx::part::DynamicAccent::ContentTypeValue) {
+        return dynamic.get<mnx::part::DynamicAccent>().position().graceIndex();
+    }
+    ADD_FAILURE() << "Unexpected dynamic type: " << dynamic.type();
+    return std::nullopt;
+}
+
 void checkMeasure1MidMeasureClefs(const mnx::Part& part)
 {
     auto measures = part.measures();
@@ -231,8 +246,8 @@ TEST(MnxParts, DynamicsGraceIndices)
         ASSERT_TRUE(measure.dynamics().has_value());
         auto dynamics = measure.dynamics().value();
         ASSERT_GE(dynamics.size(), 2);
-        EXPECT_EQ(dynamics[0].position().graceIndex(), std::nullopt);
-        EXPECT_EQ(dynamics[1].position().graceIndex(), musx::dom::LayerIndex{0});
+        EXPECT_EQ(dynamicGraceIndex(dynamics[0]), std::nullopt);
+        EXPECT_EQ(dynamicGraceIndex(dynamics[1]), unsigned{0});
     }
 
     {
@@ -240,10 +255,10 @@ TEST(MnxParts, DynamicsGraceIndices)
         ASSERT_TRUE(measure.dynamics().has_value());
         auto dynamics = measure.dynamics().value();
         ASSERT_GE(dynamics.size(), 4);
-        EXPECT_EQ(dynamics[0].position().graceIndex(), musx::dom::LayerIndex{3});
-        EXPECT_EQ(dynamics[1].position().graceIndex(), musx::dom::LayerIndex{2});
-        EXPECT_EQ(dynamics[2].position().graceIndex(), musx::dom::LayerIndex{1});
-        EXPECT_EQ(dynamics[3].position().graceIndex(), musx::dom::LayerIndex{0});
+        EXPECT_EQ(dynamicGraceIndex(dynamics[0]), unsigned{3});
+        EXPECT_EQ(dynamicGraceIndex(dynamics[1]), unsigned{2});
+        EXPECT_EQ(dynamicGraceIndex(dynamics[2]), unsigned{1});
+        EXPECT_EQ(dynamicGraceIndex(dynamics[3]), unsigned{0});
     }
 
     {
@@ -251,6 +266,6 @@ TEST(MnxParts, DynamicsGraceIndices)
         ASSERT_TRUE(measure.dynamics().has_value());
         auto dynamics = measure.dynamics().value();
         ASSERT_GE(dynamics.size(), 1);
-        EXPECT_EQ(dynamics[0].position().graceIndex(), musx::dom::LayerIndex{0});
+        EXPECT_EQ(dynamicGraceIndex(dynamics[0]), unsigned{0});
     }
 }

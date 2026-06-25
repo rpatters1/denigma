@@ -138,7 +138,7 @@ static void appendTextChunk(mnx::FormattedText dst, const std::string& text, con
     if (text.empty()) {
         return;
     }
-    auto item = dst.append<mnx::text::Text>(text);
+    auto item = dst.appendText(text);
     if (addStyle) {
         applyStyle(item, styles, options);
     }
@@ -152,7 +152,7 @@ static void appendSmuflChunk(mnx::FormattedText dst, const std::string& text, co
     if (glyphs.empty()) {
         return;
     }
-    auto item = dst.append<mnx::text::Smufl>(glyphs);
+    auto item = dst.appendSmufl(glyphs);
     if (addStyle && styles.font && styles.font->calcIsSMuFL()) {
         applyStyle(item, styles, options);
     }

@@ -43,6 +43,21 @@ message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Configution Types: ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "Generator: ${CMAKE_GENERATOR}")
 
+find_package(Git QUIET)
+set(DENIGMA_GIT_COMMIT "unknown")
+if(GIT_FOUND)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --short HEAD
+        WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
+        OUTPUT_VARIABLE DENIGMA_GIT_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(NOT DENIGMA_GIT_COMMIT)
+        set(DENIGMA_GIT_COMMIT "unknown")
+    endif()
+endif()
+
 if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET 10.15)
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -75,10 +90,12 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
 endif()
 
 add_compile_definitions(
+    DENIGMA_NAME="${PROJECT_NAME}"
     DENIGMA_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
     DENIGMA_VERSION_MINOR=${PROJECT_VERSION_MINOR}
     DENIGMA_VERSION_PATCH=${PROJECT_VERSION_PATCH}
     DENIGMA_VERSION="${PROJECT_VERSION}"
+    DENIGMA_GIT_COMMIT="${DENIGMA_GIT_COMMIT}"
 )
 
 include(FetchContent)

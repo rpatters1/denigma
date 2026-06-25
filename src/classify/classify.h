@@ -21,45 +21,26 @@
  */
 #pragma once
 
-#include <functional>
-#include <optional>
-#include <string>
-#include <vector>
-
-#include "mnxdom.h"
-#include "FormattedText.h"
-
 #include "musx/musx.h"
 
-namespace denigma {
-namespace mnxexp {
+namespace denigma::classify {
 
-enum class MnxFormattedTextSymbolPolicy
+using ExpressionCategoryType = musx::dom::others::MarkingCategory::CategoryType;
+
+inline ExpressionCategoryType categoryTypeFromId(musx::dom::Cmper categoryId)
 {
-    PreserveText,
-    PreferSmufl,
-    SplitSmufl
-};
+    switch (static_cast<ExpressionCategoryType>(categoryId)) {
+    case ExpressionCategoryType::Invalid:
+    case ExpressionCategoryType::Dynamics:
+    case ExpressionCategoryType::TempoMarks:
+    case ExpressionCategoryType::TempoAlterations:
+    case ExpressionCategoryType::ExpressiveText:
+    case ExpressionCategoryType::TechniqueText:
+    case ExpressionCategoryType::RehearsalMarks:
+    case ExpressionCategoryType::Misc:
+        return static_cast<ExpressionCategoryType>(categoryId);
+    }
+    return ExpressionCategoryType::Misc;
+}
 
-using MnxFormattedTextChunkCallback = std::function<void(const std::string&, const std::vector<std::string>&)>;
-
-struct MnxFormattedTextOptions
-{
-    MnxFormattedTextSymbolPolicy symbolPolicy = MnxFormattedTextSymbolPolicy::PreferSmufl;
-    bool skipHiddenText = true;
-    bool plainTextOnly = false;
-    std::optional<musx::dom::MusxInstance<musx::dom::FontInfo>> initialFont;
-    MnxFormattedTextChunkCallback onChunk;
-};
-
-void setFormattedText(
-    mnx::FormattedText dst,
-    const musx::util::EnigmaParsingContext& src,
-    const MnxFormattedTextOptions& options = {});
-
-mnx::FormattedText makeFormattedText(
-    const musx::util::EnigmaParsingContext& src,
-    const MnxFormattedTextOptions& options = {});
-
-} // namespace mnxexp
-} // namespace denigma
+} // namespace denigma::classify

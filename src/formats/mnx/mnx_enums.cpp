@@ -109,6 +109,13 @@ BEGIN_ENUM_CONVERSION(VerticalPlacement, mnx::Orientation)
     case VerticalPlacement::Below: return mnx::Orientation::Below;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(VerticalPlacement, mnx::MultiStaffOrientation)
+    case VerticalPlacement::NotApplicable: return mnx::MultiStaffOrientation::Auto;
+    case VerticalPlacement::Float: return mnx::MultiStaffOrientation::Auto;
+    case VerticalPlacement::Above: return mnx::MultiStaffOrientation::Above;
+    case VerticalPlacement::Below: return mnx::MultiStaffOrientation::Below;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mnx::OttavaAmount)
     case others::SmartShape::ShapeType::OctaveDown: return mnx::OttavaAmount::OctaveDown;
     case others::SmartShape::ShapeType::OctaveUp: return mnx::OttavaAmount::OctaveUp;

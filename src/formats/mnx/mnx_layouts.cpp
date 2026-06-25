@@ -114,7 +114,7 @@ static bool hasInstrumentStaffGroupMapping(
 }
 
 static void buildOrderedContent(
-    mnx::ContentArray&& content,
+    mnx::layout::LayoutContent&& content,
     const MnxMusxMappingPtr& context,
     const std::vector<details::StaffGroupInfo>& groups,
     const MusxInstanceList<others::StaffUsed>& systemStaves,
@@ -132,7 +132,7 @@ static void buildOrderedContent(
         }
         if (groupIndex < groups.size() && index >= *groups[groupIndex].startSlot && index <= *groups[groupIndex].endSlot) {
             auto group = groups[groupIndex];
-            auto mnxGroup = content.append<mnx::layout::Group>();
+            auto mnxGroup = content.appendGroup();
             switch (group.group->drawBarlines) {
             case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves:
                 mnxGroup.set_or_clear_barlineStyle(mnx::StaffGroupBarlineStyle::Individual);
@@ -171,7 +171,7 @@ static void buildOrderedContent(
             buildOrderedContent(mnxGroup.content(), context, groups, systemStaves, forMeas, index, *group.endSlot, groupIndex + 1);
             index = (std::max)(*group.endSlot + 1, index);
         } else {
-            auto mnxStaff = content.append<mnx::layout::Staff>();
+            auto mnxStaff = content.appendStaff();
             buildMnxStaff(std::move(mnxStaff), context, forMeas, systemStaves[index++]);
         }
         if (index > toIndex) {

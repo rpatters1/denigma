@@ -27,6 +27,9 @@
 #include <unordered_set>
 
 #include "mnx.h"
+#include "mnx_expressions.h"
+#include "mnx_smartshapes.h"
+
 #include "denigma/classify/clefs.h"
 #include "denigma/classify/dynamics.h"
 
@@ -208,212 +211,6 @@ static void createClefs(
     }
 }
 
-static void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
-    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
-{
-    const StaffCmper staffCmper = context->current.staff;
-    struct ExpressionAttachmentContext {
-        EntryInfoPtr entryInfo;
-        const EntryTarget* entryTarget{ nullptr };
-    };
-
-    auto calcAttachmentContext = [&](const MusxInstance<others::MeasureExprAssign>& asgn) {
-        ExpressionAttachmentContext result;
-        result.entryInfo = asgn->calcAssociatedEntry();
-        if (!result.entryInfo) {
-            return result;
-        }
-        const auto entryNumber = result.entryInfo->getEntry()->getEntryNumber();
-        const auto entryIt = context->entryTargetByNumber.find(entryNumber);
-        if (entryIt != context->entryTargetByNumber.end()) {
-            result.entryTarget = &entryIt->second;
-        }
-        return result;
-    };
-
-    auto appendDynamic = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const musx::util::EnigmaParsingContext& exprCtx, const classify::DynamicClassification& dynamicClass) {
-        if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
-            return;
-        }
-        /// @note This block is a placeholder until the mnx::Dynamic object is better defined.
-        const auto dynValue = classify::dynamicCanonicalText(dynamicClass.dynamic);
-        if (dynValue.empty()) {
-            return;
-        }
-        auto mnxDynamic = mnxMeasure.ensure_dynamics().append(
-            dynValue, mnxFractionFromEdu(asgn->eduPosition));
-        const auto entryInfo = asgn->calcAssociatedEntry();
-        int entryVoice = 1;
-        LayerIndex voiceLayerIdx = asgn->layer > 0 ? asgn->layer - 1 : 0;
-        if (entryInfo) {
-            entryVoice = static_cast<int>(entryInfo->getEntry()->voice2) + 1;
-            if (asgn->layer == 0) {
-                voiceLayerIdx = entryInfo.getLayerIndex();
-            }
-            if (entryInfo->graceIndex > 0) {
-                mnxDynamic.position().set_graceIndex(entryInfo.calcReverseGraceIndex());
-            } else if (entryInfo.calcHasGraceNote()) {
-                mnxDynamic.position().set_graceIndex(0);
-            }
-        } else if (context->current.gfhold) {
-            if (const auto measure = context->document->getOthers()->get<others::Measure>(asgn->getRequestedPartId(), context->current.meas)) {
-                if (musx::util::Fraction::fromEdu(asgn->eduPosition) >= measure->calcDuration(context->current.staff)) {
-                    // if we are at the end of a measure, explicitly require main position to ignore any grace
-                    // notes that might be trailing at the end of the frame
-                    mnxDynamic.position().set_graceIndex(0);
-                }
-            }
-        }
-        auto fontInfo = exprCtx.parseFirstFontInfo();
-        std::string exprText = exprCtx.getText(true, musx::util::EnigmaString::AccidentalStyle::Unicode);
-        if (auto smuflGlyph = utils::smuflGlyphNameForFont(fontInfo, exprText)) {
-            mnxDynamic.set_glyph(std::string(smuflGlyph.value()));
-        }
-        if (asgn->layer > 0 || asgn->voice2 || (entryInfo && entryInfo->getEntry()->v2Launch)) {
-            mnxDynamic.set_staff(mnxStaffNumber.value_or(1));
-            mnxDynamic.set_voice(calcVoice(mnxStaffNumber.value_or(1), voiceLayerIdx, entryVoice));
-        } else if (mnxStaffNumber) {
-            mnxDynamic.set_staff(mnxStaffNumber.value());
-        }
-    };
-
-    auto attachFermata = [&](const MusxInstance<others::MeasureExprAssign>& asgn, const MusxInstance<others::TextExpressionDef>& expr,
-                             const ExpressionAttachmentContext& attachment, const mnx::Fermata& fermata) {
-        if (asgn->calcIsPartOfStaffListAssignment() || expr->horzMeasExprAlign == others::HorizontalMeasExprAlign::RightBarline) {
-            return;
-        }
-        if (attachment.entryTarget) {
-            switch (attachment.entryTarget->kind) {
-            case EntryTargetKind::Event:
-                mnx::sequence::Event(context->mnxDocument->root(), attachment.entryTarget->pointer).set_fermata(fermata);
-                break;
-            case EntryTargetKind::FullMeasureRest:
-                mnx::sequence::FullMeasureRest(context->mnxDocument->root(), attachment.entryTarget->pointer).set_fermata(fermata);
-                break;
-            }
-        } else if (attachment.entryInfo) {
-            context->logMessage(LogMsg() << "Entry " << attachment.entryInfo->getEntry()->getEntryNumber()
-                << " was not mapped to an event or full measure rest", MessageSeverity::Warning);
-        } else {
-            if (mnxMeasure.sequences().empty()) {
-                mnxMeasure.sequences().append();
-            }
-            for (auto seq : mnxMeasure.sequences()) {
-                if (seq.content().empty()) {
-                    auto fullMeasureRest = seq.ensure_fullMeasure();
-                    fullMeasureRest.set_fermata(fermata);
-                }
-            }
-        }
-    };
-
-    auto attachBreathMark = [&](const ExpressionAttachmentContext& attachment, const mnx::sequence::BreathMark& breathMark) {
-        if (attachment.entryTarget && attachment.entryTarget->kind == EntryTargetKind::Event) {
-            mnx::sequence::Event(context->mnxDocument->root(), attachment.entryTarget->pointer).ensure_markings().set_breath(breathMark);
-        }
-    };
-
-    if (musxMeasure->hasExpression) {
-        auto exprAssigns = context->document->getOthers()->getArray<others::MeasureExprAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
-        for (const auto& asgn : exprAssigns) {
-            if (!asgn->calcIsAssignedInRequestedPart()) {
-                continue;
-            }
-            if (asgn->staffAssign == staffCmper && !asgn->hidden) {
-                if (asgn->textExprId) {
-                    if (auto expr = asgn->getTextExpression()) {
-                        if (auto text = expr->getTextBlock()) {
-                            if (auto rawTextCtx = text->getRawTextCtx(SCORE_PARTID)) {
-                                /// @todo Add calculation for above or below, rather than just Float, for marking placement
-                                if (auto dynamicClass = classify::classifyDynamic(expr)) {
-                                    appendDynamic(asgn, rawTextCtx, dynamicClass);
-                                } else if (auto fermata = calcFermata(rawTextCtx)) {
-                                    attachFermata(asgn, expr, calcAttachmentContext(asgn), fermata.value());
-                                } else if (auto breathMark = calcBreathMark(rawTextCtx)) {
-                                    attachBreathMark(calcAttachmentContext(asgn), breathMark.value());
-                                }
-                            } else {
-                                context->logMessage(LogMsg() << "Text block " << text->getCmper() << " has non-existent raw text block " << text->textId, MessageSeverity::Warning);
-                            }
-                        } else {
-                            context->logMessage(LogMsg() << "Text expression " << expr->getCmper() << " has non-existent text block " << expr->textIdKey, MessageSeverity::Warning);
-                        }
-                    }
-                }
-                if (asgn->shapeExprId) {                    
-                    if (const auto candidate = musx::util::calcNonArpeggioSpanForAssignment(asgn)) {
-                        appendArpeggioCandidate(context, mnxMeasure, candidate.value());
-                    }
-                }
-            }
-        }
-    }
-}
-static void processSmartShapes(
-    const MnxMusxMappingPtr& context,
-    mnx::part::Measure mnxMeasure,
-    const MusxInstance<others::Measure>& musxMeasure)
-{
-    const StaffCmper staffCmper = context->current.staff;
-    if (musxMeasure->hasSmartShape) {
-        const auto assigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
-        for (const auto& assign : assigns) {
-            MUSX_ASSERT_IF(!assign) {
-                context->logMessage(LogMsg() << "skipping empty smart shape assignment for measure " << musxMeasure->getCmper(), MessageSeverity::Warning);
-                continue;
-            }
-            if (assign->centerShapeNum != 0) {
-                // ignore assignments in the middle of the shape
-                continue;
-            }
-            if (auto shape = context->document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum)) {
-                if (shape->startTermSeg->endPoint->staffId == staffCmper) {
-                    if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForSmartShape(shape)) {
-                        appendArpeggioCandidate(context, mnxMeasure, nonArpeggio.value());
-                    }
-                }
-            }
-        }
-    }
-}
-
-static void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
-    mnx::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
-{
-    const StaffCmper staffCmper = context->current.staff;
-    context->current.ottavasApplicableInMeasure.clear();
-    if (musxMeasure->hasSmartShape) {
-        auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
-        for (const auto& asgn : shapeAssigns) {
-            if (auto shape = context->document->getOthers()->get<others::SmartShape>(asgn->getRequestedPartId(), asgn->shapeNum)) {
-                if (!shape->hidden && (shape->startTermSeg->endPoint->staffId == staffCmper || shape->endTermSeg->endPoint->staffId == staffCmper)) {
-                    switch (shape->shapeType) {
-                        default: continue;
-                        case others::SmartShape::ShapeType::OctaveDown:
-                        case others::SmartShape::ShapeType::OctaveUp:
-                        case others::SmartShape::ShapeType::TwoOctaveDown:
-                        case others::SmartShape::ShapeType::TwoOctaveUp:
-                            break;
-                    }
-                    context->current.ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
-                    if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
-                        auto mnxOttava = mnxMeasure.ensure_ottavas().append(
-                            enumConvert<mnx::OttavaAmount>(shape->shapeType),
-                            mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
-                            calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
-                            mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint));
-                        mnxOttava.end().position().set_graceIndex(0);   // guarantees inclusion of any grace notes at the end of the ottava
-                        if (mnxStaffNumber) {
-                            mnxOttava.set_staff(mnxStaffNumber.value());
-                        }
-                        /// @todo: orient (if applicable)
-                    }
-                }
-            }
-        }
-    }
-}
-
 static MusxInstance<others::StaffComposite> findCompositeForIdentity(
     const InstrumentInfo& instInfo,
     const InstrumentInfo::InstrumentIdentity& identity)
@@ -485,7 +282,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnx::Part& part)
             createSequences(context, mnxMeasure, staffNumber, musxMeasure);
             // the following must come after sequences, in case we need to attach to events (e.g., fermatas);
             processExpressions(context, musxMeasure, mnxMeasure, staffNumber);
-            processSmartShapes(context, mnxMeasure, musxMeasure);
+            processSmartShapes(context, musxMeasure, mnxMeasure, staffNumber);
         }
     }
     context->clearCounts();

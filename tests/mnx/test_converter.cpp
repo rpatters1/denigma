@@ -62,6 +62,12 @@ TEST(ConverterApi, EnigmaXmlToMnxJsonWritesToStream)
     ASSERT_TRUE(json.contains("mnx"));
     ASSERT_TRUE(json.contains("global"));
     ASSERT_TRUE(json.contains("parts"));
+    ASSERT_TRUE(json["mnx"].contains("_x"));
+    ASSERT_TRUE(json["mnx"]["_x"].contains("mnxdom"));
+    ASSERT_TRUE(json["mnx"]["_x"]["mnxdom"].contains("source"));
+    const auto& source = json["mnx"]["_x"]["mnxdom"]["source"];
+    EXPECT_EQ(source["format"], "enigmaxml");
+    EXPECT_EQ(source["filename"], "notAscii-其れ.enigmaxml");
 }
 
 TEST(ConverterApi, MusxToMnxJsonWritesToStream)
@@ -89,6 +95,12 @@ TEST(ConverterApi, MusxToMnxJsonWritesToStream)
     ASSERT_TRUE(json.contains("mnx"));
     ASSERT_TRUE(json.contains("global"));
     ASSERT_TRUE(json.contains("parts"));
+    ASSERT_TRUE(json["mnx"].contains("_x"));
+    ASSERT_TRUE(json["mnx"]["_x"].contains("mnxdom"));
+    ASSERT_TRUE(json["mnx"]["_x"]["mnxdom"].contains("source"));
+    const auto& source = json["mnx"]["_x"]["mnxdom"]["source"];
+    EXPECT_EQ(source["format"], "musx");
+    EXPECT_EQ(source["filename"], "notAscii-其れ.musx");
 }
 
 TEST(ConverterApi, EnigmaXmlToMnxJsonCollectsErrorDiagnosticsForInvalidXml)
