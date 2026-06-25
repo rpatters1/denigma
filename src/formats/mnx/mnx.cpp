@@ -165,8 +165,14 @@ std::string mnxPartDisplayList(const MnxMusxMappingPtr& context, const std::vect
 static void createMnx(const MnxMusxMappingPtr& context)
 {
     auto& mnxDocument = context->mnxDocument;
-    auto support = mnxDocument->mnx().ensure_support();
+    auto mnx = mnxDocument->mnx();
+    auto support = mnx.ensure_support();
     support.set_useBeams(true);
+
+    auto client = mnx.ensure_mnxdom().ensure_client();
+    client.set_name(DENIGMA_NAME);
+    client.set_version(DENIGMA_VERSION);
+    client.set_commit(DENIGMA_GIT_COMMIT);
 }
 
 static void createScores(const MnxMusxMappingPtr& context)

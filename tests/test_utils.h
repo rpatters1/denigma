@@ -81,8 +81,6 @@ void checkStdout(const std::vector<std::string>& expectedMessages, std::function
 inline void checkStdout(const std::string& expectedMessage, std::function<void()> callback)
 { checkStdout(std::vector<std::string>({ expectedMessage }), callback); }
 
-constexpr const char DENIGMA_NAME[] = "denigma";
-
 #ifdef _WIN32
 constexpr char DIRECTORY_SEP = '\\';
 #else

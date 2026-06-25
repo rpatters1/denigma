@@ -23,7 +23,7 @@ The documentation site for the library API is [https://rpatters1.github.io/denig
 
 ## Linking
 
-If you are consuming Denigma from another CMake target in this repository, link only the narrow library or libraries you need:
+Denigma can also be consumed as libraries from another CMake project. Link only the narrow library or libraries you need:
 
 ```cmake
 target_link_libraries(my_tool PRIVATE denigma::classify)
@@ -34,6 +34,8 @@ target_link_libraries(my_tool PRIVATE denigma::enigmaxml)
 ```
 
 Use `denigma::classify` when you only need classification helpers. Use one of the format targets when you need a specific converter.
+
+The companion [denigma-examples](https://github.com/rpatters1/denigma-examples) repository demonstrates this from separate native and WebAssembly projects using CMake `FetchContent` or a local Denigma checkout.
 
 ## Command line usage
 
