@@ -276,6 +276,8 @@ message(STATUS "Musx Source Directory: ${musx_SOURCE_DIR}")
 
 # Define a cache variable for the local MNX C++ DOM path relative to the source directory.
 set(MNXDOM_LOCAL_PATH "" CACHE STRING "Path to local MNX C++ DOM checkout relative to the source directory (if provided)")
+set(_denigma_mnxdom_git_repository "https://github.com/rpatters1/mnxdom.git")
+include("${PROJECT_SOURCE_DIR}/cmake/GitRefUtils.cmake")
 
 if(MNXDOM_LOCAL_PATH)
     # Combine the source directory with the relative path to get an absolute path.
@@ -284,18 +286,39 @@ if(MNXDOM_LOCAL_PATH)
         message(STATUS "Local MNX C++ DOM found at ${MNXDOM_LOCAL_PATH_ABS}")
         # Set the FetchContent source directory to the computed absolute path.
         set(FETCHCONTENT_SOURCE_DIR_MNXDOM "${MNXDOM_LOCAL_PATH_ABS}" CACHE INTERNAL "")
+        if(GIT_FOUND)
+            execute_process(
+                COMMAND "${GIT_EXECUTABLE}" rev-parse --short HEAD
+                WORKING_DIRECTORY "${MNXDOM_LOCAL_PATH_ABS}"
+                OUTPUT_VARIABLE _denigma_mnxdom_resolved_git_commit
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET
+            )
+            if(_denigma_mnxdom_resolved_git_commit)
+                set(MNXDOM_GIT_COMMIT "${_denigma_mnxdom_resolved_git_commit}" CACHE STRING "mnxdom source control revision to embed in provenance" FORCE)
+            endif()
+        endif()
     else()
         message(FATAL_ERROR "Local MNX C++ DOM not found at ${MNXDOM_LOCAL_PATH_ABS}")
     endif()
 else()
     message(STATUS "Using GitHub for MNX C++ DOM (${MNXDOM_GIT_TAG_OR_BRANCH})")
+    denigma_resolve_git_ref_commit(_denigma_mnxdom_resolved_git_commit "${_denigma_mnxdom_git_repository}" "${MNXDOM_GIT_TAG_OR_BRANCH}")
+    if(_denigma_mnxdom_resolved_git_commit)
+        set(MNXDOM_GIT_COMMIT "${_denigma_mnxdom_resolved_git_commit}" CACHE STRING "mnxdom source control revision to embed in provenance" FORCE)
+    endif()
+endif()
+if(MNXDOM_GIT_COMMIT)
+    message(STATUS "mnxdom Git Commit: ${MNXDOM_GIT_COMMIT}")
+else()
+    message(WARNING "Unable to resolve mnxdom Git commit from ${MNXDOM_GIT_TAG_OR_BRANCH}")
 endif()
 
 option(mnxdom_BUILD_TESTING "Enable testing mnxdom" OFF)
 # Fetch mnxdom
 FetchContent_Declare(
     mnxdom
-    GIT_REPOSITORY https://github.com/rpatters1/mnxdom.git
+    GIT_REPOSITORY ${_denigma_mnxdom_git_repository}
     GIT_TAG        ${MNXDOM_GIT_TAG_OR_BRANCH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
