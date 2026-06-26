@@ -84,9 +84,11 @@ if(MSVC)
     add_compile_options(/Zc:preprocessor) # so stoopid we have to do this in 2026
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
-    # Surface warnings and fail fast so we can fix them close to source.
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+set(DENIGMA_WARNING_OPTIONS "")
+if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
+    list(APPEND DENIGMA_WARNING_OPTIONS -Wall -Wextra -Wpedantic -Werror)
+elseif(MSVC)
+    list(APPEND DENIGMA_WARNING_OPTIONS /W4 /WX)
 endif()
 
 add_compile_definitions(
@@ -342,6 +344,7 @@ target_link_libraries(denigma_musx_pch PRIVATE
     denigma_conversion
     musx
 )
+target_compile_options(denigma_musx_pch PRIVATE ${DENIGMA_WARNING_OPTIONS})
 target_include_directories(denigma_musx_pch PRIVATE
     ${GENERATED_DIR}
     ${PROJECT_SOURCE_DIR}/src
@@ -356,6 +359,7 @@ target_precompile_headers(denigma_musx_pch PRIVATE
 function(add_denigma_internal_library target_name)
     cmake_parse_arguments(DENIGMA_INTERNAL_LIBRARY "MUSX_PCH" "" "" ${ARGN})
     add_library(${target_name} STATIC ${DENIGMA_INTERNAL_LIBRARY_UNPARSED_ARGUMENTS})
+    target_compile_options(${target_name} PRIVATE ${DENIGMA_WARNING_OPTIONS})
     target_link_libraries(${target_name}
         PUBLIC
             denigma_conversion
@@ -383,6 +387,7 @@ add_executable(denigma
     src/main.cpp
     src/about.cpp
 )
+target_compile_options(denigma PRIVATE ${DENIGMA_WARNING_OPTIONS})
 
 # For the denigma target specifically
 if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
