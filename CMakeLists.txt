@@ -84,9 +84,11 @@ if(MSVC)
     add_compile_options(/Zc:preprocessor) # so stoopid we have to do this in 2026
 endif()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
-    # Surface mnxdom warnings and fail fast so we can fix them upstream.
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+set(DENIGMA_WARNING_OPTIONS "")
+if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
+    list(APPEND DENIGMA_WARNING_OPTIONS -Wall -Wextra -Wpedantic -Werror)
+elseif(MSVC)
+    list(APPEND DENIGMA_WARNING_OPTIONS /W4 /WX)
 endif()
 
 add_compile_definitions(
@@ -125,6 +127,16 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(pugixml)
+
+set(NLOHMANN_JSON_VERSION 3.12.0)
+set(JSON_BuildTests OFF CACHE BOOL "Do not build tests for nlohmann_json")
+FetchContent_Declare(
+    nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v${NLOHMANN_JSON_VERSION}/json.tar.xz
+    URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
 # Fetch zlib
 set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "Do not build zlib examples")
@@ -173,70 +185,6 @@ target_link_libraries(denigma_minizip PUBLIC ${_denigma_zlib_target})
 
 include(cmake/Dependencies.cmake) # GitHub branches/tags for MNX and MUSX
 
-set(DENIGMA_TEXT_METRICS_DEFINES "")
-set(DENIGMA_TEXT_METRICS_LIBS "")
-set(DENIGMA_TEXT_METRICS_INCLUDE_DIRS "")
-
-# Build FreeType from source so we do not require external package installation.
-set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "Disable HarfBuzz support in FreeType" FORCE)
-set(FT_DISABLE_BROTLI ON CACHE BOOL "Disable Brotli support in FreeType" FORCE)
-set(FT_DISABLE_BZIP2 ON CACHE BOOL "Disable bzip2 support in FreeType" FORCE)
-set(FT_DISABLE_PNG ON CACHE BOOL "Disable libpng support in FreeType" FORCE)
-set(FT_DISABLE_ZLIB ON CACHE BOOL "Disable zlib support in FreeType" FORCE)
-set(FT_DISABLE_TESTS ON CACHE BOOL "Disable FreeType tests" FORCE)
-set(FT_REQUIRE_ZLIB OFF CACHE BOOL "Do not require zlib for FreeType" FORCE)
-
-FetchContent_Declare(
-    freetype
-    URL https://download.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.xz
-    URL_HASH SHA256=32427e8c471ac095853212a37aef816c60b42052d4d9e48230bab3bdf2936ccc
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(freetype)
-
-if(TARGET freetype)
-    set(_denigma_freetype_target freetype)
-elseif(TARGET Freetype::Freetype)
-    set(_denigma_freetype_target Freetype::Freetype)
-else()
-    message(FATAL_ERROR "Unable to determine FreeType target name after FetchContent_MakeAvailable(freetype).")
-endif()
-message(STATUS "Using FreeType target: ${_denigma_freetype_target}")
-list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_FREETYPE=1)
-list(APPEND DENIGMA_TEXT_METRICS_LIBS ${_denigma_freetype_target})
-if(TARGET freetype AND CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang")
-    target_compile_options(freetype PRIVATE -Wno-macro-redefined)
-endif()
-
-if(UNIX AND NOT APPLE)
-    find_path(DENIGMA_FONTCONFIG_INCLUDE_DIR fontconfig/fontconfig.h)
-    find_library(DENIGMA_FONTCONFIG_LIBRARY NAMES fontconfig)
-
-    if(DENIGMA_FONTCONFIG_INCLUDE_DIR AND DENIGMA_FONTCONFIG_LIBRARY)
-        list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_FONTCONFIG=1)
-        list(APPEND DENIGMA_TEXT_METRICS_LIBS ${DENIGMA_FONTCONFIG_LIBRARY})
-        list(APPEND DENIGMA_TEXT_METRICS_INCLUDE_DIRS ${DENIGMA_FONTCONFIG_INCLUDE_DIR})
-        message(STATUS "Text metrics resolver enabled: fontconfig (find_path/find_library)")
-        message(STATUS "  fontconfig include: ${DENIGMA_FONTCONFIG_INCLUDE_DIR}")
-        message(STATUS "  fontconfig library: ${DENIGMA_FONTCONFIG_LIBRARY}")
-    else()
-        message(WARNING "Text metrics resolver disabled: fontconfig not found (find_path/find_library). Install libfontconfig1-dev to enable it.")
-        message(STATUS "  fontconfig include: ${DENIGMA_FONTCONFIG_INCLUDE_DIR}")
-        message(STATUS "  fontconfig library: ${DENIGMA_FONTCONFIG_LIBRARY}")
-        message(STATUS "Text metrics resolver fallback: FreeType directory-index lookup")
-    endif()
-elseif(APPLE)
-    find_library(DENIGMA_CORETEXT_FRAMEWORK CoreText REQUIRED)
-    find_library(DENIGMA_COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
-    list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_CORETEXT=1)
-    list(APPEND DENIGMA_TEXT_METRICS_LIBS ${DENIGMA_CORETEXT_FRAMEWORK} ${DENIGMA_COREFOUNDATION_FRAMEWORK})
-    message(STATUS "Text metrics resolver enabled: CoreText")
-elseif(WIN32)
-    list(APPEND DENIGMA_TEXT_METRICS_DEFINES DENIGMA_USE_DIRECTWRITE=1)
-    list(APPEND DENIGMA_TEXT_METRICS_LIBS dwrite)
-    message(STATUS "Text metrics resolver enabled: DirectWrite")
-endif()
-
 # Define a cache variable for the local Musx C++ DOM path relative to the source directory.
 set(MUSX_LOCAL_PATH "" CACHE STRING "Path to local Musx C++ DOM checkout relative to the source directory (if provided)")
 
@@ -274,59 +222,6 @@ FetchContent_MakeAvailable(musx)
 FetchContent_GetProperties(musx)
 message(STATUS "Musx Source Directory: ${musx_SOURCE_DIR}")
 
-# Define a cache variable for the local MNX C++ DOM path relative to the source directory.
-set(MNXDOM_LOCAL_PATH "" CACHE STRING "Path to local MNX C++ DOM checkout relative to the source directory (if provided)")
-set(_denigma_mnxdom_git_repository "https://github.com/rpatters1/mnxdom.git")
-include("${PROJECT_SOURCE_DIR}/cmake/GitRefUtils.cmake")
-
-if(MNXDOM_LOCAL_PATH)
-    # Combine the source directory with the relative path to get an absolute path.
-    get_filename_component(MNXDOM_LOCAL_PATH_ABS "${PROJECT_SOURCE_DIR}/${MNXDOM_LOCAL_PATH}" ABSOLUTE)
-    if(EXISTS "${MNXDOM_LOCAL_PATH_ABS}/CMakeLists.txt")
-        message(STATUS "Local MNX C++ DOM found at ${MNXDOM_LOCAL_PATH_ABS}")
-        # Set the FetchContent source directory to the computed absolute path.
-        set(FETCHCONTENT_SOURCE_DIR_MNXDOM "${MNXDOM_LOCAL_PATH_ABS}" CACHE INTERNAL "")
-        if(GIT_FOUND)
-            execute_process(
-                COMMAND "${GIT_EXECUTABLE}" rev-parse --short HEAD
-                WORKING_DIRECTORY "${MNXDOM_LOCAL_PATH_ABS}"
-                OUTPUT_VARIABLE _denigma_mnxdom_resolved_git_commit
-                OUTPUT_STRIP_TRAILING_WHITESPACE
-                ERROR_QUIET
-            )
-            if(_denigma_mnxdom_resolved_git_commit)
-                set(MNXDOM_GIT_COMMIT "${_denigma_mnxdom_resolved_git_commit}" CACHE STRING "mnxdom source control revision to embed in provenance" FORCE)
-            endif()
-        endif()
-    else()
-        message(FATAL_ERROR "Local MNX C++ DOM not found at ${MNXDOM_LOCAL_PATH_ABS}")
-    endif()
-else()
-    message(STATUS "Using GitHub for MNX C++ DOM (${MNXDOM_GIT_TAG_OR_BRANCH})")
-    denigma_resolve_git_ref_commit(_denigma_mnxdom_resolved_git_commit "${_denigma_mnxdom_git_repository}" "${MNXDOM_GIT_TAG_OR_BRANCH}")
-    if(_denigma_mnxdom_resolved_git_commit)
-        set(MNXDOM_GIT_COMMIT "${_denigma_mnxdom_resolved_git_commit}" CACHE STRING "mnxdom source control revision to embed in provenance" FORCE)
-    endif()
-endif()
-if(MNXDOM_GIT_COMMIT)
-    message(STATUS "mnxdom Git Commit: ${MNXDOM_GIT_COMMIT}")
-else()
-    message(WARNING "Unable to resolve mnxdom Git commit from ${MNXDOM_GIT_TAG_OR_BRANCH}")
-endif()
-
-option(mnxdom_BUILD_TESTING "Enable testing mnxdom" OFF)
-# Fetch mnxdom
-FetchContent_Declare(
-    mnxdom
-    GIT_REPOSITORY ${_denigma_mnxdom_git_repository}
-    GIT_TAG        ${MNXDOM_GIT_TAG_OR_BRANCH}
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(mnxdom)
-
-FetchContent_GetProperties(mnxdom)
-message(STATUS "mnxdom Source Directory: ${mnxdom_SOURCE_DIR}")
-
 # Define a cache variable for the local Smufl Mapping Library path relative to the source directory.
 set(SMUFL_MAPPING_LOCAL_PATH "" CACHE STRING "Path to local Smufl Mapping Library checkout relative to the source directory (if provided)")
 
@@ -362,8 +257,6 @@ add_custom_target(PrintConfig ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Active build configuration: $<CONFIG>"
 )
 
-include("${PROJECT_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
-
 add_library(denigma_conversion INTERFACE)
 add_library(denigma::conversion ALIAS denigma_conversion)
 target_include_directories(denigma_conversion INTERFACE
@@ -387,6 +280,7 @@ target_link_libraries(denigma_musx_pch PRIVATE
     denigma_conversion
     musx
 )
+target_compile_options(denigma_musx_pch PRIVATE ${DENIGMA_WARNING_OPTIONS})
 target_include_directories(denigma_musx_pch PRIVATE
     ${GENERATED_DIR}
     ${PROJECT_SOURCE_DIR}/src
@@ -401,6 +295,7 @@ target_precompile_headers(denigma_musx_pch PRIVATE
 function(add_denigma_internal_library target_name)
     cmake_parse_arguments(DENIGMA_INTERNAL_LIBRARY "MUSX_PCH" "" "" ${ARGN})
     add_library(${target_name} STATIC ${DENIGMA_INTERNAL_LIBRARY_UNPARSED_ARGUMENTS})
+    target_compile_options(${target_name} PRIVATE ${DENIGMA_WARNING_OPTIONS})
     target_link_libraries(${target_name}
         PUBLIC
             denigma_conversion
@@ -421,11 +316,14 @@ option(denigma_BUILD_TESTING "Build the Denigma test suite" ON)
 
 add_subdirectory(src)
 
+include("${PROJECT_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
+
 # Add executable target
 add_executable(denigma
     src/main.cpp
     src/about.cpp
 )
+target_compile_options(denigma PRIVATE ${DENIGMA_WARNING_OPTIONS})
 
 # For the denigma target specifically
 if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
@@ -441,6 +339,9 @@ target_link_libraries(denigma PRIVATE
     denigma_massage
     denigma_internal_deps
 )
+if(DENIGMA_HAS_FREETYPE_LICENSE)
+    target_compile_definitions(denigma PRIVATE DENIGMA_HAS_FREETYPE_LICENSE=1)
+endif()
 
 set(DEPLOY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/denigma)
 

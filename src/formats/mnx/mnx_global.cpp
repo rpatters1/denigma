@@ -370,9 +370,9 @@ static void createLyricsGlobal(const MnxMusxMappingPtr& context)
             }
         }
     };
-    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsVerse>(SCORE_PARTID, 0, 0));
-    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsChorus>(SCORE_PARTID, 0, 0));
-    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsSection>(SCORE_PARTID, 0, 0));
+    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsVerse>(SCORE_PARTID, 0, Cmper{0}));
+    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsChorus>(SCORE_PARTID, 0, Cmper{0}));
+    addBaselines(musxDocument->getDetails()->getArray<details::BaselineLyricsSection>(SCORE_PARTID, 0, Cmper{0}));
     std::sort(baselines.begin(), baselines.end(), [](const auto& a, const auto& b) {
         if (a.second->baselineDisplacement != b.second->baselineDisplacement) {
             return a.second->baselineDisplacement > b.second->baselineDisplacement;
