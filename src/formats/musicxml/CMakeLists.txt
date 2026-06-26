@@ -34,6 +34,36 @@ unset(_denigma_musicxml_compile_options)
 FetchContent_GetProperties(mx)
 message(STATUS "mx MusicXML DOM Source Directory: ${mx_SOURCE_DIR}")
 
+function(denigma_read_pugixml_version out_var header_path)
+    unset(_denigma_pugixml_version)
+    if(EXISTS "${header_path}")
+        file(STRINGS "${header_path}" _denigma_pugixml_version_line
+            REGEX "^[ \t]*#[ \t]*define[ \t]+PUGIXML_VERSION[ \t]+[0-9]+"
+        )
+        if(_denigma_pugixml_version_line MATCHES "PUGIXML_VERSION[ \t]+([0-9]+)")
+            set(_denigma_pugixml_version "${CMAKE_MATCH_1}")
+        endif()
+    endif()
+    set(${out_var} "${_denigma_pugixml_version}" PARENT_SCOPE)
+endfunction()
+
+denigma_read_pugixml_version(
+    _denigma_pugixml_version
+    "${pugixml_SOURCE_DIR}/src/pugixml.hpp"
+)
+denigma_read_pugixml_version(
+    _mx_vendored_pugixml_version
+    "${mx_SOURCE_DIR}/src/private/pugixml/pugixml.hpp"
+)
+if(_denigma_pugixml_version
+        AND _mx_vendored_pugixml_version
+        AND _denigma_pugixml_version LESS _mx_vendored_pugixml_version)
+    message(WARNING
+        "Denigma pugixml (${_denigma_pugixml_version}) is older than "
+        "mx vendored pugixml (${_mx_vendored_pugixml_version})."
+    )
+endif()
+
 set(DENIGMA_FORMAT_MUSICXML_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/musicxml.cpp
 )
