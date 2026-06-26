@@ -85,7 +85,7 @@ if(MSVC)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
-    # Surface mnxdom warnings and fail fast so we can fix them upstream.
+    # Surface warnings and fail fast so we can fix them close to source.
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
@@ -125,6 +125,16 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(pugixml)
+
+set(NLOHMANN_JSON_VERSION 3.12.0)
+set(JSON_BuildTests OFF CACHE BOOL "Do not build tests for nlohmann_json")
+FetchContent_Declare(
+    nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v${NLOHMANN_JSON_VERSION}/json.tar.xz
+    URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
 # Fetch zlib
 set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "Do not build zlib examples")
@@ -274,59 +284,6 @@ FetchContent_MakeAvailable(musx)
 FetchContent_GetProperties(musx)
 message(STATUS "Musx Source Directory: ${musx_SOURCE_DIR}")
 
-# Define a cache variable for the local MNX C++ DOM path relative to the source directory.
-set(MNXDOM_LOCAL_PATH "" CACHE STRING "Path to local MNX C++ DOM checkout relative to the source directory (if provided)")
-set(_denigma_mnxdom_git_repository "https://github.com/rpatters1/mnxdom.git")
-include("${PROJECT_SOURCE_DIR}/cmake/GitRefUtils.cmake")
-
-if(MNXDOM_LOCAL_PATH)
-    # Combine the source directory with the relative path to get an absolute path.
-    get_filename_component(MNXDOM_LOCAL_PATH_ABS "${PROJECT_SOURCE_DIR}/${MNXDOM_LOCAL_PATH}" ABSOLUTE)
-    if(EXISTS "${MNXDOM_LOCAL_PATH_ABS}/CMakeLists.txt")
-        message(STATUS "Local MNX C++ DOM found at ${MNXDOM_LOCAL_PATH_ABS}")
-        # Set the FetchContent source directory to the computed absolute path.
-        set(FETCHCONTENT_SOURCE_DIR_MNXDOM "${MNXDOM_LOCAL_PATH_ABS}" CACHE INTERNAL "")
-        if(GIT_FOUND)
-            execute_process(
-                COMMAND "${GIT_EXECUTABLE}" rev-parse --short HEAD
-                WORKING_DIRECTORY "${MNXDOM_LOCAL_PATH_ABS}"
-                OUTPUT_VARIABLE _denigma_mnxdom_resolved_git_commit
-                OUTPUT_STRIP_TRAILING_WHITESPACE
-                ERROR_QUIET
-            )
-            if(_denigma_mnxdom_resolved_git_commit)
-                set(MNXDOM_GIT_COMMIT "${_denigma_mnxdom_resolved_git_commit}" CACHE STRING "mnxdom source control revision to embed in provenance" FORCE)
-            endif()
-        endif()
-    else()
-        message(FATAL_ERROR "Local MNX C++ DOM not found at ${MNXDOM_LOCAL_PATH_ABS}")
-    endif()
-else()
-    message(STATUS "Using GitHub for MNX C++ DOM (${MNXDOM_GIT_TAG_OR_BRANCH})")
-    denigma_resolve_git_ref_commit(_denigma_mnxdom_resolved_git_commit "${_denigma_mnxdom_git_repository}" "${MNXDOM_GIT_TAG_OR_BRANCH}")
-    if(_denigma_mnxdom_resolved_git_commit)
-        set(MNXDOM_GIT_COMMIT "${_denigma_mnxdom_resolved_git_commit}" CACHE STRING "mnxdom source control revision to embed in provenance" FORCE)
-    endif()
-endif()
-if(MNXDOM_GIT_COMMIT)
-    message(STATUS "mnxdom Git Commit: ${MNXDOM_GIT_COMMIT}")
-else()
-    message(WARNING "Unable to resolve mnxdom Git commit from ${MNXDOM_GIT_TAG_OR_BRANCH}")
-endif()
-
-option(mnxdom_BUILD_TESTING "Enable testing mnxdom" OFF)
-# Fetch mnxdom
-FetchContent_Declare(
-    mnxdom
-    GIT_REPOSITORY ${_denigma_mnxdom_git_repository}
-    GIT_TAG        ${MNXDOM_GIT_TAG_OR_BRANCH}
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(mnxdom)
-
-FetchContent_GetProperties(mnxdom)
-message(STATUS "mnxdom Source Directory: ${mnxdom_SOURCE_DIR}")
-
 # Define a cache variable for the local Smufl Mapping Library path relative to the source directory.
 set(SMUFL_MAPPING_LOCAL_PATH "" CACHE STRING "Path to local Smufl Mapping Library checkout relative to the source directory (if provided)")
 
@@ -361,8 +318,6 @@ message(STATUS "Smufl Mapping Source Directory: ${smufl_mapping_SOURCE_DIR}")
 add_custom_target(PrintConfig ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Active build configuration: $<CONFIG>"
 )
-
-include("${PROJECT_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
 
 add_library(denigma_conversion INTERFACE)
 add_library(denigma::conversion ALIAS denigma_conversion)
@@ -420,6 +375,8 @@ endfunction()
 option(denigma_BUILD_TESTING "Build the Denigma test suite" ON)
 
 add_subdirectory(src)
+
+include("${PROJECT_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
 
 # Add executable target
 add_executable(denigma

@@ -61,6 +61,10 @@ endfunction()
         "${zlib_SOURCE_DIR}"          # zlib.h included by minizip headers
         "${zlib_BINARY_DIR}"          # generated zconf.h included by zlib.h
         "${zlib_SOURCE_DIR}/contrib/minizip"
+        $<TARGET_PROPERTY:mnxdom,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+    target_compile_definitions(denigma_tests PRIVATE
+        $<TARGET_PROPERTY:mnxdom,INTERFACE_COMPILE_DEFINITIONS>
     )
 
     # Tests intentionally aggregate broad dependencies. Do not copy this
@@ -71,6 +75,7 @@ endfunction()
         denigma_core_test
         denigma_utils
         denigma_internal_deps
+        nlohmann_json::nlohmann_json
         pugixml
     )
 
@@ -92,6 +97,10 @@ endfunction()
         "${zlib_SOURCE_DIR}"
         "${zlib_BINARY_DIR}"
         "${zlib_SOURCE_DIR}/contrib/minizip"
+        $<TARGET_PROPERTY:mnxdom,INTERFACE_INCLUDE_DIRECTORIES>
+    )
+    target_compile_definitions(denigma_tests_pch PRIVATE
+        $<TARGET_PROPERTY:mnxdom,INTERFACE_COMPILE_DEFINITIONS>
     )
     target_link_libraries(denigma_tests_pch PRIVATE
         denigma_export_test
@@ -99,6 +108,7 @@ endfunction()
         denigma_core_test
         denigma_utils
         denigma_internal_deps
+        nlohmann_json::nlohmann_json
         pugixml
     )
     target_compile_definitions(denigma_tests_pch PRIVATE
