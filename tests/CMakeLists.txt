@@ -82,6 +82,9 @@ endfunction()
     target_compile_definitions(denigma_tests PRIVATE
         MUSX_TEST_DATA_PATH="${musx_SOURCE_DIR}/tests/data"
     )
+    if(DENIGMA_HAS_FREETYPE_LICENSE)
+        target_compile_definitions(denigma_tests PRIVATE DENIGMA_HAS_FREETYPE_LICENSE=1)
+    endif()
 
     # Define testing-specific preprocessor macro
     target_compile_definitions(denigma_tests PRIVATE DENIGMA_TEST)

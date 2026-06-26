@@ -21,6 +21,8 @@
  */
 #include "core/denigma.h"
 
+#include <span>
+
 namespace denigma {
 #include "denigma_license.xxd"
 }
@@ -45,26 +47,33 @@ namespace pugixml {
 #include "pugixml_license.xxd"
 }
 
+#ifdef DENIGMA_HAS_FREETYPE_LICENSE
 namespace freetype {
 #include "freetype_license.xxd"
 }
+#endif
 
-constexpr std::basic_string_view<unsigned char> denigmaLicense(denigma::LICENSE, sizeof(denigma::LICENSE));
-constexpr std::basic_string_view<unsigned char> zlibLicense(zlib::LICENSE, sizeof(zlib::LICENSE));
-constexpr std::basic_string_view<unsigned char> mnxLicense(mnxdom::LICENSE, sizeof(mnxdom::LICENSE));
-constexpr std::basic_string_view<unsigned char> musxLicense(musx::LICENSE, sizeof(musx::LICENSE));
-constexpr std::basic_string_view<unsigned char> smuflLicense(smufl_mapping::LICENSE, sizeof(smufl_mapping::LICENSE));
-constexpr std::basic_string_view<unsigned char> pugixmlLicense(pugixml::LICENSE_md, sizeof(pugixml::LICENSE_md));
-constexpr std::basic_string_view<unsigned char> freetypeLicense(freetype::FTL_TXT, sizeof(freetype::FTL_TXT));
+constexpr std::span<const unsigned char> denigmaLicense(denigma::LICENSE, sizeof(denigma::LICENSE));
+constexpr std::span<const unsigned char> zlibLicense(zlib::LICENSE, sizeof(zlib::LICENSE));
+constexpr std::span<const unsigned char> mnxLicense(mnxdom::LICENSE, sizeof(mnxdom::LICENSE));
+constexpr std::span<const unsigned char> musxLicense(musx::LICENSE, sizeof(musx::LICENSE));
+constexpr std::span<const unsigned char> smuflLicense(smufl_mapping::LICENSE, sizeof(smufl_mapping::LICENSE));
+constexpr std::span<const unsigned char> pugixmlLicense(pugixml::LICENSE_md, sizeof(pugixml::LICENSE_md));
+#ifdef DENIGMA_HAS_FREETYPE_LICENSE
+constexpr std::span<const unsigned char> freetypeLicense(freetype::FTL_TXT, sizeof(freetype::FTL_TXT));
+#endif
 
-constexpr auto licenses = std::to_array<std::pair<std::string_view, std::basic_string_view<unsigned char>>>({
+constexpr auto licenses = std::to_array<std::pair<std::string_view, std::span<const unsigned char>>>({
     { "denigma", denigmaLicense },
     { "musx object model", musxLicense },
     { "mnx object model", mnxLicense },
     { "SMuFL mapping", smuflLicense },
     { "zlib", zlibLicense },
-    { "pugixml", pugixmlLicense },
+    { "pugixml", pugixmlLicense }
+#ifdef DENIGMA_HAS_FREETYPE_LICENSE
+    ,
     { "FreeType (FTL)", freetypeLicense }
+#endif
 });
 
 namespace denigma {

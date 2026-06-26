@@ -20,6 +20,7 @@ target_link_libraries(denigma_smufl_support
 add_denigma_internal_library(denigma_textmetrics MUSX_PCH
     ${CMAKE_CURRENT_LIST_DIR}/textmetrics.cpp
 )
+include("${PROJECT_SOURCE_DIR}/cmake/TextMetricsDependencies.cmake")
 # Text metrics brings platform/font resolver dependencies. Link it directly from
 # converters that measure text, such as SVG and MSS; do not add it to
 # denigma_utils or MNX/EnigmaXML will inherit the whole font stack.
@@ -29,10 +30,10 @@ target_link_libraries(denigma_textmetrics
         musx
     PRIVATE
         denigma_smufl_support
-        ${DENIGMA_TEXT_METRICS_LIBS}
+        ${_denigma_textmetrics_libs}
 )
-target_include_directories(denigma_textmetrics PRIVATE ${DENIGMA_TEXT_METRICS_INCLUDE_DIRS})
-target_compile_definitions(denigma_textmetrics PRIVATE ${DENIGMA_TEXT_METRICS_DEFINES})
+target_include_directories(denigma_textmetrics PRIVATE ${_denigma_textmetrics_include_dirs})
+target_compile_definitions(denigma_textmetrics PRIVATE ${_denigma_textmetrics_defines})
 
 add_denigma_internal_library(denigma_zip MUSX_PCH
     ${CMAKE_CURRENT_LIST_DIR}/ziputils.cpp

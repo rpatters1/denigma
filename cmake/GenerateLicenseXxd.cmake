@@ -3,13 +3,11 @@
 
 # Define parallel lists for file paths and their corresponding prefixes
 set(FREETYPE_LICENSE_FILE "")
-if(DEFINED freetype_SOURCE_DIR AND EXISTS "${freetype_SOURCE_DIR}")
-    if(EXISTS "${freetype_SOURCE_DIR}/docs/FTL.TXT")
-        set(FREETYPE_LICENSE_FILE "${freetype_SOURCE_DIR}/docs/FTL.TXT")
-    else()
-        message(FATAL_ERROR "FreeType FTL license file not found at ${freetype_SOURCE_DIR}/docs/FTL.TXT")
-    endif()
+get_property(FREETYPE_LICENSE_FILE GLOBAL PROPERTY DENIGMA_FREETYPE_LICENSE_FILE)
+if(FREETYPE_LICENSE_FILE AND NOT EXISTS "${FREETYPE_LICENSE_FILE}")
+    message(FATAL_ERROR "FreeType FTL license file not found at ${FREETYPE_LICENSE_FILE}")
 endif()
+set(DENIGMA_HAS_FREETYPE_LICENSE OFF)
 
 set(LICENSE_FILES
     "${PROJECT_SOURCE_DIR}/LICENSE"
@@ -35,6 +33,7 @@ set(LICENSE_PREFIXES
 
 if(FREETYPE_LICENSE_FILE)
     list(APPEND LICENSE_PREFIXES freetype)
+    set(DENIGMA_HAS_FREETYPE_LICENSE ON)
 endif()
 
 # Ensure both lists have the same length
