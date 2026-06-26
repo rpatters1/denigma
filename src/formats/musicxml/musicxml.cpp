@@ -20,16 +20,103 @@
  * THE SOFTWARE.
  */
 
+#include "musicxml.h"
+
+#include <ostream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+
 #include "mx/api/DocumentManager.h"
+#include "mx/api/ScoreData.h"
 
 namespace denigma {
 namespace formats {
 namespace musicxml {
 namespace detail {
 
-void linkMxProbe()
+namespace {
+
+std::string mxResultMessage(std::string_view operation, const mx::api::ApiError& error)
 {
-    (void)mx::api::DocumentManager::getInstance();
+    std::string result = "mx " + std::string(operation) + " failed with result code "
+        + std::to_string(static_cast<int>(error.code));
+    if (!error.message.empty()) {
+        result += ": " + error.message;
+    }
+    if (!error.path.empty()) {
+        result += " at " + error.path;
+    }
+    return result;
+}
+
+mx::api::ScoreData createHelloWorldScore()
+{
+    using namespace mx::api;
+
+    constexpr int ticksPerQuarter = 4;
+
+    ScoreData score;
+    score.workTitle = "Hello World";
+    score.composer = "Denigma";
+    score.ticksPerQuarter = ticksPerQuarter;
+
+    score.encoding.software.push_back(std::string(DENIGMA_NAME) + " " + DENIGMA_VERSION);
+
+    score.parts.emplace_back(PartData{});
+    auto& part = score.parts.back();
+    part.name = "Piano";
+    part.abbreviation = "Pno.";
+    part.displayName = "Piano";
+    part.displayAbbreviation = "Pno.";
+
+    part.measures.emplace_back(MeasureData{});
+    auto& measure = part.measures.back();
+    measure.timeSignature.beats = "4";
+    measure.timeSignature.beatType = "4";
+    measure.timeSignature.isImplicit = false;
+
+    measure.staves.emplace_back(StaffData{});
+    auto& staff = measure.staves.back();
+
+    auto clef = ClefData{};
+    clef.setTreble();
+    staff.clefs.emplace_back(clef);
+
+    staff.voices[0] = VoiceData{};
+    auto& voice = staff.voices.at(0);
+
+    NoteData note;
+    note.pitchData.step = Step::c;
+    note.pitchData.alter = 0;
+    note.pitchData.octave = 4;
+    note.pitchData.accidental = Accidental::none;
+    note.durationData.durationName = DurationName::whole;
+    note.durationData.durationTimeTicks = ticksPerQuarter * 4;
+    note.tickTimePosition = 0;
+    voice.notes.push_back(note);
+
+    score.sort();
+    return score;
+}
+
+} // namespace
+
+void exportMusicXml(std::ostream& output, const CommandInputData&, const DenigmaContext&)
+{
+    auto& documentManager = mx::api::DocumentManager::getInstance();
+
+    const auto idResult = documentManager.createFromScore(createHelloWorldScore());
+    if (!idResult.ok()) {
+        throw std::runtime_error(mxResultMessage("createFromScore", idResult.error()));
+    }
+
+    const int documentId = idResult.value();
+    const auto writeResult = documentManager.writeToStream(documentId, output);
+    documentManager.destroyDocument(documentId);
+    if (!writeResult.ok()) {
+        throw std::runtime_error(mxResultMessage("writeToStream", writeResult.error()));
+    }
 }
 
 } // namespace detail

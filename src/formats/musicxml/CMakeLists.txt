@@ -25,11 +25,33 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
+set(MX_API ON CACHE BOOL "Build the mx::api/mx::impl product library" FORCE)
+set(MX_CORE_DEV OFF CACHE BOOL "Build mx core development test targets" FORCE)
+set(MX_COVERAGE OFF CACHE BOOL "Instrument mx with coverage flags" FORCE)
+
 get_directory_property(_denigma_musicxml_compile_options COMPILE_OPTIONS)
 set_directory_properties(PROPERTIES COMPILE_OPTIONS "")
 FetchContent_MakeAvailable(mx)
 set_directory_properties(PROPERTIES COMPILE_OPTIONS "${_denigma_musicxml_compile_options}")
 unset(_denigma_musicxml_compile_options)
+
+foreach(_denigma_mx_non_product_target IN ITEMS
+        mxtest-core
+        mxtest-core-dev
+        mxtest-validate
+        mxtest
+        mxtest-api-roundtrip
+        mxread
+        mxwrite
+        mxhide)
+    if(TARGET ${_denigma_mx_non_product_target})
+        set_target_properties(${_denigma_mx_non_product_target} PROPERTIES
+            EXCLUDE_FROM_ALL TRUE
+            EXCLUDE_FROM_DEFAULT_BUILD TRUE
+        )
+    endif()
+endforeach()
+unset(_denigma_mx_non_product_target)
 
 FetchContent_GetProperties(mx)
 message(STATUS "mx MusicXML DOM Source Directory: ${mx_SOURCE_DIR}")
@@ -66,6 +88,7 @@ endif()
 
 set(DENIGMA_FORMAT_MUSICXML_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/musicxml.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/musicxml_converter.cpp
 )
 
 add_denigma_internal_library(denigma_musicxml MUSX_PCH ${DENIGMA_FORMAT_MUSICXML_SOURCES})
