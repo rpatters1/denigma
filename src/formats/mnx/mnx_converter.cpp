@@ -38,7 +38,7 @@ namespace {
 
 DenigmaContext makeMnxContext(const Options& options, const std::filesystem::path& defaultSourceName)
 {
-    DenigmaContext context("denigma");
+    DenigmaContext context(DENIGMA_NAME);
     context.inputFilePath = options.common.sourceName.empty()
         ? defaultSourceName
         : utils::utf8ToPath(options.common.sourceName);

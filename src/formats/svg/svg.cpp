@@ -40,34 +40,8 @@ namespace svg {
 namespace detail {
 
 using namespace musx::dom;
-using namespace musx::factory;
 
 namespace {
-
-DocumentFactory::CreateOptions::EmbeddedGraphicFiles createEmbeddedGraphicFiles(const CommandInputData& inputData)
-{
-    DocumentFactory::CreateOptions::EmbeddedGraphicFiles files;
-    if (inputData.embeddedGraphics.empty()) {
-        return files;
-    }
-    files.reserve(inputData.embeddedGraphics.size());
-    for (const auto& graphic : inputData.embeddedGraphics) {
-        DocumentFactory::CreateOptions::EmbeddedGraphicFile file;
-        file.filename = graphic.filename;
-        file.bytes.assign(graphic.blob.begin(), graphic.blob.end());
-        files.emplace_back(std::move(file));
-    }
-    return files;
-}
-
-DocumentPtr createDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
-{
-    DocumentFactory::CreateOptions options(
-        denigmaContext.inputFilePath,
-        inputData.notationMetadata.value_or(Buffer{}),
-        createEmbeddedGraphicFiles(inputData));
-    return DocumentFactory::create<MusxReader>(inputData.primaryBuffer, std::move(options));
-}
 
 std::filesystem::path appendShapeSuffix(const std::filesystem::path& outputPath, Cmper shapeCmper)
 {
@@ -135,7 +109,7 @@ void convert(const CommandInputData& inputData,
         return;
     }
 
-    auto document = createDocument(inputData, denigmaContext);
+    auto document = denigma::createMusxDocument<MusxReader>(inputData, denigmaContext);
     const auto shapes = selectShapes(document, denigmaContext);
     if (shapes.empty()) {
         denigmaContext.logMessage(LogMsg() << "No ShapeDef entries matched the SVG export filters.", MessageSeverity::Warning);

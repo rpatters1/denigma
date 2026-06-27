@@ -81,7 +81,7 @@ ConversionResult EnigmaXmlToSvgConverter::convert(std::span<const std::byte> inp
         buffer.push_back(static_cast<char>(value));
     }
 
-    DenigmaContext context("denigma");
+    DenigmaContext context(DENIGMA_NAME);
     context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.enigmaxml")
         : utils::utf8ToPath(options.common.sourceName);
@@ -106,7 +106,7 @@ ConversionResult MusxToSvgConverter::convert(const IRandomAccessReader& input,
                                              const Options& options) const
 {
     ConversionResult result;
-    DenigmaContext context("denigma");
+    DenigmaContext context(DENIGMA_NAME);
     context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.musx")
         : utils::utf8ToPath(options.common.sourceName);
