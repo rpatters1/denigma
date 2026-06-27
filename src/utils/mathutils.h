@@ -8,6 +8,9 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -18,20 +21,24 @@
  */
 #pragma once
 
-#include <ostream>
+#include <limits>
+#include <numeric>
+#include <stdexcept>
 
-#include "core/denigma.h"
-#include "musicxml_mapping.h"
+namespace utils {
 
-namespace denigma {
-namespace formats {
-namespace musicxml {
-namespace detail {
+inline int checkedLcm(int a, int b)
+{
+    if (a <= 0 || b <= 0) {
+        throw std::overflow_error("LCM calculation requires positive values.");
+    }
 
-void createMetaData(const MusicXmlMusxMapping& context);
-void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+    const long long gcd = std::gcd(a, b);
+    const long long result = (static_cast<long long>(a) / gcd) * static_cast<long long>(b);
+    if (result > (std::numeric_limits<int>::max)()) {
+        throw std::overflow_error("LCM calculation overflowed.");
+    }
+    return static_cast<int>(result);
+}
 
-} // namespace detail
-} // namespace musicxml
-} // namespace formats
-} // namespace denigma
+} // namespace utils

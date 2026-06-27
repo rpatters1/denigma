@@ -35,6 +35,16 @@ FetchContent_MakeAvailable(mx)
 set_directory_properties(PROPERTIES COMPILE_OPTIONS "${_denigma_musicxml_compile_options}")
 unset(_denigma_musicxml_compile_options)
 
+FetchContent_GetProperties(mx)
+message(STATUS "mx MusicXML DOM Source Directory: ${mx_SOURCE_DIR}")
+
+if(TARGET mx_core)
+    set_target_properties(mx_core PROPERTIES UNITY_BUILD ON)
+endif()
+if(TARGET mx)
+    set_target_properties(mx PROPERTIES UNITY_BUILD ON)
+endif()
+
 foreach(_denigma_mx_non_product_target IN ITEMS
         mxtest-core
         mxtest-core-dev
@@ -52,9 +62,6 @@ foreach(_denigma_mx_non_product_target IN ITEMS
     endif()
 endforeach()
 unset(_denigma_mx_non_product_target)
-
-FetchContent_GetProperties(mx)
-message(STATUS "mx MusicXML DOM Source Directory: ${mx_SOURCE_DIR}")
 
 function(denigma_read_pugixml_version out_var header_path)
     unset(_denigma_pugixml_version)
@@ -89,6 +96,7 @@ endif()
 set(DENIGMA_FORMAT_MUSICXML_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/musicxml.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_converter.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/musicxml_metadata.cpp
 )
 
 add_denigma_internal_library(denigma_musicxml MUSX_PCH ${DENIGMA_FORMAT_MUSICXML_SOURCES})
