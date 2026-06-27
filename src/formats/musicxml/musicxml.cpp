@@ -50,7 +50,7 @@ std::string mxResultMessage(std::string_view operation, const mx::api::ApiError&
     return result;
 }
 
-mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+mx::api::ScoreData createMusicXmlDocument(const CommandInputData& , const DenigmaContext& )
 {
     using namespace mx::api;
 
