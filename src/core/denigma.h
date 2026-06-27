@@ -58,6 +58,8 @@ constexpr int JSON_INDENT_SPACES     = 4;
 
 namespace denigma {
 
+const char* gitCommit();
+
 #ifdef _WIN32
 using arg_view = std::wstring_view;
 using arg_char = WCHAR;

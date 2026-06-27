@@ -174,7 +174,7 @@ static void createMnx(const MnxMusxMappingPtr& context)
     auto client = mnx.ensure_mnxdom().ensure_client();
     client.set_name(DENIGMA_NAME);
     client.set_version(DENIGMA_VERSION);
-    client.set_commit(DENIGMA_GIT_COMMIT);
+    client.set_commit(gitCommit());
 
     const auto& inputFilePath = context->denigmaContext->inputFilePath;
     auto source = mnx.ensure_mnxdom().ensure_source();
