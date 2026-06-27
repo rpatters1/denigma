@@ -21,6 +21,7 @@
 #include <ostream>
 
 #include "core/denigma.h"
+#include "musicxml_mapping.h"
 
 namespace denigma {
 namespace formats {

@@ -50,7 +50,7 @@ std::string mxResultMessage(std::string_view operation, const mx::api::ApiError&
     return result;
 }
 
-mx::api::ScoreData createHelloWorldScore()
+mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
     using namespace mx::api;
 
@@ -102,11 +102,12 @@ mx::api::ScoreData createHelloWorldScore()
 
 } // namespace
 
-void exportMusicXml(std::ostream& output, const CommandInputData&, const DenigmaContext&)
+void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
     auto& documentManager = mx::api::DocumentManager::getInstance();
 
-    const auto idResult = documentManager.createFromScore(createHelloWorldScore());
+    const auto idResult = documentManager.createFromScore(createMusicXmlDocument(inputData, denigmaContext));
     if (!idResult.ok()) {
         throw std::runtime_error(mxResultMessage("createFromScore", idResult.error()));
     }
