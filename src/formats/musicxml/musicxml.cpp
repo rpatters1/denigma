@@ -69,7 +69,10 @@ void createGlobalData(const MusicXmlMusxMapping& context)
 {
     auto& score = *context.musicXmlScore;
     score.ticksPerQuarter = context.timing.divisions;
-    score.defaults.scaling = context.finaleOptions.pageFormatOptions->
+    constexpr auto kUnscaledMmPerStaff = (EVPU_PER_SPACE * (music_theory::STANDARD_NUMBER_OF_STAFFLINES - 1)) / EVPU_PER_MM;
+    score.defaults.scalingMillimeters = context.finaleOptions.effectivePageFormat->calcCombinedSystemScaling().toDouble()
+                                        * kUnscaledMmPerStaff;
+    score.defaults.scalingTenths = 40; // standard value for many musicxml exporters, including Finale
 }
 
 mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
