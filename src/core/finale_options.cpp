@@ -40,11 +40,12 @@ musx::dom::MusxInstance<T> getRequiredOptions(const musx::dom::DocumentPtr& docu
 
 } // namespace
 
-FinaleOptions loadFinaleOptions(const musx::dom::DocumentPtr& document)
+FinaleOptions loadFinaleOptions(const musx::dom::DocumentPtr& document, musx::dom::Cmper forPartId)
 {
     using namespace musx::dom;
 
     FinaleOptions retval;
+    retval.forPartId = forPartId;
 
     retval.fontOptions = getRequiredOptions<options::FontOptions>(document, "font");
     retval.defaultMusicFont = retval.fontOptions->getFontInfo(options::FontOptions::FontType::Music);
@@ -76,6 +77,24 @@ FinaleOptions loadFinaleOptions(const musx::dom::DocumentPtr& document)
     retval.tieOptions = getRequiredOptions<options::TieOptions>(document, "tie");
     retval.timeOptions = getRequiredOptions<options::TimeSignatureOptions>(document, "time signature");
     retval.tupletOptions = getRequiredOptions<options::TupletOptions>(document, "tuplet");
+
+    retval.effectivePageFormat = retval.pageFormatOptions->calcPageFormatForPart(forPartId);
+
+    auto measNumRegions = document->getOthers()->getArray<others::MeasureNumberRegion>(forPartId);
+    if (!measNumRegions.empty()) {
+        retval.effectiveMeasNumScorePart = (forPartId && measNumRegions[0]->useScoreInfoForPart && measNumRegions[0]->partData)
+                                         ? measNumRegions[0]->partData
+                                         : measNumRegions[0]->scoreData;
+        if (!retval.effectiveMeasNumScorePart) {
+            throw std::invalid_argument("document contains no ScorePartData for measure number region "
+                + std::to_string(measNumRegions[0]->getCmper()));
+        }
+    }
+
+    retval.effectivePartGlobals = document->getOthers()->get<others::PartGlobals>(forPartId, MUSX_GLOBALS_CMPER);
+    if (!retval.effectivePartGlobals) {
+        throw std::invalid_argument("document contains no part globals");
+    }
 
     return retval;
 }

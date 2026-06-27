@@ -27,6 +27,8 @@ namespace denigma {
 
 struct FinaleOptions
 {
+    musx::dom::Cmper forPartId{};
+
     musx::dom::MusxInstance<musx::dom::options::FontOptions> fontOptions;
     musx::dom::MusxInstance<musx::dom::FontInfo> defaultMusicFont;
 
@@ -54,8 +56,13 @@ struct FinaleOptions
     musx::dom::MusxInstance<musx::dom::options::TieOptions> tieOptions;
     musx::dom::MusxInstance<musx::dom::options::TimeSignatureOptions> timeOptions;
     musx::dom::MusxInstance<musx::dom::options::TupletOptions> tupletOptions;
+
+    // Values resolved for forPartId, applying Finale's score/part fallback rules.
+    musx::dom::MusxInstance<musx::dom::options::PageFormatOptions::PageFormat> effectivePageFormat;
+    musx::dom::MusxInstance<musx::dom::others::MeasureNumberRegion::ScorePartData> effectiveMeasNumScorePart;
+    musx::dom::MusxInstance<musx::dom::others::PartGlobals> effectivePartGlobals;
 };
 
-FinaleOptions loadFinaleOptions(const musx::dom::DocumentPtr& document);
+FinaleOptions loadFinaleOptions(const musx::dom::DocumentPtr& document, musx::dom::Cmper forPartId = musx::dom::SCORE_PARTID);
 
 } // namespace denigma
