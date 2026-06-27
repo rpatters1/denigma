@@ -36,6 +36,8 @@ namespace formats {
 namespace musicxml {
 namespace detail {
 
+inline constexpr double MUSICXML_DEFAULT_TENTHS_PER_STAFF = 40.0;
+
 struct MusicXmlTimingPlan
 {
     int divisions{};
@@ -96,6 +98,8 @@ struct MusicXmlMusxMapping
     {
         current.clear();
     }
+
+    double musicXmlTenthsFromEvpu(double evpu, double backoutScaling = 1.0) const;
 
     void logMessage(LogMsg&& msg, MessageSeverity severity = MessageSeverity::Info) const
     {

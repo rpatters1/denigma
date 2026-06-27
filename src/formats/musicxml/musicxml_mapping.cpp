@@ -16,11 +16,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#pragma once
 
-#include <ostream>
-
-#include "core/denigma.h"
 #include "musicxml_mapping.h"
 
 namespace denigma {
@@ -28,9 +24,10 @@ namespace formats {
 namespace musicxml {
 namespace detail {
 
-void createGlobalData(const MusicXmlMusxMapping& context);
-void createMetaData(const MusicXmlMusxMapping& context);
-void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+double MusicXmlMusxMapping::musicXmlTenthsFromEvpu(double evpu, double backoutScaling) const
+{
+    return evpu * musicXmlScore->defaults.scalingTenths / musx::dom::EVPU_PER_STANDARD_STAFF / backoutScaling;
+}
 
 } // namespace detail
 } // namespace musicxml
