@@ -20,6 +20,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -38,11 +39,19 @@ namespace detail {
 struct MusicXmlTimingPlan
 {
     int divisions{};
+
+    int calcMusicXmlDivisions(const musx::util::Fraction& wholeNoteFraction) const
+    {
+        const auto result = wholeNoteFraction * 4 * divisions;
+        if (result.denominator() != 1) {
+            throw std::logic_error("MusicXML duration is not representable with the selected divisions.");
+        }
+        return result.numerator();
+    }
 };
 
 struct MusicXmlCurrentLocation
 {
-    musx::dom::Cmper part{};
     musx::dom::MeasCmper measure{};
     musx::dom::StaffCmper staff{};
     musx::dom::LayerIndex layer{};
@@ -51,7 +60,6 @@ struct MusicXmlCurrentLocation
 
     void clear()
     {
-        part = 0;
         measure = 0;
         staff = 0;
         layer = 0;
@@ -62,11 +70,11 @@ struct MusicXmlCurrentLocation
 
 struct MusicXmlMusxMapping
 {
-    MusicXmlMusxMapping(const DenigmaContext& context, const musx::dom::DocumentPtr& doc)
+    MusicXmlMusxMapping(const DenigmaContext& context, const musx::dom::DocumentPtr& doc, musx::dom::Cmper partId)
         : denigmaContext(&context),
           document(doc),
           finaleOptions(loadFinaleOptions(doc)),
-          musxParts(doc, musx::dom::SCORE_PARTID)
+          forPartId(partId)
     {
     }
 
@@ -74,7 +82,7 @@ struct MusicXmlMusxMapping
     musx::dom::DocumentPtr document;
     FinaleOptions finaleOptions;
     std::unique_ptr<mx::api::ScoreData> musicXmlScore;
-    musx::dom::MusxInstanceList<musx::dom::others::PartDefinition> musxParts;
+    musx::dom::Cmper forPartId;
 
     MusicXmlTimingPlan timing;
     MusicXmlCurrentLocation current;

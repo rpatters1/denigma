@@ -20,15 +20,19 @@
  * THE SOFTWARE.
  */
 
-#include "musicxml.h"
-
 #include <ostream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 
+#include "musicxml.h"
+#include "core/musx_reader.h"
+#include "utils/mathutils.h"
+
 #include "mx/api/DocumentManager.h"
 #include "mx/api/ScoreData.h"
+
+using namespace musx::dom;
 
 namespace denigma {
 namespace formats {
@@ -50,18 +54,38 @@ std::string mxResultMessage(std::string_view operation, const mx::api::ApiError&
     return result;
 }
 
-mx::api::ScoreData createMusicXmlDocument(const CommandInputData& , const DenigmaContext& )
+void createTiming(const MusicXmlMusxMapping& context, MusicXmlTimingPlan& timing)
 {
+    int baseDivisions = 1; // default to 1 division per quarter
+    context.document->iterateEntries(context.forPartId, [&](const EntryInfoPtr& entryInfo) -> bool {
+        auto quarterDuration = entryInfo.calcGlobalActualDuration() * 4;
+        baseDivisions = utils::checkedLcm(baseDivisions, quarterDuration.denominator());
+        return true;
+    });
+    timing.divisions = baseDivisions;
+}
+
+void createGlobalData(const MusicXmlMusxMapping& context)
+{
+    auto& score = *context.musicXmlScore;
+    score.ticksPerQuarter = context.timing.divisions;
+    score.defaults.scaling = context.finaleOptions.pageFormatOptions->
+}
+
+mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+{
+    auto document = denigma::createMusxDocument<MusxReader>(inputData, denigmaContext);
+    auto context = MusicXmlMusxMapping(denigmaContext, document, SCORE_PARTID);
+    context.musicXmlScore = std::make_unique<mx::api::ScoreData>();
+
+    createTiming(context, context.timing);
+    createMetaData(context);
+    createGlobalData(context);
+
     using namespace mx::api;
 
-    constexpr int ticksPerQuarter = 4;
-
-    ScoreData score;
-    score.workTitle = "Hello World";
-    score.composer = "Denigma";
-    score.ticksPerQuarter = ticksPerQuarter;
-
-    score.encoding.software.push_back(std::string(DENIGMA_NAME) + " " + DENIGMA_VERSION);
+    // placeholder output
+    auto& score = *context.musicXmlScore;
 
     score.parts.emplace_back(PartData{});
     auto& part = score.parts.back();
@@ -92,7 +116,7 @@ mx::api::ScoreData createMusicXmlDocument(const CommandInputData& , const Denigm
     note.pitchData.octave = 4;
     note.pitchData.accidental = Accidental::none;
     note.durationData.durationName = DurationName::whole;
-    note.durationData.durationTimeTicks = ticksPerQuarter * 4;
+    note.durationData.durationTimeTicks = context.timing.calcMusicXmlDivisions(1);
     note.tickTimePosition = 0;
     voice.notes.push_back(note);
 
