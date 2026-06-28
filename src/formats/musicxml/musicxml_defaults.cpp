@@ -19,6 +19,12 @@
 
 #include "musicxml.h"
 
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <string>
+#include <string_view>
+
 using namespace musx::dom;
 
 namespace denigma {
@@ -27,6 +33,56 @@ namespace musicxml {
 namespace detail {
 
 namespace {
+
+struct MusicFontFallbackMapping
+{
+    std::string_view name;
+    MusicXmlFontFamilyFallback fallback;
+};
+
+std::string normalizedFontName(std::string_view fontName)
+{
+    std::string result;
+    result.reserve(fontName.size());
+    for (const auto ch : fontName) {
+        if (!std::isspace(static_cast<unsigned char>(ch))) {
+            result.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+        }
+    }
+    return result;
+}
+
+MusicXmlFontFamilyFallback musicFontFallbackFromFontInfo(const FontInfo& fontInfo)
+{
+    static constexpr auto knownMusicFonts = std::to_array<MusicFontFallbackMapping>({
+        { "bravura", MusicXmlFontFamilyFallback::Engraved },
+        { "broadwaycopyist", MusicXmlFontFamilyFallback::Handwritten },
+        { "broadwaycopyistperc", MusicXmlFontFamilyFallback::Handwritten },
+        { "finalebroadway", MusicXmlFontFamilyFallback::Handwritten },
+        { "finaleengraver", MusicXmlFontFamilyFallback::Engraved },
+        { "finalejazz", MusicXmlFontFamilyFallback::Handwritten },
+        { "finalemaestro", MusicXmlFontFamilyFallback::Engraved },
+        { "engraver", MusicXmlFontFamilyFallback::Engraved },
+        { "engraverfontset", MusicXmlFontFamilyFallback::Engraved },
+        { "jazz", MusicXmlFontFamilyFallback::Handwritten },
+        { "jazzperc", MusicXmlFontFamilyFallback::Handwritten },
+        { "leland", MusicXmlFontFamilyFallback::Engraved },
+        { "maestro", MusicXmlFontFamilyFallback::Engraved },
+        { "maestropercussion", MusicXmlFontFamilyFallback::Engraved },
+        { "musejazz", MusicXmlFontFamilyFallback::Handwritten },
+        { "opus", MusicXmlFontFamilyFallback::Engraved },
+        { "petaluma", MusicXmlFontFamilyFallback::Handwritten },
+        { "petrucci", MusicXmlFontFamilyFallback::Engraved },
+        { "pmusic", MusicXmlFontFamilyFallback::Engraved },
+        { "sonata", MusicXmlFontFamilyFallback::Engraved },
+    });
+
+    const auto fontName = normalizedFontName(fontInfo.getName());
+    const auto it = std::find_if(knownMusicFonts.begin(), knownMusicFonts.end(), [&](const auto& item) {
+        return item.name == std::string_view(fontName.data(), fontName.size());
+    });
+    return it != knownMusicFonts.end() ? it->fallback : MusicXmlFontFamilyFallback::Music;
+}
 
 void createPageLayoutData(
     const MusicXmlMusxMapping& context,
@@ -133,6 +189,14 @@ void createAppearance(const MusicXmlMusxMapping& context)
     addDistance("beam", options.beamOptions->beamSepar);
 }
 
+void createFontData(const MusicXmlMusxMapping& context)
+{
+    auto& defaults = context.musicXmlScore->defaults;
+    defaults.musicFont = context.musicXmlFontDataFromFontInfo(
+        *context.finaleOptions.defaultMusicFont,
+        musicFontFallbackFromFontInfo(*context.finaleOptions.defaultMusicFont));
+}
+
 } // namespace
 
 void createDefaults(const MusicXmlMusxMapping& context)
@@ -149,6 +213,7 @@ void createDefaults(const MusicXmlMusxMapping& context)
     createPageLayoutData(context, *pagePrefs, combinedSystemScaling);
     createSystemLayoutData(context, *pagePrefs);
     createAppearance(context);
+    createFontData(context);
 }
 
 } // namespace detail

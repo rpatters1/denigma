@@ -29,6 +29,7 @@
 #include "core/denigma.h"
 #include "core/finale_options.h"
 #include "musx/musx.h"
+#include "mx/api/FontData.h"
 #include "mx/api/ScoreData.h"
 
 namespace denigma {
@@ -37,6 +38,20 @@ namespace musicxml {
 namespace detail {
 
 inline constexpr double MUSICXML_DEFAULT_TENTHS_PER_STAFF = 40.0;
+
+enum class MusicXmlFontFamilyFallback
+{
+    None,
+    Music,
+    Engraved,
+    Handwritten,
+    Text,
+    Serif,
+    SansSerif,
+    Cursive,
+    Fantasy,
+    Monospace
+};
 
 struct MusicXmlTimingPlan
 {
@@ -100,6 +115,9 @@ struct MusicXmlMusxMapping
     }
 
     double musicXmlTenthsFromEvpu(double evpu, double backoutScaling = 1.0) const;
+    mx::api::FontData musicXmlFontDataFromFontInfo(
+        const musx::dom::FontInfo& fontInfo,
+        MusicXmlFontFamilyFallback fallback = MusicXmlFontFamilyFallback::None) const;
 
     void logMessage(LogMsg&& msg, MessageSeverity severity = MessageSeverity::Info) const
     {
