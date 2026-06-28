@@ -67,6 +67,72 @@ void createPageLayoutData(
         : evenMargins;
 }
 
+void createSystemLayoutData(
+    const MusicXmlMusxMapping& context,
+    const options::PageFormatOptions::PageFormat& pagePrefs)
+{
+    auto& systemLayout = context.musicXmlScore->defaults.systemLayout;
+    const auto systemScaleBackout = pagePrefs.calcSystemScaling().toDouble();
+    systemLayout.margins = mx::api::LeftRight{
+        context.musicXmlTenthsFromEvpu(pagePrefs.sysMarginLeft, systemScaleBackout),
+        context.musicXmlTenthsFromEvpu(-pagePrefs.sysMarginRight, systemScaleBackout)
+    };
+    const auto systemDistance =
+        -pagePrefs.sysMarginTop
+        - pagePrefs.sysDistanceBetween
+        - (pagePrefs.sysMarginBottom + EVPU_PER_STANDARD_STAFF);
+    systemLayout.systemDistance =
+        context.musicXmlTenthsFromEvpu(systemDistance, systemScaleBackout);
+    if (const auto firstSystem = context.document->getOthers()->get<others::StaffSystem>(context.forPartId, 1)) {
+        const auto topSystemDistance = -firstSystem->top - firstSystem->distanceToPrev;
+        systemLayout.topSystemDistance =
+            context.musicXmlTenthsFromEvpu(topSystemDistance, systemScaleBackout);
+    }
+}
+
+void createAppearance(const MusicXmlMusxMapping& context)
+{
+    auto& appearance = context.musicXmlScore->defaults.appearance;
+    appearance.clear();
+    const auto addAppearance = [&](mx::api::AppearanceType type, const std::string& subType, double value) {
+        mx::api::AppearanceData data;
+        data.appearanceType = type;
+        data.appearanceSubType = subType;
+        data.value = value;
+        appearance.emplace_back(std::move(data));
+    };
+    const auto addLineWidth = [&](const std::string& subType, double efix) {
+        addAppearance(mx::api::AppearanceType::LineWidth, subType, context.musicXmlTenthsFromEvpu(efix / EFIX_PER_EVPU));
+    };
+    const auto addDistance = [&](const std::string& subType, double evpu) {
+        addAppearance(mx::api::AppearanceType::Distance, subType, context.musicXmlTenthsFromEvpu(evpu));
+    };
+    const auto addNoteSize = [&](const std::string& subType, double percent) {
+        addAppearance(mx::api::AppearanceType::NoteSize, subType, percent);
+    };
+
+    const auto& options = context.finaleOptions;
+    addLineWidth("stem", options.stemOptions->stemWidth);
+    addLineWidth("beam", options.beamOptions->beamWidth);
+    addLineWidth("staff", options.lineCurveOptions->staffLineWidth);
+    addLineWidth("light barline", options.barlineOptions->barlineWidth);
+    addLineWidth("heavy barline", options.barlineOptions->thickBarlineWidth);
+    addLineWidth("leger", options.lineCurveOptions->legerLineWidth);
+    addLineWidth("bracket", options.repeatOptions->bracketLineWidth);
+    addLineWidth("ending", options.repeatOptions->bracketLineWidth);
+    addLineWidth("dashes", options.smartShapeOptions->smartLineWidth);
+    addLineWidth("extend", options.smartShapeOptions->smartLineWidth);
+    addLineWidth("octave shift", options.smartShapeOptions->smartLineWidth);
+    addLineWidth("pedal", options.smartShapeOptions->smartLineWidth);
+    addLineWidth("wedge", options.smartShapeOptions->smartLineWidth);
+    addLineWidth("enclosure", options.lineCurveOptions->enclosureWidth);
+    addLineWidth("tuplet bracket", options.tupletOptions->tupLineWidth);
+    addNoteSize("grace", options.graceOptions->gracePerc);
+    addNoteSize("cue", options.graceOptions->gracePerc);
+    addDistance("hyphen", options.lyricOptions->maxHyphenSeparation);
+    addDistance("beam", options.beamOptions->beamSepar);
+}
+
 } // namespace
 
 void createDefaults(const MusicXmlMusxMapping& context)
@@ -81,23 +147,8 @@ void createDefaults(const MusicXmlMusxMapping& context)
     score.defaults.scalingTenths = MUSICXML_DEFAULT_TENTHS_PER_STAFF; // standard value for many MusicXML exporters, including Finale
 
     createPageLayoutData(context, *pagePrefs, combinedSystemScaling);
-
-    const auto systemScaleBackout = pagePrefs->calcSystemScaling().toDouble();
-    score.defaults.systemLayout.margins = mx::api::LeftRight{
-        context.musicXmlTenthsFromEvpu(pagePrefs->sysMarginLeft, systemScaleBackout),
-        context.musicXmlTenthsFromEvpu(-pagePrefs->sysMarginRight, systemScaleBackout)
-    };
-    const auto systemDistance =
-        -pagePrefs->sysMarginTop
-        - pagePrefs->sysDistanceBetween
-        - (pagePrefs->sysMarginBottom + musx::dom::EVPU_PER_STANDARD_STAFF);
-    score.defaults.systemLayout.systemDistance =
-        context.musicXmlTenthsFromEvpu(systemDistance, systemScaleBackout);
-    if (const auto firstSystem = context.document->getOthers()->get<others::StaffSystem>(context.forPartId, 1)) {
-        const auto topSystemDistance = -firstSystem->top - firstSystem->distanceToPrev;
-        score.defaults.systemLayout.topSystemDistance =
-            context.musicXmlTenthsFromEvpu(topSystemDistance, systemScaleBackout);
-    }
+    createSystemLayoutData(context, *pagePrefs);
+    createAppearance(context);
 }
 
 } // namespace detail

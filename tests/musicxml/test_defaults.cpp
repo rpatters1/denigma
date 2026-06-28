@@ -18,6 +18,8 @@
  */
 
 #include <filesystem>
+#include <map>
+#include <cmath>
 #include <optional>
 #include <string>
 #include <vector>
@@ -111,6 +113,32 @@ void compareSystemLayout(const mx::api::DefaultsData& actual, const mx::api::Def
     expectRoundedValue(*actual.systemLayout.topSystemDistance, expectedTopSystemDistance, "system-layout.top-system-distance");
 }
 
+using AppearanceKey = std::pair<mx::api::AppearanceType, std::string>;
+using AppearanceMap = std::map<AppearanceKey, double>;
+constexpr double APPEARANCE_VALUE_TOLERANCE = 0.00005;
+
+AppearanceMap createAppearanceMap(const std::vector<mx::api::AppearanceData>& appearance)
+{
+    AppearanceMap result;
+    for (const auto& data : appearance) {
+        const auto [it, inserted] = result.emplace(AppearanceKey{ data.appearanceType, data.appearanceSubType }, data.value);
+        EXPECT_TRUE(inserted) << "Duplicate appearance entry: " << data.appearanceSubType;
+    }
+    return result;
+}
+
+void compareAppearance(const mx::api::DefaultsData& actual, const mx::api::DefaultsData& expected)
+{
+    const auto actualAppearance = createAppearanceMap(actual.appearance);
+    const auto expectedAppearance = createAppearanceMap(expected.appearance);
+    EXPECT_GE(actualAppearance.size(), expectedAppearance.size()) << "Missing appearance entries";
+    for (const auto& [key, expectedValue] : expectedAppearance) {
+        const auto actualIt = actualAppearance.find(key);
+        ASSERT_NE(actualIt, actualAppearance.end()) << "Missing appearance entry: " << key.second;
+        EXPECT_NEAR(actualIt->second, expectedValue, APPEARANCE_VALUE_TOLERANCE) << "Mismatch for " << key.second;
+    }
+}
+
 } // namespace
 
 TEST(MusicXmlDefaults, PageAndSystemLayoutMatchFinaleRoundedTenths)
@@ -138,5 +166,32 @@ TEST(MusicXmlDefaults, PageAndSystemLayoutMatchFinaleRoundedTenths)
         SCOPED_TRACE(fixture.musxFile);
         comparePageLayout(actualScore->defaults, expectedScore->defaults);
         compareSystemLayout(actualScore->defaults, expectedScore->defaults, fixture.expectedTopSystemDistance);
+    }
+}
+
+TEST(MusicXmlDefaults, AppearanceMatchesFinaleToFourDecimals)
+{
+    setupTestDataPaths();
+
+    for (const auto& fixture : layoutFixtures()) {
+        std::filesystem::path inputPath;
+        copyInputToOutput(fixture.musxFile, inputPath);
+
+        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml" };
+        checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to musicxml: " << pathString(inputPath);
+        });
+
+        auto outputPath = inputPath;
+        outputPath.replace_extension(".musicxml");
+        ASSERT_TRUE(std::filesystem::exists(outputPath)) << "Missing MusicXML output " << pathString(outputPath);
+
+        const auto actualScore = loadScoreData(outputPath);
+        const auto expectedScore = loadScoreData(getInputPath() / fixture.referenceMusicXmlFile);
+        ASSERT_TRUE(actualScore);
+        ASSERT_TRUE(expectedScore);
+
+        SCOPED_TRACE(fixture.musxFile);
+        compareAppearance(actualScore->defaults, expectedScore->defaults);
     }
 }

@@ -64,6 +64,7 @@ FinaleOptions loadFinaleOptions(const musx::dom::DocumentPtr& document, musx::do
     retval.graceOptions = getRequiredOptions<options::GraceNoteOptions>(document, "grace note");
     retval.keyOptions = getRequiredOptions<options::KeySignatureOptions>(document, "key signature");
     retval.lineCurveOptions = getRequiredOptions<options::LineCurveOptions>(document, "lines & curves");
+    retval.lyricOptions = getRequiredOptions<options::LyricOptions>(document, "lyric");
     retval.miscOptions = getRequiredOptions<options::MiscOptions>(document, "miscellaneous");
     retval.musicSymbolOptions = getRequiredOptions<options::MusicSymbolOptions>(document, "music symbol");
     retval.mmRestOptions = getRequiredOptions<options::MultimeasureRestOptions>(document, "multimeasure rest");
