@@ -73,7 +73,7 @@ mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, con
 
     createTiming(context, context.timing);
     createMetaData(context);
-    createGlobalData(context);
+    createDefaults(context);
 
     using namespace mx::api;
 

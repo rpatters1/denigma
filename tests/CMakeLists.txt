@@ -44,6 +44,7 @@ endfunction()
         mnx/test_schema.cpp
         mnx/test_scores.cpp
         mnx/test_sequences.cpp
+        musicxml/test_defaults.cpp
         ${CMAKE_SOURCE_DIR}/src/main.cpp
         ${CMAKE_SOURCE_DIR}/src/about.cpp
     )
@@ -64,6 +65,7 @@ endfunction()
         "${zlib_BINARY_DIR}"          # generated zconf.h included by zlib.h
         "${zlib_SOURCE_DIR}/contrib/minizip"
         $<TARGET_PROPERTY:mnxdom,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:mx,INTERFACE_INCLUDE_DIRECTORIES>
     )
     target_compile_definitions(denigma_tests PRIVATE
         $<TARGET_PROPERTY:mnxdom,INTERFACE_COMPILE_DEFINITIONS>

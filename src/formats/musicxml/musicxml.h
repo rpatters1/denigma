@@ -28,7 +28,7 @@ namespace formats {
 namespace musicxml {
 namespace detail {
 
-void createGlobalData(const MusicXmlMusxMapping& context);
+void createDefaults(const MusicXmlMusxMapping& context);
 void createMetaData(const MusicXmlMusxMapping& context);
 void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
