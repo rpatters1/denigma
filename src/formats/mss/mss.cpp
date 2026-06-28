@@ -21,7 +21,6 @@
  */
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -32,7 +31,6 @@
 #include <span>
 #include <sstream>
 #include <string_view>
-#include <utility>
 
 #include "core/denigma.h"
 
@@ -41,6 +39,7 @@
 #include "musx/musx.h"
 #include "core/musx_reader.h"
 #include "pugixml.hpp"
+#include "utils/font_names.h"
 #include "utils/stringutils.h"
 #include "utils/smufl_support.h"
 #include "utils/textmetrics.h"
@@ -86,43 +85,6 @@ static constexpr auto dashedLinesNoHooks = std::to_array<std::string_view>({
     "tempoChange"
 });
 
-// Legacy names are normalised to lower-case with spaces removed.
-static constexpr auto finaleToSmuflFontMap = std::to_array<std::pair<std::string_view, std::string_view>>({
-    std::pair<std::string_view, std::string_view>{ "ashmusic", "Finale Ash" },
-    std::pair<std::string_view, std::string_view>{ "broadwaycopyist", "Finale Broadway" },
-    std::pair<std::string_view, std::string_view>{ "engraver", "Finale Engraver" },
-    std::pair<std::string_view, std::string_view>{ "engraverfontset", "Finale Engraver" },
-    std::pair<std::string_view, std::string_view>{ "jazz", "Finale Jazz" },
-    std::pair<std::string_view, std::string_view>{ "maestro", "Finale Maestro" },
-    std::pair<std::string_view, std::string_view>{ "petrucci", "Finale Legacy" },
-    std::pair<std::string_view, std::string_view>{ "pmusic", "Finale Maestro" },
-    std::pair<std::string_view, std::string_view>{ "sonata", "Finale Maestro" },
-});
-
-static std::string normalizedFontName(std::string_view fontName)
-{
-    std::string result;
-    result.reserve(fontName.size());
-    for (unsigned char c : fontName) {
-        if (utils::isSpace(c)) {
-            continue;
-        }
-        result.push_back(utils::toLowerCase(c));
-    }
-    return result;
-}
-
-static std::optional<std::string_view> mappedSmuflFontName(std::string_view fontName)
-{
-    const std::string normalized = normalizedFontName(fontName);
-    for (const auto& [finaleName, smuflName] : finaleToSmuflFontMap) {
-        if (finaleName == normalized || normalizedFontName(smuflName) == normalized) {
-            return smuflName;
-        }
-    }
-    return std::nullopt;
-}
-
 static bool fontIsEngravingWithMappedLegacy(const FontInfo* fontInfo)
 {
     if (!fontInfo) {
@@ -131,7 +93,7 @@ static bool fontIsEngravingWithMappedLegacy(const FontInfo* fontInfo)
     if (fontInfo->calcIsSMuFL()) {
         return true;
     }
-    return mappedSmuflFontName(fontInfo->getName()).has_value();
+    return utils::isFinaleLegacyMusicFontMappedToSmufl(fontInfo->getName());
 }
 
 // MSS preferences:
@@ -162,7 +124,7 @@ static MssPreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper forP
         if (retval->defaultMusicFont->calcIsSMuFL()) {
             return fontName;
         }
-        if (const auto mapped = mappedSmuflFontName(fontName)) {
+        if (const auto mapped = utils::mappedSmuflFontForFinaleLegacyFont(fontName)) {
             return std::string(*mapped);
         }
         return {};

@@ -22,7 +22,6 @@
 #include "utils/textmetrics.h"
 
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cwchar>
 #include <cwctype>
@@ -40,6 +39,7 @@
 #include <vector>
 
 #include "core/denigma.h"
+#include "utils/font_names.h"
 #include "utils/stringutils.h"
 
 #if defined(DENIGMA_USE_DIRECTWRITE)
@@ -74,23 +74,9 @@ namespace {
     });
 }
 
-std::string normalizeName(std::string_view input)
-{
-    std::string result;
-    result.reserve(input.size());
-    for (unsigned char ch : input) {
-        if (std::isalnum(ch)) {
-            result.push_back(utils::toLowerCase(ch));
-        } else if (ch == ' ' || ch == '-' || ch == '_') {
-            continue;
-        }
-    }
-    return result;
-}
-
 bool styleLooksBold(std::string_view style)
 {
-    const std::string normalized = normalizeName(style);
+    const std::string normalized = utils::normalizedFontName(style);
     return normalized.find("bold") != std::string::npos
         || normalized.find("demi") != std::string::npos
         || normalized.find("black") != std::string::npos;
@@ -98,7 +84,7 @@ bool styleLooksBold(std::string_view style)
 
 bool styleLooksItalic(std::string_view style)
 {
-    const std::string normalized = normalizeName(style);
+    const std::string normalized = utils::normalizedFontName(style);
     return normalized.find("italic") != std::string::npos
         || normalized.find("oblique") != std::string::npos;
 }
@@ -421,7 +407,7 @@ private:
 
         m_faceIndex.push_back(IndexedFace{
             ResolvedFace{ utils::utf8ToString(fontPathUtf8), static_cast<int>(faceIndex) },
-            normalizeName(family),
+            utils::normalizedFontName(family),
             bold,
             italic
         });
@@ -803,8 +789,8 @@ private:
         const long numFaces = (std::max)(1L, static_cast<long>(probeFace->num_faces));
         FT_Done_Face(probeFace);
 
-        const std::string targetPostScript = normalizeName(postScriptName);
-        const std::string targetFamily = normalizeName(familyName);
+        const std::string targetPostScript = utils::normalizedFontName(postScriptName);
+        const std::string targetFamily = utils::normalizedFontName(familyName);
         int bestScore = (std::numeric_limits<int>::min)();
         std::optional<int> bestIndex = std::nullopt;
 
@@ -815,7 +801,7 @@ private:
             }
 
             int score = 0;
-            const std::string candidateFamily = normalizeName(face->family_name ? std::string(face->family_name) : std::string{});
+            const std::string candidateFamily = utils::normalizedFontName(face->family_name ? std::string(face->family_name) : std::string{});
             if (!targetFamily.empty()) {
                 if (candidateFamily == targetFamily) {
                     score += 100;
@@ -829,7 +815,7 @@ private:
 
             const char* postScript = FT_Get_Postscript_Name(face);
             if (!targetPostScript.empty()) {
-                const std::string candidatePostScript = normalizeName(postScript ? std::string(postScript) : std::string{});
+                const std::string candidatePostScript = utils::normalizedFontName(postScript ? std::string(postScript) : std::string{});
                 if (candidatePostScript == targetPostScript) {
                     score += 1000;
                 } else if (!candidatePostScript.empty()
@@ -974,7 +960,7 @@ private:
             return std::nullopt;
         }
 
-        const std::string familyNorm = normalizeName(familyName);
+        const std::string familyNorm = utils::normalizedFontName(familyName);
         int bestScore = -1;
         std::optional<ResolvedFace> bestMatch = std::nullopt;
         for (const auto& candidate : m_faceIndex) {
