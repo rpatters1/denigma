@@ -21,9 +21,9 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
-#include <string>
 #include <string_view>
+
+#include "utils/font_names.h"
 
 using namespace musx::dom;
 
@@ -39,18 +39,6 @@ struct MusicFontFallbackMapping
     std::string_view name;
     MusicXmlFontFamilyFallback fallback;
 };
-
-std::string normalizedFontName(std::string_view fontName)
-{
-    std::string result;
-    result.reserve(fontName.size());
-    for (const auto ch : fontName) {
-        if (!std::isspace(static_cast<unsigned char>(ch))) {
-            result.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
-        }
-    }
-    return result;
-}
 
 MusicXmlFontFamilyFallback musicFontFallbackFromFontInfo(const FontInfo& fontInfo)
 {
@@ -77,7 +65,7 @@ MusicXmlFontFamilyFallback musicFontFallbackFromFontInfo(const FontInfo& fontInf
         { "sonata", MusicXmlFontFamilyFallback::Engraved },
     });
 
-    const auto fontName = normalizedFontName(fontInfo.getName());
+    const auto fontName = utils::normalizedFontName(fontInfo.getName());
     const auto it = std::find_if(knownMusicFonts.begin(), knownMusicFonts.end(), [&](const auto& item) {
         return item.name == std::string_view(fontName.data(), fontName.size());
     });
@@ -195,6 +183,32 @@ void createFontData(const MusicXmlMusxMapping& context)
     defaults.musicFont = context.musicXmlFontDataFromFontInfo(
         *context.finaleOptions.defaultMusicFont,
         musicFontFallbackFromFontInfo(*context.finaleOptions.defaultMusicFont));
+
+    if (const auto wordFont = context.finaleOptions.fontOptions->getFontInfo(options::FontOptions::FontType::Expression)) {
+        defaults.wordFont = context.musicXmlFontDataFromFontInfo(*wordFont, MusicXmlFontFamilyFallback::Text);
+    }
+
+    const auto addFirstLyricFont = [&](const auto& lyricTexts) {
+        for (const auto& lyricText : lyricTexts) {
+            ASSERT_IF(!lyricText) {
+                continue;
+            }
+            if (const auto fontInfo = lyricText->getRawTextCtx(lyricText, context.forPartId).parseFirstFontInfo()) {
+                mx::api::LyricFontData lyricFont;
+                lyricFont.font = context.musicXmlFontDataFromFontInfo(*fontInfo, MusicXmlFontFamilyFallback::Text);
+                defaults.lyricFonts.emplace_back(std::move(lyricFont));
+                return true;
+            }
+        }
+        return false;
+    };
+    bool foundLyricFont = addFirstLyricFont(context.document->getTexts()->getArray<texts::LyricsVerse>());
+    if (!foundLyricFont) {
+        foundLyricFont = addFirstLyricFont(context.document->getTexts()->getArray<texts::LyricsChorus>());
+    }
+    if (!foundLyricFont) {
+        addFirstLyricFont(context.document->getTexts()->getArray<texts::LyricsSection>());
+    }
 }
 
 } // namespace
