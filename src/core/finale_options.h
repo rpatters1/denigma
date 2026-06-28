@@ -43,6 +43,7 @@ struct FinaleOptions
     musx::dom::MusxInstance<musx::dom::options::GraceNoteOptions> graceOptions;
     musx::dom::MusxInstance<musx::dom::options::KeySignatureOptions> keyOptions;
     musx::dom::MusxInstance<musx::dom::options::LineCurveOptions> lineCurveOptions;
+    musx::dom::MusxInstance<musx::dom::options::LyricOptions> lyricOptions;
     musx::dom::MusxInstance<musx::dom::options::MiscOptions> miscOptions;
     musx::dom::MusxInstance<musx::dom::options::MusicSymbolOptions> musicSymbolOptions;
     musx::dom::MusxInstance<musx::dom::options::MultimeasureRestOptions> mmRestOptions;
