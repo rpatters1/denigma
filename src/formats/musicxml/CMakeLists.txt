@@ -112,6 +112,7 @@ target_link_libraries(denigma_musicxml
         denigma_core
     PRIVATE
         denigma_format_enigmaxml
+        denigma_font_names
         mx
         musx
 )
