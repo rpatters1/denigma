@@ -21,7 +21,9 @@
 
 #include <cstdlib>
 #include <string>
+#include <vector>
 
+#include "denigma/classify/barlines.h"
 #include "denigma/classify/clefs.h"
 
 #include "mx/api/BarlineData.h"
@@ -44,18 +46,13 @@ namespace {
 
 using BarlineType = others::Measure::BarlineType;
 
-void addBarline(
-    const MusicXmlMusxMapping& context,
+void addBarlineData(
     mx::api::MeasureData& measure,
-    BarlineType barlineType,
+    mx::api::BarlineType barlineType,
     mx::api::HorizontalAlignment location)
 {
     auto barline = mx::api::BarlineData{};
-    barline.barlineType = enumConvert<mx::api::BarlineType>(barlineType);
-    if (barline.barlineType == mx::api::BarlineType::unspecified || barline.barlineType == mx::api::BarlineType::unsupported) {
-        context.logMessage(LogMsg() << "Skipping unsupported MusicXML barline type " << int(barlineType) << ".", MessageSeverity::Info);
-        return;
-    }
+    barline.barlineType = barlineType;
     barline.location = location;
     if (location == mx::api::HorizontalAlignment::right) {
         barline.tickTimePosition = mx::api::TICK_TIME_INFINITY;
@@ -63,39 +60,88 @@ void addBarline(
     measure.barlines.emplace_back(barline);
 }
 
+void addBarline(
+    const MusicXmlMusxMapping& context,
+    mx::api::MeasureData& measure,
+    classify::BarlineType barlineType,
+    mx::api::HorizontalAlignment location)
+{
+    const auto musicXmlBarlineType = enumConvert<mx::api::BarlineType>(barlineType);
+    if (musicXmlBarlineType == mx::api::BarlineType::unspecified || musicXmlBarlineType == mx::api::BarlineType::unsupported) {
+        context.logMessage(LogMsg() << "Skipping unsupported MusicXML barline type " << int(barlineType) << ".", MessageSeverity::Info);
+        return;
+    }
+    addBarlineData(measure, musicXmlBarlineType, location);
+}
+
+void addBarline(
+    const MusicXmlMusxMapping& context,
+    mx::api::MeasureData& measure,
+    BarlineType barlineType,
+    mx::api::HorizontalAlignment location)
+{
+    const auto musicXmlBarlineType = enumConvert<mx::api::BarlineType>(barlineType);
+    if (musicXmlBarlineType == mx::api::BarlineType::unspecified || musicXmlBarlineType == mx::api::BarlineType::unsupported) {
+        context.logMessage(LogMsg() << "Skipping unsupported MusicXML barline type " << int(barlineType) << ".", MessageSeverity::Info);
+        return;
+    }
+    addBarlineData(measure, musicXmlBarlineType, location);
+}
+
+MusxInstance<others::Staff> findRepresentativeBarlineStaff(
+    MusicXmlMusxMapping& context,
+    const MusxInstance<others::Measure>& musxMeasure,
+    const std::vector<StaffCmper>& staves)
+{
+    MusxInstance<others::Staff> firstFoundStaff;
+    const auto endOfBar = musxMeasure->calcDuration().calcEduDuration();
+    for (StaffCmper staffId : staves) {
+        auto staff = others::StaffComposite::createCurrent(
+            context.document,
+            context.forPartId,
+            staffId,
+            musxMeasure->getCmper(),
+            endOfBar);
+        if (!staff) {
+            continue;
+        }
+        if (!firstFoundStaff) {
+            firstFoundStaff = staff;
+        }
+        if (!staff->hideBarlines) {
+            return staff;
+        }
+    }
+    return firstFoundStaff;
+}
+
 void assignBarlines(
     MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,
     const MusxInstance<others::Measure>& musxMeasure,
-    bool isFinalMeasure)
+    bool isFinalMeasure,
+    const std::vector<StaffCmper>& staves)
 {
     const auto barlineOptions = context.finaleOptions.barlineOptions;
-    if (!barlineOptions->drawBarlines) {
-        addBarline(context, measure, BarlineType::None, mx::api::HorizontalAlignment::right);
-        return;
-    }
-
     if (musxMeasure->leftBarlineType != BarlineType::OptionsDefault && musxMeasure->leftBarlineType != BarlineType::None) {
         addBarline(context, measure, musxMeasure->leftBarlineType, mx::api::HorizontalAlignment::left);
     }
 
-    if (musxMeasure->barlineType == BarlineType::Normal) {
-        if (isFinalMeasure && barlineOptions->drawFinalBarlineOnLastMeas) {
-            addBarline(context, measure, BarlineType::Final, mx::api::HorizontalAlignment::right);
-        } else if (!isFinalMeasure && barlineOptions->drawDoubleBarlineBeforeKeyChanges) {
-            if (const auto nextMeasure = context.document->getOthers()->get<others::Measure>(
-                    context.forPartId, static_cast<Cmper>(musxMeasure->getCmper() + 1))) {
-                if (!musxMeasure->createKeySignature()->isSame(*nextMeasure->createKeySignature().get())) {
-                    addBarline(context, measure, BarlineType::Double, mx::api::HorizontalAlignment::right);
-                }
-            }
+    const auto staff = findRepresentativeBarlineStaff(context, musxMeasure, staves);
+    const auto classification = classify::classifyBarline(staff, musxMeasure, isFinalMeasure, barlineOptions);
+    if (classification.type == classify::BarlineType::Unsupported) {
+        context.logMessage(LogMsg() << "Skipping unsupported MusicXML barline type " << int(musxMeasure->barlineType) << ".", MessageSeverity::Info);
+        return;
+    }
+
+    if (classification.type == classify::BarlineType::Regular) {
+        if (classification.isShort) {
+            addBarlineData(measure, mx::api::BarlineType::short_, mx::api::HorizontalAlignment::right);
         }
         return;
     }
 
-    if (musxMeasure->barlineType != BarlineType::OptionsDefault) {
-        addBarline(context, measure, musxMeasure->barlineType, mx::api::HorizontalAlignment::right);
-    }
+    addBarline(context, measure, classification.type, mx::api::HorizontalAlignment::right);
 }
 
 mx::api::ClefData musicXmlClefFromMusxClef(
@@ -197,7 +243,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
         measure.number = std::to_string(musxMeasure->getCmper());
-        assignBarlines(context, measure, musxMeasure, isFinalMeasure);
+        assignBarlines(context, measure, musxMeasure, isFinalMeasure, stavesIt->second);
         assignTimeSignature(measure, musxMeasure, prevTimeSig);
         if (const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId); partSymbolIt != context.partIdToPartSymbol.end()) {
             measure.partSymbol = partSymbolIt->second;

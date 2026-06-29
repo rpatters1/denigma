@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -129,6 +130,16 @@ void expectInitialTransposition(const mx::api::PartData& part, int chromatic, in
     EXPECT_EQ(part.transposition->diatonic, diatonic) << label << ".diatonic";
 }
 
+mx::api::BarlineType effectiveRightBarlineType(const mx::api::MeasureData& measure)
+{
+    for (const auto& barline : measure.barlines) {
+        if (barline.location == mx::api::HorizontalAlignment::right || barline.tickTimePosition == mx::api::TICK_TIME_INFINITY) {
+            return barline.barlineType;
+        }
+    }
+    return mx::api::BarlineType::normal;
+}
+
 } // namespace
 
 TEST(MusicXmlParts, PartGroupBracketsMatchFinaleSpans)
@@ -184,7 +195,28 @@ TEST(MusicXmlParts, BarlinesOverrideCorrectTypes)
 {
     setupTestDataPaths();
 
-    const auto outputPath = exportMusicXmlFixture("musicxml/barline-types.musx");
+    const auto outputPath = exportMusicXmlFixture("barline_types.musx");
     const auto actualScore = loadScoreData(outputPath);
     ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    const auto& measures = actualScore->parts.front().measures;
+    ASSERT_GE(measures.size(), 10) << "should be at least ten measures";
+
+    constexpr std::array<mx::api::BarlineType, 10> expected = {
+        mx::api::BarlineType::lightLight,
+        mx::api::BarlineType::normal,
+        mx::api::BarlineType::lightHeavy,
+        mx::api::BarlineType::heavy,
+        mx::api::BarlineType::dashed,
+        mx::api::BarlineType::dashed,
+        mx::api::BarlineType::none,
+        mx::api::BarlineType::short_,
+        mx::api::BarlineType::tick,
+        mx::api::BarlineType::lightLight
+    };
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_EQ(effectiveRightBarlineType(measures[i]), expected[i]) << "measure " << (i + 1);
+    }
 }

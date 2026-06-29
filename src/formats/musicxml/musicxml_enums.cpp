@@ -25,6 +25,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "denigma/classify/barlines.h"
+
 #include "mx/api/BarlineData.h"
 #include "mx/api/ClefData.h"
 #include "mx/api/PartGroupData.h"
@@ -64,8 +66,19 @@ BEGIN_ENUM_CONVERSION(BarlineType, mx::api::BarlineType)
     case BarlineType::Final: return mx::api::BarlineType::lightHeavy;
     case BarlineType::Solid: return mx::api::BarlineType::heavy;
     case BarlineType::Dashed: return mx::api::BarlineType::dashed;
-    case BarlineType::Tick: return mx::api::BarlineType::unsupported;
+    case BarlineType::Tick: return mx::api::BarlineType::tick;
     case BarlineType::Custom: return mx::api::BarlineType::unsupported;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::BarlineType, mx::api::BarlineType)
+    case classify::BarlineType::Unsupported: return mx::api::BarlineType::unsupported;
+    case classify::BarlineType::NoBarline: return mx::api::BarlineType::none;
+    case classify::BarlineType::Regular: return mx::api::BarlineType::normal;
+    case classify::BarlineType::Double: return mx::api::BarlineType::lightLight;
+    case classify::BarlineType::Final: return mx::api::BarlineType::lightHeavy;
+    case classify::BarlineType::Heavy: return mx::api::BarlineType::heavy;
+    case classify::BarlineType::Dashed: return mx::api::BarlineType::dashed;
+    case classify::BarlineType::Tick: return mx::api::BarlineType::tick;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(details::Bracket::BracketStyle, mx::api::BracketType)
