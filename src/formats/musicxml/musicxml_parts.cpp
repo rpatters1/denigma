@@ -65,6 +65,18 @@ void populatePartMetadata(MusicXmlMusxMapping& context, mx::api::PartData& part,
         part.instrumentData.soundID = *soundId;
     }
 
+    const auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
+    if (transpositionDisp || transpositionAlt) {
+        const bool shouldEmitTransposition = context.finaleOptions.effectivePartGlobals->showTransposed
+            || (context.finaleOptions.miscOptions->keepWrittenOctaveInConcertPitch
+                && music_theory::calcTranspositionIsOctave(transpositionDisp, transpositionAlt));
+        if (shouldEmitTransposition) {
+            part.transposition = mx::api::TransposeData(
+                -music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt),
+                -transpositionDisp);
+        }
+    }
+
     const auto fullName = utils::trimAscii(staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode));
     if (!fullName.empty()) {
         part.name = utils::trimNewLineFromString(fullName);
