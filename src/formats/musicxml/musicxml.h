@@ -32,6 +32,9 @@ namespace formats {
 namespace musicxml {
 namespace detail {
 
+template <typename ToEnum, typename FromEnum>
+ToEnum enumConvert(FromEnum);
+
 inline std::string createPartId(int partNumber)
 {
     return "P" + std::to_string(partNumber);

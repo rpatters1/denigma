@@ -51,6 +51,7 @@ endfunction()
         mnx/test_scores.cpp
         mnx/test_sequences.cpp
         musicxml/test_defaults.cpp
+        musicxml/test_parts.cpp
         ${CMAKE_SOURCE_DIR}/src/main.cpp
         ${CMAKE_SOURCE_DIR}/src/about.cpp
     )
