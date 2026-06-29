@@ -205,15 +205,6 @@ inline std::string calcPercussionSoundId(const MusxInstance<others::PercussionNo
     return result;
 }
 
-inline std::string trimNewLineFromString(const std::string& src)
-{
-    size_t pos = src.find('\n');
-    if (pos != std::string::npos) {
-        return src.substr(0, pos);  // Truncate at the newline, excluding it
-    }
-    return src;
-}
-
 void createLayouts(const MnxMusxMappingPtr& context);
 void createGlobal(const MnxMusxMappingPtr& context);
 void createParts(const MnxMusxMappingPtr& context);

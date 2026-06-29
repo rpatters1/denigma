@@ -32,6 +32,7 @@
 
 #include "denigma/classify/clefs.h"
 #include "denigma/classify/dynamics.h"
+#include "utils/stringutils.h"
 
 namespace denigma {
 namespace formats {
@@ -362,11 +363,11 @@ static void populatePartMetadata(
     part.set_id(id);
     const auto fullName = staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode);
     if (!fullName.empty()) {
-        part.set_name(trimNewLineFromString(fullName));
+        part.set_name(utils::trimNewLineFromString(fullName));
     }
     const auto abrvName = staff->getAbbreviatedInstrumentName(EnigmaString::AccidentalStyle::Unicode);
     if (!abrvName.empty()) {
-        part.set_shortName(trimNewLineFromString(abrvName));
+        part.set_shortName(utils::trimNewLineFromString(abrvName));
     }
     if (instInfo.staves.size() > 1) {
         part.set_staves(int(instInfo.staves.size()));

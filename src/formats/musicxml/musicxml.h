@@ -19,17 +19,28 @@
 #pragma once
 
 #include <ostream>
+#include <optional>
+#include <string>
+#include <string_view>
 
 #include "core/denigma.h"
 #include "musicxml_mapping.h"
+#include "mx/api/SoundID.h"
 
 namespace denigma {
 namespace formats {
 namespace musicxml {
 namespace detail {
 
+inline std::string createPartId(int partNumber)
+{
+    return "P" + std::to_string(partNumber);
+}
+
 void createDefaults(const MusicXmlMusxMapping& context);
 void createMetaData(const MusicXmlMusxMapping& context);
+void createParts(MusicXmlMusxMapping& context);
+std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);
 void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
 } // namespace detail
