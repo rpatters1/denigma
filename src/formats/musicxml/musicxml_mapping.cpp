@@ -17,7 +17,7 @@
  * THE SOFTWARE.
  */
 
-#include "musicxml_mapping.h"
+#include "musicxml.h"
 
 #include <string_view>
 
@@ -56,6 +56,14 @@ std::string_view musicXmlFontFamilyFallbackName(MusicXmlFontFamilyFallback fallb
 }
 
 } // namespace
+
+MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, const std::string& partId)
+{
+    if (const auto it = context.partIdToPitchContext.find(partId); it != context.partIdToPitchContext.end()) {
+        return it->second;
+    }
+    return MusicXmlPitchContext::Concert;
+}
 
 mx::api::FontData MusicXmlMusxMapping::musicXmlFontDataFromFontInfo(
     const musx::dom::FontInfo& fontInfo,

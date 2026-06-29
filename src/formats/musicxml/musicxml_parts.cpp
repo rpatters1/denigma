@@ -61,6 +61,7 @@ void populatePartMetadata(MusicXmlMusxMapping& context, mx::api::PartData& part,
 {
     part.uniqueId = id;
     part.instrumentData.uniqueId = id + "-I1";
+    context.partIdToPitchContext[id] = MusicXmlPitchContext::Concert;
     if (const auto soundId = musicXmlSoundIdFromInstrumentUuid(staff->instUuid)) {
         part.instrumentData.soundID = *soundId;
     }
@@ -74,6 +75,7 @@ void populatePartMetadata(MusicXmlMusxMapping& context, mx::api::PartData& part,
             part.transposition = mx::api::TransposeData(
                 -music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt),
                 -transpositionDisp);
+            context.partIdToPitchContext[id] = MusicXmlPitchContext::Written;
         }
     }
 
@@ -230,6 +232,7 @@ void createParts(MusicXmlMusxMapping& context)
     context.musicXmlScore->partGroups.clear();
     context.staffToPartId.clear();
     context.partIdToStaves.clear();
+    context.partIdToPitchContext.clear();
 
     const auto scrollView = context.document->getScrollViewStaves(context.forPartId);
     int partNumber = 0;

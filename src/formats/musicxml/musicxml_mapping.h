@@ -54,6 +54,12 @@ enum class MusicXmlFontFamilyFallback
     Monospace
 };
 
+enum class MusicXmlPitchContext
+{
+    Concert,
+    Written
+};
+
 struct MusicXmlTimingPlan
 {
     int divisions{};
@@ -108,6 +114,7 @@ struct MusicXmlMusxMapping
     std::unordered_map<musx::dom::StaffCmper, std::string> staffToPartId;
     std::unordered_map<std::string, std::vector<musx::dom::StaffCmper>> partIdToStaves;
     std::unordered_map<std::string, mx::api::PartSymbolData> partIdToPartSymbol;
+    std::unordered_map<std::string, MusicXmlPitchContext> partIdToPitchContext;
     std::unordered_map<musx::dom::EntryNumber, std::string> entryNumberToNoteId;
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;
 
