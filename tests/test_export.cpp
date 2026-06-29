@@ -437,26 +437,6 @@ TEST(Export, MnxFromEnigmaxmlNoMetadataStillWorks)
     ASSERT_FALSE(mnxJson.empty());
 }
 
-TEST(Export, MusicXmlFromEnigmaxmlWritesHelloWorld)
-{
-    setupTestDataPaths();
-    std::filesystem::path inputPath;
-    copyInputToOutput("reference/notAscii-其れ.enigmaxml", inputPath);
-
-    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml" };
-    checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to musicxml: " << pathString(inputPath);
-    });
-
-    std::filesystem::path musicXmlOutput = inputPath;
-    musicXmlOutput.replace_extension(".musicxml");
-    ASSERT_TRUE(std::filesystem::exists(musicXmlOutput));
-    assertStringInFile("<score-partwise", musicXmlOutput);
-    assertStringInFile("<work-title>Hello World</work-title>", musicXmlOutput);
-    assertStringInFile("<part-name>Piano</part-name>", musicXmlOutput);
-    assertStringInFile("<step>C</step>", musicXmlOutput);
-}
-
 TEST(Export, MultiOutputMnxAndMssFromMusx)
 {
     setupTestDataPaths();

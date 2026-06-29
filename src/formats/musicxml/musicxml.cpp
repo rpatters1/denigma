@@ -74,18 +74,18 @@ mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, con
     createTiming(context, context.timing);
     createMetaData(context);
     createDefaults(context);
+    createParts(context);
 
     using namespace mx::api;
 
     // placeholder output
     auto& score = *context.musicXmlScore;
-
-    score.parts.emplace_back(PartData{});
-    auto& part = score.parts.back();
-    part.name = "Piano";
-    part.abbreviation = "Pno.";
-    part.displayName = "Piano";
-    part.displayAbbreviation = "Pno.";
+    if (score.parts.empty()) {
+        auto& fallbackPart = score.parts.emplace_back(PartData{});
+        fallbackPart.uniqueId = "P1";
+        fallbackPart.instrumentData.uniqueId = "P1-I1";
+    }
+    auto& part = score.parts.front();
 
     part.measures.emplace_back(MeasureData{});
     auto& measure = part.measures.back();

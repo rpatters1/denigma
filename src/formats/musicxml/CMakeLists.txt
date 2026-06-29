@@ -97,8 +97,10 @@ set(DENIGMA_FORMAT_MUSICXML_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/musicxml.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_converter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_defaults.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/musicxml_instruments.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_mapping.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_metadata.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/musicxml_parts.cpp
 )
 
 add_denigma_internal_library(denigma_musicxml MUSX_PCH ${DENIGMA_FORMAT_MUSICXML_SOURCES})
