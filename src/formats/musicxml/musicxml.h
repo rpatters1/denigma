@@ -40,11 +40,14 @@ inline std::string createPartId(int partNumber)
     return "P" + std::to_string(partNumber);
 }
 
+MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, const std::string& partId);
+std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);
+
 void createDefaults(const MusicXmlMusxMapping& context);
 void createMeasures(MusicXmlMusxMapping& context);
 void createMetaData(const MusicXmlMusxMapping& context);
 void createParts(MusicXmlMusxMapping& context);
-std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);
+
 void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
 } // namespace detail

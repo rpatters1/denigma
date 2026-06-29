@@ -20,6 +20,7 @@
 #include "musicxml.h"
 
 #include <cstdlib>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -28,6 +29,7 @@
 
 #include "mx/api/BarlineData.h"
 #include "mx/api/ClefData.h"
+#include "mx/api/KeyData.h"
 #include "mx/api/MeasureData.h"
 #include "mx/api/NoteData.h"
 #include "mx/api/PartData.h"
@@ -144,6 +146,118 @@ void assignBarlines(
     addBarline(context, measure, classification.type, mx::api::HorizontalAlignment::right);
 }
 
+mx::api::KeyMode musicXmlKeyModeFromMusxKeySignature(const MusxInstance<KeySignature>& keySignature)
+{
+    if (keySignature->isMajor()) {
+        return mx::api::KeyMode::major;
+    }
+    if (keySignature->isMinor()) {
+        return mx::api::KeyMode::minor;
+    }
+    return mx::api::KeyMode::unspecified;
+}
+
+int musicXmlKeyFifths(
+    const MusicXmlMusxMapping& context,
+    const MusxInstance<KeySignature>& keySignature,
+    MeasCmper measureId,
+    MusicXmlPitchContext pitchContext)
+{
+    if (keySignature->calcEDODivisions() != music_theory::STANDARD_12EDO_STEPS) {
+        context.logMessage(LogMsg() << "Skipping unsupported microtonal key signature in measure " << measureId << ".", MessageSeverity::Info);
+        return 0;
+    }
+    if (!keySignature->isLinear()) {
+        context.logMessage(LogMsg() << "Skipping unsupported non-linear key signature " << keySignature->getKeyMode()
+            << " in measure " << measureId << ".", MessageSeverity::Info);
+        return 0;
+    }
+    if (keySignature->keyless || keySignature->hideKeySigShowAccis) {
+        return 0;
+    }
+    return keySignature->getAlteration(enumConvert<KeySignature::KeyContext>(pitchContext));
+}
+
+mx::api::KeyData createKeyData(
+    const MusicXmlMusxMapping& context,
+    const MusxInstance<KeySignature>& keySignature,
+    MeasCmper measureId,
+    MusicXmlPitchContext pitchContext)
+{
+    auto key = mx::api::KeyData{};
+    key.fifths = musicXmlKeyFifths(context, keySignature, measureId, pitchContext);
+    key.mode = musicXmlKeyModeFromMusxKeySignature(keySignature);
+    return key;
+}
+
+bool keyDataEqualIgnoringStaffIndex(const mx::api::KeyData& lhs, const mx::api::KeyData& rhs)
+{
+    auto normalizedLhs = lhs;
+    auto normalizedRhs = rhs;
+    normalizedLhs.staffIndex = -1;
+    normalizedRhs.staffIndex = -1;
+    return normalizedLhs == normalizedRhs;
+}
+
+bool keyDataChanged(
+    const std::optional<mx::api::KeyData>& previous,
+    const mx::api::KeyData& current)
+{
+    return !previous || !keyDataEqualIgnoringStaffIndex(*previous, current);
+}
+
+void assignKeySignatures(
+    const MusicXmlMusxMapping& context,
+    mx::api::MeasureData& measure,
+    const MusxInstance<others::Measure>& musxMeasure,
+    const std::vector<StaffCmper>& staves,
+    MusicXmlPitchContext pitchContext,
+    std::vector<std::optional<mx::api::KeyData>>& prevKeyData)
+{
+    std::vector<mx::api::KeyData> currentKeyData;
+    currentKeyData.reserve(staves.size());
+    for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
+        auto key = createKeyData(
+            context,
+            musxMeasure->createKeySignature(staves[staffIndex]),
+            musxMeasure->getCmper(),
+            pitchContext);
+        key.staffIndex = static_cast<int>(staffIndex);
+        currentKeyData.emplace_back(key);
+    }
+
+    const bool forceEmit = musxMeasure->showKey == others::Measure::ShowKeySigMode::Always;
+    bool shouldEmit = forceEmit;
+    for (size_t index = 0; index < currentKeyData.size(); ++index) {
+        shouldEmit = shouldEmit || keyDataChanged(prevKeyData[index], currentKeyData[index]);
+    }
+    if (!shouldEmit) {
+        return;
+    }
+
+    bool allStavesShareKey = true;
+    for (size_t index = 1; index < currentKeyData.size(); ++index) {
+        if (!keyDataEqualIgnoringStaffIndex(currentKeyData.front(), currentKeyData[index])) {
+            allStavesShareKey = false;
+            break;
+        }
+    }
+
+    if (allStavesShareKey && !currentKeyData.empty()) {
+        auto key = currentKeyData.front();
+        key.staffIndex = -1;
+        measure.keys.emplace_back(key);
+    } else {
+        for (const auto& key : currentKeyData) {
+            measure.keys.emplace_back(key);
+        }
+    }
+
+    for (size_t index = 0; index < currentKeyData.size(); ++index) {
+        prevKeyData[index] = currentKeyData[index];
+    }
+}
+
 mx::api::ClefData musicXmlClefFromMusxClef(
     const MusxInstance<options::ClefOptions::ClefDef>& clefDef,
     const MusxInstance<others::StaffComposite>& staff)
@@ -237,13 +351,16 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
 
     const auto musxMeasures = context.document->getOthers()->getArray<others::Measure>(context.forPartId);
     part.measures.reserve(musxMeasures.size());
+    std::vector<std::optional<mx::api::KeyData>> prevKeyData(stavesIt->second.size());
     MusxInstance<TimeSignature> prevTimeSig;
+    const auto pitchContext = pitchContextForPart(context, part.uniqueId);
     for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
         const auto& musxMeasure = musxMeasures[measureIndex];
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
         measure.number = std::to_string(musxMeasure->getCmper());
         assignBarlines(context, measure, musxMeasure, isFinalMeasure, stavesIt->second);
+        assignKeySignatures(context, measure, musxMeasure, stavesIt->second, pitchContext, prevKeyData);
         assignTimeSignature(measure, musxMeasure, prevTimeSig);
         if (const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId); partSymbolIt != context.partIdToPartSymbol.end()) {
             measure.partSymbol = partSymbolIt->second;

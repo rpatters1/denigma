@@ -107,6 +107,11 @@ BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarli
     case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(MusicXmlPitchContext, KeySignature::KeyContext)
+    case MusicXmlPitchContext::Concert: return KeySignature::KeyContext::Concert;
+    case MusicXmlPitchContext::Written: return KeySignature::KeyContext::Written;
+END_ENUM_CONVERSION
+
 } // namespace detail
 } // namespace musicxml
 } // namespace formats
