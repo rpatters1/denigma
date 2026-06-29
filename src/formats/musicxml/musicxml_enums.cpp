@@ -25,6 +25,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "mx/api/BarlineData.h"
+#include "mx/api/ClefData.h"
 #include "mx/api/PartGroupData.h"
 
 #define BEGIN_ENUM_CONVERSION(FromEnum, ToEnum) \
@@ -39,6 +41,7 @@ ToEnum enumConvert(FromEnum value) { \
 }
 
 using namespace musx::dom;
+using BarlineType = musx::dom::others::Measure::BarlineType;
 
 namespace denigma {
 namespace formats {
@@ -53,6 +56,18 @@ ToEnum enumConvert(FromEnum)
     return {};
 }
 
+BEGIN_ENUM_CONVERSION(BarlineType, mx::api::BarlineType)
+    case BarlineType::None: return mx::api::BarlineType::none;
+    case BarlineType::OptionsDefault: return mx::api::BarlineType::unspecified;
+    case BarlineType::Normal: return mx::api::BarlineType::normal;
+    case BarlineType::Double: return mx::api::BarlineType::lightLight;
+    case BarlineType::Final: return mx::api::BarlineType::lightHeavy;
+    case BarlineType::Solid: return mx::api::BarlineType::heavy;
+    case BarlineType::Dashed: return mx::api::BarlineType::dashed;
+    case BarlineType::Tick: return mx::api::BarlineType::unsupported;
+    case BarlineType::Custom: return mx::api::BarlineType::unsupported;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(details::Bracket::BracketStyle, mx::api::BracketType)
     case details::Bracket::BracketStyle::None: return mx::api::BracketType::none;
     case details::Bracket::BracketStyle::ThickLine: return mx::api::BracketType::line;
@@ -60,6 +75,17 @@ BEGIN_ENUM_CONVERSION(details::Bracket::BracketStyle, mx::api::BracketType)
     case details::Bracket::BracketStyle::PianoBrace: return mx::api::BracketType::brace;
     case details::Bracket::BracketStyle::BracketCurvedHooks: return mx::api::BracketType::bracket;
     case details::Bracket::BracketStyle::DeskBracket: return mx::api::BracketType::square;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(music_theory::ClefType, mx::api::ClefSymbol)
+    case music_theory::ClefType::Unknown: return mx::api::ClefSymbol::g;
+    case music_theory::ClefType::G: return mx::api::ClefSymbol::g;
+    case music_theory::ClefType::F: return mx::api::ClefSymbol::f;
+    case music_theory::ClefType::C: return mx::api::ClefSymbol::c;
+    case music_theory::ClefType::Percussion1: return mx::api::ClefSymbol::percussion;
+    case music_theory::ClefType::Percussion2: return mx::api::ClefSymbol::percussion;
+    case music_theory::ClefType::Tab: return mx::api::ClefSymbol::tab;
+    case music_theory::ClefType::TabSerif: return mx::api::ClefSymbol::tab;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarline)

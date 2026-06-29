@@ -41,6 +41,7 @@ inline std::string createPartId(int partNumber)
 }
 
 void createDefaults(const MusicXmlMusxMapping& context);
+void createMeasures(MusicXmlMusxMapping& context);
 void createMetaData(const MusicXmlMusxMapping& context);
 void createParts(MusicXmlMusxMapping& context);
 std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);

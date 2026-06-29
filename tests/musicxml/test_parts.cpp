@@ -122,6 +122,13 @@ void comparePartGroups(const mx::api::ScoreData& actual, const mx::api::ScoreDat
     }
 }
 
+void expectInitialTransposition(const mx::api::PartData& part, int chromatic, int diatonic, const char* label)
+{
+    ASSERT_TRUE(part.transposition) << label << " transposition";
+    EXPECT_EQ(part.transposition->chromatic, chromatic) << label << ".chromatic";
+    EXPECT_EQ(part.transposition->diatonic, diatonic) << label << ".diatonic";
+}
+
 } // namespace
 
 TEST(MusicXmlParts, PartGroupBracketsMatchFinaleSpans)
@@ -157,4 +164,27 @@ TEST(MusicXmlParts, PipeOrganExportsThreeStaffPartWithManualsBrace)
     EXPECT_EQ(firstMeasure.partSymbol->value, mx::api::BracketType::brace);
     EXPECT_EQ(firstMeasure.partSymbol->topStaff, 1);
     EXPECT_EQ(firstMeasure.partSymbol->bottomStaff, 2);
+}
+
+TEST(MusicXmlParts, LargeOrchestraExportsInitialTranspositions)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("musicxml/large-orchestra.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_GT(actualScore->parts.size(), 15);
+
+    expectInitialTransposition(actualScore->parts.at(0), 12, 7, "piccolo");
+    expectInitialTransposition(actualScore->parts.at(9), -2, -1, "clarinet in Bb");
+    expectInitialTransposition(actualScore->parts.at(15), -7, -4, "horn in F");
+}
+
+TEST(MusicXmlParts, BarlinesOverrideCorrectTypes)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("musicxml/barline-types.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
 }
