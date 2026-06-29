@@ -717,7 +717,7 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
         { uuid::Zarb,                           SoundID::drumZarb },
 
         // Percussion
-        { uuid::PercussionGeneral,              SoundID::drumGroupSet },
+        { uuid::PercussionGeneral,              SoundID::drumGroup },
         // { uuid::PercAccessories,                SoundID:: },   // unmapped even in Finale
         { uuid::WindChimes,                     SoundID::metalBellsWindChimes },
         { uuid::ChimeTree,                      SoundID::metalBellsMarkTree },
