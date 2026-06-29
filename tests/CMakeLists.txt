@@ -19,6 +19,7 @@ endfunction()
         denigmatests.cpp
         xml_compare.cpp
         test_articulations.cpp
+        test_barlines.cpp
         test_clefs.cpp
         test_enigmaxml_converter.cpp
         test_expressions.cpp

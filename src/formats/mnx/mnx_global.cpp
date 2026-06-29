@@ -24,6 +24,7 @@
 #include <fstream>
 #include <unordered_map>
 
+#include "denigma/classify/barlines.h"
 #include "denigma/classify/expressions.h"
 #include "mnx.h"
 #include "utils/smufl_support.h"
@@ -34,36 +35,58 @@ namespace mnx {
 namespace detail {
 
 static void assignBarline(
+    const MnxMusxMappingPtr& context,
     mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
     const MusxInstance<options::BarlineOptions>& musxBarlineOptions,
     bool isForFinalMeasure)
 {
-    if (musxBarlineOptions->drawBarlines) {
-        switch (musxMeasure->barlineType) {
-            case others::Measure::BarlineType::OptionsDefault:
-            case others::Measure::BarlineType::Custom:
-                // unable to convert: use default MNX value
-                break;
-            case others::Measure::BarlineType::Normal:
-                if (isForFinalMeasure && !musxBarlineOptions->drawFinalBarlineOnLastMeas) {
-                    // force normal on final bar
-                    mnxMeasure.ensure_barline(mnxdom::BarlineType::Regular);
-                } else if (!isForFinalMeasure && musxBarlineOptions->drawDoubleBarlineBeforeKeyChanges) {
-                    if (const auto& nextMeasure = musxMeasure->getDocument()->getOthers()->get<others::Measure>(
-                            SCORE_PARTID, static_cast<Cmper>(musxMeasure->getCmper() + 1))) {
-                        if (!musxMeasure->createKeySignature()->isSame(*nextMeasure->createKeySignature().get())) {
-                            mnxMeasure.ensure_barline(mnxdom::BarlineType::Double);
-                        }
-                    }
-                }
-                break;
-            default:
-                mnxMeasure.ensure_barline(enumConvert<mnxdom::BarlineType>(musxMeasure->barlineType));
-                break;
+    /// @todo MNX global measures have a single barline type, while Finale staff geometry can vary by staff.
+    /// MNX will probably need to revisit how short barlines are handled in any case. Revise if/when that happens.
+    const auto findRepresentativeStaff = [&]() -> MusxInstance<others::Staff> {
+        MusxInstance<others::Staff> firstFoundStaff;
+        const auto endOfBar = musxMeasure->calcDuration().calcEduDuration();
+        for (const auto& staffSlot : context->document->getScrollViewStaves(SCORE_PARTID)) {
+            auto staff = staffSlot->getStaffInstance(musxMeasure->getCmper(), endOfBar);
+            if (!staff) {
+                continue;
+            }
+            if (!firstFoundStaff) {
+                firstFoundStaff = staff;
+            }
+            if (!staff->hideBarlines) {
+                return staff;
+            }
         }
-    } else {
-        mnxMeasure.ensure_barline(mnxdom::BarlineType::NoBarline);
+        return firstFoundStaff;
+    };
+
+    const auto musxStaff = findRepresentativeStaff();
+    const auto classification = classify::classifyBarline(
+        musxStaff, musxMeasure, isForFinalMeasure, musxBarlineOptions);
+    
+    switch (classification.type) {
+    case classify::BarlineType::Unsupported:
+        break;
+    case classify::BarlineType::Regular:
+        if (classification.isShort) {
+            mnxMeasure.ensure_barline(mnxdom::BarlineType::Short);
+        } else if (isForFinalMeasure) {
+            mnxMeasure.ensure_barline(mnxdom::BarlineType::Regular);
+        }
+        break;
+    case classify::BarlineType::Final:
+        if (!isForFinalMeasure) {
+            mnxMeasure.ensure_barline(mnxdom::BarlineType::Final);
+        }
+        break;
+    case classify::BarlineType::Dashed:
+    case classify::BarlineType::Double:
+    case classify::BarlineType::Heavy:
+    case classify::BarlineType::NoBarline:
+    case classify::BarlineType::Tick:
+        mnxMeasure.ensure_barline(enumConvert<mnxdom::BarlineType>(classification.type));
+        break;
     }
 }
 
@@ -309,7 +332,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxDocument->global().measures().append();
         mnxMeasure.set_id(calcGlobalMeasureId(musxMeasure->getCmper()));
-        assignBarline(mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
+        assignBarline(context, mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
         createEnding(mnxMeasure, musxMeasure);
         createBarlineFermata(context, mnxMeasure, musxMeasure);
         createFine(context, mnxMeasure, musxMeasure);

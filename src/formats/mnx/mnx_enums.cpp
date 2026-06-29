@@ -25,6 +25,7 @@
 #include <unordered_map>
 
 #include "mnx.h"
+#include "denigma/classify/barlines.h"
 
 #define BEGIN_ENUM_CONVERSION(FromEnum, ToEnum) \
 template<> \
@@ -58,6 +59,16 @@ BEGIN_ENUM_CONVERSION(BarlineType, mnxdom::BarlineType)
     case BarlineType::Solid: return mnxdom::BarlineType::Heavy;
     case BarlineType::Dashed: return mnxdom::BarlineType::Dashed;
     case BarlineType::Tick: return mnxdom::BarlineType::Tick;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::BarlineType, mnxdom::BarlineType)
+    case classify::BarlineType::NoBarline: return mnxdom::BarlineType::NoBarline;
+    case classify::BarlineType::Regular: return mnxdom::BarlineType::Regular;
+    case classify::BarlineType::Double: return mnxdom::BarlineType::Double;
+    case classify::BarlineType::Final: return mnxdom::BarlineType::Final;
+    case classify::BarlineType::Heavy: return mnxdom::BarlineType::Heavy;
+    case classify::BarlineType::Dashed: return mnxdom::BarlineType::Dashed;
+    case classify::BarlineType::Tick: return mnxdom::BarlineType::Tick;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnxdom::NoteValueBase)
