@@ -31,6 +31,7 @@
 
 #include "mx/api/PartData.h"
 #include "mx/api/PartGroupData.h"
+#include "mx/api/PartSymbolData.h"
 
 using namespace musx::dom;
 using namespace musx::util;
@@ -117,6 +118,17 @@ std::unordered_map<StaffCmper, int> createStaffToPartIndex(const MusicXmlMusxMap
     return result;
 }
 
+std::unordered_map<StaffCmper, int> createStaffToLocalStaffNumber(const MusicXmlMusxMapping& context)
+{
+    std::unordered_map<StaffCmper, int> result;
+    for (const auto& [partId, staves] : context.partIdToStaves) {
+        for (size_t index = 0; index < staves.size(); ++index) {
+            result.emplace(staves[index], static_cast<int>(index + 1));
+        }
+    }
+    return result;
+}
+
 void populateGroupNames(mx::api::PartGroupData& groupData, const MusxInstance<details::StaffGroup>& staffGroup)
 {
     if (staffGroup->hideName) {
@@ -140,15 +152,20 @@ void createPartGroups(MusicXmlMusxMapping& context)
 {
     auto& score = *context.musicXmlScore;
     score.partGroups.clear();
+    context.partIdToPartSymbol.clear();
 
     const auto scrollView = context.document->getScrollViewStaves(context.forPartId);
     auto groups = details::StaffGroupInfo::getGroupsAtMeasure(1, context.forPartId, scrollView);
     sortGroups(groups);
 
     const auto staffToPartIndex = createStaffToPartIndex(context);
+    const auto staffToLocalStaffNumber = createStaffToLocalStaffNumber(context);
     int groupNumber = 0;
     for (const auto& groupInfo : groups) {
         if (!groupInfo.startSlot || !groupInfo.endSlot) {
+            continue;
+        }
+        if (!groupInfo.group->bracket) {
             continue;
         }
         const auto startSlot = groupInfo.startSlot.value();
@@ -157,12 +174,28 @@ void createPartGroups(MusicXmlMusxMapping& context)
             continue;
         }
 
-        const auto startPartIt = staffToPartIndex.find(scrollView[startSlot]->staffId);
-        const auto endPartIt = staffToPartIndex.find(scrollView[endSlot]->staffId);
+        const auto startStaffId = scrollView[startSlot]->staffId;
+        const auto endStaffId = scrollView[endSlot]->staffId;
+        const auto startPartIt = staffToPartIndex.find(startStaffId);
+        const auto endPartIt = staffToPartIndex.find(endStaffId);
         if (startPartIt == staffToPartIndex.end() || endPartIt == staffToPartIndex.end()) {
             continue;
         }
         if (startPartIt->second == endPartIt->second) {
+            const auto startPartIdIt = context.staffToPartId.find(startStaffId);
+            const auto endPartIdIt = context.staffToPartId.find(endStaffId);
+            const auto topStaffIt = staffToLocalStaffNumber.find(startStaffId);
+            const auto bottomStaffIt = staffToLocalStaffNumber.find(endStaffId);
+            if (startPartIdIt != context.staffToPartId.end()
+                && endPartIdIt != context.staffToPartId.end()
+                && startPartIdIt->second == endPartIdIt->second
+                && topStaffIt != staffToLocalStaffNumber.end()
+                && bottomStaffIt != staffToLocalStaffNumber.end()) {
+                auto& partSymbol = context.partIdToPartSymbol[startPartIdIt->second];
+                partSymbol.value = enumConvert<mx::api::BracketType>(groupInfo.group->bracket->style);
+                partSymbol.topStaff = topStaffIt->second;
+                partSymbol.bottomStaff = bottomStaffIt->second;
+            }
             continue;
         }
 

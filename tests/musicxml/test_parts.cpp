@@ -140,11 +140,21 @@ TEST(MusicXmlParts, PartGroupBracketsMatchFinaleSpans)
     }
 }
 
-TEST(MusicXmlParts, PipeOrganExportsLoadableMusicXml)
+TEST(MusicXmlParts, PipeOrganExportsThreeStaffPartWithManualsBrace)
 {
     setupTestDataPaths();
 
     const auto outputPath = exportMusicXmlFixture("musicxml/pipe-organ.musx");
     const auto actualScore = loadScoreData(outputPath);
     ASSERT_TRUE(actualScore);
+    ASSERT_EQ(actualScore->parts.size(), 1);
+
+    const auto& organPart = actualScore->parts.front();
+    ASSERT_EQ(organPart.measures.size(), 1);
+    const auto& firstMeasure = organPart.measures.front();
+    ASSERT_EQ(firstMeasure.staves.size(), 3);
+    ASSERT_TRUE(firstMeasure.partSymbol);
+    EXPECT_EQ(firstMeasure.partSymbol->value, mx::api::BracketType::brace);
+    EXPECT_EQ(firstMeasure.partSymbol->topStaff, 1);
+    EXPECT_EQ(firstMeasure.partSymbol->bottomStaff, 2);
 }

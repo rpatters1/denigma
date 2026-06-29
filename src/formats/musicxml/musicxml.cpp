@@ -80,6 +80,9 @@ void createPlaceholderMeasure(MusicXmlMusxMapping& context, mx::api::PartData& p
     if (const auto stavesIt = context.partIdToStaves.find(part.uniqueId); stavesIt != context.partIdToStaves.end()) {
         staffCount = (std::max)(staffCount, stavesIt->second.size());
     }
+    if (const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId); partSymbolIt != context.partIdToPartSymbol.end()) {
+        measure.partSymbol = partSymbolIt->second;
+    }
 
     measure.staves.resize(staffCount);
     for (size_t staffIndex = 0; staffIndex < measure.staves.size(); ++staffIndex) {
