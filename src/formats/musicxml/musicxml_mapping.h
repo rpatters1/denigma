@@ -30,6 +30,7 @@
 #include "core/finale_options.h"
 #include "musx/musx.h"
 #include "mx/api/FontData.h"
+#include "mx/api/PartSymbolData.h"
 #include "mx/api/ScoreData.h"
 
 namespace denigma {
@@ -106,6 +107,7 @@ struct MusicXmlMusxMapping
 
     std::unordered_map<musx::dom::StaffCmper, std::string> staffToPartId;
     std::unordered_map<std::string, std::vector<musx::dom::StaffCmper>> partIdToStaves;
+    std::unordered_map<std::string, mx::api::PartSymbolData> partIdToPartSymbol;
     std::unordered_map<musx::dom::EntryNumber, std::string> entryNumberToNoteId;
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;
 
