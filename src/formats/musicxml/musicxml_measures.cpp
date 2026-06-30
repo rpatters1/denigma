@@ -306,51 +306,51 @@ void assignClefs(
     mx::api::StaffData& staff,
     StaffCmper staffId,
     const MusxInstance<others::Measure>& musxMeasure,
+    MusicXmlPitchContext pitchContext,
     std::optional<ClefIndex>& prevClefIndex)
 {
     const auto& musxDocument = musxMeasure->getDocument();
-    auto addClef = [&](ClefIndex clefIndex, Fraction location) {
+    const auto measureStartStaff = others::StaffComposite::createCurrent(musxDocument, context.forPartId, staffId,
+        musxMeasure->getCmper(), 0);
+    if (!measureStartStaff) {
+        context.logMessage(LogMsg() << "No staff information found for staff " << staffId << ".",
+            MessageSeverity::Warning);
+        return;
+    }
+
+    auto addClef = [&](const others::Staff::ClefChange& clefChange) {
+        const auto clefIndex = clefChange.clefIndex;
+        const auto location = clefChange.position;
         if (clefIndex == prevClefIndex) {
             return;
         }
-        auto musxStaff = others::StaffComposite::createCurrent(
-            musxDocument,
-            context.forPartId,
-            staffId,
-            musxMeasure->getCmper(),
-            location.calcEduDuration());
+        auto musxStaff = measureStartStaff;
+        if (location && clefChange.showClefMode == ShowClefMode::WhenNeeded) {
+            musxStaff = others::StaffComposite::createCurrent(musxDocument, context.forPartId, staffId,
+                musxMeasure->getCmper(), location.calcEduDuration());
+        }
         if (!musxStaff) {
-            context.logMessage(LogMsg() << "No staff information found for staff " << staffId << ".", MessageSeverity::Warning);
+            context.logMessage(LogMsg() << "No staff information found for staff " << staffId << ".",
+                MessageSeverity::Warning);
             return;
         }
 
         auto clef = musicXmlClefFromMusxClef(context.finaleOptions.clefOptions->getClefDef(clefIndex), musxStaff);
         clef.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(location);
         clef.location = location ? mx::api::ClefLocation::midMeasure : mx::api::ClefLocation::unspecified;
+        if (clefChange.showClefMode == ShowClefMode::Never
+            || (clefChange.showClefMode == ShowClefMode::WhenNeeded && musxStaff->hideClefs)) {
+            clef.printObject = mx::api::Bool::no;
+        }
         staff.clefs.emplace_back(clef);
         prevClefIndex = clefIndex;
     };
 
-    if (musxMeasure->getCmper() == 1) {
-        if (const auto musxStaff = others::StaffComposite::createCurrent(musxDocument, context.forPartId, staffId, 1, 0)) {
-            addClef(musxStaff->calcClefIndex(/*forWrittenPitch*/ true), 0);
-        } else {
-            context.logMessage(LogMsg() << "No staff information found for staff " << staffId << ".", MessageSeverity::Warning);
-        }
-    }
-
-    if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(context.forPartId, staffId, musxMeasure->getCmper())) {
-        if (gfhold->clefId.has_value()) {
-            addClef(gfhold->clefId.value(), 0);
-        } else {
-            const auto clefList = musxDocument->getOthers()->getArray<others::ClefList>(context.forPartId, gfhold->clefListId);
-            const auto gfholdContext = details::GFrameHoldContext(gfhold);
-            for (const auto& clefItem : clefList) {
-                const auto location = gfholdContext.snapLocationToEntryOrKeep(Fraction::fromEdu(clefItem->xEduPos), /*findExact*/ true);
-                addClef(clefItem->clefIndex, location);
-            }
-        }
-    }
+    measureStartStaff->iterateClefChangesAtMeasure(musxMeasure->getCmper(), pitchContext == MusicXmlPitchContext::Written,
+        [&](const others::Staff::ClefChange& clefChange) {
+            addClef(clefChange);
+            return true;
+        });
 }
 
 void assignStaffAttributes(
@@ -477,7 +477,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         for (size_t staffIndex = 0; staffIndex < stavesIt->second.size(); ++staffIndex) {
             const StaffCmper staffId = stavesIt->second[staffIndex];
             auto& staff = measure.staves[staffIndex];
-            assignClefs(context, staff, staffId, musxMeasure, prevClefIndices[staffIndex]);
+            assignClefs(context, staff, staffId, musxMeasure, pitchContext, prevClefIndices[staffIndex]);
             const auto musxStaffAtEnd = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId,
                 musxMeasure->getCmper(), musxMeasure->calcDuration(staffId).calcEduDuration());
             assignBarlines(context, measure, musxMeasure, isFinalMeasure, musxStaffAtEnd);

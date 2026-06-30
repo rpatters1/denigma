@@ -20,6 +20,24 @@ MusicXML allows `<attributes>` elements mid-measure, and `<attributes>` may incl
 
 Needed API shape: positionable staff details data, likely a vector on `StaffData`, with `tickTimePosition` and fields such as `staffLines` and `staffSize`.
 
+## Clefs
+
+### Forced or additional clefs
+
+MusicXML `<clef>` supports an `additional` attribute for clefs that should be displayed even when they are not needed by the normal clef-change sequence. Finale can force a clef display with `ShowClefMode::Always`.
+
+`mx::api::ClefData` can represent the clef identity, position, staff number, and `print-object`, but it does not expose the MusicXML `additional` attribute. Denigma can suppress hidden clefs with `print-object="no"`, but cannot accurately express Finale's forced/additional clef display through the current API.
+
+Needed API shape: an optional `additional` field on `mx::api::ClefData`, written as the MusicXML `additional` attribute.
+
+### Clef size percent
+
+MusicXML `<clef>` supports size-related attributes such as symbolic `size` and font-size/style attributes. Finale mid-measure clef entries include a percent value.
+
+`mx::api::ClefData` does not expose clef size or font-size controls. Denigma cannot currently export Finale's per-clef percentage setting through `mx::api`.
+
+Needed API shape: clef size/font controls on `mx::api::ClefData`, or another supported mapping for MusicXML clef sizing that can represent Finale's percent value.
+
 ## Time Signatures
 
 ### Per-staff time signatures
