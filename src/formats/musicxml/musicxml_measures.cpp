@@ -32,10 +32,8 @@
 #include "mx/api/ClefData.h"
 #include "mx/api/KeyData.h"
 #include "mx/api/MeasureData.h"
-#include "mx/api/NoteData.h"
 #include "mx/api/PartData.h"
 #include "mx/api/StaffData.h"
-#include "mx/api/VoiceData.h"
 
 using namespace musx::dom;
 using namespace musx::util;
@@ -303,42 +301,56 @@ void assignTimeSignature(
     prevTimeSig = timeSig;
 }
 
-void addFullMeasureRest(
-    const MusicXmlMusxMapping& context,
-    mx::api::StaffData& staff,
-    const MusxInstance<others::Measure>& musxMeasure)
-{
-    const Fraction measureDuration = musxMeasure->calcDuration();
-
-    auto rest = mx::api::NoteData{};
-    rest.isRest = true;
-    rest.isMeasureRest = true;
-    rest.durationData.durationName = mx::api::DurationName::whole;
-    rest.durationData.durationTimeTicks = context.timing.calcMusicXmlDivisions(measureDuration);
-
-    auto& voice = staff.voices[0];
-    voice.notes.emplace_back(rest);
-}
-
-void addInitialClef(
+void assignClefs(
     MusicXmlMusxMapping& context,
     mx::api::StaffData& staff,
     StaffCmper staffId,
-    const MusxInstance<others::Measure>& musxMeasure)
+    const MusxInstance<others::Measure>& musxMeasure,
+    std::optional<ClefIndex>& prevClefIndex)
 {
-    auto musxStaff = others::StaffComposite::createCurrent(
-        context.document,
-        context.forPartId,
-        staffId,
-        musxMeasure->getCmper(),
-        0);
-    if (!musxStaff) {
-        context.logMessage(LogMsg() << "No staff information found for staff " << staffId << ".", MessageSeverity::Warning);
-        return;
+    const auto& musxDocument = musxMeasure->getDocument();
+    auto addClef = [&](ClefIndex clefIndex, Fraction location) {
+        if (clefIndex == prevClefIndex) {
+            return;
+        }
+        auto musxStaff = others::StaffComposite::createCurrent(
+            musxDocument,
+            context.forPartId,
+            staffId,
+            musxMeasure->getCmper(),
+            location.calcEduDuration());
+        if (!musxStaff) {
+            context.logMessage(LogMsg() << "No staff information found for staff " << staffId << ".", MessageSeverity::Warning);
+            return;
+        }
+
+        auto clef = musicXmlClefFromMusxClef(context.finaleOptions.clefOptions->getClefDef(clefIndex), musxStaff);
+        clef.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(location);
+        clef.location = location ? mx::api::ClefLocation::midMeasure : mx::api::ClefLocation::unspecified;
+        staff.clefs.emplace_back(clef);
+        prevClefIndex = clefIndex;
+    };
+
+    if (musxMeasure->getCmper() == 1) {
+        if (const auto musxStaff = others::StaffComposite::createCurrent(musxDocument, context.forPartId, staffId, 1, 0)) {
+            addClef(musxStaff->calcClefIndex(/*forWrittenPitch*/ true), 0);
+        } else {
+            context.logMessage(LogMsg() << "No staff information found for staff " << staffId << ".", MessageSeverity::Warning);
+        }
     }
-    const auto clefIndex = musxStaff->calcClefIndex(/*forWrittenPitch*/ true);
-    const auto clefDef = context.finaleOptions.clefOptions->getClefDef(clefIndex);
-    staff.clefs.emplace_back(musicXmlClefFromMusxClef(clefDef, musxStaff));
+
+    if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(context.forPartId, staffId, musxMeasure->getCmper())) {
+        if (gfhold->clefId.has_value()) {
+            addClef(gfhold->clefId.value(), 0);
+        } else {
+            const auto clefList = musxDocument->getOthers()->getArray<others::ClefList>(context.forPartId, gfhold->clefListId);
+            const auto gfholdContext = details::GFrameHoldContext(gfhold);
+            for (const auto& clefItem : clefList) {
+                const auto location = gfholdContext.snapLocationToEntryOrKeep(Fraction::fromEdu(clefItem->xEduPos), /*findExact*/ true);
+                addClef(clefItem->clefIndex, location);
+            }
+        }
+    }
 }
 
 void assignStaffAttributes(
@@ -447,6 +459,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
     const auto musxMeasures = context.document->getOthers()->getArray<others::Measure>(context.forPartId);
     part.measures.reserve(musxMeasures.size());
     std::vector<std::optional<mx::api::KeyData>> prevKeyData(stavesIt->second.size());
+    std::vector<std::optional<ClefIndex>> prevClefIndices(stavesIt->second.size());
     MusxInstance<TimeSignature> prevTimeSig;
     const auto pitchContext = pitchContextForPart(context, part.uniqueId);
     for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
@@ -464,13 +477,11 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         for (size_t staffIndex = 0; staffIndex < stavesIt->second.size(); ++staffIndex) {
             const StaffCmper staffId = stavesIt->second[staffIndex];
             auto& staff = measure.staves[staffIndex];
-            if (measureIndex == 0) {
-                addInitialClef(context, staff, staffId, musxMeasure);
-            }
+            assignClefs(context, staff, staffId, musxMeasure, prevClefIndices[staffIndex]);
             const auto musxStaffAtEnd = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId,
                 musxMeasure->getCmper(), musxMeasure->calcDuration(staffId).calcEduDuration());
             assignBarlines(context, measure, musxMeasure, isFinalMeasure, musxStaffAtEnd);
-            addFullMeasureRest(context, staff, musxMeasure);
+            createNotesForMeasureStaff(context, measure, staff, musxMeasure, staffId, staffIndex);
         }
     }
 

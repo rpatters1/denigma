@@ -18,6 +18,7 @@
  */
 #pragma once
 
+#include <cstddef>
 #include <ostream>
 #include <optional>
 #include <string>
@@ -25,7 +26,9 @@
 
 #include "core/denigma.h"
 #include "musicxml_mapping.h"
+#include "mx/api/MeasureData.h"
 #include "mx/api/SoundID.h"
+#include "mx/api/StaffData.h"
 
 namespace denigma {
 namespace formats {
@@ -46,6 +49,13 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
 void createDefaults(const MusicXmlMusxMapping& context);
 void createMeasures(MusicXmlMusxMapping& context);
 void createMetaData(const MusicXmlMusxMapping& context);
+void createNotesForMeasureStaff(
+    MusicXmlMusxMapping& context,
+    mx::api::MeasureData& measure,
+    mx::api::StaffData& staff,
+    const musx::dom::MusxInstance<musx::dom::others::Measure>& musxMeasure,
+    musx::dom::StaffCmper staffId,
+    size_t staffIndex);
 void createParts(MusicXmlMusxMapping& context);
 
 void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);

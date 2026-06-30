@@ -72,6 +72,8 @@ struct MusicXmlTimingPlan
         }
         return result.numerator();
     }
+
+    int calcNearestMusicXmlDivisions(const musx::util::Fraction& wholeNoteFraction) const;
 };
 
 struct MusicXmlCurrentLocation

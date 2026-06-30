@@ -19,6 +19,8 @@
 
 #include "musicxml.h"
 
+#include <cmath>
+#include <limits>
 #include <string_view>
 
 namespace denigma {
@@ -63,6 +65,20 @@ MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, con
         return it->second;
     }
     return MusicXmlPitchContext::Concert;
+}
+
+int MusicXmlTimingPlan::calcNearestMusicXmlDivisions(const musx::util::Fraction& wholeNoteFraction) const
+{
+    const auto result = wholeNoteFraction * 4 * divisions;
+    if (result.denominator() == 1) {
+        return result.numerator();
+    }
+
+    const auto rounded = std::llround(static_cast<double>(result.numerator()) / static_cast<double>(result.denominator()));
+    ASSERT_IF(rounded < (std::numeric_limits<int>::min)() || rounded > (std::numeric_limits<int>::max)()) {
+        throw std::overflow_error("MusicXML position is outside the supported integer range.");
+    }
+    return static_cast<int>(rounded);
 }
 
 mx::api::FontData MusicXmlMusxMapping::musicXmlFontDataFromFontInfo(
