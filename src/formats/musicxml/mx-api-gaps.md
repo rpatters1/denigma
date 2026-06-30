@@ -4,11 +4,11 @@ Notes collected while implementing Denigma's MusicXML exporter. These are MusicX
 
 ## Staff Details
 
-### Staff-details fields beyond staff-lines
+### Staff-details fields beyond staff-lines and staff-size
 
-MusicXML `<staff-details>` can represent more than the line count, including staff type, staff size, staff tuning, capo, and print controls.
+MusicXML `<staff-details>` can represent more than line count and staff size, including staff type, staff tuning, capo, and print controls.
 
-`mx::api::StaffData` currently exposes only `staffLines`. Denigma can export simple staff-line changes, but cannot express the rest of Finale's staff details through `mx::api`.
+`mx::api::StaffData` currently exposes `staffLines` and `staffSize`. Denigma can export simple staff-line and staff-size changes, but cannot express the rest of Finale's staff details through `mx::api`.
 
 Needed API shape: a staff details data object with optional fields for the MusicXML `<staff-details>` children and attributes that MX intends to support.
 
@@ -16,9 +16,9 @@ Needed API shape: a staff details data object with optional fields for the Music
 
 MusicXML allows `<attributes>` elements mid-measure, and `<attributes>` may include `<staff-details>`. The spec says mid-measure attributes affect the music in score order.
 
-`mx::api::StaffData::staffLines` is currently a single scalar with no tick position. MX writes it during the measure-start attributes phase, so Denigma can only express measure-start staff line changes through the current API.
+`mx::api::StaffData::staffLines` and `staffSize` are currently single scalars with no tick position. MX writes them during the measure-start attributes phase, so Denigma can only express measure-start staff detail changes through the current API.
 
-Needed API shape: positionable staff details data, likely a vector on `StaffData`, with `tickTimePosition` and fields such as `staffLines`.
+Needed API shape: positionable staff details data, likely a vector on `StaffData`, with `tickTimePosition` and fields such as `staffLines` and `staffSize`.
 
 ## Time Signatures
 
