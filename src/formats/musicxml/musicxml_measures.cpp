@@ -355,14 +355,6 @@ void assignStaffAttributes(
     }
 
     const auto finalMeasureId = musxMeasures.empty() ? MeasCmper{} : musxMeasures.back()->getCmper();
-    const auto currentRightBarlineType = [](const mx::api::MeasureData& measure) {
-        for (const auto& barline : measure.barlines) {
-            if (barline.location == mx::api::HorizontalAlignment::right || barline.location == mx::api::HorizontalAlignment::unspecified) {
-                return barline.barlineType;
-            }
-        }
-        return mx::api::BarlineType::normal;
-    };
     for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
         const auto staffId = staves[staffIndex];
         std::set<MeasCmper> styleChanges{ 1 };
@@ -387,28 +379,10 @@ void assignStaffAttributes(
             ASSERT_IF(measure.staves.size() != staves.size()) {
                 return;
             }
-            const auto& musxMeasure = musxMeasures[measureIndex->second];
             const auto staff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, measureId, 0);
             ASSERT_IF(!staff) {
                 continue;
             }
-            const auto barlineType = currentRightBarlineType(measure);
-            if (barlineType == mx::api::BarlineType::normal || barlineType == mx::api::BarlineType::unspecified) {
-                const auto staffMeasureDuration = musxMeasure->calcDuration(staff->getCmper());
-                const auto endStaff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, measureId, staffMeasureDuration.calcEduDuration());
-                assert(endStaff);
-                if (endStaff) {
-                    const auto classification = classify::classifyBarline(
-                        endStaff,
-                        musxMeasure,
-                        measureIndex->second + 1 == musxMeasures.size(),
-                        context.finaleOptions.barlineOptions);
-                    if (classification.isShort) {
-                        setBarlineData(measure, mx::api::BarlineType::short_, mx::api::HorizontalAlignment::right);
-                    }
-                }
-            }
-
             const int staffLines = staff->calcNumberOfStafflines();
             if (!prevStaffLines) {
                 if (staffLines != music_theory::STANDARD_NUMBER_OF_STAFFLINES) {
@@ -440,7 +414,6 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
         measure.number = std::to_string(musxMeasure->getCmper());
-        assignBarlines(context, measure, musxMeasure, isFinalMeasure, {});
         assignKeySignatures(context, measure, musxMeasure, stavesIt->second, pitchContext, prevKeyData);
         assignTimeSignature(measure, musxMeasure, stavesIt->second, prevTimeSig);
         if (const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId); partSymbolIt != context.partIdToPartSymbol.end()) {
@@ -454,6 +427,9 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
             if (measureIndex == 0) {
                 addInitialClef(context, staff, staffId, musxMeasure);
             }
+            const auto musxStaffAtEnd = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId,
+                musxMeasure->getCmper(), musxMeasure->calcDuration(staffId).calcEduDuration());
+            assignBarlines(context, measure, musxMeasure, isFinalMeasure, musxStaffAtEnd);
             addFullMeasureRest(context, staff, musxMeasure);
         }
     }

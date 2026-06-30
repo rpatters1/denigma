@@ -85,8 +85,8 @@ BarlineClassification classifyBarline(
     const bool isShort = classifyIsShortBarline(staff);
     const auto type = measure->barlineType;
     if (type == MusxBarlineType::Normal) {
-        if (isFinalMeasure && barlineOptions && !barlineOptions->drawFinalBarlineOnLastMeas) {
-            return { BarlineType::Regular, isShort };
+        if (isFinalMeasure && barlineOptions && barlineOptions->drawFinalBarlineOnLastMeas) {
+            return { BarlineType::Final, isShort };
         }
 
         if (!isFinalMeasure && barlineOptions && barlineOptions->drawDoubleBarlineBeforeKeyChanges) {

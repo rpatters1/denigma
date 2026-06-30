@@ -55,6 +55,7 @@ The repository builds a CLI plus reusable libraries for classification, massage,
 - Preserve the existing CMake target structure and naming conventions.
 - Do not remove or rewrite third-party dependency wiring unless the task is specifically about build configuration.
 - Prefer a local lambda over a file-scope one-off helper when the logic is only used in one function and does not improve readability as a named abstraction.
+- Do not place project-internal design notes in top-level `docs`; that directory is primarily for Doxygen/external-library documentation. Keep implementation notes near the relevant source area unless asked otherwise.
 
 ## Verification
 
