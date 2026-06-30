@@ -197,20 +197,18 @@ static void createClefs(
     };
 
     auto staff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper(), 0);
-    if (staff && staff->transposition && staff->transposition->setToClef) {
-        addClef(staff->transposedClef, 0);
-    } else if (auto gfhold = musxDocument->getDetails()->get<details::GFrameHold>(musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper())) {
-        if (gfhold->clefId.has_value()) {
-            addClef(gfhold->clefId.value(), 0);
-        } else {
-            auto clefList = musxDocument->getOthers()->getArray<others::ClefList>(musxMeasure->getRequestedPartId(), gfhold->clefListId);
-            const auto ctx = details::GFrameHoldContext(gfhold);
-            for (const auto& clefItem : clefList) {
-                const auto location = ctx.snapLocationToEntryOrKeep(musx::util::Fraction::fromEdu(clefItem->xEduPos), /*findExact*/ true);
-                addClef(clefItem->clefIndex, location);
-            }
-        }
+    if (!staff) {
+        context->logMessage(LogMsg() << mnxPartDisplayName(context, mnxPart)
+            << " has no staff information for staff " << staffCmper, MessageSeverity::Warning);
+        return;
     }
+    staff->iterateClefChangesAtMeasure(
+        musxMeasure->getCmper(),
+        /*forWrittenPitch*/ true,
+        [&](const others::Staff::ClefChange& clefChange) {
+            addClef(clefChange.clefIndex, clefChange.position);
+            return true;
+        });
 }
 
 static MusxInstance<others::StaffComposite> findCompositeForIdentity(
