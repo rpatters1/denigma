@@ -29,7 +29,9 @@
 
 #include "mx/api/BarlineData.h"
 #include "mx/api/ClefData.h"
+#include "mx/api/DurationData.h"
 #include "mx/api/PartGroupData.h"
+#include "mx/api/PitchData.h"
 
 #define BEGIN_ENUM_CONVERSION(FromEnum, ToEnum) \
 template<> \
@@ -101,15 +103,42 @@ BEGIN_ENUM_CONVERSION(music_theory::ClefType, mx::api::ClefSymbol)
     case music_theory::ClefType::TabSerif: return mx::api::ClefSymbol::tab;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(MusicXmlPitchContext, KeySignature::KeyContext)
+    case MusicXmlPitchContext::Concert: return KeySignature::KeyContext::Concert;
+    case MusicXmlPitchContext::Written: return KeySignature::KeyContext::Written;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(music_theory::NoteName, mx::api::Step)
+    case music_theory::NoteName::A: return mx::api::Step::a;
+    case music_theory::NoteName::B: return mx::api::Step::b;
+    case music_theory::NoteName::C: return mx::api::Step::c;
+    case music_theory::NoteName::D: return mx::api::Step::d;
+    case music_theory::NoteName::E: return mx::api::Step::e;
+    case music_theory::NoteName::F: return mx::api::Step::f;
+    case music_theory::NoteName::G: return mx::api::Step::g;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(NoteType, mx::api::DurationName)
+    case NoteType::Maxima: return mx::api::DurationName::maxima;
+    case NoteType::Longa: return mx::api::DurationName::longa;
+    case NoteType::Breve: return mx::api::DurationName::breve;
+    case NoteType::Whole: return mx::api::DurationName::whole;
+    case NoteType::Half: return mx::api::DurationName::half;
+    case NoteType::Quarter: return mx::api::DurationName::quarter;
+    case NoteType::Eighth: return mx::api::DurationName::eighth;
+    case NoteType::Note16th: return mx::api::DurationName::dur16th;
+    case NoteType::Note32nd: return mx::api::DurationName::dur32nd;
+    case NoteType::Note64th: return mx::api::DurationName::dur64th;
+    case NoteType::Note128th: return mx::api::DurationName::dur128th;
+    case NoteType::Note256th: return mx::api::DurationName::dur256th;
+    case NoteType::Note512th: return mx::api::DurationName::dur512th;
+    case NoteType::Note1024th: return mx::api::DurationName::dur1024th;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarline)
     case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves: return mx::api::GroupBarline::no;
     case details::StaffGroup::DrawBarlineStyle::ThroughStaves: return mx::api::GroupBarline::yes;
     case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
-END_ENUM_CONVERSION
-
-BEGIN_ENUM_CONVERSION(MusicXmlPitchContext, KeySignature::KeyContext)
-    case MusicXmlPitchContext::Concert: return KeySignature::KeyContext::Concert;
-    case MusicXmlPitchContext::Written: return KeySignature::KeyContext::Written;
 END_ENUM_CONVERSION
 
 } // namespace detail

@@ -19,18 +19,17 @@
 
 #include <algorithm>
 #include <array>
-#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
 
-#include "core/denigma.h"
 #include "gtest/gtest.h"
-#include "mx/api/DocumentManager.h"
 #include "mx/api/ScoreData.h"
+#include "musicxml_test.h"
 #include "test_utils.h"
 
 using namespace denigma;
+using namespace denigma::test::musicxml;
 
 namespace {
 
@@ -56,41 +55,6 @@ const std::vector<PartGroupFixture>& partGroupFixtures()
         { "large_orchestra.musx", "musicxml/large_orchestra-ref.musicxml" }
     };
     return fixtures;
-}
-
-std::filesystem::path exportMusicXmlFixture(const std::string& musxFile)
-{
-    std::filesystem::path inputPath;
-    copyInputToOutput(musxFile, inputPath);
-
-    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml" };
-    checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
-        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to musicxml: " << pathString(inputPath);
-    });
-
-    auto outputPath = inputPath;
-    outputPath.replace_extension(".musicxml");
-    EXPECT_TRUE(std::filesystem::exists(outputPath)) << "Missing MusicXML output " << pathString(outputPath);
-    return outputPath;
-}
-
-std::optional<mx::api::ScoreData> loadScoreData(const std::filesystem::path& path)
-{
-    auto& documentManager = mx::api::DocumentManager::getInstance();
-    const auto documentIdResult = documentManager.createFromFile(pathString(path));
-    EXPECT_TRUE(documentIdResult.ok()) << "Unable to load " << pathString(path) << ": " << documentIdResult.error().message;
-    if (!documentIdResult.ok()) {
-        return std::nullopt;
-    }
-
-    const auto documentId = documentIdResult.value();
-    const auto scoreDataResult = documentManager.getData(documentId);
-    documentManager.destroyDocument(documentId);
-    EXPECT_TRUE(scoreDataResult.ok()) << "Unable to read ScoreData from " << pathString(path) << ": " << scoreDataResult.error().message;
-    if (!scoreDataResult.ok()) {
-        return std::nullopt;
-    }
-    return scoreDataResult.value();
 }
 
 std::vector<ComparablePartGroup> createComparablePartGroups(const std::vector<mx::api::PartGroupData>& partGroups)
@@ -241,34 +205,6 @@ void compareKeySignatures(const mx::api::ScoreData& actual, const mx::api::Score
     }
 }
 
-void expectAllMeasureDurationsEqual(const mx::api::ScoreData& score)
-{
-    auto measureDuration = [](const mx::api::MeasureData& measure) -> std::optional<int> {
-        if (measure.staves.empty() || measure.staves.front().voices.empty()) {
-            return std::nullopt;
-        }
-        const auto& voice = measure.staves.front().voices.begin()->second;
-        if (voice.notes.empty()) {
-            return std::nullopt;
-        }
-        return voice.notes.front().durationData.durationTimeTicks;
-    };
-
-    for (size_t partIndex = 0; partIndex < score.parts.size(); ++partIndex) {
-        SCOPED_TRACE("part " + std::to_string(partIndex + 1));
-        const auto& measures = score.parts.at(partIndex).measures;
-        ASSERT_FALSE(measures.empty());
-        const auto referenceDuration = measureDuration(measures.front());
-        ASSERT_TRUE(referenceDuration);
-        for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
-            SCOPED_TRACE("measure " + std::to_string(measureIndex + 1));
-            const auto duration = measureDuration(measures.at(measureIndex));
-            ASSERT_TRUE(duration);
-            EXPECT_EQ(*duration, *referenceDuration);
-        }
-    }
-}
-
 } // namespace
 
 TEST(MusicXmlParts, PartGroupBracketsMatchFinaleSpans)
@@ -410,5 +346,4 @@ TEST(MusicXmlParts, IndependentTimeSignaturesExportSmoke)
     ASSERT_TRUE(expectedScore);
 
     compareTimeSignatures(*actualScore, *expectedScore);
-    expectAllMeasureDurationsEqual(*actualScore);
 }

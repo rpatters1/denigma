@@ -17,20 +17,19 @@
  * THE SOFTWARE.
  */
 
-#include <filesystem>
 #include <map>
 #include <cmath>
 #include <optional>
 #include <string>
 #include <vector>
 
-#include "core/denigma.h"
 #include "gtest/gtest.h"
-#include "mx/api/DocumentManager.h"
 #include "mx/api/ScoreData.h"
+#include "musicxml_test.h"
 #include "test_utils.h"
 
 using namespace denigma;
+using namespace denigma::test::musicxml;
 
 namespace {
 
@@ -49,25 +48,6 @@ const std::vector<LayoutFixture>& layoutFixtures()
         { "musicxml/page70nohold-staff82ev.musx", "musicxml/page70nohold-staff82ev-ref.musicxml", 211 }
     };
     return fixtures;
-}
-
-std::optional<mx::api::ScoreData> loadScoreData(const std::filesystem::path& path)
-{
-    auto& documentManager = mx::api::DocumentManager::getInstance();
-    const auto documentIdResult = documentManager.createFromFile(pathString(path));
-    EXPECT_TRUE(documentIdResult.ok()) << "Unable to load " << pathString(path) << ": " << documentIdResult.error().message;
-    if (!documentIdResult.ok()) {
-        return std::nullopt;
-    }
-
-    const auto documentId = documentIdResult.value();
-    const auto scoreDataResult = documentManager.getData(documentId);
-    documentManager.destroyDocument(documentId);
-    EXPECT_TRUE(scoreDataResult.ok()) << "Unable to read ScoreData from " << pathString(path) << ": " << scoreDataResult.error().message;
-    if (!scoreDataResult.ok()) {
-        return std::nullopt;
-    }
-    return scoreDataResult.value();
 }
 
 void compareMargins(const mx::api::MarginsData& actual, const mx::api::MarginsData& expected, const char* label)
@@ -218,18 +198,7 @@ TEST(MusicXmlDefaults, PageAndSystemLayoutMatchFinaleRoundedTenths)
     setupTestDataPaths();
 
     for (const auto& fixture : layoutFixtures()) {
-        std::filesystem::path inputPath;
-        copyInputToOutput(fixture.musxFile, inputPath);
-
-        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml" };
-        checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
-            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to musicxml: " << pathString(inputPath);
-        });
-
-        auto outputPath = inputPath;
-        outputPath.replace_extension(".musicxml");
-        ASSERT_TRUE(std::filesystem::exists(outputPath)) << "Missing MusicXML output " << pathString(outputPath);
-
+        const auto outputPath = exportMusicXmlFixture(fixture.musxFile);
         const auto actualScore = loadScoreData(outputPath);
         const auto expectedScore = loadScoreData(getInputPath() / fixture.referenceMusicXmlFile);
         ASSERT_TRUE(actualScore);
@@ -246,18 +215,7 @@ TEST(MusicXmlDefaults, AppearanceMatchesFinaleToFourDecimals)
     setupTestDataPaths();
 
     for (const auto& fixture : layoutFixtures()) {
-        std::filesystem::path inputPath;
-        copyInputToOutput(fixture.musxFile, inputPath);
-
-        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml" };
-        checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
-            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to musicxml: " << pathString(inputPath);
-        });
-
-        auto outputPath = inputPath;
-        outputPath.replace_extension(".musicxml");
-        ASSERT_TRUE(std::filesystem::exists(outputPath)) << "Missing MusicXML output " << pathString(outputPath);
-
+        const auto outputPath = exportMusicXmlFixture(fixture.musxFile);
         const auto actualScore = loadScoreData(outputPath);
         const auto expectedScore = loadScoreData(getInputPath() / fixture.referenceMusicXmlFile);
         ASSERT_TRUE(actualScore);
@@ -273,18 +231,7 @@ TEST(MusicXmlDefaults, FontsMatchFinaleWithinOneDecimalPlace)
     setupTestDataPaths();
 
     for (const auto& fixture : layoutFixtures()) {
-        std::filesystem::path inputPath;
-        copyInputToOutput(fixture.musxFile, inputPath);
-
-        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml" };
-        checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
-            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to musicxml: " << pathString(inputPath);
-        });
-
-        auto outputPath = inputPath;
-        outputPath.replace_extension(".musicxml");
-        ASSERT_TRUE(std::filesystem::exists(outputPath)) << "Missing MusicXML output " << pathString(outputPath);
-
+        const auto outputPath = exportMusicXmlFixture(fixture.musxFile);
         const auto actualScore = loadScoreData(outputPath);
         const auto expectedScore = loadScoreData(getInputPath() / fixture.referenceMusicXmlFile);
         ASSERT_TRUE(actualScore);
