@@ -53,7 +53,7 @@ struct ComparablePartGroup
 const std::vector<PartGroupFixture>& partGroupFixtures()
 {
     static const std::vector<PartGroupFixture> fixtures{
-        { "musicxml/large-orchestra.musx", "musicxml/large-orchestra-ref.musicxml" }
+        { "large_orchestra.musx", "musicxml/large_orchestra-ref.musicxml" }
     };
     return fixtures;
 }
@@ -246,7 +246,7 @@ TEST(MusicXmlParts, LargeOrchestraExportsInitialTranspositions)
 {
     setupTestDataPaths();
 
-    const auto outputPath = exportMusicXmlFixture("musicxml/large-orchestra.musx");
+    const auto outputPath = exportMusicXmlFixture("large_orchestra.musx");
     const auto actualScore = loadScoreData(outputPath);
     ASSERT_TRUE(actualScore);
     ASSERT_GT(actualScore->parts.size(), 15);
@@ -284,6 +284,19 @@ TEST(MusicXmlParts, BarlinesOverrideCorrectTypes)
     for (size_t i = 0; i < expected.size(); ++i) {
         EXPECT_EQ(effectiveRightBarlineType(measures[i]), expected[i]) << "measure " << (i + 1);
     }
+}
+
+TEST(MusicXmlParts, ChangingTimeSignaturesMatchFinale)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("timesigs_changing.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/timesigs_changing-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(expectedScore);
+
+    compareTimeSignatures(*actualScore, *expectedScore);
 }
 
 TEST(MusicXmlParts, IndependentTimeSignaturesExportSmoke)

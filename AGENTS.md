@@ -54,6 +54,7 @@ The repository builds a CLI plus reusable libraries for classification, massage,
 - If a change affects converter behavior, update the corresponding reference fixtures under `tests/data/inputs/reference` and verify the diff carefully.
 - Preserve the existing CMake target structure and naming conventions.
 - Do not remove or rewrite third-party dependency wiring unless the task is specifically about build configuration.
+- Prefer a local lambda over a file-scope one-off helper when the logic is only used in one function and does not improve readability as a named abstraction.
 
 ## Verification
 

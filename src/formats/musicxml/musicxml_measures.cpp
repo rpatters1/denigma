@@ -20,7 +20,9 @@
 #include "musicxml.h"
 
 #include <cstdlib>
+#include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -48,7 +50,7 @@ namespace {
 
 using BarlineType = others::Measure::BarlineType;
 
-void addBarlineData(
+void setBarlineData(
     mx::api::MeasureData& measure,
     mx::api::BarlineType barlineType,
     mx::api::HorizontalAlignment location)
@@ -59,10 +61,16 @@ void addBarlineData(
     if (location == mx::api::HorizontalAlignment::right) {
         barline.tickTimePosition = mx::api::TICK_TIME_INFINITY;
     }
+    for (auto& existing : measure.barlines) {
+        if (existing.location == location) {
+            existing = barline;
+            return;
+        }
+    }
     measure.barlines.emplace_back(barline);
 }
 
-void addBarline(
+void setBarline(
     const MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,
     classify::BarlineType barlineType,
@@ -73,10 +81,10 @@ void addBarline(
         context.logMessage(LogMsg() << "Skipping unsupported MusicXML barline type " << int(barlineType) << ".", MessageSeverity::Info);
         return;
     }
-    addBarlineData(measure, musicXmlBarlineType, location);
+    setBarlineData(measure, musicXmlBarlineType, location);
 }
 
-void addBarline(
+void setBarline(
     const MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,
     BarlineType barlineType,
@@ -87,34 +95,7 @@ void addBarline(
         context.logMessage(LogMsg() << "Skipping unsupported MusicXML barline type " << int(barlineType) << ".", MessageSeverity::Info);
         return;
     }
-    addBarlineData(measure, musicXmlBarlineType, location);
-}
-
-MusxInstance<others::Staff> findRepresentativeBarlineStaff(
-    MusicXmlMusxMapping& context,
-    const MusxInstance<others::Measure>& musxMeasure,
-    const std::vector<StaffCmper>& staves)
-{
-    MusxInstance<others::Staff> firstFoundStaff;
-    const auto endOfBar = musxMeasure->calcDuration().calcEduDuration();
-    for (StaffCmper staffId : staves) {
-        auto staff = others::StaffComposite::createCurrent(
-            context.document,
-            context.forPartId,
-            staffId,
-            musxMeasure->getCmper(),
-            endOfBar);
-        if (!staff) {
-            continue;
-        }
-        if (!firstFoundStaff) {
-            firstFoundStaff = staff;
-        }
-        if (!staff->hideBarlines) {
-            return staff;
-        }
-    }
-    return firstFoundStaff;
+    setBarlineData(measure, musicXmlBarlineType, location);
 }
 
 void assignBarlines(
@@ -122,14 +103,13 @@ void assignBarlines(
     mx::api::MeasureData& measure,
     const MusxInstance<others::Measure>& musxMeasure,
     bool isFinalMeasure,
-    const std::vector<StaffCmper>& staves)
+    const MusxInstance<others::Staff>& staff)
 {
     const auto barlineOptions = context.finaleOptions.barlineOptions;
     if (musxMeasure->leftBarlineType != BarlineType::OptionsDefault && musxMeasure->leftBarlineType != BarlineType::None) {
-        addBarline(context, measure, musxMeasure->leftBarlineType, mx::api::HorizontalAlignment::left);
+        setBarline(context, measure, musxMeasure->leftBarlineType, mx::api::HorizontalAlignment::left);
     }
 
-    const auto staff = findRepresentativeBarlineStaff(context, musxMeasure, staves);
     const auto classification = classify::classifyBarline(staff, musxMeasure, isFinalMeasure, barlineOptions);
     if (classification.type == classify::BarlineType::Unsupported) {
         context.logMessage(LogMsg() << "Skipping unsupported MusicXML barline type " << int(musxMeasure->barlineType) << ".", MessageSeverity::Info);
@@ -138,12 +118,12 @@ void assignBarlines(
 
     if (classification.type == classify::BarlineType::Regular) {
         if (classification.isShort) {
-            addBarlineData(measure, mx::api::BarlineType::short_, mx::api::HorizontalAlignment::right);
+            setBarlineData(measure, mx::api::BarlineType::short_, mx::api::HorizontalAlignment::right);
         }
         return;
     }
 
-    addBarline(context, measure, classification.type, mx::api::HorizontalAlignment::right);
+    setBarline(context, measure, classification.type, mx::api::HorizontalAlignment::right);
 }
 
 mx::api::KeyMode musicXmlKeyModeFromMusxKeySignature(const MusxInstance<KeySignature>& keySignature)
@@ -155,6 +135,20 @@ mx::api::KeyMode musicXmlKeyModeFromMusxKeySignature(const MusxInstance<KeySigna
         return mx::api::KeyMode::minor;
     }
     return mx::api::KeyMode::unspecified;
+}
+
+mx::api::TimeSignatureSymbol musicXmlTimeSignatureSymbol(const MusxInstance<TimeSignature>& timeSignature)
+{
+    if (!timeSignature->getAbbreviatedSymbol()) {
+        return mx::api::TimeSignatureSymbol::unspecified;
+    }
+    if (timeSignature->isCommonTime()) {
+        return mx::api::TimeSignatureSymbol::common;
+    }
+    if (timeSignature->isCutTime()) {
+        return mx::api::TimeSignatureSymbol::cut;
+    }
+    return mx::api::TimeSignatureSymbol::unspecified;
 }
 
 int musicXmlKeyFifths(
@@ -287,7 +281,7 @@ void assignTimeSignature(
     ASSERT_IF(staves.empty()) {
         return;
     }
-    auto timeSig = musxMeasure->createTimeSignature(staves.front());
+    auto timeSig = musxMeasure->createDisplayTimeSignature(staves.front());
     if (prevTimeSig && timeSig->isSame(*prevTimeSig.get())) {
         return;
     }
@@ -302,6 +296,7 @@ void assignTimeSignature(
 
     measure.timeSignature.beats = std::to_string(count.quotient());
     measure.timeSignature.beatType = std::to_string(EDU_PER_WHOLE_NOTE / Edu(noteType));
+    measure.timeSignature.symbol = musicXmlTimeSignatureSymbol(timeSig);
     measure.timeSignature.isImplicit = false;
     prevTimeSig = timeSig;
 }
@@ -344,6 +339,89 @@ void addInitialClef(
     staff.clefs.emplace_back(musicXmlClefFromMusxClef(clefDef, musxStaff));
 }
 
+void assignStaffAttributes(
+    MusicXmlMusxMapping& context,
+    mx::api::PartData& part,
+    const MusxInstanceList<others::Measure>& musxMeasures,
+    const std::vector<StaffCmper>& staves)
+{
+    ASSERT_IF(part.measures.size() != musxMeasures.size()) {
+        return;
+    }
+
+    std::map<MeasCmper, size_t> measureIndices;
+    for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
+        measureIndices.emplace(musxMeasures[measureIndex]->getCmper(), measureIndex);
+    }
+
+    const auto finalMeasureId = musxMeasures.empty() ? MeasCmper{} : musxMeasures.back()->getCmper();
+    const auto currentRightBarlineType = [](const mx::api::MeasureData& measure) {
+        for (const auto& barline : measure.barlines) {
+            if (barline.location == mx::api::HorizontalAlignment::right || barline.location == mx::api::HorizontalAlignment::unspecified) {
+                return barline.barlineType;
+            }
+        }
+        return mx::api::BarlineType::normal;
+    };
+    for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
+        const auto staffId = staves[staffIndex];
+        std::set<MeasCmper> styleChanges{ 1 };
+        if (const auto rawStaff = context.document->getOthers()->get<others::Staff>(context.forPartId, staffId); rawStaff && rawStaff->hasStyles) {
+            const auto styleAssigns = context.document->getOthers()->getArray<others::StaffStyleAssign>(context.forPartId, staffId);
+            for (const auto& styleAssign : styleAssigns) {
+                styleChanges.emplace(styleAssign->startMeas);
+                if (const auto nextLocation = styleAssign->nextLocation()) {
+                    const auto nextMeasure = nextLocation->measureId;
+                    styleChanges.emplace(nextMeasure == styleAssign->startMeas && nextMeasure < finalMeasureId ? nextMeasure + 1 : nextMeasure);
+                }
+            }
+        }
+
+        std::optional<int> prevStaffLines;
+        for (const auto measureId : styleChanges) {
+            const auto measureIndex = measureIndices.find(measureId);
+            if (measureIndex == measureIndices.end()) {
+                continue;
+            }
+            auto& measure = part.measures[measureIndex->second];
+            ASSERT_IF(measure.staves.size() != staves.size()) {
+                return;
+            }
+            const auto& musxMeasure = musxMeasures[measureIndex->second];
+            const auto staff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, measureId, 0);
+            ASSERT_IF(!staff) {
+                continue;
+            }
+            const auto barlineType = currentRightBarlineType(measure);
+            if (barlineType == mx::api::BarlineType::normal || barlineType == mx::api::BarlineType::unspecified) {
+                const auto staffMeasureDuration = musxMeasure->calcDuration(staff->getCmper());
+                const auto endStaff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, measureId, staffMeasureDuration.calcEduDuration());
+                assert(endStaff);
+                if (endStaff) {
+                    const auto classification = classify::classifyBarline(
+                        endStaff,
+                        musxMeasure,
+                        measureIndex->second + 1 == musxMeasures.size(),
+                        context.finaleOptions.barlineOptions);
+                    if (classification.isShort) {
+                        setBarlineData(measure, mx::api::BarlineType::short_, mx::api::HorizontalAlignment::right);
+                    }
+                }
+            }
+
+            const int staffLines = staff->calcNumberOfStafflines();
+            if (!prevStaffLines) {
+                if (staffLines != music_theory::STANDARD_NUMBER_OF_STAFFLINES) {
+                    measure.staves[staffIndex].staffLines = staffLines;
+                }
+            } else if (staffLines != *prevStaffLines) {
+                measure.staves[staffIndex].staffLines = staffLines;
+            }
+            prevStaffLines = staffLines;
+        }
+    }
+}
+
 void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part)
 {
     const auto stavesIt = context.partIdToStaves.find(part.uniqueId);
@@ -362,7 +440,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
         measure.number = std::to_string(musxMeasure->getCmper());
-        assignBarlines(context, measure, musxMeasure, isFinalMeasure, stavesIt->second);
+        assignBarlines(context, measure, musxMeasure, isFinalMeasure, {});
         assignKeySignatures(context, measure, musxMeasure, stavesIt->second, pitchContext, prevKeyData);
         assignTimeSignature(measure, musxMeasure, stavesIt->second, prevTimeSig);
         if (const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId); partSymbolIt != context.partIdToPartSymbol.end()) {
@@ -379,6 +457,8 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
             addFullMeasureRest(context, staff, musxMeasure);
         }
     }
+
+    assignStaffAttributes(context, part, musxMeasures, stavesIt->second);
 }
 
 } // namespace
