@@ -286,6 +286,29 @@ TEST(MusicXmlParts, BarlinesOverrideCorrectTypes)
     }
 }
 
+TEST(MusicXmlParts, ShortBarlineStyleAppliesPerPart)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("barline_short_normal.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_GE(actualScore->parts.size(), 2);
+
+    const auto& topPartMeasures = actualScore->parts.at(0).measures;
+    const auto& secondPartMeasures = actualScore->parts.at(1).measures;
+    ASSERT_GE(topPartMeasures.size(), 3);
+    ASSERT_GE(secondPartMeasures.size(), 3);
+
+    EXPECT_EQ(effectiveRightBarlineType(topPartMeasures.at(0)), mx::api::BarlineType::short_) << "top part measure 1";
+    EXPECT_EQ(effectiveRightBarlineType(topPartMeasures.at(1)), mx::api::BarlineType::short_) << "top part measure 2";
+    EXPECT_EQ(effectiveRightBarlineType(topPartMeasures.at(2)), mx::api::BarlineType::lightHeavy) << "top part measure 3";
+
+    EXPECT_EQ(effectiveRightBarlineType(secondPartMeasures.at(0)), mx::api::BarlineType::normal) << "second part measure 1";
+    EXPECT_EQ(effectiveRightBarlineType(secondPartMeasures.at(1)), mx::api::BarlineType::normal) << "second part measure 2";
+    EXPECT_EQ(effectiveRightBarlineType(secondPartMeasures.at(2)), mx::api::BarlineType::lightHeavy) << "second part measure 3";
+}
+
 TEST(MusicXmlParts, ChangingTimeSignaturesMatchFinale)
 {
     setupTestDataPaths();
