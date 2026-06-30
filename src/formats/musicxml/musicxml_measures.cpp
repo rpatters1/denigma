@@ -281,9 +281,13 @@ mx::api::ClefData musicXmlClefFromMusxClef(
 void assignTimeSignature(
     mx::api::MeasureData& measure,
     const MusxInstance<others::Measure>& musxMeasure,
+    const std::vector<StaffCmper>& staves,
     MusxInstance<TimeSignature>& prevTimeSig)
 {
-    auto timeSig = musxMeasure->createTimeSignature();
+    ASSERT_IF(staves.empty()) {
+        return;
+    }
+    auto timeSig = musxMeasure->createTimeSignature(staves.front());
     if (prevTimeSig && timeSig->isSame(*prevTimeSig.get())) {
         return;
     }
@@ -305,10 +309,9 @@ void assignTimeSignature(
 void addFullMeasureRest(
     const MusicXmlMusxMapping& context,
     mx::api::StaffData& staff,
-    const MusxInstance<others::Measure>& musxMeasure,
-    StaffCmper staffId)
+    const MusxInstance<others::Measure>& musxMeasure)
 {
-    const Fraction measureDuration = musxMeasure->calcDuration(staffId);
+    const Fraction measureDuration = musxMeasure->calcDuration();
 
     auto rest = mx::api::NoteData{};
     rest.isRest = true;
@@ -361,7 +364,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         measure.number = std::to_string(musxMeasure->getCmper());
         assignBarlines(context, measure, musxMeasure, isFinalMeasure, stavesIt->second);
         assignKeySignatures(context, measure, musxMeasure, stavesIt->second, pitchContext, prevKeyData);
-        assignTimeSignature(measure, musxMeasure, prevTimeSig);
+        assignTimeSignature(measure, musxMeasure, stavesIt->second, prevTimeSig);
         if (const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId); partSymbolIt != context.partIdToPartSymbol.end()) {
             measure.partSymbol = partSymbolIt->second;
         }
@@ -373,7 +376,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
             if (measureIndex == 0) {
                 addInitialClef(context, staff, staffId, musxMeasure);
             }
-            addFullMeasureRest(context, staff, musxMeasure, staffId);
+            addFullMeasureRest(context, staff, musxMeasure);
         }
     }
 }

@@ -140,6 +140,71 @@ mx::api::BarlineType effectiveRightBarlineType(const mx::api::MeasureData& measu
     return mx::api::BarlineType::normal;
 }
 
+struct ComparableTimeSignature
+{
+    std::string beats;
+    std::string beatType;
+    mx::api::TimeSignatureSymbol symbol{};
+    bool isImplicit{};
+
+    auto operator<=>(const ComparableTimeSignature&) const = default;
+};
+
+ComparableTimeSignature createComparableTimeSignature(const mx::api::TimeSignatureData& timeSignature)
+{
+    return {
+        timeSignature.beats,
+        timeSignature.beatType,
+        timeSignature.symbol,
+        timeSignature.isImplicit
+    };
+}
+
+void compareTimeSignatures(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
+{
+    ASSERT_EQ(actual.parts.size(), expected.parts.size()) << "part count";
+    for (size_t partIndex = 0; partIndex < expected.parts.size(); ++partIndex) {
+        SCOPED_TRACE("part " + std::to_string(partIndex + 1));
+        const auto& actualMeasures = actual.parts.at(partIndex).measures;
+        const auto& expectedMeasures = expected.parts.at(partIndex).measures;
+        ASSERT_EQ(actualMeasures.size(), expectedMeasures.size()) << "measure count";
+        for (size_t measureIndex = 0; measureIndex < expectedMeasures.size(); ++measureIndex) {
+            const auto& actualTime = actualMeasures.at(measureIndex).timeSignature;
+            const auto& expectedTime = expectedMeasures.at(measureIndex).timeSignature;
+            EXPECT_EQ(createComparableTimeSignature(actualTime), createComparableTimeSignature(expectedTime))
+                << "measure " << (measureIndex + 1);
+        }
+    }
+}
+
+void expectAllMeasureDurationsEqual(const mx::api::ScoreData& score)
+{
+    auto measureDuration = [](const mx::api::MeasureData& measure) -> std::optional<int> {
+        if (measure.staves.empty() || measure.staves.front().voices.empty()) {
+            return std::nullopt;
+        }
+        const auto& voice = measure.staves.front().voices.begin()->second;
+        if (voice.notes.empty()) {
+            return std::nullopt;
+        }
+        return voice.notes.front().durationData.durationTimeTicks;
+    };
+
+    for (size_t partIndex = 0; partIndex < score.parts.size(); ++partIndex) {
+        SCOPED_TRACE("part " + std::to_string(partIndex + 1));
+        const auto& measures = score.parts.at(partIndex).measures;
+        ASSERT_FALSE(measures.empty());
+        const auto referenceDuration = measureDuration(measures.front());
+        ASSERT_TRUE(referenceDuration);
+        for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
+            SCOPED_TRACE("measure " + std::to_string(measureIndex + 1));
+            const auto duration = measureDuration(measures.at(measureIndex));
+            ASSERT_TRUE(duration);
+            EXPECT_EQ(*duration, *referenceDuration);
+        }
+    }
+}
+
 } // namespace
 
 TEST(MusicXmlParts, PartGroupBracketsMatchFinaleSpans)
@@ -219,4 +284,18 @@ TEST(MusicXmlParts, BarlinesOverrideCorrectTypes)
     for (size_t i = 0; i < expected.size(); ++i) {
         EXPECT_EQ(effectiveRightBarlineType(measures[i]), expected[i]) << "measure " << (i + 1);
     }
+}
+
+TEST(MusicXmlParts, IndependentTimeSignaturesExportSmoke)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("indtime_clefchange.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/indtime_clefchange-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(expectedScore);
+
+    compareTimeSignatures(*actualScore, *expectedScore);
+    expectAllMeasureDurationsEqual(*actualScore);
 }
