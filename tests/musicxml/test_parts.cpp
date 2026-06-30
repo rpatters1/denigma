@@ -150,6 +150,14 @@ struct ComparableTimeSignature
     auto operator<=>(const ComparableTimeSignature&) const = default;
 };
 
+struct ComparableKeySignature
+{
+    int fifths{};
+    mx::api::KeyMode mode{};
+
+    auto operator<=>(const ComparableKeySignature&) const = default;
+};
+
 ComparableTimeSignature createComparableTimeSignature(const mx::api::TimeSignatureData& timeSignature)
 {
     return {
@@ -158,6 +166,47 @@ ComparableTimeSignature createComparableTimeSignature(const mx::api::TimeSignatu
         timeSignature.symbol,
         timeSignature.isImplicit
     };
+}
+
+ComparableKeySignature createComparableKeySignature(const mx::api::KeyData& key)
+{
+    return {
+        key.fifths,
+        key.mode
+    };
+}
+
+std::vector<std::vector<ComparableKeySignature>> createEffectiveKeySignatureTracks(const mx::api::ScoreData& score)
+{
+    std::vector<std::vector<ComparableKeySignature>> result;
+    for (const auto& part : score.parts) {
+        size_t staffCount = 1;
+        for (const auto& measure : part.measures) {
+            staffCount = std::max(staffCount, measure.staves.size());
+        }
+
+        std::vector<std::vector<ComparableKeySignature>> partTracks(staffCount);
+        std::vector<std::optional<ComparableKeySignature>> currentKeys(staffCount);
+        for (const auto& measure : part.measures) {
+            for (const auto& key : measure.keys) {
+                const auto comparableKey = createComparableKeySignature(key);
+                if (key.staffIndex < 0) {
+                    for (auto& currentKey : currentKeys) {
+                        currentKey = comparableKey;
+                    }
+                } else if (static_cast<size_t>(key.staffIndex) < currentKeys.size()) {
+                    currentKeys[static_cast<size_t>(key.staffIndex)] = comparableKey;
+                }
+            }
+
+            for (size_t staffIndex = 0; staffIndex < staffCount; ++staffIndex) {
+                partTracks[staffIndex].push_back(currentKeys[staffIndex].value_or(ComparableKeySignature{}));
+            }
+        }
+
+        result.insert(result.end(), partTracks.begin(), partTracks.end());
+    }
+    return result;
 }
 
 void compareTimeSignatures(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
@@ -172,6 +221,21 @@ void compareTimeSignatures(const mx::api::ScoreData& actual, const mx::api::Scor
             const auto& actualTime = actualMeasures.at(measureIndex).timeSignature;
             const auto& expectedTime = expectedMeasures.at(measureIndex).timeSignature;
             EXPECT_EQ(createComparableTimeSignature(actualTime), createComparableTimeSignature(expectedTime))
+                << "measure " << (measureIndex + 1);
+        }
+    }
+}
+
+void compareKeySignatures(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
+{
+    const auto actualTracks = createEffectiveKeySignatureTracks(actual);
+    const auto expectedTracks = createEffectiveKeySignatureTracks(expected);
+    ASSERT_EQ(actualTracks.size(), expectedTracks.size()) << "key-signature staff track count";
+    for (size_t trackIndex = 0; trackIndex < expectedTracks.size(); ++trackIndex) {
+        SCOPED_TRACE("key-signature staff track " + std::to_string(trackIndex + 1));
+        ASSERT_EQ(actualTracks[trackIndex].size(), expectedTracks[trackIndex].size()) << "measure count";
+        for (size_t measureIndex = 0; measureIndex < expectedTracks[trackIndex].size(); ++measureIndex) {
+            EXPECT_EQ(actualTracks[trackIndex][measureIndex], expectedTracks[trackIndex][measureIndex])
                 << "measure " << (measureIndex + 1);
         }
     }
@@ -307,6 +371,19 @@ TEST(MusicXmlParts, ShortBarlineStyleAppliesPerPart)
     EXPECT_EQ(effectiveRightBarlineType(secondPartMeasures.at(0)), mx::api::BarlineType::normal) << "second part measure 1";
     EXPECT_EQ(effectiveRightBarlineType(secondPartMeasures.at(1)), mx::api::BarlineType::normal) << "second part measure 2";
     EXPECT_EQ(effectiveRightBarlineType(secondPartMeasures.at(2)), mx::api::BarlineType::lightHeavy) << "second part measure 3";
+}
+
+TEST(MusicXmlParts, IndependentKeySignaturesMatchFinale)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("keysigs_independent.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/keysigs_independent-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(expectedScore);
+
+    compareKeySignatures(*actualScore, *expectedScore);
 }
 
 TEST(MusicXmlParts, ChangingTimeSignaturesMatchFinale)

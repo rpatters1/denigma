@@ -20,7 +20,6 @@
 #include "musicxml.h"
 
 #include <cstdlib>
-#include <map>
 #include <optional>
 #include <set>
 #include <string>
@@ -222,6 +221,9 @@ void assignKeySignatures(
 
     const bool forceEmit = musxMeasure->showKey == others::Measure::ShowKeySigMode::Always;
     bool shouldEmit = forceEmit;
+    /// @note MusicXML <cancel> is intentionally not exported yet. If we need Finale-style
+    /// explicit cancellation naturals later, this previous/current key comparison is the
+    /// place to decide whether to populate mx::api::KeyData::cancel.
     for (size_t index = 0; index < currentKeyData.size(); ++index) {
         shouldEmit = shouldEmit || keyDataChanged(prevKeyData[index], currentKeyData[index]);
     }
@@ -349,11 +351,6 @@ void assignStaffAttributes(
         return;
     }
 
-    std::map<MeasCmper, size_t> measureIndices;
-    for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
-        measureIndices.emplace(musxMeasures[measureIndex]->getCmper(), measureIndex);
-    }
-
     const auto finalMeasureId = musxMeasures.empty() ? MeasCmper{} : musxMeasures.back()->getCmper();
     for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
         const auto staffId = staves[staffIndex];
@@ -371,11 +368,7 @@ void assignStaffAttributes(
 
         std::optional<int> prevStaffLines;
         for (const auto measureId : styleChanges) {
-            const auto measureIndex = measureIndices.find(measureId);
-            if (measureIndex == measureIndices.end()) {
-                continue;
-            }
-            auto& measure = part.measures[measureIndex->second];
+            auto& measure = part.measures[size_t(measureId - 1)];
             ASSERT_IF(measure.staves.size() != staves.size()) {
                 return;
             }
@@ -392,6 +385,53 @@ void assignStaffAttributes(
                 measure.staves[staffIndex].staffLines = staffLines;
             }
             prevStaffLines = staffLines;
+        }
+    }
+}
+
+void assignStaffSizes(
+    MusicXmlMusxMapping& context,
+    mx::api::PartData& part,
+    const MusxInstanceList<others::Measure>& musxMeasures,
+    const std::vector<StaffCmper>& staves)
+{
+    ASSERT_IF(part.measures.size() != musxMeasures.size()) {
+        return;
+    }
+
+    const auto systems = context.document->getOthers()->getArray<others::StaffSystem>(context.forPartId);
+    for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
+        const auto staffId = staves[staffIndex];
+        std::optional<int> prevStaffSize;
+        for (const auto& system : systems) {
+            const auto systemStaves = context.document->getOthers()->getArray<others::StaffUsed>(context.forPartId, system->getCmper());
+            if (!systemStaves.getIndexForStaff(staffId).has_value()) {
+                continue;
+            }
+
+            const auto staffSize = [&]() {
+                if (system->hasStaffScaling) {
+                    const auto size = context.document->getDetails()->get<details::StaffSize>(
+                        context.forPartId,
+                        system->getCmper(),
+                        staffId);
+                    return size ? size->staffPercent : 100;
+                }
+                return 100;
+            }();
+
+            auto& measure = part.measures[size_t(system->startMeas - 1)];
+            ASSERT_IF(measure.staves.size() != staves.size()) {
+                return;
+            }
+            if (!prevStaffSize) {
+                if (staffSize != 100) {
+                    measure.staves[staffIndex].staffSize = double(staffSize);
+                }
+            } else if (staffSize != *prevStaffSize) {
+                measure.staves[staffIndex].staffSize = double(staffSize);
+            }
+            prevStaffSize = staffSize;
         }
     }
 }
@@ -435,6 +475,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
     }
 
     assignStaffAttributes(context, part, musxMeasures, stavesIt->second);
+    assignStaffSizes(context, part, musxMeasures, stavesIt->second);
 }
 
 } // namespace
