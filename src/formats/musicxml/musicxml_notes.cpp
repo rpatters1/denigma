@@ -19,8 +19,10 @@
 
 #include "musicxml.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "core/cue_layers.h"
 #include "mx/api/DurationData.h"
@@ -119,6 +121,59 @@ void applyMusicXmlTies(MusicXmlMusxMapping& context, mx::api::NoteData& note, co
     context.pendingTieStopKeys.emplace(noteKey(tiedTo));
 }
 
+std::vector<mx::api::Beam> createBeamData(const EntryInfoPtr& entryInfo)
+{
+    const auto isTremolo = [&entryInfo]() {
+        const auto tupletIndices = entryInfo.findTupletInfo();
+        for (size_t x : tupletIndices) {
+            const auto& tuplet = entryInfo.getFrame()->tupletInfo[x];
+            if (tuplet.includesEntry(entryInfo) && tuplet.calcIsTremolo()) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (!entryInfo.calcCanBeBeamed() || entryInfo.calcUnbeamed() || isTremolo()) {
+        return {};
+    }
+
+    const auto calcVisibleBeamCount = [&entryInfo]() {
+        if (entryInfo.calcDisplaysAsRest()) {
+            if (auto opts = entryInfo->getEntry()->getDocument()->getOptions()->get<options::BeamOptions>()) {
+                if (!opts->extendSecBeamsOverRests) {
+                    return 1U;
+                }
+            }
+        }
+        return entryInfo.calcNumberOfBeams();
+    };
+
+    constexpr unsigned maxMusicXmlBeamLevels = 8;
+    const unsigned numBeams = (std::min)(calcVisibleBeamCount(), maxMusicXmlBeamLevels);
+    const unsigned lowestBeamStart = entryInfo.calcLowestBeamStart(/*considerBeamOverBarlines*/ true);
+    const unsigned lowestBeamEnd = entryInfo.calcLowestBeamEndAcrossBarlines();
+    const unsigned lowestBeamStub = lowestBeamStart && lowestBeamEnd ? (std::max)(lowestBeamStart, lowestBeamEnd) : 0;
+    const bool stubIsLeft = lowestBeamStub && entryInfo.calcBeamStubIsLeft();
+
+    auto beams = std::vector<mx::api::Beam>{};
+    beams.reserve(numBeams);
+    for (unsigned beamNumber = 1; beamNumber <= numBeams; ++beamNumber) {
+        if (lowestBeamStub && beamNumber >= lowestBeamStub) {
+            beams.emplace_back(stubIsLeft ? mx::api::Beam::backwardBroken : mx::api::Beam::forwardBroken);
+        } else if (lowestBeamStart && beamNumber >= lowestBeamStart) {
+            /// @todo When mx::api exposes beam fans, set fan on the first beam at the start of a beam group using
+            /// EntryInfoPtr::calcIsFeatheredBeamStart.
+            beams.emplace_back(mx::api::Beam::begin);
+        } else if (lowestBeamEnd && beamNumber >= lowestBeamEnd) {
+            beams.emplace_back(mx::api::Beam::end);
+        } else {
+            beams.emplace_back(mx::api::Beam::extend);
+        }
+    }
+    return beams;
+}
+
 mx::api::NoteData createRestData(
     const MusicXmlMusxMapping& context,
     const EntryInfoPtr::InterpretedIterator& entryIt)
@@ -131,6 +186,7 @@ mx::api::NoteData createRestData(
     rest.noteType = entry->graceNote ? mx::api::NoteType::grace : mx::api::NoteType::normal;
     rest.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
     rest.durationData = createDurationData(context, entry, entryIt.getEffectiveActualDuration(/*global*/ true));
+    rest.beams = createBeamData(entryInfo);
     if (!entry->floatRest && !entry->notes.empty()) {
         const NoteInfoPtr restNoteInfo(entryInfo, 0);
         if (restNoteInfo->getNoteId() == Note::RESTID) {
@@ -182,6 +238,9 @@ void appendEntryNotes(
         note.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
         note.durationData = createDurationData(context, entry, entryIt.getEffectiveActualDuration(/*global*/ true));
         note.pitchData = createPitchData(noteInfo, pitchContext);
+        if (noteIndex == 0) {
+            note.beams = createBeamData(entryInfo);
+        }
         if (entry->hasStem()) {
             const auto [freezeStem, upStem] = entryInfo.calcEntryStemSettings();
             if (freezeStem) {
