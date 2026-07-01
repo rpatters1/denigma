@@ -52,6 +52,20 @@ struct ComparableNoteEvent
     bool operator==(const ComparableNoteEvent&) const = default;
 };
 
+struct ComparableStemEvent
+{
+    size_t partIndex{};
+    size_t measureIndex{};
+    size_t staffIndex{};
+    musx::util::Fraction tickTimePosition;
+    musx::util::Fraction durationTime;
+    bool isChord{};
+    mx::api::Step step{};
+    int alter{};
+    int octave{};
+    mx::api::Stem stem{mx::api::Stem::unspecified};
+};
+
 std::vector<ComparableNoteEvent> createComparableNoteEvents(const mx::api::ScoreData& score)
 {
     std::vector<ComparableNoteEvent> result;
@@ -132,6 +146,44 @@ std::vector<ComparableNoteEvent> createComparableNoteEvents(const mx::api::Score
     return result;
 }
 
+std::vector<ComparableStemEvent> createComparableStemEvents(const mx::api::ScoreData& score)
+{
+    std::vector<ComparableStemEvent> result;
+    if (score.ticksPerQuarter <= 0) {
+        throw std::logic_error("MusicXML test score has invalid ticksPerQuarter.");
+    }
+    for (size_t partIndex = 0; partIndex < score.parts.size(); ++partIndex) {
+        const auto& part = score.parts.at(partIndex);
+        for (size_t measureIndex = 0; measureIndex < part.measures.size(); ++measureIndex) {
+            const auto& measure = part.measures.at(measureIndex);
+            for (size_t staffIndex = 0; staffIndex < measure.staves.size(); ++staffIndex) {
+                const auto& staff = measure.staves.at(staffIndex);
+                for (const auto& voicePair : staff.voices) {
+                    const auto& voice = voicePair.second;
+                    for (const auto& note : voice.notes) {
+                        if (note.isRest || note.stem == mx::api::Stem::unspecified) {
+                            continue;
+                        }
+                        result.push_back({
+                            partIndex,
+                            measureIndex,
+                            staffIndex,
+                            musx::util::Fraction(note.tickTimePosition, score.ticksPerQuarter),
+                            musx::util::Fraction(note.durationData.durationTimeTicks, score.ticksPerQuarter),
+                            note.isChord,
+                            note.pitchData.step,
+                            note.pitchData.alter,
+                            note.pitchData.octave,
+                            note.stem
+                        });
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
 void compareNoteEvents(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
 {
     const auto actualEvents = createComparableNoteEvents(actual);
@@ -139,6 +191,29 @@ void compareNoteEvents(const mx::api::ScoreData& actual, const mx::api::ScoreDat
     ASSERT_EQ(actualEvents.size(), expectedEvents.size()) << "note/rest event count";
     for (size_t eventIndex = 0; eventIndex < expectedEvents.size(); ++eventIndex) {
         EXPECT_EQ(actualEvents[eventIndex], expectedEvents[eventIndex]) << "note/rest event " << eventIndex;
+    }
+}
+
+void compareStemEventsSetByExporter(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
+{
+    const auto actualEvents = createComparableStemEvents(actual);
+    auto expectedEvents = createComparableStemEvents(expected);
+    ASSERT_FALSE(actualEvents.empty()) << "expected Denigma to export at least one explicit stem";
+    for (const auto& actualEvent : actualEvents) {
+        const auto expectedIt = std::find_if(expectedEvents.begin(), expectedEvents.end(), [&actualEvent](const ComparableStemEvent& expectedEvent) {
+            return actualEvent.partIndex == expectedEvent.partIndex
+                && actualEvent.measureIndex == expectedEvent.measureIndex
+                && actualEvent.staffIndex == expectedEvent.staffIndex
+                && actualEvent.tickTimePosition == expectedEvent.tickTimePosition
+                && actualEvent.durationTime == expectedEvent.durationTime
+                && actualEvent.isChord == expectedEvent.isChord
+                && actualEvent.step == expectedEvent.step
+                && actualEvent.alter == expectedEvent.alter
+                && actualEvent.octave == expectedEvent.octave;
+        });
+        ASSERT_NE(expectedIt, expectedEvents.end()) << "missing reference note for exported stem";
+        EXPECT_EQ(actualEvent.stem, expectedIt->stem);
+        expectedEvents.erase(expectedIt);
     }
 }
 
@@ -230,7 +305,7 @@ TEST(MusicXmlNotes, LargeOrchestraTiesMatchFinale)
     compareTieEvents(*actualScore, *expectedScore);
 }
 
-TEST(MusicXmlNotes, VoicesExportsSmoke)
+TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)
 {
     setupTestDataPaths();
 
@@ -239,4 +314,6 @@ TEST(MusicXmlNotes, VoicesExportsSmoke)
     const auto expectedScore = loadScoreData(getInputPath() / "musicxml/voices-ref.musicxml");
     ASSERT_TRUE(actualScore);
     ASSERT_TRUE(expectedScore);
+
+    compareStemEventsSetByExporter(*actualScore, *expectedScore);
 }
