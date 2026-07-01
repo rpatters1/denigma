@@ -18,7 +18,9 @@
  */
 
 #include <algorithm>
+#include <optional>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -302,6 +304,42 @@ void expectNotesUseStaffQualifiedVoiceNumbers(const mx::api::ScoreData& score)
     }
 }
 
+std::vector<const mx::api::NoteData*> measureRestsInBar(const mx::api::ScoreData& score, size_t barNumber)
+{
+    constexpr size_t firstBarNumber = 1;
+    std::vector<const mx::api::NoteData*> result;
+    if (score.parts.empty()) {
+        ADD_FAILURE() << "score has no parts";
+        return result;
+    }
+    const auto& measures = score.parts.front().measures;
+    if (measures.size() < barNumber) {
+        ADD_FAILURE() << "score has " << measures.size() << " measures, expected at least " << barNumber;
+        return result;
+    }
+    const auto& measure = measures.at(barNumber - firstBarNumber);
+    for (const auto& staff : measure.staves) {
+        for (const auto& [voiceIndex, voice] : staff.voices) {
+            (void)voiceIndex;
+            for (const auto& note : voice.notes) {
+                if (note.isMeasureRest) {
+                    result.emplace_back(&note);
+                }
+            }
+        }
+    }
+    return result;
+}
+
+void expectMeasureRestPosition(const mx::api::NoteData& note, std::optional<std::pair<mx::api::Step, int>> expectedPosition)
+{
+    EXPECT_EQ(note.isDisplayStepOctaveSpecified, expectedPosition.has_value());
+    if (expectedPosition) {
+        EXPECT_EQ(note.pitchData.step, expectedPosition->first);
+        EXPECT_EQ(note.pitchData.octave, expectedPosition->second);
+    }
+}
+
 } // namespace
 
 TEST(MusicXmlNotes, ChangingTimeSignaturesNotesMatchFinale)
@@ -352,4 +390,16 @@ TEST(MusicXmlNotes, VoicesKeyboardUsesStaffQualifiedVoiceNumbers)
     ASSERT_TRUE(actualScore);
 
     expectNotesUseStaffQualifiedVoiceNumbers(*actualScore);
+
+    constexpr size_t unpositionedMeasureRestBar = 3;
+    const auto bar3Rests = measureRestsInBar(*actualScore, unpositionedMeasureRestBar);
+    ASSERT_EQ(bar3Rests.size(), 2);
+    expectMeasureRestPosition(*bar3Rests[0], std::nullopt);
+    expectMeasureRestPosition(*bar3Rests[1], std::nullopt);
+
+    constexpr size_t positionedMeasureRestBar = 6;
+    const auto bar6Rests = measureRestsInBar(*actualScore, positionedMeasureRestBar);
+    ASSERT_EQ(bar6Rests.size(), 2);
+    expectMeasureRestPosition(*bar6Rests[0], std::pair{mx::api::Step::b, 5});
+    expectMeasureRestPosition(*bar6Rests[1], std::nullopt);
 }
