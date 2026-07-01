@@ -363,93 +363,74 @@ void assignStaffAttributes(
         return;
     }
 
+    const auto systems = context.document->getOthers()->getArray<others::StaffSystem>(context.forPartId);
+    const auto systemForMeasure = [&systems](MeasCmper measureId) -> MusxInstance<others::StaffSystem> {
+        MusxInstance<others::StaffSystem> result;
+        for (const auto& system : systems) {
+            if (system->startMeas > measureId) {
+                break;
+            }
+            result = system;
+        }
+        return result;
+    };
+
     const auto finalMeasureId = musxMeasures.empty() ? MeasCmper{} : musxMeasures.back()->getCmper();
     for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
         const auto staffId = staves[staffIndex];
-        std::set<MeasCmper> styleChanges{ 1 };
+        std::set<MeasCmper> attributeChanges{ 1 };
         if (const auto rawStaff = context.document->getOthers()->get<others::Staff>(context.forPartId, staffId); rawStaff && rawStaff->hasStyles) {
             const auto styleAssigns = context.document->getOthers()->getArray<others::StaffStyleAssign>(context.forPartId, staffId);
             for (const auto& styleAssign : styleAssigns) {
-                styleChanges.emplace(styleAssign->startMeas);
+                attributeChanges.emplace(styleAssign->startMeas);
                 if (const auto nextLocation = styleAssign->nextLocation()) {
                     const auto nextMeasure = nextLocation->measureId;
-                    styleChanges.emplace(nextMeasure == styleAssign->startMeas && nextMeasure < finalMeasureId ? nextMeasure + 1 : nextMeasure);
+                    attributeChanges.emplace(nextMeasure == styleAssign->startMeas && nextMeasure < finalMeasureId ? nextMeasure + 1 : nextMeasure);
                 }
             }
         }
+        for (const auto& system : systems) {
+            const auto systemStaves = context.document->getOthers()->getArray<others::StaffUsed>(context.forPartId, system->getCmper());
+            if (systemStaves.getIndexForStaff(staffId).has_value()) {
+                attributeChanges.emplace(system->startMeas);
+            }
+        }
 
-        std::optional<int> prevStaffLines;
-        for (const auto measureId : styleChanges) {
+        int prevStaffLines = music_theory::STANDARD_NUMBER_OF_STAFFLINES;
+        for (const auto measureId : attributeChanges) {
             auto& measure = part.measures[size_t(measureId - 1)];
             ASSERT_IF(measure.staves.size() != staves.size()) {
                 return;
+            }
+            const auto system = systemForMeasure(measureId);
+            ASSERT_IF(!system) {
+                continue;
+            }
+            const auto systemStaves = context.document->getOthers()->getArray<others::StaffUsed>(context.forPartId, system->getCmper());
+            if (!systemStaves.getIndexForStaff(staffId).has_value()) {
+                continue;
             }
             const auto staff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, measureId, 0);
             ASSERT_IF(!staff) {
                 continue;
             }
             const int staffLines = staff->calcNumberOfStafflines();
-            if (!prevStaffLines) {
-                if (staffLines != music_theory::STANDARD_NUMBER_OF_STAFFLINES) {
-                    measure.staves[staffIndex].staffLines = staffLines;
-                }
-            } else if (staffLines != *prevStaffLines) {
+            if (staffLines != prevStaffLines) {
                 measure.staves[staffIndex].staffLines = staffLines;
             }
             prevStaffLines = staffLines;
-        }
-    }
-}
 
-void assignStaffSizes(
-    MusicXmlMusxMapping& context,
-    mx::api::PartData& part,
-    const MusxInstanceList<others::Measure>& musxMeasures,
-    const std::vector<StaffCmper>& staves)
-{
-    ASSERT_IF(part.measures.size() != musxMeasures.size()) {
-        return;
-    }
-
-    const auto systems = context.document->getOthers()->getArray<others::StaffSystem>(context.forPartId);
-    for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
-        const auto staffId = staves[staffIndex];
-        std::optional<int> prevStaffSize;
-        for (const auto& system : systems) {
-            const auto systemStaves = context.document->getOthers()->getArray<others::StaffUsed>(context.forPartId, system->getCmper());
-            if (!systemStaves.getIndexForStaff(staffId).has_value()) {
-                continue;
-            }
-
-            const auto staffSize = [&]() {
-                if (system->hasStaffScaling) {
-                    const auto size = context.document->getDetails()->get<details::StaffSize>(
-                        context.forPartId,
-                        system->getCmper(),
-                        staffId);
-                    return size ? size->staffPercent : 100;
-                }
-                return 100;
-            }();
-
-            auto& measure = part.measures[size_t(system->startMeas - 1)];
-            ASSERT_IF(measure.staves.size() != staves.size()) {
-                return;
-            }
-            if (!prevStaffSize) {
-                if (staffSize != 100) {
-                    measure.staves[staffIndex].staffSize = double(staffSize);
-                }
-            } else if (staffSize != *prevStaffSize) {
-                measure.staves[staffIndex].staffSize = double(staffSize);
-            }
-            prevStaffSize = staffSize;
+            const Fraction lineSpaceFactor{staff->lineSpace, Evpu(EVPU_PER_SPACE)};
+            const Fraction systemScale = system->calcStaffScaling(staffId);
+            context.layout.setStaffSize(measure.staves[staffIndex], staffId, lineSpaceFactor * systemScale, systemScale);
         }
     }
 }
 
 void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part)
 {
+    context.clearCurrent();
+
     const auto stavesIt = context.partIdToStaves.find(part.uniqueId);
     if (stavesIt == context.partIdToStaves.end() || stavesIt->second.empty()) {
         context.logMessage(LogMsg() << "MusicXML part " << part.uniqueId << " is not mapped to any Finale staves.", MessageSeverity::Warning);
@@ -486,7 +467,6 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
     }
 
     assignStaffAttributes(context, part, musxMeasures, stavesIt->second);
-    assignStaffSizes(context, part, musxMeasures, stavesIt->second);
 }
 
 } // namespace

@@ -123,3 +123,21 @@ MusicXML name-display elements can carry formatting and position data, including
 Denigma will probably not try to export part-name or part-group positioning overrides, or will export very few of them. This is therefore a low-priority gap for Denigma, but it remains a possible API limitation for applications that need exact layout round-tripping.
 
 Needed API shape: position/print data for group-name-display, group-abbreviation-display, and possibly group-symbol placement.
+
+## Tuplets and Tremolos
+
+### Nested tuplet time-modification
+
+MusicXML uses `<time-modification>` on notes for the cumulative timing effect of tuplets, with `<tuplet>` notations identifying the visual start and stop points.
+
+`mx::api::NoteData` can store multiple `TupletStart` and `TupletStop` objects, and `mx::api::DurationData` has the single cumulative time-modification slot that MusicXML requires. However, `mx::impl::NoteWriter` currently searches sibling notes for exactly one tuplet start and exactly one tuplet stop while writing a note's `<time-modification>` normal-type data. Denigma can compute the cumulative ratio, but nested tuplets may still be unreliable through the current writer path.
+
+Needed API shape: writer support for nested tuplets, probably by matching `TupletStart` / `TupletStop` by `numberLevel` and allowing `DurationData` to express cumulative time modification independently of the visual tuplet-start search.
+
+### Double-note tremolos
+
+Finale represents some double-note tremolos as invisible two-entry tuplets. MusicXML represents these with `<tremolo type="start">` and `<tremolo type="stop">` ornaments, plus the appropriate duration and time-modification semantics.
+
+`mx::api::MarkType` currently exposes only single-note tremolo marks. The generated MX core model supports MusicXML's tremolo type values, but there is no public API representation for double-note tremolo start/stop.
+
+Needed API shape: a note attachment model for double-note tremolos with mark count and type (`start`, `stop`), separate from single-note tremolo glyph marks.

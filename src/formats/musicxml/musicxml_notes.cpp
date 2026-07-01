@@ -22,6 +22,8 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "core/cue_layers.h"
@@ -43,15 +45,128 @@ namespace {
 
 mx::api::DurationData createDurationData(
     const MusicXmlMusxMapping& context,
-    const MusxInstance<Entry>& entry,
+    const EntryInfoPtr& entryInfo,
     const Fraction& actualDuration)
 {
     auto duration = mx::api::DurationData{};
-    const auto [durationName, dots] = entry->calcDurationInfo();
+    const auto [durationName, dots] = [&]() {
+        for (size_t tupletIndex : entryInfo.findTupletInfo()) {
+            const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
+            if (tupletInfo.calcIsTremolo()) {
+                const auto entryCount = tupletInfo.numEntries();
+                ASSERT_IF(entryCount == 0) {
+                    throw std::logic_error("Tremolo tuplet contains no entries.");
+                }
+                return calcDurationInfoFromEdu((tupletInfo.tuplet->calcReferenceDuration() / entryCount).calcEduDuration());
+            }
+        }
+        return entryInfo->getEntry()->calcDurationInfo();
+    }();
     duration.durationName = enumConvert<mx::api::DurationName>(durationName);
     duration.durationDots = int(dots);
     duration.durationTimeTicks = context.timing.calcMusicXmlDivisions(actualDuration);
     return duration;
+}
+
+bool shouldExportAsTuplet(const EntryFrame::TupletInfo& tupletInfo)
+{
+    if (tupletInfo.tuplet->calcRatio() == 0) {
+        /// @todo Decide whether any non-singleton zero-length tuplets need MusicXML representation.
+        return false;
+    }
+    if (tupletInfo.calcIsTremolo()) {
+        /// @todo Export MusicXML double-note tremolos when mx::api can model <tremolo type="start|stop">.
+        return false;
+    }
+    return true;
+}
+
+mx::api::TupletStart createTupletStart(const EntryFrame::TupletInfo& tupletInfo, int numberLevel)
+{
+    const auto& tupletDef = tupletInfo.tuplet;
+    const auto [actualDurationName, actualDots] = calcDurationInfoFromEdu(tupletDef->displayDuration);
+    const auto [normalDurationName, normalDots] = calcDurationInfoFromEdu(tupletDef->referenceDuration);
+
+    auto result = mx::api::TupletStart{};
+    result.numberLevel = numberLevel;
+    result.actualNumber = tupletDef->displayNumber;
+    result.actualDurationName = enumConvert<mx::api::DurationName>(actualDurationName);
+    result.actualDots = int(actualDots);
+    result.normalNumber = tupletDef->referenceNumber;
+    result.normalDurationName = enumConvert<mx::api::DurationName>(normalDurationName);
+    result.normalDots = int(normalDots);
+    if (tupletDef->hidden) {
+        result.bracket = mx::api::Bool::no;
+        result.showActualNumber = mx::api::Bool::no;
+        result.showNormalNumber = mx::api::Bool::no;
+        return result;
+    }
+    result.bracket = [&]() {
+        if (tupletDef->brackStyle == details::TupletDef::BracketStyle::Nothing) {
+            return mx::api::Bool::no;
+        }
+        if (tupletDef->autoBracketStyle == details::TupletDef::AutoBracketStyle::Always) {
+            return mx::api::Bool::yes;
+        }
+        return mx::api::Bool::unspecified;
+    }();
+    std::tie(result.showActualNumber, result.showNormalNumber) = [&]() {
+        switch (tupletDef->numStyle) {
+        case details::TupletDef::NumberStyle::Nothing: return std::pair{mx::api::Bool::no, mx::api::Bool::no};
+        case details::TupletDef::NumberStyle::Number: return std::pair{mx::api::Bool::yes, mx::api::Bool::no};
+        case details::TupletDef::NumberStyle::UseRatio:
+        case details::TupletDef::NumberStyle::RatioPlusDenominatorNote:
+        case details::TupletDef::NumberStyle::RatioPlusBothNotes:
+            return std::pair{mx::api::Bool::yes, mx::api::Bool::yes};
+        }
+        return std::pair{mx::api::Bool::yes, mx::api::Bool::no};
+    }();
+    /// @todo Export tuplet placement, offsets, hook lengths, slope, and other positioning if mx::api exposes them.
+    return result;
+}
+
+void applyTupletData(mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
+{
+    if (entryInfo->getEntry()->graceNote) {
+        return;
+    }
+
+    auto activeTuplets = std::vector<size_t>{};
+    for (size_t tupletIndex : entryInfo.findTupletInfo()) {
+        const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
+        if (shouldExportAsTuplet(tupletInfo)) {
+            activeTuplets.emplace_back(tupletIndex);
+        }
+    }
+
+    if (!activeTuplets.empty()) {
+        const auto cumulativeRatio = entryInfo->cumulativeRatio;
+        if (cumulativeRatio != 1) {
+            const auto& tupletDef = entryInfo.getFrame()->tupletInfo[activeTuplets.back()].tuplet;
+            const auto [normalDurationName, normalDots] = calcDurationInfoFromEdu(tupletDef->referenceDuration);
+            const auto [entryDurationName, entryDots] = entryInfo->getEntry()->calcDurationInfo();
+            note.durationData.timeModificationActualNotes = cumulativeRatio.denominator();
+            note.durationData.timeModificationNormalNotes = cumulativeRatio.numerator();
+            if (normalDurationName != entryDurationName || normalDots != entryDots) {
+                note.durationData.timeModificationNormalType = enumConvert<mx::api::DurationName>(normalDurationName);
+                note.durationData.timeModificationNormalTypeDots = int(normalDots);
+            }
+            /// @todo mx::api::NoteWriter currently ignores DurationData::timeModificationNormalType and infers normal-type
+            /// by searching sibling notes for exactly one tuplet start and one tuplet stop. That is fragile for nested tuplets.
+        }
+    }
+
+    for (size_t tupletIndex : activeTuplets) {
+        const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
+        const int numberLevel = int(tupletIndex) + 1;
+        if (tupletInfo.startIndex == entryInfo.getIndexInFrame()) {
+            note.noteAttachmentData.tupletStarts.emplace_back(createTupletStart(tupletInfo, numberLevel));
+        }
+        if (tupletInfo.endIndex == entryInfo.getIndexInFrame()) {
+            auto& stop = note.noteAttachmentData.tupletStops.emplace_back();
+            stop.numberLevel = numberLevel;
+        }
+    }
 }
 
 mx::api::NoteData createFullMeasureRestData(
@@ -69,12 +184,14 @@ mx::api::NoteData createFullMeasureRestData(
 void addFullMeasureRest(
     const MusicXmlMusxMapping& context,
     mx::api::StaffData& staff,
-    const MusxInstance<others::Measure>& musxMeasure)
+    const MusxInstance<others::Measure>& musxMeasure,
+    size_t staffIndex)
 {
     auto rest = createFullMeasureRestData(context, musxMeasure);
-    rest.userRequestedVoiceNumber = 1;
+    const int userVoiceNumber = musicXmlVoiceNumber(staffIndex, 0, 1);
+    rest.userRequestedVoiceNumber = userVoiceNumber;
 
-    auto& voice = staff.voices[0];
+    auto& voice = staff.voices[userVoiceNumber - 1];
     voice.notes.emplace_back(rest);
 }
 
@@ -185,8 +302,9 @@ mx::api::NoteData createRestData(
     rest.isRest = true;
     rest.noteType = entry->graceNote ? mx::api::NoteType::grace : mx::api::NoteType::normal;
     rest.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
-    rest.durationData = createDurationData(context, entry, entryIt.getEffectiveActualDuration(/*global*/ true));
+    rest.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
     rest.beams = createBeamData(entryInfo);
+    applyTupletData(rest, entryInfo);
     if (!entry->floatRest && !entry->notes.empty()) {
         const NoteInfoPtr restNoteInfo(entryInfo, 0);
         if (restNoteInfo->getNoteId() == Note::RESTID) {
@@ -221,6 +339,13 @@ void appendEntryNotes(
         voice.notes.emplace_back(rest);
         return;
     }
+    for (size_t tupletIndex : entryInfo.findTupletInfo()) {
+        const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
+        if (tupletInfo.startIndex == entryInfo.getIndexInFrame() && tupletInfo.calcIsTremolo()) {
+            context.logMessage(LogMsg() << "Double-note tremolo starting at entry " << entry->getEntryNumber()
+                << " cannot be exported through mx::api yet. Emitting represented note duration without tremolo ornament.");
+        }
+    }
     if (entryInfo.calcDisplaysAsRest()) {
         auto rest = createRestData(context, entryIt);
         rest.userRequestedVoiceNumber = userVoiceNumber;
@@ -236,10 +361,11 @@ void appendEntryNotes(
         note.noteType = entry->graceNote ? mx::api::NoteType::grace : mx::api::NoteType::normal;
         note.userRequestedVoiceNumber = userVoiceNumber;
         note.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
-        note.durationData = createDurationData(context, entry, entryIt.getEffectiveActualDuration(/*global*/ true));
+        note.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
         note.pitchData = createPitchData(noteInfo, pitchContext);
         if (noteIndex == 0) {
             note.beams = createBeamData(entryInfo);
+            applyTupletData(note, entryInfo);
         }
         if (entry->hasStem()) {
             const auto [freezeStem, upStem] = entryInfo.calcEntryStemSettings();
@@ -273,7 +399,7 @@ void createNotesForMeasureStaff(
     const Fraction legacyPickupSpacer = musxMeasure->calcMinLegacyPickupSpacer(staffId);
     musx::dom::details::GFrameHoldContext gfHold(context.document, context.forPartId, staffId, musxMeasure->getCmper(), legacyPickupSpacer);
     if (!gfHold) {
-        addFullMeasureRest(context, staff, musxMeasure);
+        addFullMeasureRest(context, staff, musxMeasure, staffIndex);
         return;
     }
 
@@ -294,8 +420,7 @@ void createNotesForMeasureStaff(
         }
         const bool usesV1V2 = numVoice2Entries && entryFrame->getFirstInterpretedIterator(2);
         for (int voiceNumber = 1; voiceNumber <= maxVoice; ++voiceNumber) {
-            constexpr int voicesPerStaff = 8; // 4 Finale layers, each with possible V1/V2 streams.
-            const int userVoiceNumber = (int(staffIndex) * voicesPerStaff) + (int(layer) * 2) + voiceNumber;
+            const int userVoiceNumber = musicXmlVoiceNumber(staffIndex, layer, voiceNumber);
             auto& voice = staff.voices[userVoiceNumber - 1];
             for (auto entryIt = entryFrame->getFirstInterpretedIterator(voiceNumber); entryIt; entryIt = entryIt.getNext()) {
                 if (entryIt.calcIsPastLogicalEndOfFrame()) {
@@ -308,7 +433,7 @@ void createNotesForMeasureStaff(
     }
 
     if (!emittedNotes) {
-        addFullMeasureRest(context, staff, musxMeasure);
+        addFullMeasureRest(context, staff, musxMeasure, staffIndex);
     }
 }
 
