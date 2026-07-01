@@ -130,6 +130,16 @@ mx::api::NoteData createRestData(
     rest.isRest = true;
     rest.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
     rest.durationData = createDurationData(context, entry, entryIt.getEffectiveActualDuration(/*global*/ true));
+    if (!entry->floatRest && !entry->notes.empty()) {
+        const NoteInfoPtr restNoteInfo(entryInfo, 0);
+        if (restNoteInfo->getNoteId() == Note::RESTID) {
+            const auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
+            (void)alteration;
+            (void)staffPosition;
+            rest.isDisplayStepOctaveSpecified = true;
+            rest.pitchData = mx::api::PitchData(enumConvert<mx::api::Step>(noteName), 0, octave);
+        }
+    }
     if (entryIt.getEffectiveHidden()) {
         rest.printData.printObject = mx::api::Bool::no;
     }
@@ -142,6 +152,7 @@ void appendEntryNotes(
     const EntryInfoPtr::InterpretedIterator& entryIt,
     const MusxInstance<others::Measure>& musxMeasure,
     int userVoiceNumber,
+    bool hasVoice1Voice2,
     MusicXmlPitchContext pitchContext)
 {
     const auto entryInfo = entryIt.getEntryInfo();
@@ -162,12 +173,21 @@ void appendEntryNotes(
     for (size_t noteIndex = 0; noteIndex < entry->notes.size(); ++noteIndex) {
         NoteInfoPtr noteInfo(entryInfo, noteIndex);
         auto note = mx::api::NoteData{};
-        note.isChord = noteIndex > 0;
+        // MX uses this as "is in a chord group"; it suppresses <chord/> on the first note internally.
+        note.isChord = entry->notes.size() > 1;
         note.noteType = entry->graceNote ? mx::api::NoteType::grace : mx::api::NoteType::normal;
         note.userRequestedVoiceNumber = userVoiceNumber;
         note.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
         note.durationData = createDurationData(context, entry, entryIt.getEffectiveActualDuration(/*global*/ true));
         note.pitchData = createPitchData(noteInfo, pitchContext);
+        if (entry->hasStem()) {
+            const auto [freezeStem, upStem] = entryInfo.calcEntryStemSettings();
+            if (freezeStem) {
+                note.stem = upStem ? mx::api::Stem::up : mx::api::Stem::down;
+            } else if (hasVoice1Voice2) {
+                note.stem = entryInfo.calcUpStem() ? mx::api::Stem::up : mx::api::Stem::down;
+            }
+        }
         applyMusicXmlTies(context, note, noteInfo);
         if (entryIt.getEffectiveHidden()) {
             note.printData.printObject = mx::api::Bool::no;
@@ -187,7 +207,6 @@ void createNotesForMeasureStaff(
     size_t staffIndex)
 {
     (void)measure;
-    (void)staffIndex;
 
     const Fraction legacyPickupSpacer = musxMeasure->calcMinLegacyPickupSpacer(staffId);
     musx::dom::details::GFrameHoldContext gfHold(context.document, context.forPartId, staffId, musxMeasure->getCmper(), legacyPickupSpacer);
@@ -209,14 +228,16 @@ void createNotesForMeasureStaff(
         ASSERT_IF(!entryFrame) {
             continue;
         }
+        const bool usesV1V2 = numVoice2Entries && entryFrame->getFirstInterpretedIterator(2);
         for (int voiceNumber = 1; voiceNumber <= maxVoice; ++voiceNumber) {
-            const int userVoiceNumber = (int(layer) * 2) + voiceNumber;
+            constexpr int voicesPerStaff = 8; // 4 Finale layers, each with possible V1/V2 streams.
+            const int userVoiceNumber = (int(staffIndex) * voicesPerStaff) + (int(layer) * 2) + voiceNumber;
             auto& voice = staff.voices[userVoiceNumber - 1];
             for (auto entryIt = entryFrame->getFirstInterpretedIterator(voiceNumber); entryIt; entryIt = entryIt.getNext()) {
                 if (entryIt.calcIsPastLogicalEndOfFrame()) {
                     break;
                 }
-                appendEntryNotes(context, voice, entryIt, musxMeasure, userVoiceNumber, pitchContext);
+                appendEntryNotes(context, voice, entryIt, musxMeasure, userVoiceNumber, usesV1V2, pitchContext);
                 emittedNotes = true;
             }
         }
