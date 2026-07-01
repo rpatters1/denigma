@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 
 #include "mx/api/DurationData.h"
 #include "mx/api/NoteData.h"
@@ -96,6 +97,28 @@ mx::api::PitchData createPitchData(const NoteInfoPtr& noteInfo, MusicXmlPitchCon
     return mx::api::PitchData(enumConvert<mx::api::Step>(noteName), alteration, octave);
 }
 
+std::uint64_t noteKey(const NoteInfoPtr& noteInfo)
+{
+    return (std::uint64_t(noteInfo.getEntryInfo()->getEntry()->getEntryNumber()) << 32) | std::uint64_t(noteInfo.getNoteIndex());
+}
+
+void applyMusicXmlTies(MusicXmlMusxMapping& context, mx::api::NoteData& note, const NoteInfoPtr& noteInfo)
+{
+    if (context.pendingTieStopKeys.erase(noteKey(noteInfo)) > 0) {
+        note.isTieStop = true;
+    }
+
+    if (!noteInfo->tieStart) {
+        return;
+    }
+    const auto tiedTo = noteInfo.calcTieTo();
+    if (!tiedTo || tiedTo.getEntryInfo()->getEntry()->isHidden) {
+        return;
+    }
+    note.isTieStart = true;
+    context.pendingTieStopKeys.emplace(noteKey(tiedTo));
+}
+
 mx::api::NoteData createRestData(
     const MusicXmlMusxMapping& context,
     const EntryInfoPtr::InterpretedIterator& entryIt)
@@ -114,7 +137,7 @@ mx::api::NoteData createRestData(
 }
 
 void appendEntryNotes(
-    const MusicXmlMusxMapping& context,
+    MusicXmlMusxMapping& context,
     mx::api::VoiceData& voice,
     const EntryInfoPtr::InterpretedIterator& entryIt,
     const MusxInstance<others::Measure>& musxMeasure,
@@ -145,6 +168,7 @@ void appendEntryNotes(
         note.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
         note.durationData = createDurationData(context, entry, entryIt.getEffectiveActualDuration(/*global*/ true));
         note.pitchData = createPitchData(noteInfo, pitchContext);
+        applyMusicXmlTies(context, note, noteInfo);
         if (entryIt.getEffectiveHidden()) {
             note.printData.printObject = mx::api::Bool::no;
         }

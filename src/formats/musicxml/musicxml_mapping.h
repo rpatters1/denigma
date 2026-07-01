@@ -18,6 +18,7 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <cstddef>
 #include <memory>
 #include <stdexcept>
@@ -119,6 +120,7 @@ struct MusicXmlMusxMapping
     std::unordered_map<std::string, MusicXmlPitchContext> partIdToPitchContext;
     std::unordered_map<musx::dom::EntryNumber, std::string> entryNumberToNoteId;
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;
+    std::unordered_set<std::uint64_t> pendingTieStopKeys;
 
     void clearCurrent()
     {
