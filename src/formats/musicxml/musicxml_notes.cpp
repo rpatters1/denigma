@@ -19,10 +19,10 @@
 
 #include "musicxml.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 
+#include "core/cue_layers.h"
 #include "mx/api/DurationData.h"
 #include "mx/api/NoteData.h"
 #include "mx/api/PitchData.h"
@@ -198,14 +198,10 @@ void createNotesForMeasureStaff(
 
     bool emittedNotes = false;
     const auto pitchContext = pitchContextForStaff(context, staffId);
-    const auto cueSummary = gfHold.calcCueSummary(/*includeVisibleInScore*/ true);
-    const auto skipsCueLayer = [&cueSummary](LayerIndex layer) {
-        /// @todo Export cue notes/rests instead of omitting cue layers.
-        return cueSummary.isCueHold
-            || std::find(cueSummary.cueLayers.begin(), cueSummary.cueLayers.end(), layer) != cueSummary.cueLayers.end();
-    };
+    /// @todo Export cue notes/rests instead of omitting cue layers.
+    const auto cueLayerPlan = createCueLayerPlan(gfHold, context.denigmaContext->cueLayer);
     for (const auto& [layer, numVoice2Entries] : gfHold.calcVoices()) {
-        if (skipsCueLayer(layer)) {
+        if (cueLayerPlan.skipsLayer(layer)) {
             continue;
         }
         const int maxVoice = numVoice2Entries ? 2 : 1;
