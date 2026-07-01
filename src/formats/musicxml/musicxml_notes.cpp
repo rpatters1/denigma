@@ -210,6 +210,16 @@ mx::api::PitchData createPitchData(const NoteInfoPtr& noteInfo, MusicXmlPitchCon
     return mx::api::PitchData(enumConvert<mx::api::Step>(noteName), alteration, octave);
 }
 
+void applyAccidentalData(mx::api::NoteData& note, const NoteInfoPtr& noteInfo)
+{
+    if (!noteInfo->showAcci || (!noteInfo->freezeAcci && !noteInfo->parenAcci)) {
+        return;
+    }
+
+    note.pitchData.showAccidental();
+    note.pitchData.isAccidentalParenthetical = noteInfo->parenAcci;
+}
+
 std::uint64_t noteKey(const NoteInfoPtr& noteInfo)
 {
     return (std::uint64_t(noteInfo.getEntryInfo()->getEntry()->getEntryNumber()) << 32) | std::uint64_t(noteInfo.getNoteIndex());
@@ -378,6 +388,7 @@ void appendEntryNotes(
         note.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
         note.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
         note.pitchData = createPitchData(noteInfo, pitchContext);
+        applyAccidentalData(note, noteInfo);
         if (noteIndex == 0) {
             note.beams = createBeamData(context, entryInfo);
             applyTupletData(note, entryInfo);
