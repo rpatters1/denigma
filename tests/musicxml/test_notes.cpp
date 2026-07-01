@@ -43,6 +43,8 @@ struct ComparableNoteEvent
     bool isRest{};
     bool isMeasureRest{};
     bool isChord{};
+    bool isTieStart{};
+    bool isTieStop{};
     mx::api::Step step{};
     int alter{};
     int octave{};
@@ -74,6 +76,8 @@ std::vector<ComparableNoteEvent> createComparableNoteEvents(const mx::api::Score
                             note.isRest,
                             note.isMeasureRest,
                             note.isChord,
+                            note.isTieStart,
+                            note.isTieStop,
                             note.isRest ? mx::api::Step::unspecified : note.pitchData.step,
                             note.isRest ? 0 : note.pitchData.alter,
                             note.isRest ? 0 : note.pitchData.octave
@@ -111,6 +115,12 @@ std::vector<ComparableNoteEvent> createComparableNoteEvents(const mx::api::Score
         if (lhs.isChord != rhs.isChord) {
             return lhs.isChord < rhs.isChord;
         }
+        if (lhs.isTieStart != rhs.isTieStart) {
+            return lhs.isTieStart < rhs.isTieStart;
+        }
+        if (lhs.isTieStop != rhs.isTieStop) {
+            return lhs.isTieStop < rhs.isTieStop;
+        }
         if (lhs.step != rhs.step) {
             return lhs.step < rhs.step;
         }
@@ -132,6 +142,66 @@ void compareNoteEvents(const mx::api::ScoreData& actual, const mx::api::ScoreDat
     }
 }
 
+std::vector<ComparableNoteEvent> createComparableTieEvents(const mx::api::ScoreData& score)
+{
+    auto events = createComparableNoteEvents(score);
+    events.erase(std::remove_if(events.begin(), events.end(), [](const ComparableNoteEvent& event) {
+        return !event.isTieStart && !event.isTieStop;
+    }), events.end());
+    return events;
+}
+
+std::vector<ComparableNoteEvent> createComparablePairedTieEvents(const mx::api::ScoreData& score)
+{
+    struct TieKey
+    {
+        size_t partIndex{};
+        size_t staffIndex{};
+        int voiceIndex{};
+        mx::api::Step step{};
+        int alter{};
+        int octave{};
+
+        bool operator==(const TieKey&) const = default;
+    };
+
+    const auto makeKey = [](const ComparableNoteEvent& event) {
+        return TieKey{event.partIndex, event.staffIndex, event.voiceIndex, event.step, event.alter, event.octave};
+    };
+
+    const auto allTieEvents = createComparableTieEvents(score);
+    std::vector<ComparableNoteEvent> result;
+    std::vector<std::pair<TieKey, ComparableNoteEvent>> pendingStarts;
+    for (const auto& event : allTieEvents) {
+        if (event.isTieStop) {
+            const auto key = makeKey(event);
+            const auto startIt = std::find_if(pendingStarts.begin(), pendingStarts.end(), [&key](const auto& pendingStart) {
+                return pendingStart.first == key;
+            });
+            if (startIt != pendingStarts.end()) {
+                result.push_back(startIt->second);
+                result.push_back(event);
+                pendingStarts.erase(startIt);
+            }
+        }
+        if (event.isTieStart) {
+            pendingStarts.emplace_back(makeKey(event), event);
+        }
+    }
+    return result;
+}
+
+void compareTieEvents(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
+{
+    const auto actualEvents = createComparablePairedTieEvents(actual);
+    const auto expectedEvents = createComparablePairedTieEvents(expected);
+    ASSERT_EQ(actualEvents.size(), createComparableTieEvents(actual).size()) << "exported tie events should all be paired";
+    ASSERT_EQ(actualEvents.size(), expectedEvents.size()) << "tie event count";
+    for (size_t eventIndex = 0; eventIndex < expectedEvents.size(); ++eventIndex) {
+        EXPECT_EQ(actualEvents[eventIndex], expectedEvents[eventIndex]) << "tie event " << eventIndex;
+    }
+}
+
 } // namespace
 
 TEST(MusicXmlNotes, ChangingTimeSignaturesNotesMatchFinale)
@@ -145,4 +215,17 @@ TEST(MusicXmlNotes, ChangingTimeSignaturesNotesMatchFinale)
     ASSERT_TRUE(expectedScore);
 
     compareNoteEvents(*actualScore, *expectedScore);
+}
+
+TEST(MusicXmlNotes, LargeOrchestraTiesMatchFinale)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("large_orchestra.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/large_orchestra-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(expectedScore);
+
+    compareTieEvents(*actualScore, *expectedScore);
 }
