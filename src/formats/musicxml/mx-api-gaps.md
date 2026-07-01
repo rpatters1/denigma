@@ -38,6 +38,18 @@ MusicXML `<clef>` supports size-related attributes such as symbolic `size` and f
 
 Needed API shape: clef size/font controls on `mx::api::ClefData`, or another supported mapping for MusicXML clef sizing that can represent Finale's percent value.
 
+## Ties
+
+### Notation-only ties, let-ring ties, and one-ended visual ties
+
+MusicXML separates sounding ties (`<tie>`) from notated ties (`<notations><tied>`). The `<tied>` element supports `start`, `stop`, `continue`, and `let-ring`. For visually one-ended ties that are not let-ring ties, the MusicXML guidance is to write both `<tied type="start"/>` and `<tied type="stop"/>` on the same note, in that order. This is used for ties into or out of repeats, endings, or codas. These visual ties should not necessarily produce a corresponding `<tie>` element, because `<tie>` represents playback semantics.
+
+`mx::api::NoteData` currently exposes only `isTieStart` and `isTieStop`. `NoteWriter` maps those booleans to both `<tie>` and `<tied>` together, and only as normal start/stop ties. Denigma therefore cannot express notation-only ties, `let-ring` ties, or same-note start/stop visual ties through the public API.
+
+The MX generated core model already supports `mx::core::TiedType::letRing()`, but reaching around `mx::api` from Denigma would require copying and rebuilding the generated core score tree after `DocumentManager::createFromScore`, locating the corresponding generated core notes, and replacing their notation content. That would be brittle and would couple Denigma to MX internals.
+
+Needed API shape: a tie-notation data model separate from playback tie booleans, with support for `start`, `stop`, `continue`, `let-ring`, and same-note start/stop ordering. The API should also allow notation-only ties without writing `<tie>`, and should allow playback `<tie>` / `time-only` semantics to be modeled separately when Denigma can infer them.
+
 ## Time Signatures
 
 ### Per-staff time signatures

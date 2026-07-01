@@ -229,3 +229,14 @@ TEST(MusicXmlNotes, LargeOrchestraTiesMatchFinale)
 
     compareTieEvents(*actualScore, *expectedScore);
 }
+
+TEST(MusicXmlNotes, VoicesExportsSmoke)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("voices.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/voices-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(expectedScore);
+}
