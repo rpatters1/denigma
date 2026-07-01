@@ -100,6 +100,14 @@ void createMetaData(const MusicXmlMusxMapping& context)
     score.workTitle = "Hello World";
     score.encoding.software.push_back(std::string(DENIGMA_NAME) + " " + DENIGMA_VERSION);
     score.encoding.encodingDate = mx::api::EncodingDate::today();
+    const auto addSupportedElement = [&score](std::string elementName) {
+        auto& item = score.encoding.supportedItems.emplace_back();
+        item.elementName = std::move(elementName);
+        item.isSupported = true;
+    };
+    addSupportedElement("accidental");
+    addSupportedElement("beam");
+    addSupportedElement("stem");
 
     if (const auto header = context.document->getHeader()) {
         if (hasValidDate(header->created)) {

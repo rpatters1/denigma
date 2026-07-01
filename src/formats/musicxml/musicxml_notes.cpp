@@ -128,6 +128,7 @@ mx::api::NoteData createRestData(
 
     auto rest = mx::api::NoteData{};
     rest.isRest = true;
+    rest.noteType = entry->graceNote ? mx::api::NoteType::grace : mx::api::NoteType::normal;
     rest.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
     rest.durationData = createDurationData(context, entry, entryIt.getEffectiveActualDuration(/*global*/ true));
     if (!entry->floatRest && !entry->notes.empty()) {
@@ -152,6 +153,7 @@ void appendEntryNotes(
     const EntryInfoPtr::InterpretedIterator& entryIt,
     const MusxInstance<others::Measure>& musxMeasure,
     int userVoiceNumber,
+    bool hasMultipleLayers,
     bool hasVoice1Voice2,
     MusicXmlPitchContext pitchContext)
 {
@@ -184,7 +186,8 @@ void appendEntryNotes(
             const auto [freezeStem, upStem] = entryInfo.calcEntryStemSettings();
             if (freezeStem) {
                 note.stem = upStem ? mx::api::Stem::up : mx::api::Stem::down;
-            } else if (hasVoice1Voice2) {
+            } else if (hasVoice1Voice2 || hasMultipleLayers) {
+                /// @todo Ideally importers would infer these from independent voices, but explicit stems currently import better.
                 note.stem = entryInfo.calcUpStem() ? mx::api::Stem::up : mx::api::Stem::down;
             }
         }
@@ -219,7 +222,9 @@ void createNotesForMeasureStaff(
     const auto pitchContext = pitchContextForStaff(context, staffId);
     /// @todo Export cue notes/rests instead of omitting cue layers.
     const auto cueLayerPlan = createCueLayerPlan(gfHold, context.denigmaContext->cueLayer);
-    for (const auto& [layer, numVoice2Entries] : gfHold.calcVoices()) {
+    const auto layerVoices = gfHold.calcVoices();
+    const bool hasMultipleLayers = layerVoices.size() > 1;
+    for (const auto& [layer, numVoice2Entries] : layerVoices) {
         if (cueLayerPlan.skipsLayer(layer)) {
             continue;
         }
@@ -237,7 +242,7 @@ void createNotesForMeasureStaff(
                 if (entryIt.calcIsPastLogicalEndOfFrame()) {
                     break;
                 }
-                appendEntryNotes(context, voice, entryIt, musxMeasure, userVoiceNumber, usesV1V2, pitchContext);
+                appendEntryNotes(context, voice, entryIt, musxMeasure, userVoiceNumber, hasMultipleLayers, usesV1V2, pitchContext);
                 emittedNotes = true;
             }
         }
