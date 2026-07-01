@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "core/denigma.h"
+#include "core/cue_layers.h"
 #include "core/finale_options.h"
 #include "musx/musx.h"
 #include "mnxdom.h"
@@ -111,23 +112,13 @@ struct MnxMusxMapping
     std::unordered_set<EntryNumber> beamedEntries;
     size_t discardedCueFrames{};
 
-    struct CueDiscardPlan {
-        bool discardWholeHold{};
-        std::unordered_set<LayerIndex> discardLayers;
-
-        bool skipsLayer(LayerIndex layer) const
-        {
-            return discardWholeHold || discardLayers.contains(layer);
-        }
-    };
-
     struct CurrentMeasureStaff {
         MeasCmper meas{};
         StaffCmper staff{};
         std::string voice;
         std::optional<details::GFrameHoldContext> gfhold;
         std::map<LayerIndex, int> layerVoices;
-        CueDiscardPlan cueDiscardPlan;
+        CueLayerPlan cueDiscardPlan;
         std::unordered_map<Cmper, MusxInstance<others::SmartShape>> ottavasApplicableInMeasure;
 
         void clear()

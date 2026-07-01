@@ -1,4 +1,5 @@
 set(DENIGMA_CORE_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/cue_layers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/denigma.cpp
     ${CMAKE_CURRENT_LIST_DIR}/finale_options.cpp
     ${DENIGMA_GIT_COMMIT_CPP}

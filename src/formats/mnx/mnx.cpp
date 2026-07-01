@@ -106,19 +106,16 @@ void MnxMusxMapping::setCurrentMeasureStaff(const MusxInstance<others::Measure>&
     }
 
     current.layerVoices = current.gfhold->calcVoices();
-    if (const auto cueSummary = current.gfhold->calcCueSummary()) {
-        current.cueDiscardPlan.discardWholeHold = true;
-        current.cueDiscardPlan.discardLayers.insert(cueSummary.cueLayers.begin(), cueSummary.cueLayers.end());
+    current.cueDiscardPlan = createCueLayerPlan(*current.gfhold, denigmaContext->cueLayer);
+    if (!current.cueDiscardPlan.heuristicCueLayers.empty()) {
         logDiscardedHeuristicCueHold();
-        return;
-    }
-
-    if (denigmaContext->cueLayer) {
-        const LayerIndex cueLayer = static_cast<LayerIndex>(*denigmaContext->cueLayer - 1);
-        if (current.gfhold.value()->frames[cueLayer] != 0) {
-            current.cueDiscardPlan.discardLayers.emplace(cueLayer);
-            logDiscardedCueLayerFrame(cueLayer);
+        if (current.cueDiscardPlan.discardWholeHold) {
+            return;
         }
+    }
+    if (current.cueDiscardPlan.explicitCueLayer
+        && !current.cueDiscardPlan.heuristicCueLayers.contains(*current.cueDiscardPlan.explicitCueLayer)) {
+        logDiscardedCueLayerFrame(*current.cueDiscardPlan.explicitCueLayer);
     }
 }
 
