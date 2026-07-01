@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "formats/musicxml/musicxml.h"
 #include "musx/util/Fraction.h"
 #include "mx/api/ScoreData.h"
 #include "musicxml_test.h"
@@ -277,6 +278,30 @@ void compareTieEvents(const mx::api::ScoreData& actual, const mx::api::ScoreData
     }
 }
 
+void expectNotesUseStaffQualifiedVoiceNumbers(const mx::api::ScoreData& score)
+{
+    for (size_t partIndex = 0; partIndex < score.parts.size(); ++partIndex) {
+        const auto& part = score.parts.at(partIndex);
+        for (size_t measureIndex = 0; measureIndex < part.measures.size(); ++measureIndex) {
+            const auto& measure = part.measures.at(measureIndex);
+            for (size_t staffIndex = 0; staffIndex < measure.staves.size(); ++staffIndex) {
+                const auto& staff = measure.staves.at(staffIndex);
+                const int firstVoiceIndex = denigma::formats::musicxml::detail::musicXmlVoiceNumber(staffIndex, 0, 1) - 1;
+                const int nextStaffFirstVoiceIndex = denigma::formats::musicxml::detail::musicXmlVoiceNumber(staffIndex + 1, 0, 1) - 1;
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    for (const auto& note : voice.notes) {
+                        (void)note;
+                        EXPECT_GE(voiceIndex, firstVoiceIndex)
+                            << "part " << partIndex << " measure " << measureIndex << " staff " << staffIndex;
+                        EXPECT_LT(voiceIndex, nextStaffFirstVoiceIndex)
+                            << "part " << partIndex << " measure " << measureIndex << " staff " << staffIndex;
+                    }
+                }
+            }
+        }
+    }
+}
+
 } // namespace
 
 TEST(MusicXmlNotes, ChangingTimeSignaturesNotesMatchFinale)
@@ -316,4 +341,15 @@ TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)
     ASSERT_TRUE(expectedScore);
 
     compareStemEventsSetByExporter(*actualScore, *expectedScore);
+}
+
+TEST(MusicXmlNotes, VoicesKeyboardUsesStaffQualifiedVoiceNumbers)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("voices_keyboard.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+
+    expectNotesUseStaffQualifiedVoiceNumbers(*actualScore);
 }

@@ -43,6 +43,14 @@ inline std::string createPartId(int partNumber)
     return "P" + std::to_string(partNumber);
 }
 
+inline int musicXmlVoiceNumber(size_t staffIndex, musx::dom::LayerIndex layer, int v1v2)
+{
+    constexpr int v1v2StreamsPerLayer = 2;
+    constexpr int finaleLayersPerStaff = 4;
+    constexpr int voicesPerStaff = finaleLayersPerStaff * v1v2StreamsPerLayer;
+    return (static_cast<int>(staffIndex) * voicesPerStaff) + (static_cast<int>(layer) * v1v2StreamsPerLayer) + v1v2;
+}
+
 MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, const std::string& partId);
 std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);
 

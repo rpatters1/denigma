@@ -33,6 +33,7 @@
 #include "mx/api/FontData.h"
 #include "mx/api/PartSymbolData.h"
 #include "mx/api/ScoreData.h"
+#include "mx/api/StaffData.h"
 
 namespace denigma {
 namespace formats {
@@ -95,6 +96,28 @@ struct MusicXmlCurrentLocation
     }
 };
 
+struct MusicXmlStaffLayoutState
+{
+    musx::util::Fraction staffSize{1};
+    musx::util::Fraction staffScaling{1};
+};
+
+struct MusicXmlLayoutState
+{
+    std::unordered_map<musx::dom::StaffCmper, MusicXmlStaffLayoutState> staffLayout;
+
+    void clear()
+    {
+        staffLayout.clear();
+    }
+
+    void setStaffSize(
+        mx::api::StaffData& staffData,
+        musx::dom::StaffCmper staffId,
+        const musx::util::Fraction& staffSize,
+        const musx::util::Fraction& staffScaling);
+};
+
 struct MusicXmlMusxMapping
 {
     MusicXmlMusxMapping(const DenigmaContext& context, const musx::dom::DocumentPtr& doc, musx::dom::Cmper partId)
@@ -113,6 +136,7 @@ struct MusicXmlMusxMapping
 
     MusicXmlTimingPlan timing;
     MusicXmlCurrentLocation current;
+    MusicXmlLayoutState layout;
 
     std::unordered_map<musx::dom::StaffCmper, std::string> staffToPartId;
     std::unordered_map<std::string, std::vector<musx::dom::StaffCmper>> partIdToStaves;
@@ -125,6 +149,7 @@ struct MusicXmlMusxMapping
     void clearCurrent()
     {
         current.clear();
+        layout.clear();
     }
 
     double musicXmlTenthsFromEvpu(double evpu, double backoutScaling = 1.0) const;

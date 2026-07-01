@@ -81,6 +81,23 @@ int MusicXmlTimingPlan::calcNearestMusicXmlDivisions(const musx::util::Fraction&
     return static_cast<int>(rounded);
 }
 
+void MusicXmlLayoutState::setStaffSize(
+    mx::api::StaffData& staffData,
+    musx::dom::StaffCmper staffId,
+    const musx::util::Fraction& staffSize,
+    const musx::util::Fraction& staffScaling)
+{
+    auto& current = staffLayout[staffId];
+    if (current.staffSize != staffSize) {
+        staffData.staffSize = staffSize.toDouble() * 100.0;
+        current.staffSize = staffSize;
+    }
+    if (current.staffScaling != staffScaling) {
+        staffData.staffScaling = staffScaling.toDouble() * 100.0;
+        current.staffScaling = staffScaling;
+    }
+}
+
 mx::api::FontData MusicXmlMusxMapping::musicXmlFontDataFromFontInfo(
     const musx::dom::FontInfo& fontInfo,
     MusicXmlFontFamilyFallback fallback) const
