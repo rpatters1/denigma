@@ -169,30 +169,24 @@ void applyTupletData(mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
     }
 }
 
-mx::api::NoteData createFullMeasureRestData(
-    const MusicXmlMusxMapping& context,
-    const MusxInstance<others::Measure>& musxMeasure)
+void applyRestPositionIfNeeded(mx::api::NoteData& rest, const EntryInfoPtr& entryInfo)
 {
-    auto rest = mx::api::NoteData{};
-    rest.isRest = true;
-    rest.isMeasureRest = true;
-    rest.durationData.durationName = mx::api::DurationName::whole;
-    rest.durationData.durationTimeTicks = context.timing.calcMusicXmlDivisions(musxMeasure->calcDuration());
-    return rest;
-}
-
-void addFullMeasureRest(
-    const MusicXmlMusxMapping& context,
-    mx::api::StaffData& staff,
-    const MusxInstance<others::Measure>& musxMeasure,
-    size_t staffIndex)
-{
-    auto rest = createFullMeasureRestData(context, musxMeasure);
-    const int userVoiceNumber = musicXmlVoiceNumber(staffIndex, 0, 1);
-    rest.userRequestedVoiceNumber = userVoiceNumber;
-
-    auto& voice = staff.voices[userVoiceNumber - 1];
-    voice.notes.emplace_back(rest);
+    if (!entryInfo) {
+        return;
+    }
+    const auto entry = entryInfo->getEntry();
+    if (entry->floatRest || entry->notes.empty()) {
+        return;
+    }
+    const NoteInfoPtr restNoteInfo(entryInfo, 0);
+    if (restNoteInfo->getNoteId() != Note::RESTID) {
+        return;
+    }
+    const auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
+    (void)alteration;
+    (void)staffPosition;
+    rest.isDisplayStepOctaveSpecified = true;
+    rest.pitchData = mx::api::PitchData(enumConvert<mx::api::Step>(noteName), 0, octave);
 }
 
 MusicXmlPitchContext pitchContextForStaff(const MusicXmlMusxMapping& context, StaffCmper staffId)
@@ -238,7 +232,7 @@ void applyMusicXmlTies(MusicXmlMusxMapping& context, mx::api::NoteData& note, co
     context.pendingTieStopKeys.emplace(noteKey(tiedTo));
 }
 
-std::vector<mx::api::Beam> createBeamData(const EntryInfoPtr& entryInfo)
+std::vector<mx::api::Beam> createBeamData(const MusicXmlMusxMapping& context, const EntryInfoPtr& entryInfo)
 {
     const auto isTremolo = [&entryInfo]() {
         const auto tupletIndices = entryInfo.findTupletInfo();
@@ -255,12 +249,10 @@ std::vector<mx::api::Beam> createBeamData(const EntryInfoPtr& entryInfo)
         return {};
     }
 
-    const auto calcVisibleBeamCount = [&entryInfo]() {
+    const auto calcVisibleBeamCount = [&]() {
         if (entryInfo.calcDisplaysAsRest()) {
-            if (auto opts = entryInfo->getEntry()->getDocument()->getOptions()->get<options::BeamOptions>()) {
-                if (!opts->extendSecBeamsOverRests) {
-                    return 1U;
-                }
+            if (!context.finaleOptions.beamOptions->extendSecBeamsOverRests) {
+                return 1U;
             }
         }
         return entryInfo.calcNumberOfBeams();
@@ -293,32 +285,62 @@ std::vector<mx::api::Beam> createBeamData(const EntryInfoPtr& entryInfo)
 
 mx::api::NoteData createRestData(
     const MusicXmlMusxMapping& context,
-    const EntryInfoPtr::InterpretedIterator& entryIt)
+    const EntryInfoPtr::InterpretedIterator& entryIt,
+    const MusxInstance<others::Measure>& musxMeasure,
+    const MusxInstance<others::StaffComposite>& measureStartStaff,
+    int userVoiceNumber)
 {
-    const auto entryInfo = entryIt.getEntryInfo();
-    const auto entry = entryInfo->getEntry();
+    const auto& entryInfo = entryIt.getEntryInfo();
 
     auto rest = mx::api::NoteData{};
     rest.isRest = true;
-    rest.noteType = entry->graceNote ? mx::api::NoteType::grace : mx::api::NoteType::normal;
-    rest.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
-    rest.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
-    rest.beams = createBeamData(entryInfo);
-    applyTupletData(rest, entryInfo);
-    if (!entry->floatRest && !entry->notes.empty()) {
-        const NoteInfoPtr restNoteInfo(entryInfo, 0);
-        if (restNoteInfo->getNoteId() == Note::RESTID) {
-            const auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
-            (void)alteration;
-            (void)staffPosition;
-            rest.isDisplayStepOctaveSpecified = true;
-            rest.pitchData = mx::api::PitchData(enumConvert<mx::api::Step>(noteName), 0, octave);
-        }
+    rest.noteType = mx::api::NoteType::normal;
+    rest.userRequestedVoiceNumber = userVoiceNumber;
+
+    if (entryInfo) {
+        const auto entry = entryInfo->getEntry();
+        rest.noteType = entry->graceNote ? mx::api::NoteType::grace : mx::api::NoteType::normal;
+        rest.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
+    } else {
+        rest.durationData.durationName = mx::api::DurationName::whole;
     }
-    if (entryIt.getEffectiveHidden()) {
+
+    const bool isFullMeasureRest = !entryInfo || entryInfo.calcIsFullMeasureRest();
+    if (isFullMeasureRest) {
+        rest.isMeasureRest = true;
+        rest.durationData.durationTimeTicks = context.timing.calcMusicXmlDivisions(musxMeasure->calcDuration());
+    } else {
+        rest.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
+    }
+
+    const auto effectiveStaff = entryInfo ? entryInfo.createCurrentStaff() : measureStartStaff;
+    if (entryInfo) {
+        rest.beams = createBeamData(context, entryInfo);
+        applyTupletData(rest, entryInfo);
+        applyRestPositionIfNeeded(rest, entryInfo);
+        if (entryIt.getEffectiveHidden() || (effectiveStaff && effectiveStaff->hideRests)) {
+            rest.printData.printObject = mx::api::Bool::no;
+        }
+    } else if (effectiveStaff && effectiveStaff->blankMeasure) {
         rest.printData.printObject = mx::api::Bool::no;
     }
+
     return rest;
+}
+
+void addSyntheticFullMeasureRest(
+    const MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    const MusxInstance<others::Measure>& musxMeasure,
+    StaffCmper staffId,
+    size_t staffIndex)
+{
+    const int userVoiceNumber = musicXmlVoiceNumber(staffIndex, 0, 1);
+    const auto measureStartStaff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, musxMeasure->getCmper(), 0);
+    auto rest = createRestData(context, EntryInfoPtr::InterpretedIterator{}, musxMeasure, measureStartStaff, userVoiceNumber);
+
+    auto& voice = staff.voices[userVoiceNumber - 1];
+    voice.notes.emplace_back(rest);
 }
 
 void appendEntryNotes(
@@ -331,14 +353,8 @@ void appendEntryNotes(
     bool hasVoice1Voice2,
     MusicXmlPitchContext pitchContext)
 {
-    const auto entryInfo = entryIt.getEntryInfo();
+    const auto& entryInfo = entryIt.getEntryInfo();
     const auto entry = entryInfo->getEntry();
-    if (entryInfo.calcIsFullMeasureRest()) {
-        auto rest = createFullMeasureRestData(context, musxMeasure);
-        rest.userRequestedVoiceNumber = userVoiceNumber;
-        voice.notes.emplace_back(rest);
-        return;
-    }
     for (size_t tupletIndex : entryInfo.findTupletInfo()) {
         const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
         if (tupletInfo.startIndex == entryInfo.getIndexInFrame() && tupletInfo.calcIsTremolo()) {
@@ -346,9 +362,8 @@ void appendEntryNotes(
                 << " cannot be exported through mx::api yet. Emitting represented note duration without tremolo ornament.");
         }
     }
-    if (entryInfo.calcDisplaysAsRest()) {
-        auto rest = createRestData(context, entryIt);
-        rest.userRequestedVoiceNumber = userVoiceNumber;
+    if (entryInfo.calcIsFullMeasureRest() || entryInfo.calcDisplaysAsRest()) {
+        auto rest = createRestData(context, entryIt, musxMeasure, nullptr, userVoiceNumber);
         voice.notes.emplace_back(rest);
         return;
     }
@@ -364,7 +379,7 @@ void appendEntryNotes(
         note.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
         note.pitchData = createPitchData(noteInfo, pitchContext);
         if (noteIndex == 0) {
-            note.beams = createBeamData(entryInfo);
+            note.beams = createBeamData(context, entryInfo);
             applyTupletData(note, entryInfo);
         }
         if (entry->hasStem()) {
@@ -399,7 +414,7 @@ void createNotesForMeasureStaff(
     const Fraction legacyPickupSpacer = musxMeasure->calcMinLegacyPickupSpacer(staffId);
     musx::dom::details::GFrameHoldContext gfHold(context.document, context.forPartId, staffId, musxMeasure->getCmper(), legacyPickupSpacer);
     if (!gfHold) {
-        addFullMeasureRest(context, staff, musxMeasure, staffIndex);
+        addSyntheticFullMeasureRest(context, staff, musxMeasure, staffId, staffIndex);
         return;
     }
 
@@ -433,7 +448,7 @@ void createNotesForMeasureStaff(
     }
 
     if (!emittedNotes) {
-        addFullMeasureRest(context, staff, musxMeasure, staffIndex);
+        addSyntheticFullMeasureRest(context, staff, musxMeasure, staffId, staffIndex);
     }
 }
 

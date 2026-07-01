@@ -276,83 +276,19 @@
     </measure>
     <!--=======================================================-->
     <measure number="3" width="176">
-      <note default-x="37">
-        <pitch>
-          <step>F</step>
-          <octave>6</octave>
-        </pitch>
-        <duration>4</duration>
+      <note>
+        <rest measure="yes"/>
+        <duration>8</duration>
         <voice>1</voice>
-        <type>half</type>
-        <stem default-y="-35">down</stem>
-        <staff>1</staff>
-      </note>
-      <note default-x="107">
-        <pitch>
-          <step>C</step>
-          <octave>6</octave>
-        </pitch>
-        <duration>4</duration>
-        <voice>1</voice>
-        <type>half</type>
-        <stem default-y="-50">down</stem>
         <staff>1</staff>
       </note>
       <backup>
         <duration>8</duration>
       </backup>
-      <note default-x="37">
-        <pitch>
-          <step>D</step>
-          <alter>-1</alter>
-          <octave>5</octave>
-        </pitch>
-        <duration>4</duration>
+      <note>
+        <rest measure="yes"/>
+        <duration>8</duration>
         <voice>3</voice>
-        <type>half</type>
-        <accidental>flat</accidental>
-        <stem default-y="-45">down</stem>
-        <staff>2</staff>
-      </note>
-      <note default-x="37">
-        <chord/>
-        <pitch>
-          <step>A</step>
-          <alter>-1</alter>
-          <octave>5</octave>
-        </pitch>
-        <duration>4</duration>
-        <voice>3</voice>
-        <type>half</type>
-        <accidental>flat</accidental>
-        <stem>down</stem>
-        <staff>2</staff>
-      </note>
-      <note default-x="107">
-        <pitch>
-          <step>A</step>
-          <alter>-1</alter>
-          <octave>4</octave>
-        </pitch>
-        <duration>4</duration>
-        <voice>3</voice>
-        <type>half</type>
-        <accidental>flat</accidental>
-        <stem default-y="-57">down</stem>
-        <staff>2</staff>
-      </note>
-      <note default-x="107">
-        <chord/>
-        <pitch>
-          <step>E</step>
-          <alter>-1</alter>
-          <octave>5</octave>
-        </pitch>
-        <duration>4</duration>
-        <voice>3</voice>
-        <type>half</type>
-        <accidental>flat</accidental>
-        <stem>down</stem>
         <staff>2</staff>
       </note>
     </measure>
@@ -465,7 +401,7 @@
         <stem default-y="-57">down</stem>
         <staff>1</staff>
       </note>
-      <note default-x="129">
+      <note default-x="134">
         <pitch>
           <step>C</step>
           <octave>6</octave>
@@ -492,7 +428,7 @@
         <stem default-y="20">up</stem>
         <staff>2</staff>
       </note>
-      <note default-x="129">
+      <note default-x="134">
         <pitch>
           <step>A</step>
           <alter>-1</alter>
@@ -505,7 +441,7 @@
         <stem default-y="23">up</stem>
         <staff>2</staff>
       </note>
-      <note default-x="129">
+      <note default-x="134">
         <chord/>
         <pitch>
           <step>E</step>
@@ -532,7 +468,7 @@
         <type>eighth</type>
         <staff>2</staff>
       </note>
-      <note default-x="54">
+      <note default-x="56">
         <pitch>
           <step>B</step>
           <alter>-1</alter>
@@ -545,10 +481,10 @@
         <stem default-y="-55">down</stem>
         <staff>2</staff>
         <notations>
-          <slur bezier-x="18" bezier-y="-25" default-x="6" default-y="-50" number="1" placement="below" type="start"/>
+          <slur bezier-x="19" bezier-y="-27" default-x="5" default-y="-50" number="1" placement="below" type="start"/>
         </notations>
       </note>
-      <note default-x="96">
+      <note default-x="101">
         <pitch>
           <step>F</step>
           <octave>4</octave>
@@ -563,7 +499,7 @@
           <tied orientation="under" type="start"/>
         </notations>
       </note>
-      <note default-x="129">
+      <note default-x="134">
         <pitch>
           <step>F</step>
           <octave>4</octave>
@@ -576,8 +512,35 @@
         <staff>2</staff>
         <notations>
           <tied type="stop"/>
-          <slur bezier-x="-16" bezier-y="-31" default-x="-5" default-y="-52" number="1" type="stop"/>
+          <slur bezier-x="-17" bezier-y="-31" default-x="-5" default-y="-52" number="1" type="stop"/>
         </notations>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="6" width="1054">
+      <print new-system="yes">
+        <system-layout>
+          <system-distance>114</system-distance>
+        </system-layout>
+      </print>
+      <note default-x="534">
+        <rest>
+          <display-step>B</display-step>
+          <display-octave>5</display-octave>
+        </rest>
+        <duration>8</duration>
+        <voice>1</voice>
+        <type>whole</type>
+        <staff>1</staff>
+      </note>
+      <backup>
+        <duration>8</duration>
+      </backup>
+      <note>
+        <rest measure="yes"/>
+        <duration>8</duration>
+        <voice>3</voice>
+        <staff>2</staff>
       </note>
       <barline location="right">
         <bar-style>light-heavy</bar-style>
