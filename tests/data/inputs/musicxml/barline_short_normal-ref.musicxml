@@ -4,7 +4,7 @@
   <identification>
     <encoding>
       <software>Finale v27.4 for Mac</software>
-      <encoding-date>2026-06-30</encoding-date>
+      <encoding-date>2026-07-01</encoding-date>
       <supports attribute="new-system" element="print" type="yes" value="yes"/>
       <supports attribute="new-page" element="print" type="yes" value="yes"/>
       <supports element="accidental" type="yes"/>
@@ -35,9 +35,6 @@
       <system-distance>121</system-distance>
       <top-system-distance>70</top-system-distance>
     </system-layout>
-    <staff-layout>
-      <staff-distance>53</staff-distance>
-    </staff-layout>
     <appearance>
       <line-width type="stem">0.7487</line-width>
       <line-width type="beam">5</line-width>
@@ -59,33 +56,15 @@
   </defaults>
   <part-list>
     <score-part id="P1">
-      <part-name>Soprano</part-name>
-      <part-abbreviation>S</part-abbreviation>
+      <part-name print-object="no">MusicXML Part</part-name>
       <group>score</group>
       <score-instrument id="P1-I1">
         <instrument-name>SmartMusic SoftSynth 1</instrument-name>
-        <instrument-sound>voice.soprano</instrument-sound>
       </score-instrument>
       <midi-instrument id="P1-I1">
         <midi-channel>1</midi-channel>
         <midi-bank>15489</midi-bank>
-        <midi-program>53</midi-program>
-        <volume>80</volume>
-        <pan>0</pan>
-      </midi-instrument>
-    </score-part>
-    <score-part id="P2">
-      <part-name>Baritone</part-name>
-      <part-abbreviation>B</part-abbreviation>
-      <group>score</group>
-      <score-instrument id="P2-I2">
-        <instrument-name>SmartMusic SoftSynth 1</instrument-name>
-        <instrument-sound>voice.baritone</instrument-sound>
-      </score-instrument>
-      <midi-instrument id="P2-I2">
-        <midi-channel>2</midi-channel>
-        <midi-bank>15489</midi-bank>
-        <midi-program>53</midi-program>
+        <midi-program>1</midi-program>
         <volume>80</volume>
         <pan>0</pan>
       </midi-instrument>
@@ -93,8 +72,7 @@
   </part-list>
   <!--=========================================================-->
   <part id="P1">
-    <?SmartMusic maxVoice=1?>
-    <measure number="1" width="375">
+    <measure number="1" width="546">
       <print>
         <system-layout>
           <system-margins>
@@ -106,14 +84,18 @@
         <measure-numbering multiple-rest-always="no" multiple-rest-range="no" system="only-top">system</measure-numbering>
       </print>
       <attributes>
-        <divisions>2</divisions>
+        <divisions>4</divisions>
         <key>
           <fifths>0</fifths>
           <mode>major</mode>
         </key>
         <time>
-          <beats>4</beats>
-          <beat-type>4</beat-type>
+          <beats>1 + 2.5</beats>
+          <beat-type>2 + 4</beat-type>
+          <beats>3 + 2</beats>
+          <beat-type>16</beat-type>
+          <beats>1.5 + 5</beats>
+          <beat-type>8 + 16</beat-type>
         </time>
         <clef>
           <sign>G</sign>
@@ -127,76 +109,68 @@
       </sound>
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>67</duration>
         <voice>1</voice>
       </note>
     </measure>
     <!--=======================================================-->
-    <measure number="2" width="304">
+    <measure number="2" width="437">
+      <attributes>
+        <time>
+          <beats>1 + 2.5</beats>
+          <beat-type>2 + 4</beat-type>
+        </time>
+      </attributes>
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>42</duration>
         <voice>1</voice>
       </note>
     </measure>
     <!--=======================================================-->
-    <measure number="3" width="304">
-      <note>
-        <rest measure="yes"/>
-        <duration>8</duration>
-        <voice>1</voice>
-      </note>
-      <barline location="right">
-        <bar-style>light-heavy</bar-style>
-      </barline>
-    </measure>
-  </part>
-  <!--=========================================================-->
-  <part id="P2">
-    <?SmartMusic maxVoice=1?>
-    <measure number="1" width="375">
-      <print>
-        <measure-numbering multiple-rest-always="no" multiple-rest-range="no" system="also-top">system</measure-numbering>
+    <measure number="3" width="381">
+      <print new-system="yes">
+        <system-layout>
+          <system-distance>114</system-distance>
+        </system-layout>
       </print>
       <attributes>
-        <divisions>2</divisions>
-        <key>
-          <fifths>0</fifths>
-          <mode>major</mode>
-        </key>
         <time>
-          <beats>4</beats>
-          <beat-type>4</beat-type>
+          <beats>3 + 2</beats>
+          <beat-type>16</beat-type>
         </time>
-        <clef>
-          <sign>F</sign>
-          <line>4</line>
-        </clef>
       </attributes>
-      <sound tempo="96">
-        <swing>
-          <straight/>
-        </swing>
-      </sound>
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>5</duration>
         <voice>1</voice>
       </note>
     </measure>
     <!--=======================================================-->
-    <measure number="2" width="304">
+    <measure number="4" width="358">
+      <attributes>
+        <time>
+          <beats>1.5 + 5</beats>
+          <beat-type>8 + 16</beat-type>
+        </time>
+      </attributes>
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>20</duration>
         <voice>1</voice>
       </note>
     </measure>
     <!--=======================================================-->
-    <measure number="3" width="304">
+    <measure number="5" width="314">
+      <attributes>
+        <time>
+          <beats>6</beats>
+          <beat-type>8</beat-type>
+        </time>
+      </attributes>
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>12</duration>
         <voice>1</voice>
       </note>
       <barline location="right">

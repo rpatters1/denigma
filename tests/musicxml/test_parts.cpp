@@ -190,6 +190,30 @@ void compareTimeSignatures(const mx::api::ScoreData& actual, const mx::api::Scor
     }
 }
 
+void compareCompositeTimeSignatures(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
+{
+    ASSERT_EQ(actual.parts.size(), expected.parts.size()) << "part count";
+    bool replacedFirstExplicitTimeSignature = false;
+    for (size_t partIndex = 0; partIndex < expected.parts.size(); ++partIndex) {
+        SCOPED_TRACE("part " + std::to_string(partIndex + 1));
+        const auto& actualMeasures = actual.parts.at(partIndex).measures;
+        const auto& expectedMeasures = expected.parts.at(partIndex).measures;
+        ASSERT_EQ(actualMeasures.size(), expectedMeasures.size()) << "measure count";
+        for (size_t measureIndex = 0; measureIndex < expectedMeasures.size(); ++measureIndex) {
+            auto expectedTime = createComparableTimeSignature(expectedMeasures.at(measureIndex).timeSignature);
+            if (!replacedFirstExplicitTimeSignature && !expectedTime.isImplicit) {
+                expectedTime.beats = "133";
+                expectedTime.beatType = "32";
+                expectedTime.symbol = mx::api::TimeSignatureSymbol::unspecified;
+                replacedFirstExplicitTimeSignature = true;
+            }
+            EXPECT_EQ(createComparableTimeSignature(actualMeasures.at(measureIndex).timeSignature), expectedTime)
+                << "measure " << (measureIndex + 1);
+        }
+    }
+    EXPECT_TRUE(replacedFirstExplicitTimeSignature);
+}
+
 void compareKeySignatures(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
 {
     const auto actualTracks = createEffectiveKeySignatureTracks(actual);
@@ -333,6 +357,19 @@ TEST(MusicXmlParts, ChangingTimeSignaturesMatchFinale)
     ASSERT_TRUE(expectedScore);
 
     compareTimeSignatures(*actualScore, *expectedScore);
+}
+
+TEST(MusicXmlParts, CompositeTimeSignaturesMatchFinaleExceptMultiComponent)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("timesigs_composite.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/timesigs_composite-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(expectedScore);
+
+    compareCompositeTimeSignatures(*actualScore, *expectedScore);
 }
 
 TEST(MusicXmlParts, IndependentTimeSignaturesExportSmoke)

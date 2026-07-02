@@ -4,7 +4,7 @@
   <identification>
     <encoding>
       <software>Finale v27.4 for Mac</software>
-      <encoding-date>2026-06-30</encoding-date>
+      <encoding-date>2026-07-02</encoding-date>
       <supports attribute="new-system" element="print" type="yes" value="yes"/>
       <supports attribute="new-page" element="print" type="yes" value="yes"/>
       <supports element="accidental" type="yes"/>
@@ -72,7 +72,7 @@
   </part-list>
   <!--=========================================================-->
   <part id="P1">
-    <measure number="1" width="983">
+    <measure number="1" width="546">
       <print>
         <system-layout>
           <system-margins>
@@ -84,7 +84,7 @@
         <measure-numbering multiple-rest-always="no" multiple-rest-range="no" system="only-top">system</measure-numbering>
       </print>
       <attributes>
-        <divisions>2</divisions>
+        <divisions>4</divisions>
         <key>
           <fifths>0</fifths>
           <mode>major</mode>
@@ -109,7 +109,87 @@
       </sound>
       <note>
         <rest measure="yes"/>
-        <duration>33</duration>
+        <duration>67</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="2" width="437">
+      <attributes>
+        <time>
+          <beats>1 + 2.5</beats>
+          <beat-type>2 + 4</beat-type>
+        </time>
+      </attributes>
+      <note>
+        <rest measure="yes"/>
+        <duration>42</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="3" width="362">
+      <print new-system="yes">
+        <system-layout>
+          <system-distance>114</system-distance>
+        </system-layout>
+      </print>
+      <attributes>
+        <time>
+          <beats>3 + 2</beats>
+          <beat-type>16</beat-type>
+        </time>
+      </attributes>
+      <note>
+        <rest measure="yes"/>
+        <duration>5</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="4" width="339">
+      <attributes>
+        <time>
+          <beats>1.5 + 5</beats>
+          <beat-type>8 + 16</beat-type>
+        </time>
+      </attributes>
+      <note>
+        <rest measure="yes"/>
+        <duration>20</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="5" width="353">
+      <attributes>
+        <time>
+          <beats>6 + 9</beats>
+          <beat-type>8</beat-type>
+        </time>
+      </attributes>
+      <note>
+        <rest measure="yes"/>
+        <duration>30</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="6" width="1054">
+      <print new-system="yes">
+        <system-layout>
+          <system-distance>114</system-distance>
+        </system-layout>
+      </print>
+      <attributes>
+        <time>
+          <beats>6</beats>
+          <beat-type>8</beat-type>
+        </time>
+      </attributes>
+      <note>
+        <rest measure="yes"/>
+        <duration>12</duration>
         <voice>1</voice>
       </note>
       <barline location="right">

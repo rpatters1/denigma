@@ -20,8 +20,10 @@
 #include "musicxml.h"
 
 #include <cstdlib>
+#include <iomanip>
 #include <optional>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -146,6 +148,91 @@ mx::api::TimeSignatureSymbol musicXmlTimeSignatureSymbol(const MusxInstance<Time
         return mx::api::TimeSignatureSymbol::cut;
     }
     return mx::api::TimeSignatureSymbol::unspecified;
+}
+
+std::string musicXmlDecimalText(const Fraction& value)
+{
+    if (value.denominator() == 1) {
+        return std::to_string(value.numerator());
+    }
+
+    constexpr int timeSignatureDecimalPlaces = 6;
+    std::ostringstream stream;
+    stream << std::fixed << std::setprecision(timeSignatureDecimalPlaces)
+        << static_cast<double>(value.numerator()) / static_cast<double>(value.denominator());
+    auto result = stream.str();
+    while (!result.empty() && result.back() == '0') {
+        result.pop_back();
+    }
+    if (!result.empty() && result.back() == '.') {
+        result.pop_back();
+    }
+    return result;
+}
+
+std::optional<std::pair<std::string, std::string>> musicXmlTimeSignatureComponentText(
+    const TimeSignature::TimeSigComponent& componentIn)
+{
+    if (componentIn.counts.empty() || componentIn.units.empty()) {
+        return std::nullopt;
+    }
+
+    const auto join = [](const auto& values, const auto& formatter) {
+        std::string result;
+        for (const auto& value : values) {
+            if (!result.empty()) {
+                result += " + ";
+            }
+            result += formatter(value);
+        }
+        return result;
+    };
+
+    const auto componentNormalized = componentIn.normalizeCompound();
+    const auto counts = componentNormalized.counts;
+    const auto units = componentNormalized.units;
+
+    const auto beats = join(counts, [](const Fraction& count) { return musicXmlDecimalText(count); });
+    const auto beatType = join(units, [](Edu unit) {
+        if (!unit) {
+            return std::string{};
+        }
+        return musicXmlDecimalText(Fraction(EDU_PER_WHOLE_NOTE, unit));
+    });
+    if (beatType.empty()) {
+        return std::nullopt;
+    }
+    return std::pair{beats, beatType};
+}
+
+std::pair<std::string, std::string> musicXmlCumulativeTimeSignatureText(const MusxInstance<TimeSignature>& timeSignature)
+{
+    auto [count, noteType] = timeSignature->calcSimplified();
+    if (count.remainder()) {
+        if ((Edu(noteType) % count.denominator()) == 0) {
+            noteType = NoteType(Edu(noteType) / count.denominator());
+            count *= count.denominator();
+        }
+    }
+    return {std::to_string(count.quotient()), std::to_string(EDU_PER_WHOLE_NOTE / Edu(noteType))};
+}
+
+mx::api::TimeSignatureData createTimeSignatureData(const MusxInstance<TimeSignature>& timeSignature)
+{
+    auto result = mx::api::TimeSignatureData{};
+    const auto [beats, beatType] = [&]() {
+        if (timeSignature->components.size() == 1) {
+            if (auto componentText = musicXmlTimeSignatureComponentText(timeSignature->components.front())) {
+                return *componentText;
+            }
+        }
+        return musicXmlCumulativeTimeSignatureText(timeSignature);
+    }();
+    result.beats = beats;
+    result.beatType = beatType;
+    result.symbol = musicXmlTimeSignatureSymbol(timeSignature);
+    result.isImplicit = false;
+    return result;
 }
 
 int musicXmlKeyFifths(
@@ -286,18 +373,7 @@ void assignTimeSignature(
         return;
     }
 
-    auto [count, noteType] = timeSig->calcSimplified();
-    if (count.remainder()) {
-        if ((Edu(noteType) % count.denominator()) == 0) {
-            noteType = NoteType(Edu(noteType) / count.denominator());
-            count *= count.denominator();
-        }
-    }
-
-    measure.timeSignature.beats = std::to_string(count.quotient());
-    measure.timeSignature.beatType = std::to_string(EDU_PER_WHOLE_NOTE / Edu(noteType));
-    measure.timeSignature.symbol = musicXmlTimeSignatureSymbol(timeSig);
-    measure.timeSignature.isImplicit = false;
+    measure.timeSignature = createTimeSignatureData(timeSig);
     prevTimeSig = timeSig;
 }
 
