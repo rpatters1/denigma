@@ -22,10 +22,8 @@
 
 #include "musicxml.h"
 
-#include <stdexcept>
-#include <string>
-
 #include "denigma/classify/barlines.h"
+#include "formats/enum_conversion_macros.h"
 
 #include "mx/api/BarlineData.h"
 #include "mx/api/ClefData.h"
@@ -33,17 +31,6 @@
 #include "mx/api/PartGroupData.h"
 #include "mx/api/PitchData.h"
 #include "mx/api/PositionData.h"
-
-#define BEGIN_ENUM_CONVERSION(FromEnum, ToEnum) \
-template<> \
-ToEnum enumConvert(FromEnum value) { \
-    switch(value) {
-
-#define END_ENUM_CONVERSION \
-    default: \
-        throw std::invalid_argument("Unable to convert enum value: " + std::to_string(int(value))); \
-    } \
-}
 
 using namespace musx::dom;
 using BarlineType = musx::dom::others::Measure::BarlineType;
@@ -53,13 +40,7 @@ namespace formats {
 namespace musicxml {
 namespace detail {
 
-// Primary template definition (if needed)
-template <typename ToEnum, typename FromEnum>
-ToEnum enumConvert(FromEnum)
-{
-    static_assert(sizeof(FromEnum) == 0, "No specialization exists for this conversion");
-    return {};
-}
+DEFINE_ENUM_CONVERT_TEMPLATE
 
 BEGIN_ENUM_CONVERSION(AlignJustify, mx::api::HorizontalAlignment)
     case AlignJustify::Left: return mx::api::HorizontalAlignment::left;
@@ -110,6 +91,12 @@ BEGIN_ENUM_CONVERSION(music_theory::ClefType, mx::api::ClefSymbol)
     case music_theory::ClefType::TabSerif: return mx::api::ClefSymbol::tab;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarline)
+    case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves: return mx::api::GroupBarline::no;
+    case details::StaffGroup::DrawBarlineStyle::ThroughStaves: return mx::api::GroupBarline::yes;
+    case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(MusicXmlPitchContext, KeySignature::KeyContext)
     case MusicXmlPitchContext::Concert: return KeySignature::KeyContext::Concert;
     case MusicXmlPitchContext::Written: return KeySignature::KeyContext::Written;
@@ -140,12 +127,6 @@ BEGIN_ENUM_CONVERSION(NoteType, mx::api::DurationName)
     case NoteType::Note256th: return mx::api::DurationName::dur256th;
     case NoteType::Note512th: return mx::api::DurationName::dur512th;
     case NoteType::Note1024th: return mx::api::DurationName::dur1024th;
-END_ENUM_CONVERSION
-
-BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarline)
-    case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves: return mx::api::GroupBarline::no;
-    case details::StaffGroup::DrawBarlineStyle::ThroughStaves: return mx::api::GroupBarline::yes;
-    case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
 END_ENUM_CONVERSION
 
 } // namespace detail
