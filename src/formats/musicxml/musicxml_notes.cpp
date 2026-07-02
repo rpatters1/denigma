@@ -23,10 +23,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "core/cue_layers.h"
+#include "musicxml_formatted_text.h"
 #include "mx/api/DurationData.h"
 #include "mx/api/NoteData.h"
 #include "mx/api/PitchData.h"
@@ -242,6 +244,56 @@ void applyMusicXmlTies(MusicXmlMusxMapping& context, mx::api::NoteData& note, co
     context.pendingTieStopKeys.emplace(noteKey(tiedTo));
 }
 
+void applyLyrics(MusicXmlMusxMapping& context, mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
+{
+    const auto entry = entryInfo->getEntry();
+
+    auto applyLyricType = [&](const auto& lyricAssignments) {
+        using PtrType = typename std::decay_t<decltype(lyricAssignments)>::value_type;
+        using T = typename PtrType::element_type;
+        static_assert(std::is_base_of_v<details::LyricAssign, T>, "lyricAssignments must contain LyricAssign subtypes");
+
+        for (const auto& assignment : lyricAssignments) {
+            const auto lyricText = assignment->getLyricText();
+            if (!lyricText) {
+                continue;
+            }
+            if (assignment->syllable == 0 || assignment->syllable > lyricText->syllables.size()) {
+                context.logMessage(LogMsg() << "Layer " << entryInfo.getLayerIndex() + 1
+                    << " entry index " << entryInfo.getIndexInFrame() << " has an invalid syllable number ("
+                    << assignment->syllable << ").", MessageSeverity::Warning);
+                continue;
+            }
+
+            const size_t syllableIndex = size_t(assignment->syllable - 1);
+            auto lyric = musicXmlLyricFromSyllable(context, *lyricText, syllableIndex);
+            /// @todo Check whether Finale exports displayVerseNum by prepending the verse number to lyric text.
+            lyric.verseNumber = std::string(T::TextType::XmlNodeName.substr(0, 1)) + std::to_string(assignment->lyricNumber);
+            lyric.hasExtend = assignment->wext != 0 || lyricText->syllables[syllableIndex]->strippedUnderscores > 0;
+            if (assignment->horzOffset != 0) {
+                lyric.positionData.relativeX = context.musicXmlTenthsFromEvpu(assignment->horzOffset);
+                lyric.positionData.isRelativeXSpecified = true;
+            }
+            if (assignment->vertOffset != 0) {
+                lyric.positionData.relativeY = context.musicXmlTenthsFromEvpu(assignment->vertOffset);
+                lyric.positionData.isRelativeYSpecified = true;
+            }
+            if (const auto lyricEntryInfo = entry->getDocument()->getDetails()->get<details::LyricEntryInfo>(SCORE_PARTID, entry->getEntryNumber());
+                lyricEntryInfo && lyricEntryInfo->justify) {
+                lyric.positionData.horizontalAlignmnet = enumConvert<mx::api::HorizontalAlignment>(*lyricEntryInfo->justify);
+            }
+            if constexpr (requires { assignment->hide; }) {
+                lyric.printData.printObject = assignment->hide ? mx::api::Bool::no : mx::api::Bool::yes;
+            }
+            note.lyrics.emplace_back(std::move(lyric));
+        }
+    };
+
+    applyLyricType(entry->getDocument()->getDetails()->getArray<details::LyricAssignVerse>(SCORE_PARTID, entry->getEntryNumber()));
+    applyLyricType(entry->getDocument()->getDetails()->getArray<details::LyricAssignChorus>(SCORE_PARTID, entry->getEntryNumber()));
+    applyLyricType(entry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, entry->getEntryNumber()));
+}
+
 std::vector<mx::api::Beam> createBeamData(const MusicXmlMusxMapping& context, const EntryInfoPtr& entryInfo)
 {
     const auto isTremolo = [&entryInfo]() {
@@ -394,6 +446,7 @@ void appendEntryNotes(
         if (noteIndex == 0) {
             note.beams = createBeamData(context, entryInfo);
             applyTupletData(note, entryInfo);
+            applyLyrics(context, note, entryInfo);
         }
         if (entry->hasStem()) {
             const auto [freezeStem, upStem] = entryInfo.calcEntryStemSettings();
