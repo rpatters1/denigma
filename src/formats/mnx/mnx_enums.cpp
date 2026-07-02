@@ -26,29 +26,20 @@
 
 #include "mnx.h"
 #include "denigma/classify/barlines.h"
-
-#define BEGIN_ENUM_CONVERSION(FromEnum, ToEnum) \
-template<> \
-ToEnum enumConvert(FromEnum value) { \
-    switch(value) {
-
-#define END_ENUM_CONVERSION \
-    default: \
-        throw std::invalid_argument("Unable to convert enum value: " + std::to_string(int(value))); \
-    } \
-}
+#include "formats/enum_conversion_macros.h"
 
 namespace denigma {
 namespace formats {
 namespace mnx {
 namespace detail {
 
-// Primary template definition (if needed)
-template <typename ToEnum, typename FromEnum>
-ToEnum enumConvert(FromEnum) {
-    static_assert(sizeof(FromEnum) == 0, "No specialization exists for this conversion");
-    return {};
-}
+DEFINE_ENUM_CONVERT_TEMPLATE
+
+BEGIN_ENUM_CONVERSION(details::TupletDef::AutoBracketStyle, mnxdom::AutoYesNo)
+    case details::TupletDef::AutoBracketStyle::Always: return mnxdom::AutoYesNo::Yes;
+    case details::TupletDef::AutoBracketStyle::NeverBeamSide: return mnxdom::AutoYesNo::Yes; // currently there is no exact analog for this Finale option in Mnx.
+    case details::TupletDef::AutoBracketStyle::UnbeamedOnly: return mnxdom::AutoYesNo::Auto;
+END_ENUM_CONVERSION
 
 using BarlineType = musx::dom::others::Measure::BarlineType;
 BEGIN_ENUM_CONVERSION(BarlineType, mnxdom::BarlineType)
@@ -69,6 +60,16 @@ BEGIN_ENUM_CONVERSION(classify::BarlineType, mnxdom::BarlineType)
     case classify::BarlineType::Heavy: return mnxdom::BarlineType::Heavy;
     case classify::BarlineType::Dashed: return mnxdom::BarlineType::Dashed;
     case classify::BarlineType::Tick: return mnxdom::BarlineType::Tick;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(music_theory::NoteName, mnxdom::NoteStep)
+    case music_theory::NoteName::C: return mnxdom::NoteStep::C;
+    case music_theory::NoteName::D: return mnxdom::NoteStep::D;
+    case music_theory::NoteName::E: return mnxdom::NoteStep::E;
+    case music_theory::NoteName::F: return mnxdom::NoteStep::F;
+    case music_theory::NoteName::G: return mnxdom::NoteStep::G;
+    case music_theory::NoteName::A: return mnxdom::NoteStep::A;
+    case music_theory::NoteName::B: return mnxdom::NoteStep::B;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnxdom::NoteValueBase)
@@ -99,20 +100,11 @@ BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnxdom::TimeSignatureUnit)
     case NoteType::Whole: return mnxdom::TimeSignatureUnit::Whole;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(details::TupletDef::AutoBracketStyle, mnxdom::AutoYesNo)
-    case details::TupletDef::AutoBracketStyle::Always: return mnxdom::AutoYesNo::Yes;
-    case details::TupletDef::AutoBracketStyle::NeverBeamSide: return mnxdom::AutoYesNo::Yes; // currently there is no exact analog for this Finale option in Mnx.
-    case details::TupletDef::AutoBracketStyle::UnbeamedOnly: return mnxdom::AutoYesNo::Auto;
-END_ENUM_CONVERSION
-
-BEGIN_ENUM_CONVERSION(music_theory::NoteName, mnxdom::NoteStep)
-    case music_theory::NoteName::C: return mnxdom::NoteStep::C;
-    case music_theory::NoteName::D: return mnxdom::NoteStep::D;
-    case music_theory::NoteName::E: return mnxdom::NoteStep::E;
-    case music_theory::NoteName::F: return mnxdom::NoteStep::F;
-    case music_theory::NoteName::G: return mnxdom::NoteStep::G;
-    case music_theory::NoteName::A: return mnxdom::NoteStep::A;
-    case music_theory::NoteName::B: return mnxdom::NoteStep::B;
+BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mnxdom::OttavaAmount)
+    case others::SmartShape::ShapeType::OctaveDown: return mnxdom::OttavaAmount::OctaveDown;
+    case others::SmartShape::ShapeType::OctaveUp: return mnxdom::OttavaAmount::OctaveUp;
+    case others::SmartShape::ShapeType::TwoOctaveDown: return mnxdom::OttavaAmount::TwoOctavesDown;
+    case others::SmartShape::ShapeType::TwoOctaveUp: return mnxdom::OttavaAmount::TwoOctavesUp;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(VerticalPlacement, mnxdom::Orientation)
@@ -127,13 +119,6 @@ BEGIN_ENUM_CONVERSION(VerticalPlacement, mnxdom::MultiStaffOrientation)
     case VerticalPlacement::Float: return mnxdom::MultiStaffOrientation::Auto;
     case VerticalPlacement::Above: return mnxdom::MultiStaffOrientation::Above;
     case VerticalPlacement::Below: return mnxdom::MultiStaffOrientation::Below;
-END_ENUM_CONVERSION
-
-BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mnxdom::OttavaAmount)
-    case others::SmartShape::ShapeType::OctaveDown: return mnxdom::OttavaAmount::OctaveDown;
-    case others::SmartShape::ShapeType::OctaveUp: return mnxdom::OttavaAmount::OctaveUp;
-    case others::SmartShape::ShapeType::TwoOctaveDown: return mnxdom::OttavaAmount::TwoOctavesDown;
-    case others::SmartShape::ShapeType::TwoOctaveUp: return mnxdom::OttavaAmount::TwoOctavesUp;
 END_ENUM_CONVERSION
 
 } // namespace detail
