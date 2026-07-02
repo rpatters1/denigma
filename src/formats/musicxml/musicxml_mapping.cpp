@@ -21,43 +21,11 @@
 
 #include <cmath>
 #include <limits>
-#include <string_view>
 
 namespace denigma {
 namespace formats {
 namespace musicxml {
 namespace detail {
-
-namespace {
-
-std::string_view musicXmlFontFamilyFallbackName(MusicXmlFontFamilyFallback fallback)
-{
-    switch (fallback) {
-    case MusicXmlFontFamilyFallback::None:
-        return {};
-    case MusicXmlFontFamilyFallback::Music:
-        return "music";
-    case MusicXmlFontFamilyFallback::Engraved:
-        return "engraved";
-    case MusicXmlFontFamilyFallback::Handwritten:
-        return "handwritten";
-    case MusicXmlFontFamilyFallback::Text:
-        return "text";
-    case MusicXmlFontFamilyFallback::Serif:
-        return "serif";
-    case MusicXmlFontFamilyFallback::SansSerif:
-        return "sans-serif";
-    case MusicXmlFontFamilyFallback::Cursive:
-        return "cursive";
-    case MusicXmlFontFamilyFallback::Fantasy:
-        return "fantasy";
-    case MusicXmlFontFamilyFallback::Monospace:
-        return "monospace";
-    }
-    throw std::invalid_argument("Unknown MusicXML font-family fallback.");
-}
-
-} // namespace
 
 MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, const std::string& partId)
 {
@@ -96,42 +64,6 @@ void MusicXmlLayoutState::setStaffSize(
         staffData.staffScaling = staffScaling.toDouble() * 100.0;
         current.staffScaling = staffScaling;
     }
-}
-
-mx::api::FontData MusicXmlMusxMapping::musicXmlFontDataFromFontInfo(
-    const musx::dom::FontInfo& fontInfo,
-    MusicXmlFontFamilyFallback fallback) const
-{
-    mx::api::FontData result;
-    const auto fontName = fontInfo.getName();
-    if (!fontName.empty()) {
-        result.fontFamily.emplace_back(fontName);
-    }
-    if (const auto fallbackName = musicXmlFontFamilyFallbackName(fallback); !fallbackName.empty()) {
-        result.fontFamily.emplace_back(fallbackName);
-    }
-
-    if (!fontInfo.getSizeIsPercent() && fontInfo.fontSize > 0) {
-        constexpr auto kUnscaledMmPerStaff = musx::dom::EVPU_PER_STANDARD_STAFF / musx::dom::EVPU_PER_MM;
-        auto staffScaling = 1.0;
-        if (!fontInfo.absolute) {
-            const bool hasInitializedScaling = musicXmlScore && musicXmlScore->defaults.scalingMillimeters > 0.0;
-            ASSERT_IF(!hasInitializedScaling) {
-                throw std::logic_error("MusicXML font conversion requires initialized score scaling for non-absolute font sizes.");
-            }
-            staffScaling = musicXmlScore->defaults.scalingMillimeters / kUnscaledMmPerStaff;
-        }
-        result.sizeType = mx::api::FontSizeType::point;
-        result.sizePoint = static_cast<double>(fontInfo.fontSize) * staffScaling;
-    }
-
-    // Finale font styles are explicit: unset bold/italic means normal, not unspecified.
-    // Emit normal so MusicXML importers do not inherit style from surrounding context.
-    result.style = fontInfo.italic ? mx::api::FontStyle::italic : mx::api::FontStyle::normal;
-    result.weight = fontInfo.bold ? mx::api::FontWeight::bold : mx::api::FontWeight::normal;
-    result.underline = fontInfo.underline ? 1 : 0;
-    result.lineThrough = fontInfo.strikeout ? 1 : 0;
-    return result;
 }
 
 double MusicXmlMusxMapping::musicXmlTenthsFromEvpu(double evpu, double backoutScaling) const

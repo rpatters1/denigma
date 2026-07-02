@@ -32,6 +32,7 @@
 #include "mx/api/DurationData.h"
 #include "mx/api/PartGroupData.h"
 #include "mx/api/PitchData.h"
+#include "mx/api/PositionData.h"
 
 #define BEGIN_ENUM_CONVERSION(FromEnum, ToEnum) \
 template<> \
@@ -59,6 +60,12 @@ ToEnum enumConvert(FromEnum)
     static_assert(sizeof(FromEnum) == 0, "No specialization exists for this conversion");
     return {};
 }
+
+BEGIN_ENUM_CONVERSION(AlignJustify, mx::api::HorizontalAlignment)
+    case AlignJustify::Left: return mx::api::HorizontalAlignment::left;
+    case AlignJustify::Right: return mx::api::HorizontalAlignment::right;
+    case AlignJustify::Center: return mx::api::HorizontalAlignment::center;
+END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(BarlineType, mx::api::BarlineType)
     case BarlineType::None: return mx::api::BarlineType::none;
