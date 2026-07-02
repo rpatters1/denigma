@@ -100,12 +100,14 @@ void createMetaData(const MusicXmlMusxMapping& context)
     score.workTitle = "Hello World";
     score.encoding.software.push_back(std::string(DENIGMA_NAME) + " " + DENIGMA_VERSION);
     score.encoding.encodingDate = mx::api::EncodingDate::today();
-    const auto addSupportedElement = [&score](std::string elementName) {
+    const auto addSupportedElement = [&score](std::string elementName, bool supported = true) {
         auto& item = score.encoding.supportedItems.emplace_back();
         item.elementName = std::move(elementName);
-        item.isSupported = true;
+        item.isSupported = supported;
     };
-    addSupportedElement("accidental");
+    /// @todo (possibly) Add an export option to use accidental support="yes" to allow for differences in importer
+    /// behavior around this issue.
+    addSupportedElement("accidental", false);
     addSupportedElement("beam");
     addSupportedElement("stem");
 

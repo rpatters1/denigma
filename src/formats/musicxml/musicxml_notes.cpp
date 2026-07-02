@@ -388,6 +388,8 @@ void appendEntryNotes(
         note.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
         note.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
         note.pitchData = createPitchData(noteInfo, pitchContext);
+        /// @todo When mx::api::NoteData exposes a per-note staffIndex, set it here from NoteInfoPtr::calcStaff()
+        /// for notes crossed to another staff within the same MusicXML part.
         applyAccidentalData(note, noteInfo);
         if (noteIndex == 0) {
             note.beams = createBeamData(context, entryInfo);

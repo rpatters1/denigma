@@ -50,6 +50,16 @@ The MX generated core model already supports `mx::core::TiedType::letRing()`, bu
 
 Needed API shape: a tie-notation data model separate from playback tie booleans, with support for `start`, `stop`, `continue`, `let-ring`, and same-note start/stop ordering. The API should also allow notation-only ties without writing `<tie>`, and should allow playback `<tie>` / `time-only` semantics to be modeled separately when Denigma can infer them.
 
+## Notes
+
+### Cross-staff note staff override
+
+MusicXML represents cross-staff notation by keeping the note in its logical part/voice sequence and writing a per-note `<staff>` element that names the visual target staff within the part. This is especially important for cross-staff chords, where moving individual notes into different staff containers would break chord ordering and timing.
+
+`mx::api::NoteData` currently has no per-note staff override. `mx::impl::NoteWriter::setStaffAndVoice()` writes `<staff>` from the current `StaffData` container cursor, so Denigma cannot correctly emit notes crossed to another staff through the public API.
+
+Needed API shape: an optional 0-based `staffIndex` override on `mx::api::NoteData`, defaulting to "use the containing staff cursor." `NoteWriter` should prefer the note override when writing `<staff>`, and the reader should preserve the MusicXML note staff when possible.
+
 ## Time Signatures
 
 ### Per-staff time signatures
