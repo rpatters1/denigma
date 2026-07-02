@@ -30,12 +30,12 @@ namespace denigma::classify {
 
 namespace {
 
-using ArticulationType = StandardArticulation::Type;
+using ArticulationType = ArticulationMarks::Type;
 
 static ArticulationClassification makeStandard(std::vector<ArticulationType> types, std::optional<std::string> glyphName)
 {
     ArticulationClassification result;
-    result.value = StandardArticulation{ std::move(types) };
+    result.value = ArticulationMarks{ std::move(types) };
     result.glyphName = std::move(glyphName);
     return result;
 }
@@ -140,10 +140,10 @@ static ArticulationClassification classifyGlyphName(std::string glyphName)
         return makeStandard({ ArticulationType::Accent, ArticulationType::Tenuto }, std::move(glyphName));
     }
     if (glyph == "stringsDownBow" || glyph == "stringsDownBowTurned") {
-        return makeStandard({ ArticulationType::BowDirectionDown }, std::move(glyphName));
+        return makeStandard({ ArticulationType::DownBow }, std::move(glyphName));
     }
     if (glyph == "stringsUpBow" || glyph == "stringsUpBowTurned") {
-        return makeStandard({ ArticulationType::BowDirectionUp }, std::move(glyphName));
+        return makeStandard({ ArticulationType::UpBow }, std::move(glyphName));
     }
     if (glyph == "articStaccatissimoAbove" || glyph == "articStaccatissimoBelow") {
         return makeStandard({ ArticulationType::Spiccato }, std::move(glyphName));

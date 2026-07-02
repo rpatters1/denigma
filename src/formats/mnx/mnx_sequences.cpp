@@ -249,7 +249,7 @@ static void createSlurs(const MnxMusxMappingPtr&, mnxdom::sequence::Event& mnxEv
 
 static mnxdom::sequence::EventMarkingBase createEventMarking(
     mnxdom::sequence::EventMarkings mnxMarkings,
-    classify::StandardArticulation::Type mark,
+    classify::ArticulationMarks::Type mark,
     const details::ArticulationAssign::SelectedSymbolContext& symbolContext)
 {
     const auto setPointing = [&](auto marking) -> mnxdom::sequence::EventMarkingBase {
@@ -259,27 +259,27 @@ static mnxdom::sequence::EventMarkingBase createEventMarking(
     };
     
     switch (mark) {
-    case classify::StandardArticulation::Type::Accent:
+    case classify::ArticulationMarks::Type::Accent:
         return mnxMarkings.ensure_accent();
-    case classify::StandardArticulation::Type::BowDirectionDown:
+    case classify::ArticulationMarks::Type::DownBow:
         return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Down);
-    case classify::StandardArticulation::Type::BowDirectionUp:
+    case classify::ArticulationMarks::Type::UpBow:
         return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Up);
-    case classify::StandardArticulation::Type::SoftAccent:
+    case classify::ArticulationMarks::Type::SoftAccent:
         return mnxMarkings.ensure_softAccent();
-    case classify::StandardArticulation::Type::Spiccato:
+    case classify::ArticulationMarks::Type::Spiccato:
         return mnxMarkings.ensure_spiccato();
-    case classify::StandardArticulation::Type::Staccatissimo:
+    case classify::ArticulationMarks::Type::Staccatissimo:
         return mnxMarkings.ensure_staccatissimo();
-    case classify::StandardArticulation::Type::Staccato:
+    case classify::ArticulationMarks::Type::Staccato:
         return mnxMarkings.ensure_staccato();
-    case classify::StandardArticulation::Type::Stress:
+    case classify::ArticulationMarks::Type::Stress:
         return mnxMarkings.ensure_stress();
-    case classify::StandardArticulation::Type::StrongAccent:
+    case classify::ArticulationMarks::Type::StrongAccent:
         return setPointing(mnxMarkings.ensure_strongAccent());
-    case classify::StandardArticulation::Type::Tenuto:
+    case classify::ArticulationMarks::Type::Tenuto:
         return mnxMarkings.ensure_tenuto();
-    case classify::StandardArticulation::Type::Unstress:
+    case classify::ArticulationMarks::Type::Unstress:
         return mnxMarkings.ensure_unstress();
     }
     throw std::logic_error("Encountered unknown standard articulation type " + std::to_string(int(mark)));
@@ -318,7 +318,7 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnxdom::seque
                     auto mnxMarkings = mnxEvent.ensure_markings();
                     auto mnxMarking = mnxMarkings.ensure_tremolo(tremolo->marks);
                     mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(symbolContext->placement));
-                } else if (const auto* articulation = classification.as<classify::StandardArticulation>()) {
+                } else if (const auto* articulation = classification.as<classify::ArticulationMarks>()) {
                     for (auto mark : articulation->types) {
                         auto mnxMarkings = mnxEvent.ensure_markings();
                         auto mnxMarking = createEventMarking(mnxMarkings, mark, symbolContext.value());

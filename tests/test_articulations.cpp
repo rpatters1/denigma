@@ -74,27 +74,27 @@ static ArticulationDefContext makeArticulationDefContext(char32_t character, con
 
 } // namespace
 
-TEST(ArticulationClassification, ClassifiesUnicodeStandardArticulations)
+TEST(ArticulationClassification, ClassifiesUnicodeArticulationMarks)
 {
     const auto context = makeArticulationDefContext(0x1D17B, "Times New Roman", 0);
     const auto classification = classifyArticulation(context.def);
 
-    const auto* articulation = classification.as<StandardArticulation>();
+    const auto* articulation = classification.as<ArticulationMarks>();
     ASSERT_NE(articulation, nullptr);
     ASSERT_EQ(articulation->types.size(), 1u);
-    EXPECT_EQ(articulation->types.front(), StandardArticulation::Type::Accent);
+    EXPECT_EQ(articulation->types.front(), ArticulationMarks::Type::Accent);
     EXPECT_FALSE(classification.glyphName);
 }
 
-TEST(ArticulationClassification, ClassifiesLegacyGlyphArticulations)
+TEST(ArticulationClassification, ClassifiesLegacyGlyphArticulationMarks)
 {
     const auto context = makeArticulationDefContext(62);
     const auto classification = classifyArticulation(context.def);
 
-    const auto* articulation = classification.as<StandardArticulation>();
+    const auto* articulation = classification.as<ArticulationMarks>();
     ASSERT_NE(articulation, nullptr);
     ASSERT_EQ(articulation->types.size(), 1u);
-    EXPECT_EQ(articulation->types.front(), StandardArticulation::Type::Accent);
+    EXPECT_EQ(articulation->types.front(), ArticulationMarks::Type::Accent);
     ASSERT_TRUE(classification.glyphName);
     EXPECT_EQ(classification.glyphName.value(), "articAccentAbove");
 }

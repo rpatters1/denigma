@@ -34,17 +34,17 @@ namespace denigma {
 /// @brief Music classification helpers for Finale symbol extraction.
 namespace classify {
 
-/// @struct StandardArticulation
-/// @brief Classification for a standard articulation mark.
-struct StandardArticulation
+/// @struct ArticulationMarks
+/// @brief Classification for one or more articulation marks represented by a musx articulation symbol.
+struct ArticulationMarks
 {
     /// @enum Type
-    /// @brief Standard articulation types recognized by the classifier.
+    /// @brief Articulation mark types recognized by the classifier.
     enum class Type
     {
         Accent,
-        BowDirectionUp,
-        BowDirectionDown,
+        UpBow,
+        DownBow,
         SoftAccent,
         Spiccato,
         Staccatissimo,
@@ -161,7 +161,7 @@ struct VerticalEntryBracket
 };
 
 /// Variant payload for articulation classification.
-using ArticulationValue = std::variant<std::monostate, StandardArticulation, Tremolo, Fermata, BreathMark, Arpeggio, VerticalEntryBracket>;
+using ArticulationValue = std::variant<std::monostate, ArticulationMarks, Tremolo, Fermata, BreathMark, Arpeggio, VerticalEntryBracket>;
 
 /// @struct ArticulationClassification
 /// @brief Result returned by articulation classification.
