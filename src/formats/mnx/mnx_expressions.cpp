@@ -285,7 +285,7 @@ void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 break;
             case classify::ExpressionType::Fermata: {
                 const auto& fermata = classification.fermata();
-                if (auto mnxFermata = makeFermata(fermata.fermata, fermata.glyphName, placement)) {
+                if (auto mnxFermata = makeFermata(fermata.fermata, fermata.glyphStyle, placement)) {
                     attachFermata(context, mnxMeasure, asgn, fermata, calcAttachmentContext(context, asgn), mnxFermata.value());
                 }
                 break;

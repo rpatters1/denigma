@@ -492,7 +492,7 @@ static std::optional<ExpressionClassification> classifySymbolExpression(const Re
         ExpressionClassification result;
         result.type = ExpressionType::Fermata;
         result.basis = basisForSymbolRecognition(resolved.categoryType);
-        result.value = ExpressionFermata{ *fermata, classification.glyphName,
+        result.value = ExpressionFermata{ *fermata, classification.glyphName, fermata->glyphStyle,
             resolved.expressionDef->horzMeasExprAlign == musx::dom::others::HorizontalMeasExprAlign::RightBarline };
         return result;
     }

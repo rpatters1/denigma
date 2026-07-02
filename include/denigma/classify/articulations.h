@@ -34,12 +34,20 @@ namespace denigma {
 /// @brief Music classification helpers for Finale symbol extraction.
 namespace classify {
 
-/// @struct ArticulationMarks
-/// @brief Classification for one or more articulation marks represented by a musx articulation symbol.
-struct ArticulationMarks
+/// @struct GlyphStyle
+/// @brief Visual style encoded by the source glyph variant.
+struct GlyphStyle
+{
+    /// Above/below style encoded in the source glyph variant, when applicable.
+    musx::dom::VerticalPlacement placement{ musx::dom::VerticalPlacement::NotApplicable };
+};
+
+/// @struct ArticulationMark
+/// @brief Classification for one articulation mark represented by a musx articulation symbol.
+struct ArticulationMark
 {
     /// @enum Type
-    /// @brief Articulation mark types recognized by the classifier.
+    /// @brief Articulation mark type recognized by the classifier.
     enum class Type
     {
         Accent,
@@ -55,8 +63,18 @@ struct ArticulationMarks
         Unstress
     };
 
-    /// One or more articulation types represented by the source symbol.
-    std::vector<Type> types;
+    /// Articulation mark type.
+    Type type{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
+};
+
+/// @struct ArticulationMarks
+/// @brief Classification for one or more articulation marks represented by a musx articulation symbol.
+struct ArticulationMarks
+{
+    /// One or more articulation marks represented by the source symbol.
+    std::vector<ArticulationMark> marks;
 };
 
 /// @struct Tremolo
@@ -75,6 +93,8 @@ struct Tremolo
     Style style{};
     /// Number of tremolo strokes.
     int marks{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct Fermata
@@ -110,30 +130,50 @@ struct Fermata
     Shape shape{};
     /// Playback-duration class.
     Duration duration{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct BreathMark
-/// @brief Classification for breath marks and caesuras.
+/// @brief Classification for breath marks.
 struct BreathMark
 {
     /// @enum Type
-    /// @brief Breath mark or caesura type.
+    /// @brief Breath mark type.
     enum class Type
     {
         Comma,
         Tick,
         Upbow,
-        Salzedo,
-        Caesura,
-        CaesuraCurved,
-        CaesuraShort,
-        CaesuraThick,
-        ChantCaesura,
-        CaesuraSingleStroke
+        Salzedo
     };
 
     /// Classified breath mark type.
     Type type{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
+};
+
+/// @struct Caesura
+/// @brief Classification for caesura articulation marks.
+struct Caesura
+{
+    /// @enum Type
+    /// @brief Caesura type.
+    enum class Type
+    {
+        Normal,
+        Curved,
+        Short,
+        Thick,
+        Chant,
+        SingleStroke
+    };
+
+    /// Classified caesura type.
+    Type type{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct Arpeggio
@@ -152,16 +192,64 @@ struct Arpeggio
 
     /// Classified arpeggio type.
     Type type{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
+};
+
+/// @struct Ornament
+/// @brief Classification for ornament articulation marks.
+struct Ornament
+{
+    /// @enum Accidental
+    /// @brief Accidentals attached to an ornament sign.
+    enum class Accidental
+    {
+        Unspecified,
+        Flat,
+        Natural,
+        Sharp
+    };
+
+    /// @enum Type
+    /// @brief Ornament types recognized by the classifier.
+    enum class Type
+    {
+        InvertedMordent,
+        InvertedTurn,
+        Mordent,
+        Shake,
+        Trill,
+        Turn
+    };
+
+    /// @struct AccidentalMark
+    /// @brief Accidental sign attached to an ornament.
+    struct AccidentalMark
+    {
+        /// Accidental sign shown with the ornament.
+        Accidental accidental{};
+        /// Placement of the accidental relative to the ornament sign.
+        musx::dom::VerticalPlacement placement{};
+    };
+
+    /// Classified ornament type.
+    Type type{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
+    /// Accidentals attached to the ornament sign.
+    std::vector<AccidentalMark> accidentals;
 };
 
 /// @struct VerticalEntryBracket
 /// @brief Classification for Finale vertical entry bracket shapes.
 struct VerticalEntryBracket
 {
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
 };
 
 /// Variant payload for articulation classification.
-using ArticulationValue = std::variant<std::monostate, ArticulationMarks, Tremolo, Fermata, BreathMark, Arpeggio, VerticalEntryBracket>;
+using ArticulationValue = std::variant<std::monostate, ArticulationMarks, Tremolo, Fermata, BreathMark, Caesura, Arpeggio, Ornament, VerticalEntryBracket>;
 
 /// @struct ArticulationClassification
 /// @brief Result returned by articulation classification.

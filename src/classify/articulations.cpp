@@ -30,45 +30,98 @@ namespace denigma::classify {
 
 namespace {
 
-using ArticulationType = ArticulationMarks::Type;
+using ArticulationType = ArticulationMark::Type;
 
-static ArticulationClassification makeStandard(std::vector<ArticulationType> types, std::optional<std::string> glyphName)
+static GlyphStyle glyphStyleFromGlyphName(const std::string_view glyphName)
 {
-    ArticulationClassification result;
-    result.value = ArticulationMarks{ std::move(types) };
+    const auto endsWith = [&](const std::string_view suffix) {
+        return glyphName.size() >= suffix.size()
+            && glyphName.compare(glyphName.size() - suffix.size(), suffix.size(), suffix) == 0;
+    };
+    if (endsWith("Above") || endsWith("AboveLegacy")) {
+        return { musx::dom::VerticalPlacement::Above };
+    }
+    if (endsWith("Below") || endsWith("BelowLegacy")) {
+        return { musx::dom::VerticalPlacement::Below };
+    }
+    return {};
+}
+
+static GlyphStyle glyphStyleFromGlyphName(const std::optional<std::string>& glyphName)
+{
+    if (glyphName) {
+        return glyphStyleFromGlyphName(std::string_view(glyphName.value()));
+    }
+    return {};
+}
+
+static void setGlyphMetadata(ArticulationClassification& result, std::optional<std::string> glyphName)
+{
     result.glyphName = std::move(glyphName);
+}
+
+static ArticulationClassification makeArticulationMark(std::vector<ArticulationType> types, std::optional<std::string> glyphName)
+{
+    const auto glyphStyle = glyphStyleFromGlyphName(glyphName);
+    std::vector<ArticulationMark> marks;
+    marks.reserve(types.size());
+    for (auto type : types) {
+        marks.push_back({ type, glyphStyle });
+    }
+    ArticulationClassification result;
+    result.value = ArticulationMarks{ std::move(marks) };
+    setGlyphMetadata(result, std::move(glyphName));
     return result;
 }
 
 static ArticulationClassification makeTremolo(Tremolo::Style style, int marks, std::optional<std::string> glyphName)
 {
     ArticulationClassification result;
-    result.value = Tremolo{ style, marks };
-    result.glyphName = std::move(glyphName);
+    result.value = Tremolo{ style, marks, glyphStyleFromGlyphName(glyphName) };
+    setGlyphMetadata(result, std::move(glyphName));
     return result;
 }
 
 static ArticulationClassification makeFermata(Fermata::Shape shape, Fermata::Duration duration, std::optional<std::string> glyphName)
 {
     ArticulationClassification result;
-    result.value = Fermata{ shape, duration };
-    result.glyphName = std::move(glyphName);
+    result.value = Fermata{ shape, duration, glyphStyleFromGlyphName(glyphName) };
+    setGlyphMetadata(result, std::move(glyphName));
     return result;
 }
 
 static ArticulationClassification makeBreathMark(BreathMark::Type type, std::optional<std::string> glyphName)
 {
     ArticulationClassification result;
-    result.value = BreathMark{ type };
-    result.glyphName = std::move(glyphName);
+    result.value = BreathMark{ type, glyphStyleFromGlyphName(glyphName) };
+    setGlyphMetadata(result, std::move(glyphName));
+    return result;
+}
+
+static ArticulationClassification makeCaesura(Caesura::Type type, std::optional<std::string> glyphName)
+{
+    ArticulationClassification result;
+    result.value = Caesura{ type, glyphStyleFromGlyphName(glyphName) };
+    setGlyphMetadata(result, std::move(glyphName));
     return result;
 }
 
 static ArticulationClassification makeArpeggio(Arpeggio::Type type, std::optional<std::string> glyphName)
 {
     ArticulationClassification result;
-    result.value = Arpeggio{ type };
-    result.glyphName = std::move(glyphName);
+    result.value = Arpeggio{ type, glyphStyleFromGlyphName(glyphName) };
+    setGlyphMetadata(result, std::move(glyphName));
+    return result;
+}
+
+static ArticulationClassification makeOrnament(
+    Ornament::Type type,
+    std::optional<std::string> glyphName,
+    std::vector<Ornament::AccidentalMark> accidentals = {})
+{
+    ArticulationClassification result;
+    result.value = Ornament{ type, glyphStyleFromGlyphName(glyphName), std::move(accidentals) };
+    setGlyphMetadata(result, std::move(glyphName));
     return result;
 }
 
@@ -92,15 +145,15 @@ static ArticulationClassification classifyUnicodeSymbol(char32_t symbol)
     case 0x1D16C:
         return makeTremolo(Tremolo::Style::Measured, 3, std::nullopt);
     case 0x1D17B:
-        return makeStandard({ ArticulationType::Accent }, std::nullopt);
+        return makeArticulationMark({ ArticulationType::Accent }, std::nullopt);
     case 0x1D17C:
-        return makeStandard({ ArticulationType::Staccato }, std::nullopt);
+        return makeArticulationMark({ ArticulationType::Staccato }, std::nullopt);
     case 0x1D17D:
-        return makeStandard({ ArticulationType::Tenuto }, std::nullopt);
+        return makeArticulationMark({ ArticulationType::Tenuto }, std::nullopt);
     case 0x1D17E:
-        return makeStandard({ ArticulationType::Staccatissimo }, std::nullopt);
+        return makeArticulationMark({ ArticulationType::Staccatissimo }, std::nullopt);
     case 0x1D17F:
-        return makeStandard({ ArticulationType::StrongAccent }, std::nullopt);
+        return makeArticulationMark({ ArticulationType::StrongAccent }, std::nullopt);
     default:
         return {};
     }
@@ -115,7 +168,7 @@ static ArticulationClassification classifyShape(
     if (auto shape = def->getDocument()->getOthers()->get<musx::dom::others::ShapeDef>(def->getRequestedPartId(), shapeId)) {
         switch (shape->recognize()) {
         case musx::dom::KnownShapeDefType::TenutoMark:
-            return makeStandard({ ArticulationType::Tenuto }, std::nullopt);
+            return makeArticulationMark({ ArticulationType::Tenuto }, std::nullopt);
         case musx::dom::KnownShapeDefType::VerticalLineRightHooks:
             return makeVerticalEntryBracket();
         default:
@@ -128,55 +181,68 @@ static ArticulationClassification classifyShape(
 static ArticulationClassification classifyGlyphName(std::string glyphName)
 {
     const std::string_view glyph = glyphName;
+    const auto accidentalAbove = [](Ornament::Accidental accidental) {
+        return std::vector<Ornament::AccidentalMark>{ { accidental, musx::dom::VerticalPlacement::Above } };
+    };
+    const auto accidentalBelow = [](Ornament::Accidental accidental) {
+        return std::vector<Ornament::AccidentalMark>{ { accidental, musx::dom::VerticalPlacement::Below } };
+    };
+    const auto accidentalsAboveBelow = [](Ornament::Accidental above, Ornament::Accidental below) {
+        return std::vector<Ornament::AccidentalMark>{
+            { above, musx::dom::VerticalPlacement::Above },
+            { below, musx::dom::VerticalPlacement::Below }
+        };
+    };
+
     if (glyph == "articAccentAbove" || glyph == "articAccentBelow" || glyph == "articAccentAboveLegacy") {
-        return makeStandard({ ArticulationType::Accent }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Accent }, std::move(glyphName));
     }
     if (glyph == "articAccentStaccatoAbove" || glyph == "articAccentStaccatoBelow"
         || glyph == "articAccentStaccatoAboveLegacy" || glyph == "articAccentStaccatoBelowLegacy") {
-        return makeStandard({ ArticulationType::Accent, ArticulationType::Staccato }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Accent, ArticulationType::Staccato }, std::move(glyphName));
     }
     if (glyph == "articTenutoAccentAbove" || glyph == "articTenutoAccentBelow"
         || glyph == "articTenutoAccentAboveLegacy" || glyph == "articTenutoAccentBelowLegacy") {
-        return makeStandard({ ArticulationType::Accent, ArticulationType::Tenuto }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Accent, ArticulationType::Tenuto }, std::move(glyphName));
     }
     if (glyph == "stringsDownBow" || glyph == "stringsDownBowTurned") {
-        return makeStandard({ ArticulationType::DownBow }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::DownBow }, std::move(glyphName));
     }
     if (glyph == "stringsUpBow" || glyph == "stringsUpBowTurned") {
-        return makeStandard({ ArticulationType::UpBow }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::UpBow }, std::move(glyphName));
     }
     if (glyph == "articStaccatissimoAbove" || glyph == "articStaccatissimoBelow") {
-        return makeStandard({ ArticulationType::Spiccato }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Spiccato }, std::move(glyphName));
     }
     if (glyph == "articStaccatissimoStrokeAbove" || glyph == "articStaccatissimoStrokeBelow"
         || glyph == "articStaccatissimoWedgeAbove" || glyph == "articStaccatissimoWedgeBelow") {
-        return makeStandard({ ArticulationType::Staccatissimo }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Staccatissimo }, std::move(glyphName));
     }
     if (glyph == "articStaccatoAbove" || glyph == "articStaccatoBelow") {
-        return makeStandard({ ArticulationType::Staccato }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Staccato }, std::move(glyphName));
     }
     if (glyph == "articMarcatoStaccatoAbove" || glyph == "articMarcatoStaccatoBelow"
         || glyph == "articMarcatoStaccatoAboveLegacy" || glyph == "articMarcatoStaccatoBelowLegacy") {
-        return makeStandard({ ArticulationType::Staccato, ArticulationType::StrongAccent }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Staccato, ArticulationType::StrongAccent }, std::move(glyphName));
     }
     if (glyph == "articTenutoStaccatoAbove" || glyph == "articTenutoStaccatoBelow"
         || glyph == "articTenutoStaccatoAboveLegacy" || glyph == "articTenutoStaccatoBelowLegacy") {
-        return makeStandard({ ArticulationType::Staccato, ArticulationType::Tenuto }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Staccato, ArticulationType::Tenuto }, std::move(glyphName));
     }
     if (glyph == "articStressAbove" || glyph == "articStressBelow") {
-        return makeStandard({ ArticulationType::Stress }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Stress }, std::move(glyphName));
     }
     if (glyph == "articUnstressAbove" || glyph == "articUnstressBelow") {
-        return makeStandard({ ArticulationType::Unstress }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Unstress }, std::move(glyphName));
     }
     if (glyph == "articMarcatoAbove" || glyph == "articMarcatoBelow") {
-        return makeStandard({ ArticulationType::StrongAccent }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::StrongAccent }, std::move(glyphName));
     }
     if (glyph == "articMarcatoTenutoAbove" || glyph == "articMarcatoTenutoBelow") {
-        return makeStandard({ ArticulationType::StrongAccent, ArticulationType::Tenuto }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::StrongAccent, ArticulationType::Tenuto }, std::move(glyphName));
     }
     if (glyph == "articTenutoAbove" || glyph == "articTenutoBelow") {
-        return makeStandard({ ArticulationType::Tenuto }, std::move(glyphName));
+        return makeArticulationMark({ ArticulationType::Tenuto }, std::move(glyphName));
     }
     if (glyph == "stemPendereckiTremolo" || glyph == "buzzRoll" || glyph == "pendereckiTremolo"
         || glyph == "unmeasuredTremolo" || glyph == "unmeasuredTremoloSimple" || glyph == "stockhausenTremolo") {
@@ -234,22 +300,22 @@ static ArticulationClassification classifyGlyphName(std::string glyphName)
         return makeBreathMark(BreathMark::Type::Salzedo, std::move(glyphName));
     }
     if (glyph == "caesura") {
-        return makeBreathMark(BreathMark::Type::Caesura, std::move(glyphName));
+        return makeCaesura(Caesura::Type::Normal, std::move(glyphName));
     }
     if (glyph == "caesuraCurved") {
-        return makeBreathMark(BreathMark::Type::CaesuraCurved, std::move(glyphName));
+        return makeCaesura(Caesura::Type::Curved, std::move(glyphName));
     }
     if (glyph == "caesuraShort") {
-        return makeBreathMark(BreathMark::Type::CaesuraShort, std::move(glyphName));
+        return makeCaesura(Caesura::Type::Short, std::move(glyphName));
     }
     if (glyph == "caesuraThick") {
-        return makeBreathMark(BreathMark::Type::CaesuraThick, std::move(glyphName));
+        return makeCaesura(Caesura::Type::Thick, std::move(glyphName));
     }
     if (glyph == "chantCaesura") {
-        return makeBreathMark(BreathMark::Type::ChantCaesura, std::move(glyphName));
+        return makeCaesura(Caesura::Type::Chant, std::move(glyphName));
     }
     if (glyph == "caesuraSingleStroke") {
-        return makeBreathMark(BreathMark::Type::CaesuraSingleStroke, std::move(glyphName));
+        return makeCaesura(Caesura::Type::SingleStroke, std::move(glyphName));
     }
     if (glyph == "arpeggioVerticalSegment") {
         return makeArpeggio(Arpeggio::Type::VerticalSegment, std::move(glyphName));
@@ -262,6 +328,60 @@ static ArticulationClassification classifyGlyphName(std::string glyphName)
     }
     if (glyph == "arpeggiatoDown") {
         return makeArpeggio(Arpeggio::Type::Down, std::move(glyphName));
+    }
+    if (glyph == "ornamentMordentInverted") {
+        return makeOrnament(Ornament::Type::InvertedMordent, std::move(glyphName));
+    }
+    if (glyph == "ornamentTurnInverted" || glyph == "ornamentTurnSlash") {
+        return makeOrnament(Ornament::Type::InvertedTurn, std::move(glyphName));
+    }
+    if (glyph == "ornamentMordent") {
+        return makeOrnament(Ornament::Type::Mordent, std::move(glyphName));
+    }
+    if (glyph == "ornamentShake3" || glyph == "ornamentShakeMuffat1") {
+        return makeOrnament(Ornament::Type::Shake, std::move(glyphName));
+    }
+    if (glyph == "ornamentTrill" || glyph == "ornamentShortTrill" || glyph == "ornamentTremblement"
+        || glyph == "ornamentTremblementCouperin" || glyph == "ornamentHaydn") {
+        return makeOrnament(Ornament::Type::Trill, std::move(glyphName));
+    }
+    if (glyph == "ornamentTrillFlatAbove" || glyph == "ornamentTrillFlatAboveLegacy") {
+        return makeOrnament(Ornament::Type::Trill, std::move(glyphName), accidentalAbove(Ornament::Accidental::Flat));
+    }
+    if (glyph == "ornamentTrillNaturalAbove" || glyph == "ornamentTrillNaturalAboveLegacy") {
+        return makeOrnament(Ornament::Type::Trill, std::move(glyphName), accidentalAbove(Ornament::Accidental::Natural));
+    }
+    if (glyph == "ornamentTrillSharpAbove" || glyph == "ornamentTrillSharpAboveLegacy") {
+        return makeOrnament(Ornament::Type::Trill, std::move(glyphName), accidentalAbove(Ornament::Accidental::Sharp));
+    }
+    if (glyph == "ornamentTurn") {
+        return makeOrnament(Ornament::Type::Turn, std::move(glyphName));
+    }
+    if (glyph == "ornamentTurnFlatAbove") {
+        return makeOrnament(Ornament::Type::Turn, std::move(glyphName), accidentalAbove(Ornament::Accidental::Flat));
+    }
+    if (glyph == "ornamentTurnFlatAboveSharpBelow") {
+        return makeOrnament(Ornament::Type::Turn, std::move(glyphName),
+            accidentalsAboveBelow(Ornament::Accidental::Flat, Ornament::Accidental::Sharp));
+    }
+    if (glyph == "ornamentTurnFlatBelow") {
+        return makeOrnament(Ornament::Type::Turn, std::move(glyphName), accidentalBelow(Ornament::Accidental::Flat));
+    }
+    if (glyph == "ornamentTurnNaturalAbove") {
+        return makeOrnament(Ornament::Type::Turn, std::move(glyphName), accidentalAbove(Ornament::Accidental::Natural));
+    }
+    if (glyph == "ornamentTurnNaturalBelow") {
+        return makeOrnament(Ornament::Type::Turn, std::move(glyphName), accidentalBelow(Ornament::Accidental::Natural));
+    }
+    if (glyph == "ornamentTurnSharpAbove") {
+        return makeOrnament(Ornament::Type::Turn, std::move(glyphName), accidentalAbove(Ornament::Accidental::Sharp));
+    }
+    if (glyph == "ornamentTurnSharpAboveFlatBelow") {
+        return makeOrnament(Ornament::Type::Turn, std::move(glyphName),
+            accidentalsAboveBelow(Ornament::Accidental::Sharp, Ornament::Accidental::Flat));
+    }
+    if (glyph == "ornamentTurnSharpBelow") {
+        return makeOrnament(Ornament::Type::Turn, std::move(glyphName), accidentalBelow(Ornament::Accidental::Sharp));
     }
 
     return {};

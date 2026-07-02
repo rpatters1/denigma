@@ -249,40 +249,39 @@ static void createSlurs(const MnxMusxMappingPtr&, mnxdom::sequence::Event& mnxEv
 
 static mnxdom::sequence::EventMarkingBase createEventMarking(
     mnxdom::sequence::EventMarkings mnxMarkings,
-    classify::ArticulationMarks::Type mark,
-    const details::ArticulationAssign::SelectedSymbolContext& symbolContext)
+    const classify::ArticulationMark& mark,
+    VerticalPlacement placement)
 {
     const auto setPointing = [&](auto marking) -> mnxdom::sequence::EventMarkingBase {
-        const auto& symbol = symbolContext.symbol;
-        marking.set_or_clear_pointing(calcPointing(symbol.font, symbol.character, symbolContext.placement));
+        marking.set_or_clear_pointing(calcPointing(mark.glyphStyle, placement));
         return marking;
     };
     
-    switch (mark) {
-    case classify::ArticulationMarks::Type::Accent:
+    switch (mark.type) {
+    case classify::ArticulationMark::Type::Accent:
         return mnxMarkings.ensure_accent();
-    case classify::ArticulationMarks::Type::DownBow:
+    case classify::ArticulationMark::Type::DownBow:
         return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Down);
-    case classify::ArticulationMarks::Type::UpBow:
+    case classify::ArticulationMark::Type::UpBow:
         return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Up);
-    case classify::ArticulationMarks::Type::SoftAccent:
+    case classify::ArticulationMark::Type::SoftAccent:
         return mnxMarkings.ensure_softAccent();
-    case classify::ArticulationMarks::Type::Spiccato:
+    case classify::ArticulationMark::Type::Spiccato:
         return mnxMarkings.ensure_spiccato();
-    case classify::ArticulationMarks::Type::Staccatissimo:
+    case classify::ArticulationMark::Type::Staccatissimo:
         return mnxMarkings.ensure_staccatissimo();
-    case classify::ArticulationMarks::Type::Staccato:
+    case classify::ArticulationMark::Type::Staccato:
         return mnxMarkings.ensure_staccato();
-    case classify::ArticulationMarks::Type::Stress:
+    case classify::ArticulationMark::Type::Stress:
         return mnxMarkings.ensure_stress();
-    case classify::ArticulationMarks::Type::StrongAccent:
+    case classify::ArticulationMark::Type::StrongAccent:
         return setPointing(mnxMarkings.ensure_strongAccent());
-    case classify::ArticulationMarks::Type::Tenuto:
+    case classify::ArticulationMark::Type::Tenuto:
         return mnxMarkings.ensure_tenuto();
-    case classify::ArticulationMarks::Type::Unstress:
+    case classify::ArticulationMark::Type::Unstress:
         return mnxMarkings.ensure_unstress();
     }
-    throw std::logic_error("Encountered unknown standard articulation type " + std::to_string(int(mark)));
+    throw std::logic_error("Encountered unknown standard articulation type " + std::to_string(int(mark.type)));
 }
 
 static void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
@@ -299,7 +298,7 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnxdom::seque
             if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
                 const auto classification = classify::classifyArticulation(symbolContext.value());
                 if (const auto* fermata = classification.as<classify::Fermata>()) {
-                    if (auto mnxFermata = makeFermata(*fermata, classification.glyphName, symbolContext->placement)) {
+                    if (auto mnxFermata = makeFermata(*fermata, fermata->glyphStyle, symbolContext->placement)) {
                         mnxEvent.set_fermata(mnxFermata.value());
                     }
                 } else if (const auto* breathMark = classification.as<classify::BreathMark>()) {
@@ -319,9 +318,9 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnxdom::seque
                     auto mnxMarking = mnxMarkings.ensure_tremolo(tremolo->marks);
                     mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(symbolContext->placement));
                 } else if (const auto* articulation = classification.as<classify::ArticulationMarks>()) {
-                    for (auto mark : articulation->types) {
+                    for (const auto& mark : articulation->marks) {
                         auto mnxMarkings = mnxEvent.ensure_markings();
-                        auto mnxMarking = createEventMarking(mnxMarkings, mark, symbolContext.value());
+                        auto mnxMarking = createEventMarking(mnxMarkings, mark, symbolContext->placement);
                         mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(symbolContext->placement));
                     }
                 }
@@ -491,7 +490,7 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnxdom::sequ
             if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
                 const auto classification = classify::classifyArticulation(symbolContext.value());
                 if (const auto* fermata = classification.as<classify::Fermata>()) {
-                    if (const auto mnxFermata = makeFermata(*fermata, classification.glyphName, symbolContext->placement)) {
+                    if (const auto mnxFermata = makeFermata(*fermata, fermata->glyphStyle, symbolContext->placement)) {
                         fullMeasure.set_fermata(mnxFermata.value());
                         continue;
                     }

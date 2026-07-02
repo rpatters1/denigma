@@ -35,12 +35,10 @@ TEST(MnxSequences, CalcPointing)
 {
     using formats::mnx::detail::calcPointing;
 
-    EXPECT_EQ(calcPointing("articMarcatoAbove", VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Auto);
-    EXPECT_EQ(calcPointing("articMarcatoBelow", VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Down);
-    EXPECT_EQ(calcPointing("articMarcatoAbove", VerticalPlacement::Below), mnxdom::MarkingUpDownAuto::Up);
-    EXPECT_EQ(calcPointing("articMarcatoStaccatoBelowLegacy", VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Down);
-    EXPECT_EQ(calcPointing("fermataBelow", VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Down);
-    EXPECT_EQ(calcPointing("curlewSign", VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Auto);
+    EXPECT_EQ(calcPointing(classify::GlyphStyle{ VerticalPlacement::Above }, VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Auto);
+    EXPECT_EQ(calcPointing(classify::GlyphStyle{ VerticalPlacement::Below }, VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Down);
+    EXPECT_EQ(calcPointing(classify::GlyphStyle{ VerticalPlacement::Above }, VerticalPlacement::Below), mnxdom::MarkingUpDownAuto::Up);
+    EXPECT_EQ(calcPointing(classify::GlyphStyle{}, VerticalPlacement::Above), mnxdom::MarkingUpDownAuto::Auto);
 }
 
 TEST(MnxSequences, Voice2TripletAtEnd)

@@ -81,9 +81,10 @@ TEST(ArticulationClassification, ClassifiesUnicodeArticulationMarks)
 
     const auto* articulation = classification.as<ArticulationMarks>();
     ASSERT_NE(articulation, nullptr);
-    ASSERT_EQ(articulation->types.size(), 1u);
-    EXPECT_EQ(articulation->types.front(), ArticulationMarks::Type::Accent);
+    ASSERT_EQ(articulation->marks.size(), 1u);
+    EXPECT_EQ(articulation->marks.front().type, ArticulationMark::Type::Accent);
     EXPECT_FALSE(classification.glyphName);
+    EXPECT_EQ(articulation->marks.front().glyphStyle.placement, musx::dom::VerticalPlacement::NotApplicable);
 }
 
 TEST(ArticulationClassification, ClassifiesLegacyGlyphArticulationMarks)
@@ -93,10 +94,25 @@ TEST(ArticulationClassification, ClassifiesLegacyGlyphArticulationMarks)
 
     const auto* articulation = classification.as<ArticulationMarks>();
     ASSERT_NE(articulation, nullptr);
-    ASSERT_EQ(articulation->types.size(), 1u);
-    EXPECT_EQ(articulation->types.front(), ArticulationMarks::Type::Accent);
+    ASSERT_EQ(articulation->marks.size(), 1u);
+    EXPECT_EQ(articulation->marks.front().type, ArticulationMark::Type::Accent);
     ASSERT_TRUE(classification.glyphName);
     EXPECT_EQ(classification.glyphName.value(), "articAccentAbove");
+    EXPECT_EQ(articulation->marks.front().glyphStyle.placement, musx::dom::VerticalPlacement::Above);
+}
+
+TEST(ArticulationClassification, AssignsGlyphStyleToEachComboArticulationMark)
+{
+    const auto context = makeArticulationDefContext(223);
+    const auto classification = classifyArticulation(context.def);
+
+    const auto* articulation = classification.as<ArticulationMarks>();
+    ASSERT_NE(articulation, nullptr);
+    ASSERT_EQ(articulation->marks.size(), 2u);
+    EXPECT_EQ(articulation->marks[0].type, ArticulationMark::Type::Accent);
+    EXPECT_EQ(articulation->marks[0].glyphStyle.placement, musx::dom::VerticalPlacement::Below);
+    EXPECT_EQ(articulation->marks[1].type, ArticulationMark::Type::Staccato);
+    EXPECT_EQ(articulation->marks[1].glyphStyle.placement, musx::dom::VerticalPlacement::Below);
 }
 
 TEST(ArticulationClassification, ClassifiesFermatasBreathMarksAndArpeggios)
@@ -119,6 +135,63 @@ TEST(ArticulationClassification, ClassifiesFermatasBreathMarksAndArpeggios)
     const auto* arpeggio = arpeggioClassification.as<Arpeggio>();
     ASSERT_NE(arpeggio, nullptr);
     EXPECT_EQ(arpeggio->type, Arpeggio::Type::VerticalSegment);
+}
+
+TEST(ArticulationClassification, ClassifiesCaesuras)
+{
+    const auto normalContext = makeArticulationDefContext(34);
+    const auto normalClassification = classifyArticulation(normalContext.def);
+    const auto* normal = normalClassification.as<Caesura>();
+    ASSERT_NE(normal, nullptr);
+    EXPECT_EQ(normal->type, Caesura::Type::Normal);
+
+    const auto chantContext = makeArticulationDefContext(0xE8F8, "Finale Maestro");
+    const auto chantClassification = classifyArticulation(chantContext.def);
+    const auto* chant = chantClassification.as<Caesura>();
+    ASSERT_NE(chant, nullptr);
+    EXPECT_EQ(chant->type, Caesura::Type::Chant);
+}
+
+TEST(ArticulationClassification, ClassifiesOrnaments)
+{
+    const auto trillContext = makeArticulationDefContext(217);
+    const auto trillClassification = classifyArticulation(trillContext.def);
+    const auto* trill = trillClassification.as<Ornament>();
+    ASSERT_NE(trill, nullptr);
+    EXPECT_EQ(trill->type, Ornament::Type::Trill);
+    EXPECT_TRUE(trill->accidentals.empty());
+
+    const auto mordentContext = makeArticulationDefContext(77);
+    const auto mordentClassification = classifyArticulation(mordentContext.def);
+    const auto* mordent = mordentClassification.as<Ornament>();
+    ASSERT_NE(mordent, nullptr);
+    EXPECT_EQ(mordent->type, Ornament::Type::Mordent);
+
+    const auto invertedTurnContext = makeArticulationDefContext(255, "Kousaku");
+    const auto invertedTurnClassification = classifyArticulation(invertedTurnContext.def);
+    const auto* invertedTurn = invertedTurnClassification.as<Ornament>();
+    ASSERT_NE(invertedTurn, nullptr);
+    EXPECT_EQ(invertedTurn->type, Ornament::Type::InvertedTurn);
+
+    const auto trillFlatContext = makeArticulationDefContext(0xF5B2, "Finale Maestro");
+    const auto trillFlatClassification = classifyArticulation(trillFlatContext.def);
+    const auto* trillFlat = trillFlatClassification.as<Ornament>();
+    ASSERT_NE(trillFlat, nullptr);
+    EXPECT_EQ(trillFlat->type, Ornament::Type::Trill);
+    ASSERT_EQ(trillFlat->accidentals.size(), 1u);
+    EXPECT_EQ(trillFlat->accidentals.front().accidental, Ornament::Accidental::Flat);
+    EXPECT_EQ(trillFlat->accidentals.front().placement, musx::dom::VerticalPlacement::Above);
+
+    const auto turnFlatSharpContext = makeArticulationDefContext(0xF5B6, "Finale Maestro");
+    const auto turnFlatSharpClassification = classifyArticulation(turnFlatSharpContext.def);
+    const auto* turnFlatSharp = turnFlatSharpClassification.as<Ornament>();
+    ASSERT_NE(turnFlatSharp, nullptr);
+    EXPECT_EQ(turnFlatSharp->type, Ornament::Type::Turn);
+    ASSERT_EQ(turnFlatSharp->accidentals.size(), 2u);
+    EXPECT_EQ(turnFlatSharp->accidentals[0].accidental, Ornament::Accidental::Flat);
+    EXPECT_EQ(turnFlatSharp->accidentals[0].placement, musx::dom::VerticalPlacement::Above);
+    EXPECT_EQ(turnFlatSharp->accidentals[1].accidental, Ornament::Accidental::Sharp);
+    EXPECT_EQ(turnFlatSharp->accidentals[1].placement, musx::dom::VerticalPlacement::Below);
 }
 
 TEST(ArticulationClassification, ClassifiesTremoloMarks)

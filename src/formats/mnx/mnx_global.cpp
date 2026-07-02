@@ -309,7 +309,7 @@ static void createBarlineFermata(const MnxMusxMappingPtr& context, mnxdom::globa
                 const auto classification = classify::classifyExpression(textExp);
                 if (const auto* fermata = classification.as<classify::ExpressionFermata>()) {
                     auto placement = exprAssign->calcVerticalPlacement();
-                    if (const auto mnxFermata = makeFermata(fermata->fermata, fermata->glyphName, placement)) {
+                    if (const auto mnxFermata = makeFermata(fermata->fermata, fermata->glyphStyle, placement)) {
                         mnxMeasure.set_fermata(mnxFermata.value());
                         break;
                     }

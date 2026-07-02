@@ -37,10 +37,12 @@ namespace formats {
 namespace mnx {
 namespace detail {
 
-mnxdom::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement);
-mnxdom::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
+mnxdom::MarkingUpDownAuto calcPointing(const classify::GlyphStyle& glyphStyle, VerticalPlacement placement);
 
-std::optional<mnxdom::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement);
+std::optional<mnxdom::Fermata> makeFermata(
+    const classify::Fermata& fermata,
+    const classify::GlyphStyle& glyphStyle,
+    VerticalPlacement placement);
 
 std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement);
 

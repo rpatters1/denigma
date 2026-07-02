@@ -20,36 +20,31 @@
  * THE SOFTWARE.
  */
 #include <string>
-#include <string_view>
 #include <stdexcept>
 
 #include "denigma/classify/articulations.h"
 #include "mnx.h"
 #include "mnx_mapping.h"
-#include "utils/smufl_support.h"
-#include "utils/utf8_iterator.h"
 
 namespace denigma {
 namespace formats {
 namespace mnx {
 namespace detail {
 
-mnxdom::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement)
+mnxdom::MarkingUpDownAuto calcPointing(const classify::GlyphStyle& glyphStyle, VerticalPlacement placement)
 {
-    const auto endsWith = [&](const std::string_view suffix) {
-        return glyphName.size() >= suffix.size()
-            && glyphName.compare(glyphName.size() - suffix.size(), suffix.size(), suffix) == 0;
-    };
-    const bool glyphIsAbove = endsWith("Above") || endsWith("AboveLegacy");
-    const bool glyphIsBelow = endsWith("Below") || endsWith("BelowLegacy");
+    const auto stylePlacement = glyphStyle.placement;
+    if (stylePlacement == VerticalPlacement::NotApplicable || stylePlacement == VerticalPlacement::Float) {
+        return mnxdom::MarkingUpDownAuto::Auto;
+    }
     switch (placement) {
     case VerticalPlacement::Above:
-        if (glyphIsBelow) {
+        if (stylePlacement == VerticalPlacement::Below) {
             return mnxdom::MarkingUpDownAuto::Down;
         }
         break;
     case VerticalPlacement::Below:
-        if (glyphIsAbove) {
+        if (stylePlacement == VerticalPlacement::Above) {
             return mnxdom::MarkingUpDownAuto::Up;
         }
         break;
@@ -60,15 +55,10 @@ mnxdom::MarkingUpDownAuto calcPointing(const std::string_view glyphName, Vertica
     return mnxdom::MarkingUpDownAuto::Auto;
 }
 
-mnxdom::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
-{
-    if (const auto glyphName = utils::smuflGlyphNameForFont(fontInfo, sym)) {
-        return calcPointing(glyphName.value(), placement);
-    }
-    return mnxdom::MarkingUpDownAuto::Auto;
-}
-
-std::optional<mnxdom::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement)
+std::optional<mnxdom::Fermata> makeFermata(
+    const classify::Fermata& fermata,
+    const classify::GlyphStyle& glyphStyle,
+    VerticalPlacement placement)
 {
     if (placement == VerticalPlacement::NotApplicable) {
         return std::nullopt;
@@ -102,9 +92,7 @@ std::optional<mnxdom::Fermata> makeFermata(const classify::Fermata& fermata, con
     result.set_or_clear_symbol(convertSymbol(fermata.shape));
     result.set_or_clear_duration(convertDuration(fermata.duration));
     result.set_or_clear_orient(enumConvert<mnxdom::Orientation>(placement));
-    if (glyphName) {
-        result.set_or_clear_pointing(calcPointing(glyphName.value(), placement));
-    }
+    result.set_or_clear_pointing(calcPointing(glyphStyle, placement));
     return result;
 }
 
@@ -123,13 +111,6 @@ std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::Breat
         break;
     case classify::BreathMark::Type::Salzedo:
         symbol = mnxdom::BreathMarkSymbol::Salzedo;
-        break;
-    case classify::BreathMark::Type::Caesura:
-    case classify::BreathMark::Type::CaesuraCurved:
-    case classify::BreathMark::Type::CaesuraShort:
-    case classify::BreathMark::Type::CaesuraThick:
-    case classify::BreathMark::Type::ChantCaesura:
-    case classify::BreathMark::Type::CaesuraSingleStroke:
         break;
     }
     if (!symbol) {
