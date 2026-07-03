@@ -346,7 +346,7 @@ std::vector<mx::api::Beam> createBeamData(const MusicXmlMusxMapping& context, co
 }
 
 mx::api::NoteData createRestData(
-    const MusicXmlMusxMapping& context,
+    MusicXmlMusxMapping& context,
     const EntryInfoPtr::InterpretedIterator& entryIt,
     const MusxInstance<others::Measure>& musxMeasure,
     const MusxInstance<others::StaffComposite>& measureStartStaff,
@@ -380,6 +380,7 @@ mx::api::NoteData createRestData(
         rest.beams = createBeamData(context, entryInfo);
         applyTupletData(rest, entryInfo);
         applyRestPositionIfNeeded(rest, entryInfo);
+        processArticulations(context, rest, entryInfo);
         if (entryIt.getEffectiveHidden() || (effectiveStaff && effectiveStaff->hideRests)) {
             rest.printData.printObject = mx::api::Bool::no;
         }
@@ -391,7 +392,7 @@ mx::api::NoteData createRestData(
 }
 
 void addSyntheticFullMeasureRest(
-    const MusicXmlMusxMapping& context,
+    MusicXmlMusxMapping& context,
     mx::api::StaffData& staff,
     const MusxInstance<others::Measure>& musxMeasure,
     StaffCmper staffId,
@@ -447,6 +448,7 @@ void appendEntryNotes(
             note.beams = createBeamData(context, entryInfo);
             applyTupletData(note, entryInfo);
             applyLyrics(context, note, entryInfo);
+            processArticulations(context, note, entryInfo);
         }
         if (entry->hasStem()) {
             const auto [freezeStem, upStem] = entryInfo.calcEntryStemSettings();

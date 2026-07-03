@@ -95,6 +95,7 @@ endif()
 
 set(DENIGMA_FORMAT_MUSICXML_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/musicxml.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/musicxml_articulations.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_converter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_defaults.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_enums.cpp

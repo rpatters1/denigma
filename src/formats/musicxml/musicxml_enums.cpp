@@ -22,12 +22,14 @@
 
 #include "musicxml.h"
 
+#include "denigma/classify/articulations.h"
 #include "denigma/classify/barlines.h"
 #include "formats/enum_conversion_macros.h"
 
 #include "mx/api/BarlineData.h"
 #include "mx/api/ClefData.h"
 #include "mx/api/DurationData.h"
+#include "mx/api/MarkData.h"
 #include "mx/api/PartGroupData.h"
 #include "mx/api/PitchData.h"
 #include "mx/api/PositionData.h"
@@ -97,9 +99,29 @@ BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarli
     case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(classify::Fermata::Shape, mx::api::MarkType)
+    case classify::Fermata::Shape::Angled: return mx::api::MarkType::fermataAngled;
+    case classify::Fermata::Shape::Curlew: return mx::api::MarkType::fermataCurlew;
+    case classify::Fermata::Shape::DoubleAngled: return mx::api::MarkType::fermataDoubleAngled;
+    case classify::Fermata::Shape::DoubleDot: return mx::api::MarkType::fermataDoubleDot;
+    case classify::Fermata::Shape::DoubleSquare: return mx::api::MarkType::fermataDoubleSquare;
+    case classify::Fermata::Shape::HalfCurve: return mx::api::MarkType::fermataHalfCurve;
+    case classify::Fermata::Shape::Normal: return mx::api::MarkType::fermataNormal;
+    case classify::Fermata::Shape::Square: return mx::api::MarkType::fermataSquare;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(MusicXmlPitchContext, KeySignature::KeyContext)
     case MusicXmlPitchContext::Concert: return KeySignature::KeyContext::Concert;
     case MusicXmlPitchContext::Written: return KeySignature::KeyContext::Written;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::Ornament::Type, mx::api::MarkType)
+    case classify::Ornament::Type::InvertedMordent: return mx::api::MarkType::invertedMordent;
+    case classify::Ornament::Type::InvertedTurn: return mx::api::MarkType::invertedTurn;
+    case classify::Ornament::Type::Mordent: return mx::api::MarkType::mordent;
+    case classify::Ornament::Type::Shake: return mx::api::MarkType::shake;
+    case classify::Ornament::Type::Trill: return mx::api::MarkType::trillMark;
+    case classify::Ornament::Type::Turn: return mx::api::MarkType::turn;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(music_theory::NoteName, mx::api::Step)
@@ -127,6 +149,13 @@ BEGIN_ENUM_CONVERSION(NoteType, mx::api::DurationName)
     case NoteType::Note256th: return mx::api::DurationName::dur256th;
     case NoteType::Note512th: return mx::api::DurationName::dur512th;
     case NoteType::Note1024th: return mx::api::DurationName::dur1024th;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(VerticalPlacement, mx::api::Placement)
+    case VerticalPlacement::NotApplicable: return mx::api::Placement::unspecified;
+    case VerticalPlacement::Float: return mx::api::Placement::unspecified;
+    case VerticalPlacement::Above: return mx::api::Placement::above;
+    case VerticalPlacement::Below: return mx::api::Placement::below;
 END_ENUM_CONVERSION
 
 } // namespace detail

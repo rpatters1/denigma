@@ -27,6 +27,7 @@
 #include "core/denigma.h"
 #include "musicxml_mapping.h"
 #include "mx/api/MeasureData.h"
+#include "mx/api/NoteData.h"
 #include "mx/api/SoundID.h"
 #include "mx/api/StaffData.h"
 
@@ -65,6 +66,7 @@ void createNotesForMeasureStaff(
     musx::dom::StaffCmper staffId,
     size_t staffIndex);
 void createParts(MusicXmlMusxMapping& context);
+void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note, const musx::dom::EntryInfoPtr& entryInfo);
 
 void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
