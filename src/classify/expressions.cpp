@@ -439,7 +439,7 @@ static CategoryType categoryTypeForExpression(const musx::dom::MusxInstance<musx
     return categoryTypeFromId(def->categoryId);
 }
 
-static ResolvedTextExpression resolveTextExpression(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+static ResolvedTextExpression resolveTextExpressionDefinition(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
 {
     ResolvedTextExpression result;
     result.expressionDef = def;
@@ -514,24 +514,19 @@ static ExpressionClassification withEnigmaCtx(ExpressionClassification result, c
     return result;
 }
 
-} // namespace
-
-ExpressionClassification classifyExpression(
-    const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
-    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+static std::optional<ExpressionClassification> classifyResolvedTextExpressionBeforeAssignment(const ResolvedTextExpression& resolved)
 {
-    const ResolvedTextExpression resolved = resolveTextExpression(def);
     const CategoryType categoryType = resolved.categoryType;
     const std::string_view normalizedText = resolved.normalizedText;
 
     if (const auto error = classifyTextExpressionError(resolved)) {
-        return *error;
+        return error;
     }
     if (const auto symbol = classifySymbolExpression(resolved)) {
         return withEnigmaCtx(*symbol, resolved);
     }
-    if (hasTempoPlayback(def)) {
-        return withEnigmaCtx(*classifyTempo(def, normalizedText, categoryType), resolved);
+    if (hasTempoPlayback(resolved.expressionDef)) {
+        return withEnigmaCtx(*classifyTempo(resolved.expressionDef, normalizedText, categoryType), resolved);
     }
     if (categoryType == CategoryType::RehearsalMarks) {
         return withEnigmaCtx(*classifyRehearsalMark(normalizedText, categoryType), resolved);
@@ -551,6 +546,34 @@ ExpressionClassification classifyExpression(
         }
         return withEnigmaCtx(*classifyTempoAlteration(normalizedText, categoryType), resolved);
     }
+    return std::nullopt;
+}
+
+static ExpressionClassification classifyResolvedTextExpressionDefinition(const ResolvedTextExpression& resolved)
+{
+    const CategoryType categoryType = resolved.categoryType;
+    const std::string_view normalizedText = resolved.normalizedText;
+
+    if (const auto classification = classifyResolvedTextExpressionBeforeAssignment(resolved)) {
+        return *classification;
+    }
+    if (const auto technique = classifyTechnique(normalizedText, categoryType)) {
+        return withEnigmaCtx(*technique, resolved);
+    }
+    return withEnigmaCtx(classifyGenericText(normalizedText, categoryType), resolved);
+}
+
+static ExpressionClassification classifyAssignedTextExpression(
+    const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+{
+    const ResolvedTextExpression resolved = resolveTextExpressionDefinition(def);
+    const CategoryType categoryType = resolved.categoryType;
+    const std::string_view normalizedText = resolved.normalizedText;
+
+    if (const auto classification = classifyResolvedTextExpressionBeforeAssignment(resolved)) {
+        return *classification;
+    }
     if (assignmentUsesTopStaff(assignment)) {
         return withEnigmaCtx(classifySystemTextExpression(resolved.text, normalizedText, categoryType), resolved);
     }
@@ -560,7 +583,20 @@ ExpressionClassification classifyExpression(
     return withEnigmaCtx(classifyGenericText(normalizedText, categoryType), resolved);
 }
 
-ExpressionClassification classifyExpression(
+static ExpressionClassification classifyTextExpressionDefinition(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+{
+    return classifyResolvedTextExpressionDefinition(resolveTextExpressionDefinition(def));
+}
+
+static ExpressionClassification classifyShapeExpressionDefinition(const musx::dom::MusxInstance<musx::dom::others::ShapeExpressionDef>& def)
+{
+    if (const auto tempo = classifyTempo(def, categoryTypeForExpression(def))) {
+        return *tempo;
+    }
+    return suppressExpression();
+}
+
+static ExpressionClassification classifyAssignedShapeExpression(
     const musx::dom::MusxInstance<musx::dom::others::ShapeExpressionDef>& def,
     const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
 {
@@ -569,19 +605,39 @@ ExpressionClassification classifyExpression(
     if (const auto tempo = classifyTempo(def, categoryType)) {
         return *tempo;
     }
-    if (assignment) {
-        if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForAssignment(assignment)) {
-            ExpressionClassification result;
-            result.type = ExpressionType::NonArpeggio;
-            result.basis = ClassificationBasis::FinaleCategory;
-            result.value = ExpressionNonArpeggio{ nonArpeggio.value() };
-            return result;
-        }
+    if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForAssignment(assignment)) {
+        ExpressionClassification result;
+        result.type = ExpressionType::NonArpeggio;
+        result.basis = ClassificationBasis::FinaleCategory;
+        result.value = ExpressionNonArpeggio{ nonArpeggio.value() };
+        return result;
     }
     if (assignmentUsesTopStaff(assignment)) {
         return classifySystemTextExpression({}, {}, categoryType);
     }
     return suppressExpression();
+}
+
+} // namespace
+
+ExpressionClassification classifyExpression(
+    const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+{
+    if (assignment) {
+        return classifyAssignedTextExpression(def, assignment);
+    }
+    return classifyTextExpressionDefinition(def);
+}
+
+ExpressionClassification classifyExpression(
+    const musx::dom::MusxInstance<musx::dom::others::ShapeExpressionDef>& def,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+{
+    if (assignment) {
+        return classifyAssignedShapeExpression(def, assignment);
+    }
+    return classifyShapeExpressionDefinition(def);
 }
 
 ExpressionClassification classifyExpression(

@@ -295,14 +295,13 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnxdom::seque
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) { /// @todo eliminate this filter if MNX provides visibility options
-            if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
-                const auto classification = classify::classifyArticulation(symbolContext.value());
+            if (const auto classification = classify::classifyArticulation(asgn, musxEntryInfo)) {
                 if (const auto* fermata = classification.as<classify::Fermata>()) {
-                    if (auto mnxFermata = makeFermata(*fermata, fermata->glyphStyle, symbolContext->placement)) {
+                    if (auto mnxFermata = makeFermata(*fermata, fermata->glyphStyle, classification.placement)) {
                         mnxEvent.set_fermata(mnxFermata.value());
                     }
                 } else if (const auto* breathMark = classification.as<classify::BreathMark>()) {
-                    if (auto mnxBreathMark = makeBreathMark(*breathMark, symbolContext->placement)) {
+                    if (auto mnxBreathMark = makeBreathMark(*breathMark, classification.placement)) {
                         mnxEvent.ensure_markings().set_breath(mnxBreathMark.value());
                     }
                 } else if (const auto* arpeggio = classification.as<classify::Arpeggio>()) {
@@ -316,12 +315,12 @@ static void processArticulations(const MnxMusxMappingPtr& context, mnxdom::seque
                 } else if (const auto* tremolo = classification.as<classify::Tremolo>()) {
                     auto mnxMarkings = mnxEvent.ensure_markings();
                     auto mnxMarking = mnxMarkings.ensure_tremolo(tremolo->marks);
-                    mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(symbolContext->placement));
+                    mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
                 } else if (const auto* articulation = classification.as<classify::ArticulationMarks>()) {
                     for (const auto& mark : articulation->marks) {
                         auto mnxMarkings = mnxEvent.ensure_markings();
-                        auto mnxMarking = createEventMarking(mnxMarkings, mark, symbolContext->placement);
-                        mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(symbolContext->placement));
+                        auto mnxMarking = createEventMarking(mnxMarkings, mark, classification.placement);
+                        mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
                     }
                 }
             }
@@ -487,10 +486,9 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnxdom::sequ
     auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) {
-            if (const auto symbolContext = asgn->calcSelectedSymbolContext(musxEntryInfo)) {
-                const auto classification = classify::classifyArticulation(symbolContext.value());
+            if (const auto classification = classify::classifyArticulation(asgn, musxEntryInfo)) {
                 if (const auto* fermata = classification.as<classify::Fermata>()) {
-                    if (const auto mnxFermata = makeFermata(*fermata, fermata->glyphStyle, symbolContext->placement)) {
+                    if (const auto mnxFermata = makeFermata(*fermata, fermata->glyphStyle, classification.placement)) {
                         fullMeasure.set_fermata(mnxFermata.value());
                         continue;
                     }

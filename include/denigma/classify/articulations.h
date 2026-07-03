@@ -257,6 +257,8 @@ struct ArticulationClassification
 {
     /// Classified articulation payload, or std::monostate when no articulation was recognized.
     ArticulationValue value{};
+    /// Resolved placement of the assigned articulation, when classified from an assignment.
+    musx::dom::VerticalPlacement placement{ musx::dom::VerticalPlacement::NotApplicable };
     /// SMuFL glyph name associated with the recognized symbol, when available.
     std::optional<std::string> glyphName;
 
@@ -279,9 +281,10 @@ struct ArticulationClassification
     { return std::holds_alternative<T>(value); }
 };
 
-/// Classifies the selected symbol from an articulation assignment.
+/// Classifies an articulation assignment for an entry.
 ArticulationClassification classifyArticulation(
-    const musx::dom::details::ArticulationAssign::SelectedSymbolContext& context);
+    const musx::dom::MusxInstance<musx::dom::details::ArticulationAssign>& assignment,
+    const musx::dom::EntryInfoPtr& entryInfo);
 /// Classifies an articulation symbol from a font and character code.
 ArticulationClassification classifyArticulationSymbol(
     const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, char32_t symbol);

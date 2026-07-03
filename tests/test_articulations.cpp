@@ -209,9 +209,7 @@ TEST(ArticulationClassification, ClassifiesVerticalEntryBracketShapes)
     ASSERT_TRUE(sourceEntry);
     auto assign = document->getDetails()->get<details::ArticulationAssign>(SCORE_PARTID, 131, Inci{0});
     ASSERT_TRUE(assign);
-    const auto symbolContext = assign->calcSelectedSymbolContext(sourceEntry);
-    ASSERT_TRUE(symbolContext);
-
-    const auto classification = classifyArticulation(symbolContext.value());
+    const auto classification = classifyArticulation(assign, sourceEntry);
     EXPECT_TRUE(classification.is<VerticalEntryBracket>());
+    EXPECT_NE(classification.placement, musx::dom::VerticalPlacement::NotApplicable);
 }

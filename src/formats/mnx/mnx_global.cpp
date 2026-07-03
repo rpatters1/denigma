@@ -22,6 +22,7 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <unordered_map>
 
 #include "denigma/classify/barlines.h"
@@ -222,27 +223,32 @@ static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measu
             tempo.ensure_location(mnxFractionFromFraction(pos));
         }    
     };
-    std::map<Edu, MusxInstance<OthersBase>> temposAtPositions; // use OthersBase because it has to accept multiple types
+    std::map<Edu, classify::TempoInfo> temposAtPositions;
     if (musxMeasure->hasExpression) {
-        // Search in order of decreasing precedence: text exprs, then shape exprs, then tempo changes. Using emplace keeps the first one.
-        // We want text exprs to be chosen over the others, if they coincide at a beat location.
+        // Search in order of decreasing precedence. Using emplace keeps the first tempo at a beat location.
         const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
-        for (const auto& expAssignClassification : classify::classifyExpressionAssignments(expAssigns)) {
-            const auto& expAssign = expAssignClassification.assignment;
-            if (!expAssign->calcIsAssignedInRequestedPart()) {
-                continue;
-            }
-            const auto& classification = expAssignClassification.classification;
-            if (const auto* tempo = classification.as<classify::TempoMark>();
-                tempo && tempo->tempo.beatsPerMinute > 0
-                && tempo->tempo.beatUnitEdu > 0) {
-                if (const auto textExpr = expAssign->getTextExpression()) {
-                    temposAtPositions.emplace(expAssign->eduPosition, textExpr);
-                } else if (const auto shapeExpr = expAssign->getShapeExpression()) {
-                    temposAtPositions.emplace(expAssign->eduPosition, shapeExpr);
+        const auto expAssignClassifications = classify::classifyExpressionAssignments(expAssigns);
+        const auto addExpressionTempos = [&](bool textExpressions) {
+            for (const auto& expAssignClassification : expAssignClassifications) {
+                const auto& expAssign = expAssignClassification.assignment;
+                if (!expAssign->calcIsAssignedInRequestedPart()) {
+                    continue;
+                }
+                const bool isSelectedExpressionType = textExpressions
+                    ? static_cast<bool>(expAssign->textExprId)
+                    : static_cast<bool>(expAssign->shapeExprId);
+                if (!isSelectedExpressionType) {
+                    continue;
+                }
+                const auto& classification = expAssignClassification.classification;
+                if (const auto* tempo = classification.as<classify::TempoMark>();
+                    tempo && tempo->tempo.beatsPerMinute > 0 && tempo->tempo.beatUnitEdu > 0) {
+                    temposAtPositions.emplace(expAssign->eduPosition, tempo->tempo);
                 }
             }
-        }
+        };
+        addExpressionTempos(true);
+        addExpressionTempos(false);
     }
     std::optional<NoteType> tempoUnit;
     if (context->denigmaContext->includeTempoTool) {
@@ -253,25 +259,15 @@ static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measu
                     auto [count, unit] = musxMeasure->createTimeSignature()->calcSimplified();
                     tempoUnit = std::min(unit, NoteType::Quarter);
                 }
-                temposAtPositions.emplace(tempoChange->eduPosition, tempoChange);
+                const auto noteType = tempoUnit.value_or(NoteType::Quarter);
+                temposAtPositions.emplace(tempoChange->eduPosition, classify::TempoInfo{ {}, tempoChange->getAbsoluteTempo(noteType), Edu(noteType) });
             }
         }
     }
-    for (const auto& it : temposAtPositions) {
-        if (auto textExpr = std::dynamic_pointer_cast<const others::TextExpressionDef>(it.second)) {
-            const auto classification = classify::classifyExpression(textExpr);
-            const auto* tempo = classification.as<classify::TempoMark>();
-            createTempo(tempo->tempo.beatsPerMinute, tempo->tempo.beatUnitEdu, it.first);
-        } else if (auto shapeExpr = std::dynamic_pointer_cast<const others::ShapeExpressionDef>(it.second)) {
-            const auto classification = classify::classifyExpression(shapeExpr);
-            const auto* tempo = classification.as<classify::TempoMark>();
-            createTempo(tempo->tempo.beatsPerMinute, tempo->tempo.beatUnitEdu, it.first);
-        } else if (auto tempoChange = std::dynamic_pointer_cast<const others::TempoChange>(it.second)) {
-            const auto noteType = tempoUnit.value_or(NoteType::Quarter);
-            createTempo(tempoChange->getAbsoluteTempo(noteType), Edu(noteType), it.first);
-            /// @todo hide this tempo change if MNX ever adds visibility to the tempo object.
-        }
+    for (const auto& [position, tempo] : temposAtPositions) {
+        createTempo(tempo.beatsPerMinute, Edu(tempo.beatUnitEdu), position);
     }
+    /// @todo hide tempo tool changes if MNX ever adds visibility to the tempo object.
 }
 
 static void assignTimeSignature(

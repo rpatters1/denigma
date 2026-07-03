@@ -557,13 +557,30 @@ ArticulationClassification classifyArticulationSymbol(
     return {};
 }
 
-ArticulationClassification classifyArticulation(
+static ArticulationClassification classifySelectedSymbolContext(
     const musx::dom::details::ArticulationAssign::SelectedSymbolContext& context)
 {
+    ArticulationClassification result;
     if (context.symbol.isShape) {
-        return classifyShape(context.definition, context.symbol.shapeId);
+        result = classifyShape(context.definition, context.symbol.shapeId);
+    } else {
+        result = classifyArticulationSymbol(context.symbol.font, context.symbol.character);
     }
-    return classifyArticulationSymbol(context.symbol.font, context.symbol.character);
+    result.placement = context.placement;
+    return result;
+}
+
+ArticulationClassification classifyArticulation(
+    const musx::dom::MusxInstance<musx::dom::details::ArticulationAssign>& assignment,
+    const musx::dom::EntryInfoPtr& entryInfo)
+{
+    if (!assignment || !entryInfo) {
+        return {};
+    }
+    if (const auto symbolContext = assignment->calcSelectedSymbolContext(entryInfo)) {
+        return classifySelectedSymbolContext(symbolContext.value());
+    }
+    return {};
 }
 
 } // namespace denigma::classify
