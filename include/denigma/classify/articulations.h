@@ -282,9 +282,6 @@ struct ArticulationClassification
 /// Classifies the selected symbol from an articulation assignment.
 ArticulationClassification classifyArticulation(
     const musx::dom::details::ArticulationAssign::SelectedSymbolContext& context);
-/// Classifies a Finale articulation definition.
-ArticulationClassification classifyArticulation(
-    const musx::dom::MusxInstance<musx::dom::others::ArticulationDef>& def);
 /// Classifies an articulation symbol from a font and character code.
 ArticulationClassification classifyArticulationSymbol(
     const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, char32_t symbol);
