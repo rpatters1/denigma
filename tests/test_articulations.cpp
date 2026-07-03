@@ -68,6 +68,21 @@ static FontContext makeFontContext(const std::string& fontName = "Maestro", int 
     return { document, fontInfo };
 }
 
+static void expectSingleArticulationMark(
+    const musx::dom::MusxInstance<FontInfo>& fontInfo,
+    char32_t symbol,
+    ArticulationMark::Type expectedType,
+    const std::string& expectedGlyphName)
+{
+    const auto classification = classifyArticulationSymbol(fontInfo, symbol);
+    const auto* articulation = classification.as<ArticulationMarks>();
+    ASSERT_NE(articulation, nullptr);
+    ASSERT_EQ(articulation->marks.size(), 1u);
+    EXPECT_EQ(articulation->marks.front().type, expectedType);
+    ASSERT_TRUE(classification.glyphName);
+    EXPECT_EQ(classification.glyphName.value(), expectedGlyphName);
+}
+
 } // namespace
 
 TEST(ArticulationClassification, ClassifiesUnicodeArticulationMarks)
@@ -109,6 +124,24 @@ TEST(ArticulationClassification, AssignsGlyphStyleToEachComboArticulationMark)
     EXPECT_EQ(articulation->marks[0].glyphStyle.placement, musx::dom::VerticalPlacement::Below);
     EXPECT_EQ(articulation->marks[1].type, ArticulationMark::Type::Staccato);
     EXPECT_EQ(articulation->marks[1].glyphStyle.placement, musx::dom::VerticalPlacement::Below);
+}
+
+TEST(ArticulationClassification, ClassifiesStringAndBrassTechniqueGlyphs)
+{
+    const auto fontContext = makeFontContext("Finale Maestro");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE632, ArticulationMark::Type::BuzzPizzicato, "pluckedBuzzPizzicato");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE631, ArticulationMark::Type::SnapPizzicato, "pluckedSnapPizzicatoAbove");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xF432, ArticulationMark::Type::SnapPizzicato, "pluckedSnapPizzicatoBelowGerman");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE636, ArticulationMark::Type::Fingernails, "pluckedWithFingernails");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5D0, ArticulationMark::Type::BrassScoop, "brassScoop");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5D4, ArticulationMark::Type::BrassDoit, "brassDoitShort");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5D7, ArticulationMark::Type::BrassFalloff, "brassFallLipShort");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5E0, ArticulationMark::Type::BrassPlop, "brassPlop");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5E1, ArticulationMark::Type::BrassFlip, "brassFlip");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5E2, ArticulationMark::Type::BrassSmear, "brassSmear");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5E3, ArticulationMark::Type::BrassBend, "brassBend");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xF768, ArticulationMark::Type::BrassFalloff, "brassFallSlight");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xF767, ArticulationMark::Type::BrassLift, "brassLiftSlight");
 }
 
 TEST(ArticulationClassification, ClassifiesFermatasBreathMarksAndArpeggios)
