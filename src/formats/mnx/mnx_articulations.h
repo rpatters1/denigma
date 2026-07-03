@@ -44,7 +44,7 @@ namespace formats {
 namespace mnx {
 namespace detail {
 
-mnxdom::MarkingUpDownAuto calcPointing(const classify::GlyphStyle& glyphStyle, VerticalPlacement placement);
+mnxdom::MarkingUpDownAuto calcPointing(const classify::GlyphStyle& glyphStyle);
 
 std::optional<mnxdom::Fermata> makeFermata(
     const classify::Fermata& fermata,

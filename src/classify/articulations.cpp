@@ -294,6 +294,10 @@ static ArticulationClassification classifyShape(
         case ST::BuzzPizzicato:
             result = makeArticulationMark({ ArticulationType::BuzzPizzicato }, std::nullopt);
             break;
+        case ST::FingernailPizzCurveUp:
+        case ST::FingernailPizzCurveDown:
+            result = makeArticulationMark({ ArticulationType::Fingernails }, std::nullopt);
+            break;
         default:
             break;
         }

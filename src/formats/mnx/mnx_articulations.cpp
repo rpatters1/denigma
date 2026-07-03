@@ -31,23 +31,13 @@ namespace formats {
 namespace mnx {
 namespace detail {
 
-mnxdom::MarkingUpDownAuto calcPointing(const classify::GlyphStyle& glyphStyle, VerticalPlacement placement)
+mnxdom::MarkingUpDownAuto calcPointing(const classify::GlyphStyle& glyphStyle)
 {
-    const auto stylePlacement = glyphStyle.placement;
-    if (stylePlacement == VerticalPlacement::NotApplicable || stylePlacement == VerticalPlacement::Float) {
-        return mnxdom::MarkingUpDownAuto::Auto;
-    }
-    switch (placement) {
+    switch (glyphStyle.placement) {
     case VerticalPlacement::Above:
-        if (stylePlacement == VerticalPlacement::Below) {
-            return mnxdom::MarkingUpDownAuto::Down;
-        }
-        break;
+        return mnxdom::MarkingUpDownAuto::Up;
     case VerticalPlacement::Below:
-        if (stylePlacement == VerticalPlacement::Above) {
-            return mnxdom::MarkingUpDownAuto::Up;
-        }
-        break;
+        return mnxdom::MarkingUpDownAuto::Down;
     case VerticalPlacement::Float:
     case VerticalPlacement::NotApplicable:
         break;
@@ -92,7 +82,7 @@ std::optional<mnxdom::Fermata> makeFermata(
     result.set_or_clear_symbol(convertSymbol(fermata.shape));
     result.set_or_clear_duration(convertDuration(fermata.duration));
     result.set_or_clear_orient(enumConvert<mnxdom::Orientation>(placement));
-    result.set_or_clear_pointing(calcPointing(glyphStyle, placement));
+    result.set_or_clear_pointing(calcPointing(glyphStyle));
     return result;
 }
 
@@ -442,11 +432,10 @@ void finalizeArpeggios(const MnxMusxMappingPtr& context)
 
 static std::optional<mnxdom::sequence::EventMarkingBase> createEventMarking(
     mnxdom::sequence::EventMarkings mnxMarkings,
-    const classify::ArticulationMark& mark,
-    VerticalPlacement placement)
+    const classify::ArticulationMark& mark)
 {
     const auto setPointing = [&](auto marking) -> mnxdom::sequence::EventMarkingBase {
-        marking.set_or_clear_pointing(calcPointing(mark.glyphStyle, placement));
+        marking.set_or_clear_pointing(calcPointing(mark.glyphStyle));
         return marking;
     };
 
@@ -514,7 +503,7 @@ void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Ev
                 } else if (const auto* articulation = classification.as<classify::ArticulationMarks>()) {
                     for (const auto& mark : articulation->marks) {
                         auto mnxMarkings = mnxEvent.ensure_markings();
-                        if (auto mnxMarking = createEventMarking(mnxMarkings, mark, classification.placement)) {
+                        if (auto mnxMarking = createEventMarking(mnxMarkings, mark)) {
                             mnxMarking->set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
                         }
                     }
