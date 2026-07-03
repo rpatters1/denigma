@@ -51,6 +51,8 @@ struct ArticulationMark
     enum class Type
     {
         Accent,
+        BrassOpen,
+        BrassStopped,
         UpBow,
         DownBow,
         SoftAccent,
@@ -58,6 +60,7 @@ struct ArticulationMark
         Staccatissimo,
         Staccato,
         Stress,
+        StringHarmonic,
         StrongAccent,
         Tenuto,
         Unstress
@@ -248,8 +251,27 @@ struct VerticalEntryBracket
     GlyphStyle glyphStyle{};
 };
 
+/// @struct OtherMark
+/// @brief Classification for recognized articulation symbols that have no more specific Denigma classification.
+struct OtherMark
+{
+    /// @enum Category
+    /// @brief Broad notation category for preserving a known but unclassified mark.
+    enum class Category
+    {
+        Articulation,
+        PerformanceTechnique
+    };
+
+    /// Broad notation category for the mark.
+    Category category{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
+};
+
 /// Variant payload for articulation classification.
-using ArticulationValue = std::variant<std::monostate, ArticulationMarks, Tremolo, Fermata, BreathMark, Caesura, Arpeggio, Ornament, VerticalEntryBracket>;
+using ArticulationValue = std::variant<std::monostate, ArticulationMarks, Tremolo, Fermata, BreathMark, Caesura, Arpeggio, Ornament,
+    VerticalEntryBracket, OtherMark>;
 
 /// @struct ArticulationClassification
 /// @brief Result returned by articulation classification.

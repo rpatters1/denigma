@@ -22,7 +22,7 @@
 
 #include "mnx.h"
 #include "mnx_smartshapes.h"
-#include "mnx_markings.h"
+#include "mnx_articulations.h"
 
 namespace denigma {
 namespace formats {
@@ -80,6 +80,33 @@ void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<oth
                     appendArpeggioCandidate(context, mnxMeasure, nonArpeggio.value());
                 }
                 break;
+            }
+        }
+    }
+}
+
+void processSlurs(const MnxMusxMappingPtr&, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
+{
+    const auto musxEntry = musxEntryInfo->getEntry();
+    auto createOneSlur = [&](const EntryNumber targetEntry) -> mnxdom::sequence::Slur {
+        auto mnxSlurs = mnxEvent.ensure_slurs();
+        return mnxSlurs.append(calcEventId(targetEntry));
+    };
+    if (musxEntry->smartShapeDetail) {
+        auto shapeAssigns = musxEntry->getDocument()->getDetails()->getArray<details::SmartShapeEntryAssign>(
+            SCORE_PARTID, musxEntry->getEntryNumber());
+        for (const auto& assign : shapeAssigns) {
+            if (auto shape = musxEntry->getDocument()->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum)) {
+                if (shape->startTermSeg->endPoint->entryNumber != musxEntry->getEntryNumber()) {
+                    continue;
+                }
+                if (shape->calcIsSlur()) {
+                    auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
+                    mnxSlur.set_lineType(shape->calcIsDashed() ? mnxdom::LineType::Dashed : mnxdom::LineType::Solid);
+                    if (auto contourDir = shape->calcContourDirection(); contourDir != CurveContourDirection::Unspecified) {
+                        mnxSlur.set_side(contourDir == CurveContourDirection::Up ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down);
+                    }
+                }
             }
         }
     }

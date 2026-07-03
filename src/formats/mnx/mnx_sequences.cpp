@@ -22,11 +22,13 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
 #include "denigma/classify/articulations.h"
 #include "mnx.h"
+#include "mnx_smartshapes.h"
 #include "utils/smufl_support.h"
 
 namespace denigma {
@@ -218,113 +220,6 @@ static void deferJumpTies(const MnxMusxMappingPtr& context, const NoteInfoPtr& m
             deferred.side = (direction == CurveContourDirection::Up) ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down;
         }
         context->deferredJumpTies.push_back(std::move(deferred));
-    }
-}
-
-static void createSlurs(const MnxMusxMappingPtr&, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
-{
-    const auto musxEntry = musxEntryInfo->getEntry();
-    auto createOneSlur = [&](const EntryNumber targetEntry) -> mnxdom::sequence::Slur {
-        auto mnxSlurs = mnxEvent.ensure_slurs();
-        return mnxSlurs.append(calcEventId(targetEntry));
-    };
-    if (musxEntry->smartShapeDetail) {
-        auto shapeAssigns = musxEntry->getDocument()->getDetails()->getArray<details::SmartShapeEntryAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
-        for (const auto& assign : shapeAssigns) {
-            if (auto shape = musxEntry->getDocument()->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum)) {
-                if (shape->startTermSeg->endPoint->entryNumber != musxEntry->getEntryNumber()) {
-                    continue;
-                }
-                if (shape->calcIsSlur()) {
-                    auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
-                    mnxSlur.set_lineType(shape->calcIsDashed() ? mnxdom::LineType::Dashed : mnxdom::LineType::Solid);
-                    if (auto contourDir = shape->calcContourDirection(); contourDir != CurveContourDirection::Unspecified) {
-                        mnxSlur.set_side(contourDir == CurveContourDirection::Up ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down);
-                    }
-                }
-            }
-        }
-    }
-}
-
-static mnxdom::sequence::EventMarkingBase createEventMarking(
-    mnxdom::sequence::EventMarkings mnxMarkings,
-    const classify::ArticulationMark& mark,
-    VerticalPlacement placement)
-{
-    const auto setPointing = [&](auto marking) -> mnxdom::sequence::EventMarkingBase {
-        marking.set_or_clear_pointing(calcPointing(mark.glyphStyle, placement));
-        return marking;
-    };
-    
-    switch (mark.type) {
-    case classify::ArticulationMark::Type::Accent:
-        return mnxMarkings.ensure_accent();
-    case classify::ArticulationMark::Type::DownBow:
-        return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Down);
-    case classify::ArticulationMark::Type::UpBow:
-        return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Up);
-    case classify::ArticulationMark::Type::SoftAccent:
-        return mnxMarkings.ensure_softAccent();
-    case classify::ArticulationMark::Type::Spiccato:
-        return mnxMarkings.ensure_spiccato();
-    case classify::ArticulationMark::Type::Staccatissimo:
-        return mnxMarkings.ensure_staccatissimo();
-    case classify::ArticulationMark::Type::Staccato:
-        return mnxMarkings.ensure_staccato();
-    case classify::ArticulationMark::Type::Stress:
-        return mnxMarkings.ensure_stress();
-    case classify::ArticulationMark::Type::StrongAccent:
-        return setPointing(mnxMarkings.ensure_strongAccent());
-    case classify::ArticulationMark::Type::Tenuto:
-        return mnxMarkings.ensure_tenuto();
-    case classify::ArticulationMark::Type::Unstress:
-        return mnxMarkings.ensure_unstress();
-    }
-    throw std::logic_error("Encountered unknown standard articulation type " + std::to_string(int(mark.type)));
-}
-
-static void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
-{
-    const auto musxEntry = musxEntryInfo->getEntry();
-    auto mnxPartMeasure = mnxEvent.getEnclosingElement<mnxdom::part::Measure>();
-    ASSERT_IF(!mnxPartMeasure) {
-        context->logMessage(LogMsg() << "no part measure exists for " << mnxEvent.dump(4), MessageSeverity::Warning);
-        return;
-    }
-    auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
-    for (const auto& asgn : articAssigns) {
-        if (!asgn->hide) { /// @todo eliminate this filter if MNX provides visibility options
-            if (const auto classification = classify::classifyArticulation(asgn, musxEntryInfo)) {
-                if (const auto* fermata = classification.as<classify::Fermata>()) {
-                    if (auto mnxFermata = makeFermata(*fermata, fermata->glyphStyle, classification.placement)) {
-                        mnxEvent.set_fermata(mnxFermata.value());
-                    }
-                } else if (const auto* breathMark = classification.as<classify::BreathMark>()) {
-                    if (auto mnxBreathMark = makeBreathMark(*breathMark, classification.placement)) {
-                        mnxEvent.ensure_markings().set_breath(mnxBreathMark.value());
-                    }
-                } else if (const auto* arpeggio = classification.as<classify::Arpeggio>()) {
-                    if (auto candidate = makeArpeggio(musxEntryInfo, asgn, *arpeggio)) {
-                        appendArpeggioCandidate(context, mnxPartMeasure.value(), candidate.value());
-                    }
-                } else if (classification.is<classify::VerticalEntryBracket>()) {
-                    if (auto candidate = musx::util::calcNonArpeggioSpanForAssignment(musxEntryInfo, asgn)) {
-                        appendArpeggioCandidate(context, mnxPartMeasure.value(), candidate.value());
-                    }
-                } else if (const auto* tremolo = classification.as<classify::Tremolo>()) {
-                    auto mnxMarkings = mnxEvent.ensure_markings();
-                    auto mnxMarking = mnxMarkings.ensure_tremolo(tremolo->marks);
-                    mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
-                } else if (const auto* articulation = classification.as<classify::ArticulationMarks>()) {
-                    for (const auto& mark : articulation->marks) {
-                        auto mnxMarkings = mnxEvent.ensure_markings();
-                        auto mnxMarking = createEventMarking(mnxMarkings, mark, classification.placement);
-                        mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -562,7 +457,7 @@ static std::optional<mnxdom::sequence::Event> createEvent(const MnxMusxMappingPt
     createLyrics(context, mnxEvent, musxEntryInfo);
     processArticulations(context, mnxEvent, musxEntryInfo);
     /// @todo orient
-    createSlurs(context, mnxEvent, musxEntryInfo);
+    processSlurs(context, mnxEvent, musxEntryInfo);
     if (const auto& crossedStaffId = musxEntryInfo.calcCrossedStaffForAll()) {
         if (const auto& mnxPartStaff = context->mnxPartStaffFromStaff(crossedStaffId.value())) {
             mnxEvent.set_staff(mnxPartStaff.value());

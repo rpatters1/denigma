@@ -35,13 +35,16 @@ namespace formats {
 namespace mnx {
 namespace detail {
 
-// all smart shapes except ottavas
+// all smart shapes except ottavas and slurs
 void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
     mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber);
 
 // createOttavas is separate because it needs to run before sequence creation
 void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
     mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber);
+
+// called separately from the event loop
+void processSlurs(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo);
 
 } // namespace detail
 } // namespace mnx

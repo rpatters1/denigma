@@ -52,6 +52,7 @@ std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
     const classify::Arpeggio& arpeggio);
 void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
 void finalizeArpeggios(const MnxMusxMappingPtr& context);
+void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo);
 
 } // namespace detail
 } // namespace mnx
