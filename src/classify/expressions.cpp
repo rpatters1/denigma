@@ -383,22 +383,6 @@ static ExpressionClassification classifySystemTextExpression(
     return result;
 }
 
-static bool sameExpressionDefinition(
-    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& left,
-    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& right)
-{
-    if (!left || !right) {
-        return false;
-    }
-    if (left->textExprId || right->textExprId) {
-        return left->textExprId && right->textExprId && left->textExprId == right->textExprId;
-    }
-    if (left->shapeExprId || right->shapeExprId) {
-        return left->shapeExprId && right->shapeExprId && left->shapeExprId == right->shapeExprId;
-    }
-    return false;
-}
-
 static ExpressionClassification classifyGenericText(std::string_view normalizedText, CategoryType categoryType)
 {
     ExpressionClassification result;
@@ -669,7 +653,7 @@ std::vector<ExpressionAssignmentClassification> classifyExpressionAssignments(
             continue;
         }
         for (auto& result : results) {
-            if (sameExpressionDefinition(topStaffResult.assignment, result.assignment)) {
+            if (result.assignment && topStaffResult.assignment->calcIsSameDefinition(*result.assignment)) {
                 result.classification = topStaffResult.classification;
             }
         }
