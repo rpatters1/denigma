@@ -524,6 +524,23 @@ void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Ev
     }
 }
 
+void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::FullMeasureRest& mnxFullMeasureRest, const EntryInfoPtr& musxEntryInfo)
+{
+    auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntryInfo->getEntry()->getEntryNumber());
+    for (const auto& asgn : articAssigns) {
+        if (!asgn->hide) {
+            if (const auto classification = classify::classifyArticulation(asgn, musxEntryInfo)) {
+                if (const auto* fermata = classification.as<classify::Fermata>()) {
+                    if (const auto mnxFermata = makeFermata(*fermata, fermata->glyphStyle, classification.placement)) {
+                        mnxFullMeasureRest.set_fermata(mnxFermata.value());
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+}
+
 } // namespace detail
 } // namespace mnx
 } // namespace formats

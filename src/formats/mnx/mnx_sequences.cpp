@@ -26,7 +26,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "denigma/classify/articulations.h"
 #include "mnx.h"
 #include "mnx_smartshapes.h"
 #include "utils/smufl_support.h"
@@ -377,21 +376,7 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnxdom::sequ
             fullMeasure.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
         }
     }
-
-    auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
-    for (const auto& asgn : articAssigns) {
-        if (!asgn->hide) {
-            if (const auto classification = classify::classifyArticulation(asgn, musxEntryInfo)) {
-                if (const auto* fermata = classification.as<classify::Fermata>()) {
-                    if (const auto mnxFermata = makeFermata(*fermata, fermata->glyphStyle, classification.placement)) {
-                        fullMeasure.set_fermata(mnxFermata.value());
-                        continue;
-                    }
-                }
-            }
-        }
-    }
-
+    processArticulations(context, fullMeasure, musxEntryInfo);
     content.clear();
 }
 

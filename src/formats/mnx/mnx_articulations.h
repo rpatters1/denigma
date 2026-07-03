@@ -27,12 +27,19 @@
 
 #include "mnx_fwd.h"
 #include "utils/smufl_support.h"
-#include "denigma/classify/articulations.h"
 
 using namespace musx::dom;
 using namespace musx::util;
 
 namespace denigma {
+
+namespace classify {
+struct Arpeggio;
+struct BreathMark;
+struct Fermata;
+struct GlyphStyle;
+}
+
 namespace formats {
 namespace mnx {
 namespace detail {
@@ -53,6 +60,7 @@ std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
 void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
 void finalizeArpeggios(const MnxMusxMappingPtr& context);
 void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo);
+void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::FullMeasureRest& mnxFullMeasureRest, const EntryInfoPtr& musxEntryInfo);
 
 } // namespace detail
 } // namespace mnx

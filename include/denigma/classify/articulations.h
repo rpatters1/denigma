@@ -296,12 +296,8 @@ struct ArticulationClassification
     std::optional<std::string> glyphName;
 
     /// Returns true when the source was recognized as an articulation.
-    bool isArticulation() const noexcept
-    { return !std::holds_alternative<std::monostate>(value); }
-
-    /// Returns true when the source was recognized as an articulation.
     explicit operator bool() const noexcept
-    { return isArticulation(); }
+    { return !std::holds_alternative<std::monostate>(value); }
 
     /// Returns the classified payload as T, or nullptr when it has another type.
     template <typename T>

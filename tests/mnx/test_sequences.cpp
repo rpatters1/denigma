@@ -26,6 +26,7 @@
 
 #include "gtest/gtest.h"
 #include "core/denigma.h"
+#include "denigma/classify/articulations.h"
 #include "formats/mnx/mnx_articulations.h"
 #include "test_utils.h"
 

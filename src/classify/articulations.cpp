@@ -65,6 +65,20 @@ static GlyphStyle glyphStyleFromGlyphName(const std::string_view glyphName)
     return {};
 }
 
+static GlyphStyle glyphStyleFromKnownShapeDefType(musx::dom::KnownShapeDefType shapeDefType)
+{
+    using ST = musx::dom::KnownShapeDefType;
+    switch (shapeDefType) {
+    case ST::SnapPizzicatoAbove:
+        return { musx::dom::VerticalPlacement::Above };
+    case ST::SnapPizzicatoBelow:
+        return { musx::dom::VerticalPlacement::Below };
+    default:
+        break;
+    }
+    return {};
+}
+
 static GlyphStyle glyphStyleFromGlyphName(const std::optional<std::string>& glyphName)
 {
     if (glyphName) {
@@ -260,17 +274,43 @@ static ArticulationClassification classifyShape(
     if (!def || !shapeId) {
         return {};
     }
+    ArticulationClassification result{};
     if (auto shape = def->getDocument()->getOthers()->get<musx::dom::others::ShapeDef>(def->getRequestedPartId(), shapeId)) {
-        switch (shape->recognize()) {
-        case musx::dom::KnownShapeDefType::TenutoMark:
-            return makeArticulationMark({ ArticulationType::Tenuto }, std::nullopt);
-        case musx::dom::KnownShapeDefType::VerticalLineRightHooks:
-            return makeVerticalEntryBracket();
+        using ST = musx::dom::KnownShapeDefType;
+        const auto recognizedShapeType = shape->recognize();
+        switch (recognizedShapeType) {
+        case ST::TenutoMark:
+            result = makeArticulationMark({ ArticulationType::Tenuto }, std::nullopt);
+            break;
+        case ST::VerticalLineRightHooks:
+            result = makeVerticalEntryBracket();
+            break;
+        case ST::SnapPizzicatoAbove:
+            result = makeArticulationMark({ ArticulationType::SnapPizzicato }, std::nullopt);
+            break;
+        case ST::SnapPizzicatoBelow:
+            result = makeArticulationMark({ ArticulationType::SnapPizzicato }, std::nullopt);
+            break;
+        case ST::BuzzPizzicato:
+            result = makeArticulationMark({ ArticulationType::BuzzPizzicato }, std::nullopt);
+            break;
         default:
             break;
         }
+        std::visit([&](auto& value) {
+                using T = std::decay_t<decltype(value)>;
+
+                if constexpr (std::is_same_v<T, ArticulationMarks>) {
+                    for (auto& mark : value.marks) {
+                        mark.glyphStyle = glyphStyleFromKnownShapeDefType(recognizedShapeType);
+                    }
+                } else if constexpr (!std::is_same_v<T, std::monostate>) {
+                    value.glyphStyle = glyphStyleFromKnownShapeDefType(recognizedShapeType);
+                }
+            },
+            result.value);
     }
-    return {};
+    return result;
 }
 
 static PrivateClassification classifyGlyphName(std::string glyphName)
