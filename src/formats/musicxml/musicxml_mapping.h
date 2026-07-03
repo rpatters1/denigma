@@ -118,6 +118,12 @@ struct MusicXmlLayoutState
         const musx::util::Fraction& staffScaling);
 };
 
+struct MusicXmlNoteLocation
+{
+    int userVoiceNumber{};
+    size_t noteIndex{};
+};
+
 struct MusicXmlMusxMapping
 {
     MusicXmlMusxMapping(const DenigmaContext& context, const musx::dom::DocumentPtr& doc, musx::dom::Cmper partId)
@@ -142,7 +148,7 @@ struct MusicXmlMusxMapping
     std::unordered_map<std::string, std::vector<musx::dom::StaffCmper>> partIdToStaves;
     std::unordered_map<std::string, mx::api::PartSymbolData> partIdToPartSymbol;
     std::unordered_map<std::string, MusicXmlPitchContext> partIdToPitchContext;
-    std::unordered_map<musx::dom::EntryNumber, std::string> entryNumberToNoteId;
+    std::unordered_map<musx::dom::EntryNumber, MusicXmlNoteLocation> entryNumberToFirstNote;
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;
     std::unordered_set<std::uint64_t> pendingTieStopKeys;
 
@@ -150,6 +156,7 @@ struct MusicXmlMusxMapping
     {
         current.clear();
         layout.clear();
+        entryNumberToFirstNote.clear();
     }
 
     double musicXmlTenthsFromEvpu(double evpu, double backoutScaling = 1.0) const;

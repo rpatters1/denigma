@@ -539,6 +539,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
                 musxMeasure->getCmper(), musxMeasure->calcDuration(staffId).calcEduDuration());
             assignBarlines(context, measure, musxMeasure, isFinalMeasure, musxStaffAtEnd);
             createNotesForMeasureStaff(context, measure, staff, musxMeasure, staffId, staffIndex);
+            processExpressions(context, measure, staff, musxMeasure, staffId, staffIndex);
         }
     }
 

@@ -227,6 +227,26 @@ std::uint64_t noteKey(const NoteInfoPtr& noteInfo)
     return (std::uint64_t(noteInfo.getEntryInfo()->getEntry()->getEntryNumber()) << 32) | std::uint64_t(noteInfo.getNoteIndex());
 }
 
+mx::api::CurveOrientation musicXmlTieOrientation(CurveContourDirection direction)
+{
+    switch (direction) {
+    case CurveContourDirection::Up: return mx::api::CurveOrientation::overhand;
+    case CurveContourDirection::Down: return mx::api::CurveOrientation::underhand;
+    case CurveContourDirection::Unspecified:
+        break;
+    }
+    return mx::api::CurveOrientation::unspecified;
+}
+
+void applyTieAlterStart(const MusicXmlMusxMapping& context, mx::api::TieLetRing& tieLetRing, const NoteInfoPtr& noteInfo)
+{
+    if (auto tieAlter = context.document->getDetails()->getForNote<details::TieAlterStart>(noteInfo)) {
+        if (tieAlter->freezeDirection) {
+            tieLetRing.curveOrientation = musicXmlTieOrientation(tieAlter->down ? CurveContourDirection::Down : CurveContourDirection::Up);
+        }
+    }
+}
+
 void applyMusicXmlTies(MusicXmlMusxMapping& context, mx::api::NoteData& note, const NoteInfoPtr& noteInfo)
 {
     if (context.pendingTieStopKeys.erase(noteKey(noteInfo)) > 0) {
@@ -237,7 +257,9 @@ void applyMusicXmlTies(MusicXmlMusxMapping& context, mx::api::NoteData& note, co
         return;
     }
     const auto tiedTo = noteInfo.calcTieTo();
-    if (!tiedTo || tiedTo.getEntryInfo()->getEntry()->isHidden) {
+    if (!tiedTo || !tiedTo->tieEnd || tiedTo.getEntryInfo()->getEntry()->isHidden) {
+        note.tieLetRing = mx::api::TieLetRing{};
+        applyTieAlterStart(context, *note.tieLetRing, noteInfo);
         return;
     }
     note.isTieStart = true;
@@ -418,6 +440,12 @@ void appendEntryNotes(
 {
     const auto& entryInfo = entryIt.getEntryInfo();
     const auto entry = entryInfo->getEntry();
+    auto rememberFirstNote = [&](size_t noteIndex) {
+        context.entryNumberToFirstNote.try_emplace(entry->getEntryNumber(), MusicXmlNoteLocation{
+            .userVoiceNumber = userVoiceNumber,
+            .noteIndex = noteIndex
+        });
+    };
     for (size_t tupletIndex : entryInfo.findTupletInfo()) {
         const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
         if (tupletInfo.startIndex == entryInfo.getIndexInFrame() && tupletInfo.calcIsTremolo()) {
@@ -427,6 +455,7 @@ void appendEntryNotes(
     }
     if (entryInfo.calcIsFullMeasureRest() || entryInfo.calcDisplaysAsRest()) {
         auto rest = createRestData(context, entryIt, musxMeasure, nullptr, userVoiceNumber);
+        rememberFirstNote(voice.notes.size());
         voice.notes.emplace_back(rest);
         return;
     }
@@ -462,6 +491,9 @@ void appendEntryNotes(
         applyMusicXmlTies(context, note, noteInfo);
         if (entryIt.getEffectiveHidden()) {
             note.printData.printObject = mx::api::Bool::no;
+        }
+        if (noteIndex == 0) {
+            rememberFirstNote(voice.notes.size());
         }
         voice.notes.emplace_back(note);
     }

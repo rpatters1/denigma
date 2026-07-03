@@ -25,8 +25,11 @@
 #include <string_view>
 
 #include "core/denigma.h"
+#include "denigma/classify/expressions.h"
 #include "musicxml_mapping.h"
+#include "mx/api/DirectionData.h"
 #include "mx/api/MeasureData.h"
+#include "mx/api/MarkData.h"
 #include "mx/api/NoteData.h"
 #include "mx/api/SoundID.h"
 #include "mx/api/StaffData.h"
@@ -54,6 +57,8 @@ inline int musicXmlVoiceNumber(size_t staffIndex, musx::dom::LayerIndex layer, i
 
 MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, const std::string& partId);
 std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);
+mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacement placement);
+mx::api::MarkType musicXmlFermataType(const classify::Fermata& fermata);
 
 void createDefaults(const MusicXmlMusxMapping& context);
 void createMeasures(MusicXmlMusxMapping& context);
@@ -66,6 +71,20 @@ void createNotesForMeasureStaff(
     musx::dom::StaffCmper staffId,
     size_t staffIndex);
 void createParts(MusicXmlMusxMapping& context);
+void appendDynamicExpression(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    size_t staffIndex,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment,
+    const classify::ExpressionClassification& classification,
+    musx::dom::VerticalPlacement placement);
+void processExpressions(
+    MusicXmlMusxMapping& context,
+    mx::api::MeasureData& measure,
+    mx::api::StaffData& staff,
+    const musx::dom::MusxInstance<musx::dom::others::Measure>& musxMeasure,
+    musx::dom::StaffCmper staffId,
+    size_t staffIndex);
 void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note, const musx::dom::EntryInfoPtr& entryInfo);
 
 void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);

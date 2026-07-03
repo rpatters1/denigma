@@ -40,17 +40,23 @@ Needed API shape: clef size/font controls on `mx::api::ClefData`, or another sup
 
 ## Ties
 
-### Notation-only ties, let-ring ties, and one-ended visual ties
+### Notation-only ties and one-ended visual ties
 
 MusicXML separates sounding ties (`<tie>`) from notated ties (`<notations><tied>`). The `<tied>` element supports `start`, `stop`, `continue`, and `let-ring`. For visually one-ended ties that are not let-ring ties, the MusicXML guidance is to write both `<tied type="start"/>` and `<tied type="stop"/>` on the same note, in that order. This is used for ties into or out of repeats, endings, or codas. These visual ties should not necessarily produce a corresponding `<tie>` element, because `<tie>` represents playback semantics.
 
-`mx::api::NoteData` currently exposes only `isTieStart` and `isTieStop`. `NoteWriter` maps those booleans to both `<tie>` and `<tied>` together, and only as normal start/stop ties. Denigma therefore cannot express notation-only ties, `let-ring` ties, or same-note start/stop visual ties through the public API.
+`mx::api::NoteData` exposes `isTieStart` and `isTieStop`, and `NoteWriter` maps those booleans to both `<tie>` and `<tied>` together, only as normal start/stop ties. Denigma therefore cannot express notation-only ties or same-note start/stop visual ties through the public API.
 
-The MX generated core model already supports `mx::core::TiedType::letRing()`, but reaching around `mx::api` from Denigma would require copying and rebuilding the generated core score tree after `DocumentManager::createFromScore`, locating the corresponding generated core notes, and replacing their notation content. That would be brittle and would couple Denigma to MX internals.
-
-Needed API shape: a tie-notation data model separate from playback tie booleans, with support for `start`, `stop`, `continue`, `let-ring`, and same-note start/stop ordering. The API should also allow notation-only ties without writing `<tie>`, and should allow playback `<tie>` / `time-only` semantics to be modeled separately when Denigma can infer them.
+Needed API shape: a tie-notation data model separate from playback tie booleans, with support for `start`, `stop`, `continue`, and same-note start/stop ordering. The API should also allow notation-only ties without writing `<tie>`, and should allow playback `<tie>` / `time-only` semantics to be modeled separately when Denigma can infer them.
 
 ## Notes
+
+### Non-arpeggiate endpoints
+
+MusicXML `<non-arpeggiate>` is attached only to the top and bottom notes of the bracket. It requires a `type` attribute (`top` or `bottom`) and may need a shared `number` to distinguish simultaneous brackets.
+
+`mx::api::MarkType::nonArpeggiate` can emit a `<non-arpeggiate>` element, but `mx::api::MarkData` does not expose the required endpoint `type` or `number`. Denigma can resolve Finale non-arpeggio expressions to the correct top note of the top entry and bottom note of the bottom entry, but cannot write the correct paired MusicXML notation through the public API.
+
+Needed API shape: note-attached non-arpeggiate data with endpoint type (`top` / `bottom`) and optional number, or equivalent fields on `MarkData` that are only meaningful for `MarkType::nonArpeggiate`.
 
 ### Cross-staff note staff override
 
@@ -134,7 +140,25 @@ Denigma will probably not try to export part-name or part-group positioning over
 
 Needed API shape: position/print data for group-name-display, group-abbreviation-display, and possibly group-symbol placement.
 
+## Directions and Expressions
+
+### Interleaved words and symbols
+
+MusicXML direction types can interleave `<words>` and `<symbol>` elements in the same direction-type group. This is the correct representation for Finale expressions that mix normal formatted text with SMuFL music glyphs, such as dynamic expressions with text before or after dynamic glyphs, or arbitrary text expressions containing embedded music symbols.
+
+The generated MX core model represents this as `DirectionTypeChoiceChoice` with `words` and `symbol` alternatives. `mx::api::DirectionData` currently exposes `WordsData`, but does not expose a public formatted-symbol direction item or an ordered mixed run of words/symbol chunks. Denigma can therefore emit plain words and semantic dynamics, but cannot yet preserve mixed formatted text plus glyph expressions through `mx::api`.
+
+Needed API shape: a public direction text model that can represent an ordered run of formatted words and formatted SMuFL symbols, preserving order and per-chunk formatting. This could either extend `DirectionData` with a mixed words/symbol collection or add a higher-level formatted direction text object that writes MusicXML `<words>` / `<symbol>` siblings in order.
+
 ## Tuplets and Tremolos
+
+### Other notation SMuFL glyphs
+
+MusicXML's `other-articulation`, `other-technical`, `other-ornament`, and `other-notation` elements use the `other-placement-text` type, which can carry a `smufl` attribute for preserving a specific SMuFL glyph name.
+
+`mx::api::MarkData` exposes `name` for the text content of `other-articulation`, `other-technical`, and `other-ornament`, but does not expose the `smufl` attribute. Denigma can therefore emit semantic marks and text-valued `other-*` fallbacks, but cannot preserve the source glyph name through `mx::api` when a Finale articulation is only representable as an `other-*` MusicXML notation.
+
+Needed API shape: a SMuFL glyph-name field on mark data for `other-articulation`, `other-technical`, and `other-ornament`, and a corresponding public model for `other-notation` if MX intends to expose that notation category through `mx::api`.
 
 ### Nested tuplet time-modification
 
@@ -151,3 +175,11 @@ Finale represents some double-note tremolos as invisible two-entry tuplets. Musi
 `mx::api::MarkType` currently exposes only single-note tremolo marks. The generated MX core model supports MusicXML's tremolo type values, but there is no public API representation for double-note tremolo start/stop.
 
 Needed API shape: a note attachment model for double-note tremolos with mark count and type (`start`, `stop`), separate from single-note tremolo glyph marks.
+
+### Unmeasured tremolos
+
+MusicXML represents unmeasured tremolos with `<tremolo type="unmeasured">0</tremolo>`, optionally using the `smufl` attribute to name a specific tremolo glyph.
+
+`mx::api::MarkType` currently exposes only single-note tremolo slash counts and always writes `type="single"`. Denigma therefore cannot express Finale unmeasured tremolo glyphs through the public API. For now, Denigma emits a visible 3-slash single-note tremolo and logs the downgrade.
+
+Needed API shape: tremolo attachment data that exposes MusicXML tremolo type (`single`, `start`, `stop`, `unmeasured`), mark count, and optional SMuFL glyph for unmeasured tremolos.

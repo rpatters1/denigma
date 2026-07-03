@@ -170,6 +170,9 @@ std::vector<mx::api::WordsData> musicXmlWordsFromEnigmaText(const MusicXmlMusxMa
     std::vector<mx::api::WordsData> result;
     auto parserOptions = options;
     parserOptions.onChunk = [&](const mx::api::FontData& fontData, const std::string& chunk) {
+        if (chunk.empty()) {
+            return;
+        }
         mx::api::WordsData words;
         words.fontData = fontData;
         words.text = chunk;
