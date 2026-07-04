@@ -146,6 +146,12 @@ struct GenericText
     std::string text;
 };
 
+struct DynamicQualifier
+{
+    DynamicChange change{ DynamicChange::Absolute };
+    std::string text;
+};
+
 struct ExpressionError
 {
     std::string message;
@@ -155,7 +161,19 @@ struct Suppress
 {
 };
 
-using ExpressionValue = std::variant<std::monostate, DynamicPhraseClassification, ExpressionFermata, ExpressionBreathMark, ExpressionNonArpeggio, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
+using ExpressionRunValue = std::variant<std::monostate, DynamicMark, DynamicQualifier, ExpressionFermata, ExpressionBreathMark, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
+using ExpressionValue = std::variant<std::monostate, DynamicMark, ExpressionFermata, ExpressionBreathMark, ExpressionNonArpeggio, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
+
+struct ExpressionRun
+{
+    musx::util::EnigmaTextChunk chunk;
+    ClassificationBasis basis{ ClassificationBasis::FallbackToGenericText };
+    ExpressionRunValue value{};
+
+    template <typename T>
+    const T* as() const noexcept
+    { return std::get_if<T>(&value); }
+};
 
 struct ExpressionClassification
 {
@@ -163,6 +181,7 @@ struct ExpressionClassification
     ClassificationBasis basis{ ClassificationBasis::FallbackToGenericText };
     std::optional<musx::util::EnigmaParsingContext> enigmaCtx;
     ExpressionValue value{};
+    std::vector<ExpressionRun> runs;
 
     template <typename T>
     const T* as() const noexcept
@@ -181,8 +200,8 @@ private:
 
 public:
 
-    const DynamicPhraseClassification& dynamic() const
-    { return checkedPayload<DynamicPhraseClassification, ExpressionType::Dynamic>("Dynamic"); }
+    const DynamicMark& dynamic() const
+    { return checkedPayload<DynamicMark, ExpressionType::Dynamic>("Dynamic"); }
 
     const ExpressionFermata& fermata() const
     { return checkedPayload<ExpressionFermata, ExpressionType::Fermata>("Fermata"); }

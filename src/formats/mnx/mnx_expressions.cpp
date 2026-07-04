@@ -63,24 +63,74 @@ struct MnxDynamicProjection
     { return !prefixText.empty() || !glyphs.empty() || !suffixText.empty(); }
 };
 
-std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::DynamicPhraseClassification& phrase)
+std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::ExpressionClassification& classification)
 {
-    const auto dynamicIt = std::find_if(phrase.runs.begin(), phrase.runs.end(), [](const classify::DynamicPhraseRun& run) {
-        return run.dynamic.has_value();
-    });
-    if (dynamicIt == phrase.runs.end()) {
+    auto appendText = [](std::string& dest, const classify::ExpressionRun& run) {
+        dest += run.chunk.text;
+    };
+    auto mergeQualifier = [](classify::DynamicChange& current, classify::DynamicChange next) {
+        if (next == classify::DynamicChange::Absolute) {
+            return true;
+        }
+        if (current == classify::DynamicChange::Absolute) {
+            current = next;
+            return true;
+        }
+        return current == next;
+    };
+
+    MnxDynamicProjection result;
+    bool sawDynamic = false;
+    bool afterDynamic = false;
+    for (const auto& run : classification.runs) {
+        if (const auto* dynamicMark = run.as<classify::DynamicMark>()) {
+            if (sawDynamic) {
+                return std::nullopt;
+            }
+            sawDynamic = true;
+            result.dynamic = dynamicMark->dynamic;
+            result.glyphs = dynamicMark->glyphs;
+            afterDynamic = true;
+            continue;
+        }
+
+        if (const auto* genericText = run.as<classify::GenericText>()) {
+            (void)genericText;
+            if (afterDynamic) {
+                appendText(result.suffixText, run);
+            } else {
+                appendText(result.prefixText, run);
+            }
+            continue;
+        }
+
+        if (const auto* qualifier = run.as<classify::DynamicQualifier>()) {
+            if (!mergeQualifier(result.change, qualifier->change)) {
+                return std::nullopt;
+            }
+            if (afterDynamic) {
+                appendText(result.suffixText, run);
+            } else {
+                appendText(result.prefixText, run);
+            }
+            continue;
+        }
+
         return std::nullopt;
     }
 
-    MnxDynamicProjection result;
-    result.dynamic = dynamicIt->dynamic->dynamic;
-    result.glyphs = dynamicIt->dynamic->glyphs;
-    result.change = dynamicIt->dynamic->change;
-    result.prefixText = utils::trimAscii(classify::dynamicRunPlainText(phrase.runs.begin(), dynamicIt));
-    result.suffixText = utils::trimAscii(classify::dynamicRunPlainText(std::next(dynamicIt), phrase.runs.end()));
-
+    if (!sawDynamic || result.dynamic == classify::Dynamic{}) {
+        return std::nullopt;
+    }
+    result.prefixText = utils::trimAscii(result.prefixText);
+    result.suffixText = utils::trimAscii(result.suffixText);
     if (result.dynamic == classify::Dynamic::Other && result.glyphs.empty() && result.prefixText.empty() && result.suffixText.empty()) {
-        result.prefixText = utils::trimAscii(musx::util::EnigmaString::plainTextFromChunks(dynamicIt->chunks));
+        const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const classify::ExpressionRun& run) {
+            return std::holds_alternative<classify::DynamicMark>(run.value);
+        });
+        if (dynamicIt != classification.runs.end()) {
+            result.prefixText = utils::trimAscii(dynamicIt->chunk.text);
+        }
     }
 
     return result;
@@ -184,13 +234,13 @@ std::pair<std::optional<mnxdom::DynamicValue>, std::optional<mnxdom::DynamicValu
 }
 
 void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
-    const MusxInstance<others::MeasureExprAssign>& asgn, const classify::DynamicPhraseClassification& dynamicPhrase, VerticalPlacement placement)
+    const MusxInstance<others::MeasureExprAssign>& asgn, const classify::ExpressionClassification& classification, VerticalPlacement placement)
 {
     if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
         return;
     }
 
-    auto dynamicClass = projectPrimaryDynamicForMnx(dynamicPhrase);
+    auto dynamicClass = projectPrimaryDynamicForMnx(classification);
     if (!dynamicClass) {
         return;
     }
@@ -322,7 +372,7 @@ void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<oth
             auto placement = asgn->calcVerticalPlacement();
             switch (classification.type) {
             case classify::ExpressionType::Dynamic:
-                appendDynamic(context, mnxMeasure, mnxStaffNumber, asgn, classification.dynamic(), placement);
+                appendDynamic(context, mnxMeasure, mnxStaffNumber, asgn, classification, placement);
                 break;
             case classify::ExpressionType::Fermata: {
                 const auto& fermata = classification.fermata();

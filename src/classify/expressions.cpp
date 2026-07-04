@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -108,24 +109,142 @@ static std::string_view withoutFinalPeriods(std::string_view text)
     return text;
 }
 
+static musx::util::EnigmaTextChunk sliceChunk(const musx::util::EnigmaTextChunk& chunk, size_t start, size_t length)
+{
+    auto result = chunk;
+    result.text = chunk.text.substr(start, length);
+    return result;
+}
+
+static musx::util::EnigmaTextChunk sliceChunk(const musx::util::EnigmaTextChunk& chunk, std::span<const char> sourceText)
+{
+    const auto* chunkStart = chunk.text.data();
+    const size_t start = static_cast<size_t>(sourceText.data() - chunkStart);
+    return sliceChunk(chunk, start, sourceText.size());
+}
+
+static DynamicChange qualifierChangeForText(std::string_view text)
+{
+    bool sawIncrease = false;
+    bool sawDecrease = false;
+    const auto isBoundary = [](unsigned char ch) {
+        return utils::isSpace(ch) || utils::isPunctuation(ch);
+    };
+
+    for (size_t start = 0; start < text.size();) {
+        while (start < text.size() && isBoundary(static_cast<unsigned char>(text[start]))) {
+            ++start;
+        }
+        size_t end = start;
+        while (end < text.size() && !isBoundary(static_cast<unsigned char>(text[end]))) {
+            ++end;
+        }
+        if (start < end) {
+            const std::string_view token = withoutFinalPeriods(text.substr(start, end - start));
+            if (token == "piu" || token == "più") {
+                sawIncrease = true;
+            } else if (token == "meno" || token == "menos") {
+                sawDecrease = true;
+            }
+        }
+        start = end;
+    }
+
+    if (sawIncrease == sawDecrease) {
+        return DynamicChange::Absolute;
+    }
+    return sawIncrease ? DynamicChange::RelativeIncrease : DynamicChange::RelativeDecrease;
+}
+
+static std::vector<musx::util::EnigmaTextChunk> collectVisibleExpressionChunks(
+    const musx::util::EnigmaParsingContext& rawTextCtx)
+{
+    std::vector<musx::util::EnigmaTextChunk> result;
+    auto chunks = rawTextCtx.collectEnigmaTextChunks(
+        musx::util::EnigmaString::EnigmaParsingOptions(musx::util::EnigmaString::AccidentalStyle::Unicode));
+    for (auto& chunk : chunks) {
+        if (!chunk.styles.font || chunk.styles.font->hidden || chunk.text.empty()) {
+            continue;
+        }
+        result.push_back(std::move(chunk));
+    }
+    return result;
+}
+
+static void appendGenericRun(std::vector<ExpressionRun>& runs, const musx::util::EnigmaTextChunk& chunk)
+{
+    if (!chunk.text.empty()) {
+        const std::string normalizedText = normalizeExpressionText(chunk.text);
+        const DynamicChange change = qualifierChangeForText(normalizedText);
+        if (change != DynamicChange::Absolute) {
+            runs.push_back({ chunk, ClassificationBasis::Heuristic, DynamicQualifier{ change, chunk.text } });
+        } else {
+            runs.push_back({ chunk, ClassificationBasis::FallbackToGenericText, GenericText{ chunk.text } });
+        }
+    }
+}
+
+static std::vector<ExpressionRun> classifyExpressionRuns(const ResolvedTextExpression& resolved)
+{
+    if (!resolved.rawTextCtx) {
+        return {};
+    }
+
+    std::vector<ExpressionRun> result;
+    const bool forceDynamicOther = resolved.categoryType == CategoryType::Dynamics;
+    for (const auto& chunk : collectVisibleExpressionChunks(resolved.rawTextCtx)) {
+        const auto dynamicSpans = detail::findDynamicSpans(chunk);
+        if (dynamicSpans.empty()) {
+            if (auto dynamic = classifyDynamicRun(chunk, forceDynamicOther)) {
+                result.push_back({ chunk, dynamic->dynamic == Dynamic::Other
+                    ? ClassificationBasis::FinaleCategory
+                    : basisForRecognition(resolved.categoryType, CategoryType::Dynamics), *dynamic });
+            } else {
+                appendGenericRun(result, chunk);
+            }
+            continue;
+        }
+
+        size_t cursor = 0;
+        for (const auto& dynamicSpan : dynamicSpans) {
+            const size_t dynamicStart = static_cast<size_t>(dynamicSpan.sourceText.data() - chunk.text.data());
+            if (dynamicStart > cursor) {
+                appendGenericRun(result, sliceChunk(chunk, cursor, dynamicStart - cursor));
+            }
+            result.push_back({
+                sliceChunk(chunk, dynamicSpan.sourceText),
+                basisForRecognition(resolved.categoryType, CategoryType::Dynamics),
+                dynamicSpan.mark
+            });
+            cursor = dynamicStart + dynamicSpan.sourceText.size();
+        }
+        if (cursor < chunk.text.size()) {
+            appendGenericRun(result, sliceChunk(chunk, cursor, chunk.text.size() - cursor));
+        }
+    }
+    return result;
+}
+
 static std::optional<ExpressionClassification> makeDynamicExpression(
-    const DynamicPhraseClassification& dynamicClass,
+    std::vector<ExpressionRun> runs,
     CategoryType categoryType)
 {
-    if (!dynamicClass) {
+    const auto dynamicIt = std::find_if(runs.begin(), runs.end(), [](const ExpressionRun& run) {
+        return std::holds_alternative<DynamicMark>(run.value);
+    });
+    if (dynamicIt == runs.end()) {
         return std::nullopt;
     }
 
-    const bool isOtherDynamic = std::any_of(dynamicClass.runs.begin(), dynamicClass.runs.end(), [](const DynamicPhraseRun& run) {
-        return run.dynamic && run.dynamic->dynamic == Dynamic::Other;
-    });
+    const auto& dynamicMark = std::get<DynamicMark>(dynamicIt->value);
 
     ExpressionClassification result;
     result.type = ExpressionType::Dynamic;
-    result.basis = isOtherDynamic
+    result.basis = dynamicMark.dynamic == Dynamic::Other
         ? ClassificationBasis::FinaleCategory
         : basisForRecognition(categoryType, CategoryType::Dynamics);
-    result.value = dynamicClass;
+    result.value = dynamicMark;
+    result.runs = std::move(runs);
     return result;
 }
 
@@ -519,7 +638,7 @@ static std::optional<ExpressionClassification> classifyResolvedTextExpressionBef
     if (categoryType == CategoryType::RehearsalMarks) {
         return withEnigmaCtx(*classifyRehearsalMark(normalizedText, categoryType), resolved);
     }
-    if (const auto dynamic = makeDynamicExpression(classifyDynamic(resolved.rawTextCtx, categoryType == CategoryType::Dynamics), categoryType)) {
+    if (const auto dynamic = makeDynamicExpression(classifyExpressionRuns(resolved), categoryType)) {
         return withEnigmaCtx(*dynamic, resolved);
     }
     if (categoryType == CategoryType::TempoMarks || categoryType == CategoryType::TempoAlterations) {

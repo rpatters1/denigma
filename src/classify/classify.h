@@ -21,7 +21,11 @@
  */
 #pragma once
 
+#include "denigma/classify/dynamics.h"
 #include "musx/musx.h"
+
+#include <span>
+#include <vector>
 
 namespace denigma::classify {
 
@@ -42,5 +46,17 @@ inline ExpressionCategoryType categoryTypeFromId(musx::dom::Cmper categoryId)
     }
     return ExpressionCategoryType::Misc;
 }
+
+namespace detail {
+
+struct DynamicSpan
+{
+    std::span<const char> sourceText;
+    DynamicMark mark;
+};
+
+std::vector<DynamicSpan> findDynamicSpans(const musx::util::EnigmaTextChunk& chunk);
+
+} // namespace detail
 
 } // namespace denigma::classify
