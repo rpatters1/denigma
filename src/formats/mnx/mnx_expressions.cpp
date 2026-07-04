@@ -79,7 +79,7 @@ std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::
     result.prefixText = utils::trimAscii(classify::dynamicRunPlainText(phrase.runs.begin(), dynamicIt));
     result.suffixText = utils::trimAscii(classify::dynamicRunPlainText(std::next(dynamicIt), phrase.runs.end()));
 
-    if (result.dynamic == classify::Dynamic::Other && result.prefixText.empty() && result.suffixText.empty()) {
+    if (result.dynamic == classify::Dynamic::Other && result.glyphs.empty() && result.prefixText.empty() && result.suffixText.empty()) {
         result.prefixText = utils::trimAscii(musx::util::EnigmaString::plainTextFromChunks(dynamicIt->chunks));
     }
 
