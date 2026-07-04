@@ -155,7 +155,7 @@ struct Suppress
 {
 };
 
-using ExpressionValue = std::variant<std::monostate, DynamicClassification, ExpressionFermata, ExpressionBreathMark, ExpressionNonArpeggio, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
+using ExpressionValue = std::variant<std::monostate, DynamicPhraseClassification, ExpressionFermata, ExpressionBreathMark, ExpressionNonArpeggio, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
 
 struct ExpressionClassification
 {
@@ -181,8 +181,8 @@ private:
 
 public:
 
-    const DynamicClassification& dynamic() const
-    { return checkedPayload<DynamicClassification, ExpressionType::Dynamic>("Dynamic"); }
+    const DynamicPhraseClassification& dynamic() const
+    { return checkedPayload<DynamicPhraseClassification, ExpressionType::Dynamic>("Dynamic"); }
 
     const ExpressionFermata& fermata() const
     { return checkedPayload<ExpressionFermata, ExpressionType::Fermata>("Fermata"); }

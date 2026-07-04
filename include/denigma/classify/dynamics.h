@@ -21,6 +21,8 @@
  */
 #pragma once
 
+#include <iterator>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -74,41 +76,62 @@ enum class DynamicChange
     RelativeDecrease
 };
 
-/// @struct DynamicClassification
-/// @brief Result returned by dynamic classification.
-struct DynamicClassification
+/// @struct DynamicMark
+/// @brief Dynamic metadata attached to a source text run.
+struct DynamicMark
 {
     /// Classified dynamic.
     Dynamic dynamic{};
-    /// True when the source expression includes extra non-dynamic text.
-    bool hasAdditionalText{};
-    /// Plain text before the classified dynamic, normalized and edge-trimmed.
-    std::string prefixText;
-    /// Plain text after the classified dynamic, normalized and edge-trimmed.
-    std::string suffixText;
     /// Glyph names that participated in the matched dynamic, in source order.
     /// Empty when any matched character does not resolve to a glyph name.
     std::vector<std::string> glyphs;
-    /// Relative direction inferred from unambiguous prefix or suffix qualifiers.
+    /// Relative direction inferred from unambiguous nearby qualifiers.
     DynamicChange change{ DynamicChange::Absolute };
-
-    /// Returns true when the source was recognized as a dynamic.
-    [[nodiscard]] bool isDynamic() const noexcept
-    { return dynamic != Dynamic::None; }
-
-    /// Returns true when at least one of the dynamic text elements contains text
-    [[nodiscard]] bool containsText() const noexcept
-    { return !prefixText.empty() || !glyphs.empty() || !suffixText.empty(); }
-
-    /// Returns true when the source was recognized as a dynamic.
-    explicit operator bool() const noexcept
-    { return isDynamic(); }
 };
 
-/// Classifies a Finale text expression definition as a dynamic marking.
-DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);
-/// Classifies an already-resolved Enigma text context as a dynamic marking.
-DynamicClassification classifyDynamic(const musx::util::EnigmaParsingContext& rawTextCtx, bool isDynamicsCategory = false);
+/// @struct DynamicPhraseRun
+/// @brief Ordered source chunks, optionally classified as a dynamic mark.
+struct DynamicPhraseRun
+{
+    /// Source chunks covered by this run.
+    std::vector<musx::util::EnigmaTextChunk> chunks;
+    /// Dynamic metadata when this run is recognized as a dynamic mark.
+    std::optional<DynamicMark> dynamic;
+};
+
+/// @struct DynamicPhraseClassification
+/// @brief Ordered dynamic phrase runs suitable for exporter-specific projection.
+struct DynamicPhraseClassification
+{
+    /// Ordered source runs.
+    std::vector<DynamicPhraseRun> runs;
+
+    /// Returns true when any run is recognized as a dynamic.
+    [[nodiscard]] bool hasDynamic() const noexcept;
+
+    /// Returns true when any run is recognized as a dynamic.
+    explicit operator bool() const noexcept
+    { return hasDynamic(); }
+};
+
+/// Returns the plain text spanned by a range of dynamic phrase runs.
+template <std::input_iterator Iterator>
+std::string dynamicRunPlainText(Iterator begin, Iterator end)
+{
+    std::string text;
+    for (auto it = begin; it != end; ++it) {
+        text += musx::util::EnigmaString::plainTextFromChunks(it->chunks);
+    }
+    return text;
+}
+
+/// Returns the plain text spanned by dynamic phrase runs.
+std::string dynamicRunPlainText(const std::vector<DynamicPhraseRun>& runs);
+
+/// Classifies a Finale text expression definition as an ordered dynamic phrase.
+DynamicPhraseClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);
+/// Classifies an already-resolved Enigma text context as an ordered dynamic phrase.
+DynamicPhraseClassification classifyDynamic(const musx::util::EnigmaParsingContext& rawTextCtx, bool isDynamicsCategory = false);
 /// Returns the canonical text spelling for a dynamic.
 std::string dynamicCanonicalText(Dynamic dynamic);
 /// Returns canonical SMuFL glyph names for a dynamic.

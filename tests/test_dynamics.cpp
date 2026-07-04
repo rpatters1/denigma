@@ -19,6 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -29,6 +30,7 @@
 #include "core/musx_reader.h"
 #include "denigma/classify/dynamics.h"
 #include "musx/musx.h"
+#include "utils/stringutils.h"
 
 using namespace denigma::classify;
 using namespace musx::dom;
@@ -99,13 +101,63 @@ static TextExpressionContext makeTextExpressionContext(const std::string& text, 
     return { document, document->getOthers()->get<others::TextExpressionDef>(SCORE_PARTID, 1) };
 }
 
-static DynamicClassification classifyTestDynamic(const std::string& text)
+struct TestDynamicView
+{
+    Dynamic dynamic{ Dynamic::None };
+    std::string prefixText;
+    std::string suffixText;
+    std::vector<std::string> glyphs;
+    DynamicChange change{ DynamicChange::Absolute };
+    bool hasAdditionalText{};
+
+    [[nodiscard]] bool isDynamic() const noexcept
+    { return dynamic != Dynamic::None; }
+
+    explicit operator bool() const noexcept
+    { return isDynamic(); }
+};
+
+static TestDynamicView primaryDynamicForTest(const DynamicPhraseClassification& phrase)
+{
+    const auto dynamicIt = std::find_if(phrase.runs.begin(), phrase.runs.end(), [](const DynamicPhraseRun& run) {
+        return run.dynamic.has_value();
+    });
+    if (dynamicIt == phrase.runs.end()) {
+        return {};
+    }
+
+    TestDynamicView result;
+    result.dynamic = dynamicIt->dynamic->dynamic;
+    result.glyphs = dynamicIt->dynamic->glyphs;
+    result.change = dynamicIt->dynamic->change;
+    result.prefixText = utils::trimAscii(dynamicRunPlainText(phrase.runs.begin(), dynamicIt));
+    result.suffixText = utils::trimAscii(dynamicRunPlainText(std::next(dynamicIt), phrase.runs.end()));
+    if (result.dynamic == Dynamic::Other && result.prefixText.empty() && result.suffixText.empty()) {
+        result.prefixText = utils::trimAscii(musx::util::EnigmaString::plainTextFromChunks(dynamicIt->chunks));
+    }
+    result.hasAdditionalText = !result.prefixText.empty() || !result.suffixText.empty();
+    return result;
+}
+
+static TestDynamicView classifyTestDynamic(const std::string& text)
+{
+    const auto context = makeTextExpressionContext(text);
+    return primaryDynamicForTest(classifyDynamic(context.def));
+}
+
+static TestDynamicView classifyTestDynamicInDynamicsCategory(const std::string& text)
+{
+    const auto context = makeTextExpressionContext(text, true);
+    return primaryDynamicForTest(classifyDynamic(context.def));
+}
+
+static DynamicPhraseClassification classifyTestDynamicPhrase(const std::string& text)
 {
     const auto context = makeTextExpressionContext(text);
     return classifyDynamic(context.def);
 }
 
-static DynamicClassification classifyTestDynamicInDynamicsCategory(const std::string& text)
+static DynamicPhraseClassification classifyTestDynamicPhraseInDynamicsCategory(const std::string& text)
 {
     const auto context = makeTextExpressionContext(text, true);
     return classifyDynamic(context.def);
@@ -165,7 +217,7 @@ static std::string smuflGlyphText(const std::vector<std::string>& glyphs)
 
 } // namespace
 
-TEST(DynamicClassification, ClassifiesCoreDynamics)
+TEST(DynamicPhraseClassification, ClassifiesCoreDynamics)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pppppp").dynamic, Dynamic::pppppp);
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ppppp").dynamic, Dynamic::ppppp);
@@ -183,7 +235,7 @@ TEST(DynamicClassification, ClassifiesCoreDynamics)
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ffffff").dynamic, Dynamic::ffffff);
 }
 
-TEST(DynamicClassification, ClassifiesAccentDynamics)
+TEST(DynamicPhraseClassification, ClassifiesAccentDynamics)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fp").dynamic, Dynamic::fp);
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)ffp").dynamic, Dynamic::ffp);
@@ -202,7 +254,7 @@ TEST(DynamicClassification, ClassifiesAccentDynamics)
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)niente").dynamic, Dynamic::n);
 }
 
-TEST(DynamicClassification, ClassifiesAliases)
+TEST(DynamicPhraseClassification, ClassifiesAliases)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)forzando").dynamic, Dynamic::fz);
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sforzando").dynamic, Dynamic::sf);
@@ -212,7 +264,7 @@ TEST(DynamicClassification, ClassifiesAliases)
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rinf.").dynamic, Dynamic::rf);
 }
 
-TEST(DynamicClassification, ClassifiesLegacyGlyphs)
+TEST(DynamicPhraseClassification, ClassifiesLegacyGlyphs)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)p").dynamic, Dynamic::p);
     EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)ppp").dynamic, Dynamic::ppp);
@@ -220,7 +272,7 @@ TEST(DynamicClassification, ClassifiesLegacyGlyphs)
     EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)Z").dynamic, Dynamic::fz);
 }
 
-TEST(DynamicClassification, ClassifiesSmuflGlyphs)
+TEST(DynamicPhraseClassification, ClassifiesSmuflGlyphs)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE52B;").dynamic, Dynamic::pp);
     EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE52E;").dynamic, Dynamic::pf);
@@ -237,7 +289,7 @@ TEST(DynamicClassification, ClassifiesSmuflGlyphs)
     EXPECT_EQ(classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE53D;").dynamic, Dynamic::rfz);
 }
 
-TEST(DynamicClassification, ReturnsMatchedGlyphNamesWhenAllMatchedCharactersResolveToGlyphs)
+TEST(DynamicPhraseClassification, ReturnsMatchedGlyphNamesWhenAllMatchedCharactersResolveToGlyphs)
 {
     const auto smuflSingle = classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE52D;");
     EXPECT_EQ(smuflSingle.dynamic, Dynamic::mf);
@@ -276,7 +328,7 @@ TEST(DynamicClassification, ReturnsMatchedGlyphNamesWhenAllMatchedCharactersReso
     EXPECT_EQ(mixedWithText.glyphs, (std::vector<std::string>{ "dynamicMF" }));
 }
 
-TEST(DynamicClassification, ClassifiesPattersonDefaultDynamicsCategory)
+TEST(DynamicPhraseClassification, ClassifiesPattersonDefaultDynamicsCategory)
 {
     const auto document = loadPattersonDefaultDocument();
     ASSERT_TRUE(document);
@@ -309,13 +361,13 @@ TEST(DynamicClassification, ClassifiesPattersonDefaultDynamicsCategory)
         ASSERT_TRUE(def) << item.cmper;
         ASSERT_EQ(def->categoryId, 1) << item.cmper;
 
-        const auto classification = classifyDynamic(def);
+        const auto classification = primaryDynamicForTest(classifyDynamic(def));
         EXPECT_EQ(classification.dynamic, item.dynamic) << item.cmper;
         EXPECT_EQ(classification.hasAdditionalText, item.hasAdditionalText) << item.cmper;
     }
 }
 
-TEST(DynamicClassification, DistinguishesOtherAndNone)
+TEST(DynamicPhraseClassification, DistinguishesOtherAndNone)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffffff").dynamic, Dynamic::Other);
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)nn").dynamic, Dynamic::None);
@@ -323,43 +375,39 @@ TEST(DynamicClassification, DistinguishesOtherAndNone)
     EXPECT_EQ(classifyTestDynamicInDynamicsCategory("^fontid(1)^size(12)^nfx(0)dolce").dynamic, Dynamic::Other);
 }
 
-TEST(DynamicClassification, PreservesFallbackDataForOtherDynamics)
+TEST(DynamicPhraseClassification, PreservesFallbackDataForOtherDynamics)
 {
     const auto textOther = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffffff");
     EXPECT_EQ(textOther.dynamic, Dynamic::Other);
-    EXPECT_TRUE(textOther.hasAdditionalText);
     EXPECT_EQ(textOther.prefixText, "fffffff");
-    EXPECT_TRUE(textOther.suffixText.empty());
     EXPECT_TRUE(textOther.glyphs.empty());
 
-    const auto glyphOther = classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE52F;&#xE52F;&#xE52F;&#xE522;");
-    EXPECT_EQ(glyphOther.dynamic, Dynamic::Other);
-    EXPECT_FALSE(glyphOther.hasAdditionalText);
-    EXPECT_TRUE(glyphOther.prefixText.empty());
-    EXPECT_TRUE(glyphOther.suffixText.empty());
-    EXPECT_EQ(glyphOther.glyphs, (std::vector<std::string>{ "dynamicFF", "dynamicFF", "dynamicFF", "dynamicForte" }));
+    const auto glyphOther = classifyTestDynamicPhrase("^fontid(0)^size(24)^nfx(0)&#xE52F;&#xE52F;&#xE52F;&#xE522;");
+    ASSERT_EQ(glyphOther.runs.size(), 1u);
+    ASSERT_TRUE(glyphOther.runs[0].dynamic);
+    EXPECT_EQ(glyphOther.runs[0].dynamic->dynamic, Dynamic::Other);
+    EXPECT_EQ(glyphOther.runs[0].dynamic->glyphs, (std::vector<std::string>{ "dynamicFF", "dynamicFF", "dynamicFF", "dynamicForte" }));
 
-    const auto mixedOther = classifyTestDynamic("^fontid(0)^size(24)^nfx(0)&#xE52F;^fontid(1)^size(12)^nfx(0)fffff");
-    EXPECT_EQ(mixedOther.dynamic, Dynamic::Other);
-    EXPECT_TRUE(mixedOther.prefixText.empty());
-    EXPECT_EQ(mixedOther.suffixText, "fffff");
-    EXPECT_EQ(mixedOther.glyphs, (std::vector<std::string>{ "dynamicFF" }));
+    const auto mixedOther = classifyTestDynamicPhrase("^fontid(0)^size(24)^nfx(0)&#xE52F;^fontid(1)^size(12)^nfx(0)fffff");
+    ASSERT_EQ(mixedOther.runs.size(), 1u);
+    ASSERT_TRUE(mixedOther.runs[0].dynamic);
+    EXPECT_EQ(mixedOther.runs[0].dynamic->dynamic, Dynamic::Other);
+    EXPECT_EQ(mixedOther.runs[0].dynamic->glyphs, (std::vector<std::string>{ "dynamicFF" }));
+    EXPECT_EQ(mixedOther.runs[0].chunks.size(), 2u);
 
     const auto categoryOther = classifyTestDynamicInDynamicsCategory("^fontid(1)^size(12)^nfx(0)dolce");
     EXPECT_EQ(categoryOther.dynamic, Dynamic::Other);
-    EXPECT_TRUE(categoryOther.hasAdditionalText);
     EXPECT_EQ(categoryOther.prefixText, "dolce");
 
-    const auto categoryGlyphOther = classifyTestDynamicInDynamicsCategory(
+    const auto categoryGlyphOther = classifyTestDynamicPhraseInDynamicsCategory(
         "^fontid(1)^size(12)^nfx(0)cresc. ^fontid(0)^size(24)^nfx(0)&#xE52F;&#xE52F;&#xE52F;&#xE522;^fontid(1)^size(12)^nfx(0) subito");
-    EXPECT_EQ(categoryGlyphOther.dynamic, Dynamic::Other);
-    EXPECT_TRUE(categoryGlyphOther.hasAdditionalText);
-    EXPECT_EQ(categoryGlyphOther.prefixText, "cresc.");
-    EXPECT_EQ(categoryGlyphOther.suffixText, "subito");
-    EXPECT_EQ(categoryGlyphOther.glyphs, (std::vector<std::string>{ "dynamicFF", "dynamicFF", "dynamicFF", "dynamicForte" }));
+    ASSERT_EQ(categoryGlyphOther.runs.size(), 1u);
+    ASSERT_TRUE(categoryGlyphOther.runs[0].dynamic);
+    EXPECT_EQ(categoryGlyphOther.runs[0].dynamic->dynamic, Dynamic::Other);
+    EXPECT_EQ(categoryGlyphOther.runs[0].dynamic->glyphs, (std::vector<std::string>{ "dynamicFF", "dynamicFF", "dynamicFF", "dynamicForte" }));
 }
 
-TEST(DynamicClassification, FlagsAdditionalText)
+TEST(DynamicPhraseClassification, FlagsAdditionalText)
 {
     const auto plain = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pp");
     EXPECT_TRUE(plain);
@@ -399,7 +447,7 @@ TEST(DynamicClassification, FlagsAdditionalText)
     EXPECT_FALSE(none.isDynamic());
 }
 
-TEST(DynamicClassification, ClassifiesRelativeDynamicQualifiersConservatively)
+TEST(DynamicPhraseClassification, ClassifiesRelativeDynamicQualifiersConservatively)
 {
     const auto piu = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)più mf");
     EXPECT_EQ(piu.dynamic, Dynamic::mf);
@@ -426,7 +474,7 @@ TEST(DynamicClassification, ClassifiesRelativeDynamicQualifiersConservatively)
     EXPECT_EQ(cresc.change, DynamicChange::Absolute);
 }
 
-TEST(DynamicClassification, RequiresSpaceDelimitersForNonGlyphTokens)
+TEST(DynamicPhraseClassification, RequiresSpaceDelimitersForNonGlyphTokens)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)G.P.").dynamic, Dynamic::None);
     EXPECT_EQ(classifyTestDynamicInDynamicsCategory("^fontid(1)^size(12)^nfx(0)G.P.").dynamic, Dynamic::Other);
@@ -446,7 +494,37 @@ TEST(DynamicClassification, RequiresSpaceDelimitersForNonGlyphTokens)
     EXPECT_EQ(glyphDynamicWithSuffix.suffixText, "subito");
 }
 
-TEST(DynamicClassification, ProvidesCanonicalText)
+TEST(DynamicPhraseClassification, PreservesOrderedRunsForMultipleDynamics)
+{
+    const auto phrase = classifyTestDynamicPhrase("^fontid(1)^size(12)^nfx(0)sub. pp possibile mf");
+    ASSERT_EQ(phrase.runs.size(), 4u);
+
+    EXPECT_FALSE(phrase.runs[0].dynamic);
+    EXPECT_EQ(musx::util::EnigmaString::plainTextFromChunks(phrase.runs[0].chunks), "sub. ");
+
+    ASSERT_TRUE(phrase.runs[1].dynamic);
+    EXPECT_EQ(phrase.runs[1].dynamic->dynamic, Dynamic::pp);
+    EXPECT_EQ(musx::util::EnigmaString::plainTextFromChunks(phrase.runs[1].chunks), "pp");
+
+    EXPECT_FALSE(phrase.runs[2].dynamic);
+    EXPECT_EQ(musx::util::EnigmaString::plainTextFromChunks(phrase.runs[2].chunks), " possibile ");
+
+    ASSERT_TRUE(phrase.runs[3].dynamic);
+    EXPECT_EQ(phrase.runs[3].dynamic->dynamic, Dynamic::mf);
+    EXPECT_EQ(musx::util::EnigmaString::plainTextFromChunks(phrase.runs[3].chunks), "mf");
+}
+
+TEST(DynamicPhraseClassification, AllowsOneDynamicRunToContainMultipleChunks)
+{
+    const auto phrase = classifyTestDynamicPhrase("^fontid(0)^size(24)^nfx(0)&#xE52F;^fontid(1)^size(12)^nfx(0)p");
+    ASSERT_EQ(phrase.runs.size(), 1u);
+    ASSERT_TRUE(phrase.runs[0].dynamic);
+    EXPECT_EQ(phrase.runs[0].dynamic->dynamic, Dynamic::ffp);
+    EXPECT_TRUE(phrase.runs[0].dynamic->glyphs.empty());
+    ASSERT_EQ(phrase.runs[0].chunks.size(), 2u);
+}
+
+TEST(DynamicPhraseClassification, ProvidesCanonicalText)
 {
     EXPECT_EQ(dynamicCanonicalText(Dynamic::mf), "mf");
     EXPECT_EQ(dynamicCanonicalText(Dynamic::sfz), "sfz");
@@ -456,7 +534,7 @@ TEST(DynamicClassification, ProvidesCanonicalText)
     EXPECT_TRUE(dynamicCanonicalText(Dynamic::None).empty());
 }
 
-TEST(DynamicClassification, ProvidesCanonicalGlyphs)
+TEST(DynamicPhraseClassification, ProvidesCanonicalGlyphs)
 {
     const std::vector<Dynamic> dynamics = {
         Dynamic::pppppp, Dynamic::ppppp, Dynamic::pppp, Dynamic::ppp, Dynamic::pp, Dynamic::p,
@@ -478,7 +556,7 @@ TEST(DynamicClassification, ProvidesCanonicalGlyphs)
     EXPECT_TRUE(dynamicCanonicalGlyphs(Dynamic::None).empty());
 }
 
-TEST(DynamicClassification, ProvidesCanonicalLetterGlyphs)
+TEST(DynamicPhraseClassification, ProvidesCanonicalLetterGlyphs)
 {
     EXPECT_EQ(dynamicCanonicalLetterGlyphs(Dynamic::mf), (std::vector<std::string>{ "dynamicMezzo", "dynamicForte" }));
     EXPECT_EQ(dynamicCanonicalLetterGlyphs(Dynamic::fffff), (std::vector<std::string>{

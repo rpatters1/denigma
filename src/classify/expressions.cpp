@@ -109,16 +109,20 @@ static std::string_view withoutFinalPeriods(std::string_view text)
 }
 
 static std::optional<ExpressionClassification> makeDynamicExpression(
-    const DynamicClassification& dynamicClass,
+    const DynamicPhraseClassification& dynamicClass,
     CategoryType categoryType)
 {
     if (!dynamicClass) {
         return std::nullopt;
     }
 
+    const bool isOtherDynamic = std::any_of(dynamicClass.runs.begin(), dynamicClass.runs.end(), [](const DynamicPhraseRun& run) {
+        return run.dynamic && run.dynamic->dynamic == Dynamic::Other;
+    });
+
     ExpressionClassification result;
     result.type = ExpressionType::Dynamic;
-    result.basis = dynamicClass.dynamic == Dynamic::Other
+    result.basis = isOtherDynamic
         ? ClassificationBasis::FinaleCategory
         : basisForRecognition(categoryType, CategoryType::Dynamics);
     result.value = dynamicClass;

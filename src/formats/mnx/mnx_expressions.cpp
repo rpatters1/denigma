@@ -23,6 +23,7 @@
 #include "mnx.h"
 #include "mnx_expressions.h"
 #include "denigma/classify/expressions.h"
+#include "utils/stringutils.h"
 
 namespace denigma {
 namespace formats {
@@ -47,6 +48,41 @@ ExpressionAttachmentContext calcAttachmentContext(const MnxMusxMappingPtr& conte
     if (entryIt != context->entryTargetByNumber.end()) {
         result.entryTarget = &entryIt->second;
     }
+    return result;
+}
+
+struct MnxDynamicProjection
+{
+    classify::Dynamic dynamic{};
+    std::string prefixText;
+    std::string suffixText;
+    std::vector<std::string> glyphs;
+    classify::DynamicChange change{ classify::DynamicChange::Absolute };
+
+    [[nodiscard]] bool containsText() const noexcept
+    { return !prefixText.empty() || !glyphs.empty() || !suffixText.empty(); }
+};
+
+std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::DynamicPhraseClassification& phrase)
+{
+    const auto dynamicIt = std::find_if(phrase.runs.begin(), phrase.runs.end(), [](const classify::DynamicPhraseRun& run) {
+        return run.dynamic.has_value();
+    });
+    if (dynamicIt == phrase.runs.end()) {
+        return std::nullopt;
+    }
+
+    MnxDynamicProjection result;
+    result.dynamic = dynamicIt->dynamic->dynamic;
+    result.glyphs = dynamicIt->dynamic->glyphs;
+    result.change = dynamicIt->dynamic->change;
+    result.prefixText = utils::trimAscii(classify::dynamicRunPlainText(phrase.runs.begin(), dynamicIt));
+    result.suffixText = utils::trimAscii(classify::dynamicRunPlainText(std::next(dynamicIt), phrase.runs.end()));
+
+    if (result.dynamic == classify::Dynamic::Other && result.prefixText.empty() && result.suffixText.empty()) {
+        result.prefixText = utils::trimAscii(musx::util::EnigmaString::plainTextFromChunks(dynamicIt->chunks));
+    }
+
     return result;
 }
 
@@ -148,28 +184,33 @@ std::pair<std::optional<mnxdom::DynamicValue>, std::optional<mnxdom::DynamicValu
 }
 
 void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
-    const MusxInstance<others::MeasureExprAssign>& asgn, classify::DynamicClassification dynamicClass, VerticalPlacement placement)
+    const MusxInstance<others::MeasureExprAssign>& asgn, const classify::DynamicPhraseClassification& dynamicPhrase, VerticalPlacement placement)
 {
     if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
         return;
     }
 
-    bool isAccent{};
-    bool copyGlyphs{};
-    const auto [dynValue, attackValue] = calcDynamicType(dynamicClass.dynamic, copyGlyphs, isAccent);
-    if (!dynValue && (dynamicClass.change == classify::DynamicChange::Absolute || !dynamicClass.containsText())) {
+    auto dynamicClass = projectPrimaryDynamicForMnx(dynamicPhrase);
+    if (!dynamicClass) {
         return;
     }
 
-    std::vector<std::string> glyphs = std::move(dynamicClass.glyphs);
+    bool isAccent{};
+    bool copyGlyphs{};
+    const auto [dynValue, attackValue] = calcDynamicType(dynamicClass->dynamic, copyGlyphs, isAccent);
+    if (!dynValue && (dynamicClass->change == classify::DynamicChange::Absolute || !dynamicClass->containsText())) {
+        return;
+    }
+
+    std::vector<std::string> glyphs = std::move(dynamicClass->glyphs);
     if (copyGlyphs && !glyphs.empty()) {
-        glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass.dynamic);
+        glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass->dynamic);
     }
 
     auto mnxDynamic = [&]() -> mnxdom::part::DynamicGroupBase {
         using DynRelType = classify::DynamicChange;
-        if (dynamicClass.change != DynRelType::Absolute) {
-            auto relValue = dynamicClass.change == DynRelType::RelativeIncrease
+        if (dynamicClass->change != DynRelType::Absolute) {
+            auto relValue = dynamicClass->change == DynRelType::RelativeIncrease
                 ? mnxdom::DynamicRelativeValue::Louder
                 : mnxdom::DynamicRelativeValue::Softer;
             auto dyn = mnxMeasure.ensure_dynamics().appendRelative(relValue, mnxFractionFromEdu(asgn->eduPosition));
@@ -186,11 +227,11 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
     if (attackValue) {
         mnxDynamic.set_attackValue(attackValue.value());
     }
-    if (!dynamicClass.prefixText.empty()) {
-        mnxDynamic.set_prefix(dynamicClass.prefixText);
+    if (!dynamicClass->prefixText.empty()) {
+        mnxDynamic.set_prefix(dynamicClass->prefixText);
     }
-    if (!dynamicClass.suffixText.empty()) {
-        mnxDynamic.set_suffix(dynamicClass.suffixText);
+    if (!dynamicClass->suffixText.empty()) {
+        mnxDynamic.set_suffix(dynamicClass->suffixText);
     }
     if (!glyphs.empty()) {
         mnxDynamic.ensure_glyphs().assign(glyphs);

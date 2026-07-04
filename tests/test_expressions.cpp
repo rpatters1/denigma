@@ -19,6 +19,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <algorithm>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -27,6 +29,7 @@
 #include "core/musx_reader.h"
 #include "denigma/classify/expressions.h"
 #include "musx/musx.h"
+#include "utils/stringutils.h"
 
 using namespace denigma::classify;
 using namespace musx::dom;
@@ -46,6 +49,15 @@ struct ShapeExpressionContext
     MusxInstance<others::ShapeExpressionDef> def;
     MusxInstance<others::MeasureExprAssign> assignment;
 };
+
+static const DynamicMark& firstDynamicMark(const DynamicPhraseClassification& phrase)
+{
+    const auto dynamicIt = std::find_if(phrase.runs.begin(), phrase.runs.end(), [](const DynamicPhraseRun& run) {
+        return run.dynamic.has_value();
+    });
+    EXPECT_NE(dynamicIt, phrase.runs.end());
+    return dynamicIt->dynamic.value();
+}
 
 static std::string categoryXmlName(ExpressionCategoryType categoryType)
 {
@@ -206,10 +218,15 @@ TEST(ExpressionClassification, ClassifiesConcreteDynamicsAndCarriesSurroundingTe
 
     EXPECT_EQ(result.type, ExpressionType::Dynamic);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryConfirmed);
-    EXPECT_EQ(result.dynamic().dynamic, Dynamic::pp);
-    EXPECT_EQ(result.dynamic().prefixText, "sub.");
-    EXPECT_EQ(result.dynamic().suffixText, "possibile");
-    EXPECT_EQ(result.dynamic().change, DynamicChange::Absolute);
+    const auto& phrase = result.dynamic();
+    const auto dynamicIt = std::find_if(phrase.runs.begin(), phrase.runs.end(), [](const DynamicPhraseRun& run) {
+        return run.dynamic.has_value();
+    });
+    ASSERT_NE(dynamicIt, phrase.runs.end());
+    EXPECT_EQ(dynamicIt->dynamic->dynamic, Dynamic::pp);
+    EXPECT_EQ(utils::trimAscii(dynamicRunPlainText(phrase.runs.begin(), dynamicIt)), "sub.");
+    EXPECT_EQ(utils::trimAscii(dynamicRunPlainText(std::next(dynamicIt), phrase.runs.end())), "possibile");
+    EXPECT_EQ(dynamicIt->dynamic->change, DynamicChange::Absolute);
 }
 
 TEST(ExpressionClassification, ClassifiesTextExpressionFermataAndBreathMarkSymbols)
@@ -245,20 +262,20 @@ TEST(ExpressionClassification, ClassifiesRelativeDynamicQualifiers)
     const auto increase = classifyTextExpression("piu mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(increase.type, ExpressionType::Dynamic);
-    EXPECT_EQ(increase.dynamic().dynamic, Dynamic::mf);
-    EXPECT_EQ(increase.dynamic().change, DynamicChange::RelativeIncrease);
+    EXPECT_EQ(firstDynamicMark(increase.dynamic()).dynamic, Dynamic::mf);
+    EXPECT_EQ(firstDynamicMark(increase.dynamic()).change, DynamicChange::RelativeIncrease);
 
     const auto decrease = classifyTextExpression("menos mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(decrease.type, ExpressionType::Dynamic);
-    EXPECT_EQ(decrease.dynamic().dynamic, Dynamic::mf);
-    EXPECT_EQ(decrease.dynamic().change, DynamicChange::RelativeDecrease);
+    EXPECT_EQ(firstDynamicMark(decrease.dynamic()).dynamic, Dynamic::mf);
+    EXPECT_EQ(firstDynamicMark(decrease.dynamic()).change, DynamicChange::RelativeDecrease);
 
     const auto gradual = classifyTextExpression("cresc. mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(gradual.type, ExpressionType::Dynamic);
-    EXPECT_EQ(gradual.dynamic().dynamic, Dynamic::mf);
-    EXPECT_EQ(gradual.dynamic().change, DynamicChange::Absolute);
+    EXPECT_EQ(firstDynamicMark(gradual.dynamic()).dynamic, Dynamic::mf);
+    EXPECT_EQ(firstDynamicMark(gradual.dynamic()).change, DynamicChange::Absolute);
 }
 
 TEST(ExpressionClassification, ClassifiesDynamicCategoryTextAsDynamicOther)
@@ -267,7 +284,7 @@ TEST(ExpressionClassification, ClassifiesDynamicCategoryTextAsDynamicOther)
 
     EXPECT_EQ(result.type, ExpressionType::Dynamic);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategory);
-    EXPECT_EQ(result.dynamic().dynamic, Dynamic::Other);
+    EXPECT_EQ(firstDynamicMark(result.dynamic()).dynamic, Dynamic::Other);
 }
 
 TEST(ExpressionClassification, UsesCategoryForTempoTechniqueAndRehearsalText)
@@ -299,7 +316,7 @@ TEST(ExpressionClassification, StrongCategoriesOverrideTextHeuristics)
     const auto dynamic = classifyTextExpression("Allegro", ExpressionCategoryType::Dynamics);
     EXPECT_EQ(dynamic.type, ExpressionType::Dynamic);
     EXPECT_EQ(dynamic.basis, ClassificationBasis::FinaleCategory);
-    EXPECT_EQ(dynamic.dynamic().dynamic, Dynamic::Other);
+    EXPECT_EQ(firstDynamicMark(dynamic.dynamic()).dynamic, Dynamic::Other);
 
     const auto tempoMark = classifyTextExpression("rit.", ExpressionCategoryType::TempoMarks);
     EXPECT_EQ(tempoMark.type, ExpressionType::TempoAlteration);
@@ -413,7 +430,7 @@ TEST(ExpressionClassification, TopStaffAssignmentForcesSystemTextClassification)
     const auto dynamic = classifyExpression(dynamicContext.assignment);
     EXPECT_EQ(dynamic.type, ExpressionType::Dynamic);
     EXPECT_EQ(dynamic.basis, ClassificationBasis::Heuristic);
-    EXPECT_EQ(dynamic.dynamic().dynamic, Dynamic::mf);
+    EXPECT_EQ(firstDynamicMark(dynamic.dynamic()).dynamic, Dynamic::mf);
 
     const auto rehearsalContext = makeTextExpressionContext("AA", ExpressionCategoryType::Misc, {}, true);
     const auto rehearsal = classifyExpression(rehearsalContext.assignment);
