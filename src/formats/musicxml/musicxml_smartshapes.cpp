@@ -40,11 +40,6 @@ namespace detail {
 
 namespace {
 
-mx::api::LineType musicXmlLineType(const MusxInstance<others::SmartShape>& shape)
-{
-    return shape && shape->calcIsDashed() ? mx::api::LineType::dashed : mx::api::LineType::solid;
-}
-
 mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLocation& location)
 {
     if (!context.currentPart || location.measureIndex >= context.currentPart->measures.size()) {
@@ -59,10 +54,11 @@ mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLo
         return nullptr;
     }
     const auto voiceIndex = static_cast<size_t>(location.userVoiceNumber - 1);
-    if (voiceIndex >= staff.voices.size()) {
+    const auto voiceIt = staff.voices.find(voiceIndex);
+    if (voiceIt == staff.voices.end()) {
         return nullptr;
     }
-    auto& voice = staff.voices[voiceIndex];
+    auto& voice = voiceIt->second;
     if (location.noteIndex >= voice.notes.size()) {
         return nullptr;
     }
@@ -172,7 +168,9 @@ bool processSlur(MusicXmlMusxMapping& context, const MusxInstance<others::SmartS
 
     auto start = mx::api::CurveStart{ mx::api::CurveType::slur };
     start.curveOrientation = enumConvert<mx::api::CurveOrientation>(shape->calcContourDirection());
-    start.lineData.lineType = musicXmlLineType(shape);
+    if (shape->calcIsDashed()) {
+        start.lineData.lineType = mx::api::LineType::dashed;
+    }
     startNote->noteAttachmentData.curveStarts.emplace_back(std::move(start));
     endNote->noteAttachmentData.curveStops.emplace_back(mx::api::CurveStop{ mx::api::CurveType::slur });
     return true;

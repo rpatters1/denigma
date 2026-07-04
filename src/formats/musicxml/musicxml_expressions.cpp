@@ -58,11 +58,12 @@ void processExpressions(
         }
         const auto& location = locationIt->second;
         const auto voiceIndex = static_cast<size_t>(location.userVoiceNumber - 1);
-        ASSERT_IF(voiceIndex >= staff.voices.size()) {
+        const auto voiceIt = staff.voices.find(voiceIndex);
+        ASSERT_IF(voiceIt == staff.voices.end()) {
             return nullptr;
         }
 
-        auto& voice = staff.voices[voiceIndex];
+        auto& voice = voiceIt->second;
         ASSERT_IF(location.noteIndex >= voice.notes.size()) {
             return nullptr;
         }

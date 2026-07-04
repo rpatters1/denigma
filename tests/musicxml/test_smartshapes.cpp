@@ -1,0 +1,155 @@
+/*
+ * Copyright (C) 2026, Robert Patterson
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+#include "gtest/gtest.h"
+#include "musicxml_test.h"
+
+#include <filesystem>
+#include <ostream>
+#include <string>
+#include <vector>
+
+#include "mx/api/CurveData.h"
+#include "mx/api/NoteData.h"
+#include "mx/api/ScoreData.h"
+#include "test_utils.h"
+
+using namespace denigma::test::musicxml;
+
+namespace {
+
+struct ComparableSlurEvent
+{
+    std::string endpoint;
+    size_t partIndex{};
+    size_t measureIndex{};
+    size_t staffIndex{};
+    size_t noteIndex{};
+    bool isChord{};
+    mx::api::Step step{};
+    int alter{};
+    int octave{};
+    int numberLevel{};
+    mx::api::CurveOrientation curveOrientation{};
+    mx::api::LineType lineType{};
+
+    bool operator==(const ComparableSlurEvent&) const = default;
+};
+
+std::ostream& operator<<(std::ostream& os, const ComparableSlurEvent& event)
+{
+    return os << event.endpoint
+              << " part=" << event.partIndex
+              << " measure=" << event.measureIndex
+              << " staff=" << event.staffIndex
+              << " note=" << event.noteIndex
+              << " chord=" << event.isChord
+              << " step=" << static_cast<int>(event.step)
+              << " alter=" << event.alter
+              << " octave=" << event.octave
+              << " number=" << event.numberLevel
+              << " orientation=" << static_cast<int>(event.curveOrientation)
+              << " lineType=" << static_cast<int>(event.lineType);
+}
+
+std::vector<ComparableSlurEvent> createComparableSlurEvents(const mx::api::ScoreData& score)
+{
+    std::vector<ComparableSlurEvent> result;
+    for (size_t partIndex = 0; partIndex < score.parts.size(); ++partIndex) {
+        const auto& part = score.parts.at(partIndex);
+        for (size_t measureIndex = 0; measureIndex < part.measures.size(); ++measureIndex) {
+            const auto& measure = part.measures.at(measureIndex);
+            for (size_t staffIndex = 0; staffIndex < measure.staves.size(); ++staffIndex) {
+                const auto& staff = measure.staves.at(staffIndex);
+                for (const auto& voicePair : staff.voices) {
+                    const auto& voice = voicePair.second;
+                    for (size_t noteIndex = 0; noteIndex < voice.notes.size(); ++noteIndex) {
+                        const auto& note = voice.notes.at(noteIndex);
+                        const auto appendEvent = [&](std::string endpoint, int numberLevel, mx::api::CurveOrientation curveOrientation,
+                                                     mx::api::LineType lineType) {
+                            result.push_back({
+                                std::move(endpoint),
+                                partIndex,
+                                measureIndex,
+                                staffIndex,
+                                noteIndex,
+                                note.isChord,
+                                note.isRest ? mx::api::Step::unspecified : note.pitchData.step,
+                                note.isRest ? 0 : note.pitchData.alter,
+                                note.isRest ? 0 : note.pitchData.octave,
+                                numberLevel,
+                                curveOrientation,
+                                lineType
+                            });
+                        };
+
+                        for (const auto& start : note.noteAttachmentData.curveStarts) {
+                            if (start.curveType == mx::api::CurveType::slur) {
+                                appendEvent("start", start.numberLevel, start.curveOrientation, start.lineData.lineType);
+                            }
+                        }
+                        for (const auto& stop : note.noteAttachmentData.curveStops) {
+                            if (stop.curveType == mx::api::CurveType::slur) {
+                                appendEvent("stop", stop.numberLevel, mx::api::CurveOrientation::unspecified,
+                                            mx::api::LineType::unspecified);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
+} // namespace
+
+TEST(MusicXmlSmartShapes, SlursTwoStavesExportsSmoke)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("slurs_2staves.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+}
+
+TEST(MusicXmlSmartShapes, SlursTwoStavesMatchReference)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("slurs_2staves.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore.has_value());
+
+    const auto referenceScore = loadScoreData(std::filesystem::path("inputs") / "musicxml" / "slurs_2staves-ref.musicxml");
+    ASSERT_TRUE(referenceScore.has_value());
+
+    EXPECT_EQ(createComparableSlurEvents(*referenceScore), createComparableSlurEvents(*actualScore));
+}
+
+TEST(MusicXmlSmartShapes, SlursTwoVoicesMatchReference)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("slurs_2voices.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore.has_value());
+
+    const auto referenceScore = loadScoreData(std::filesystem::path("inputs") / "musicxml" / "slurs_2voices-ref.musicxml");
+    ASSERT_TRUE(referenceScore.has_value());
+
+    EXPECT_EQ(createComparableSlurEvents(*referenceScore), createComparableSlurEvents(*actualScore));
+}
