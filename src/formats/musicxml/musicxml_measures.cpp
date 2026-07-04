@@ -543,15 +543,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         }
     }
 
-    for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
-        const auto& musxMeasure = musxMeasures[measureIndex];
-        auto& measure = part.measures[measureIndex];
-        for (size_t staffIndex = 0; staffIndex < stavesIt->second.size(); ++staffIndex) {
-            const StaffCmper staffId = stavesIt->second[staffIndex];
-            auto& staff = measure.staves[staffIndex];
-            processSmartShapes(context, staff, musxMeasure, staffId, staffIndex);
-        }
-    }
+    processSmartShapes(context, musxMeasures, stavesIt->second);
 
     for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
         const auto& musxMeasure = musxMeasures[measureIndex];

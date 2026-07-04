@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <ostream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "mx/api/CurveData.h"
@@ -71,6 +72,19 @@ std::ostream& operator<<(std::ostream& os, const ComparableSlurEvent& event)
 std::vector<ComparableSlurEvent> createComparableSlurEvents(const mx::api::ScoreData& score)
 {
     std::vector<ComparableSlurEvent> result;
+    std::unordered_map<int, int> normalizedNumberLevels;
+    int nextNumberLevel = 1;
+    const auto normalizeNumberLevel = [&](int numberLevel) {
+        if (numberLevel <= 0) {
+            return numberLevel;
+        }
+        const auto [numberIt, inserted] = normalizedNumberLevels.emplace(numberLevel, nextNumberLevel);
+        if (inserted) {
+            ++nextNumberLevel;
+        }
+        return numberIt->second;
+    };
+
     for (size_t partIndex = 0; partIndex < score.parts.size(); ++partIndex) {
         const auto& part = score.parts.at(partIndex);
         for (size_t measureIndex = 0; measureIndex < part.measures.size(); ++measureIndex) {
@@ -93,7 +107,7 @@ std::vector<ComparableSlurEvent> createComparableSlurEvents(const mx::api::Score
                                 note.isRest ? mx::api::Step::unspecified : note.pitchData.step,
                                 note.isRest ? 0 : note.pitchData.alter,
                                 note.isRest ? 0 : note.pitchData.octave,
-                                numberLevel,
+                                normalizeNumberLevel(numberLevel),
                                 curveOrientation,
                                 lineType
                             });

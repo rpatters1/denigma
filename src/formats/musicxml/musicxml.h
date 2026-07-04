@@ -23,6 +23,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "core/denigma.h"
 #include "denigma/classify/expressions.h"
@@ -89,10 +90,8 @@ void processExpressions(
 void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note, const musx::dom::EntryInfoPtr& entryInfo);
 void processSmartShapes(
     MusicXmlMusxMapping& context,
-    mx::api::StaffData& staff,
-    const musx::dom::MusxInstance<musx::dom::others::Measure>& musxMeasure,
-    musx::dom::StaffCmper staffId,
-    size_t staffIndex);
+    const musx::dom::MusxInstanceList<musx::dom::others::Measure>& musxMeasures,
+    const std::vector<musx::dom::StaffCmper>& staves);
 
 void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
