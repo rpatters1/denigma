@@ -26,7 +26,6 @@
 #include <utility>
 
 #include "denigma/classify/dynamics.h"
-#include "musicxml_formatted_text.h"
 #include "mx/api/MarkData.h"
 
 using namespace musx::dom;
@@ -42,10 +41,9 @@ void appendDynamicExpression(
     mx::api::StaffData& staff,
     size_t staffIndex,
     const MusxInstance<others::MeasureExprAssign>& assignment,
-    const classify::ExpressionClassification& classification,
+    const classify::DynamicMark& dynamic,
     VerticalPlacement placement)
 {
-    const auto& dynamic = classification.dynamic();
     auto direction = mx::api::DirectionData{};
     direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(Fraction::fromEdu(assignment->eduPosition));
     direction.placement = enumConvert<mx::api::Placement>(placement);
@@ -55,30 +53,16 @@ void appendDynamicExpression(
         direction.voice = musicXmlVoiceNumber(staffIndex, layer, assignment->voice2 ? 2 : 1);
     }
 
-    const auto appendFormattedWords = [&] {
-        if (!classification.enigmaCtx) {
-            return;
-        }
-        auto options = MusicXmlFormattedTextOptions{};
-        options.fallback = MusicXmlFontFamilyFallback::Music;
-        direction.words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx, options);
-    };
-
-    const bool canEmitDirectly = dynamic && dynamic.change == classify::DynamicChange::Absolute && dynamic.prefixText.empty() && dynamic.suffixText.empty();
-    if (canEmitDirectly) {
-        const auto markType = enumConvert<mx::api::MarkType>(dynamic.dynamic);
-        if (markType != mx::api::MarkType::unspecified && (markType != mx::api::MarkType::otherDynamics || dynamic.glyphs.size() == 1)) {
-            auto mark = mx::api::MarkData(direction.placement, markType);
-            if (mark.markType == mx::api::MarkType::otherDynamics) {
-                /// @todo Set this as a SMuFL glyph when mx::api exposes other-dynamics@smufl.
-                mark.name = dynamic.glyphs.front();
+    const auto markType = enumConvert<mx::api::MarkType>(dynamic.dynamic);
+    if (markType != mx::api::MarkType::unspecified) {
+        auto mark = mx::api::MarkData(direction.placement, markType);
+        if (mark.markType == mx::api::MarkType::otherDynamics) {
+            mark.name = classify::dynamicGlyphsToLetters(dynamic.glyphs);
+            if (mark.name.empty()) {
+                return;
             }
-            direction.marks.emplace_back(mark);
         }
-    }
-
-    if (direction.marks.empty()) {
-        appendFormattedWords();
+        direction.marks.emplace_back(std::move(mark));
     }
 
     if (!mx::api::isDirectionDataEmpty(direction)) {

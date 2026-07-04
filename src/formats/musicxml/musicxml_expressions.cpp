@@ -90,9 +90,13 @@ void processExpressions(
 
         const auto classification = classify::classifyExpression(assignment);
         const auto placement = assignment->calcVerticalPlacement();
+        for (const auto& run : classification.runs) {
+            if (const auto* dynamic = run.as<classify::DynamicMark>()) {
+                appendDynamicExpression(context, staff, staffIndex, assignment, *dynamic, placement);
+            }
+        }
         switch (classification.type) {
         case classify::ExpressionType::Dynamic:
-            appendDynamicExpression(context, staff, staffIndex, assignment, classification, placement);
             break;
         case classify::ExpressionType::Fermata: {
             const auto& fermata = classification.fermata();

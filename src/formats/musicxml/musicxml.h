@@ -76,7 +76,7 @@ void appendDynamicExpression(
     mx::api::StaffData& staff,
     size_t staffIndex,
     const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment,
-    const classify::ExpressionClassification& classification,
+    const classify::DynamicMark& dynamic,
     musx::dom::VerticalPlacement placement);
 void processExpressions(
     MusicXmlMusxMapping& context,
