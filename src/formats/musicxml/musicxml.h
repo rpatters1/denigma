@@ -69,6 +69,7 @@ void createNotesForMeasureStaff(
     mx::api::StaffData& staff,
     const musx::dom::MusxInstance<musx::dom::others::Measure>& musxMeasure,
     musx::dom::StaffCmper staffId,
+    size_t measureIndex,
     size_t staffIndex);
 void createParts(MusicXmlMusxMapping& context);
 void appendDynamicExpression(
@@ -86,6 +87,12 @@ void processExpressions(
     musx::dom::StaffCmper staffId,
     size_t staffIndex);
 void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note, const musx::dom::EntryInfoPtr& entryInfo);
+void processSmartShapes(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    const musx::dom::MusxInstance<musx::dom::others::Measure>& musxMeasure,
+    musx::dom::StaffCmper staffId,
+    size_t staffIndex);
 
 void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 

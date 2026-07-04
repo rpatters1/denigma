@@ -48,6 +48,16 @@ MusicXML separates sounding ties (`<tie>`) from notated ties (`<notations><tied>
 
 Needed API shape: a tie-notation data model separate from playback tie booleans, with support for `start`, `stop`, `continue`, and same-note start/stop ordering. The API should also allow notation-only ties without writing `<tie>`, and should allow playback `<tie>` / `time-only` semantics to be modeled separately when Denigma can infer them.
 
+## Smart Shapes And Spanners
+
+### Optional wedge color
+
+MusicXML `<wedge>` supports a `color` attribute, but omitting it is the normal way to request the default score color.
+
+`mx::api::WedgeStart` has a `ColorData colorData` field but no `isColorSpecified` flag, and `mx::impl::DirectionWriter::emitWedgeStart()` always calls `setAttributesFromColorData`. Denigma therefore cannot emit a colorless wedge start through the current API. Leaving `ColorData` default-constructed writes `color="#FFFFFF"`, which can make hairpins invisible in importers such as MuseScore.
+
+Needed API shape: add an optional color flag to `WedgeStart`, matching other API objects that carry `ColorData`, and write the MusicXML `color` attribute only when it is explicitly specified.
+
 ## Notes
 
 ### Non-arpeggiate endpoints

@@ -108,6 +108,7 @@ set(DENIGMA_FORMAT_MUSICXML_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_metadata.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_notes.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_parts.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/musicxml_smartshapes.cpp
 )
 
 add_denigma_internal_library(denigma_musicxml MUSX_PCH ${DENIGMA_FORMAT_MUSICXML_SOURCES})

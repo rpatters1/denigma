@@ -31,6 +31,8 @@
 #include "core/finale_options.h"
 #include "musx/musx.h"
 #include "mx/api/FontData.h"
+#include "mx/api/CurveData.h"
+#include "mx/api/PartData.h"
 #include "mx/api/PartSymbolData.h"
 #include "mx/api/ScoreData.h"
 #include "mx/api/StaffData.h"
@@ -120,9 +122,16 @@ struct MusicXmlLayoutState
 
 struct MusicXmlNoteLocation
 {
+    size_t measureIndex{};
+    size_t staffIndex{};
     int userVoiceNumber{};
     size_t noteIndex{};
 };
+
+inline std::uint64_t musicXmlNoteKey(musx::dom::EntryNumber entryNumber, musx::dom::NoteNumber noteId)
+{
+    return (std::uint64_t(entryNumber) << 32) | std::uint64_t(noteId);
+}
 
 struct MusicXmlMusxMapping
 {
@@ -139,6 +148,7 @@ struct MusicXmlMusxMapping
     FinaleOptions finaleOptions;
     std::unique_ptr<mx::api::ScoreData> musicXmlScore;
     musx::dom::Cmper forPartId;
+    mx::api::PartData* currentPart{};
 
     MusicXmlTimingPlan timing;
     MusicXmlCurrentLocation current;
@@ -149,14 +159,17 @@ struct MusicXmlMusxMapping
     std::unordered_map<std::string, mx::api::PartSymbolData> partIdToPartSymbol;
     std::unordered_map<std::string, MusicXmlPitchContext> partIdToPitchContext;
     std::unordered_map<musx::dom::EntryNumber, MusicXmlNoteLocation> entryNumberToFirstNote;
+    std::unordered_map<std::uint64_t, MusicXmlNoteLocation> noteLocations;
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;
     std::unordered_set<std::uint64_t> pendingTieStopKeys;
 
     void clearCurrent()
     {
+        currentPart = nullptr;
         current.clear();
         layout.clear();
         entryNumberToFirstNote.clear();
+        noteLocations.clear();
     }
 
     double musicXmlTenthsFromEvpu(double evpu, double backoutScaling = 1.0) const;

@@ -109,7 +109,7 @@ void createMetaData(const MusicXmlMusxMapping& context)
     /// behavior around this issue.
     addSupportedElement("accidental", false);
     addSupportedElement("beam");
-    addSupportedElement("stem");
+    addSupportedElement("stem", false);
 
     if (const auto header = context.document->getHeader()) {
         if (hasValidDate(header->created)) {

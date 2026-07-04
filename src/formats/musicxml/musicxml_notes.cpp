@@ -227,22 +227,12 @@ std::uint64_t noteKey(const NoteInfoPtr& noteInfo)
     return (std::uint64_t(noteInfo.getEntryInfo()->getEntry()->getEntryNumber()) << 32) | std::uint64_t(noteInfo.getNoteIndex());
 }
 
-mx::api::CurveOrientation musicXmlTieOrientation(CurveContourDirection direction)
-{
-    switch (direction) {
-    case CurveContourDirection::Up: return mx::api::CurveOrientation::overhand;
-    case CurveContourDirection::Down: return mx::api::CurveOrientation::underhand;
-    case CurveContourDirection::Unspecified:
-        break;
-    }
-    return mx::api::CurveOrientation::unspecified;
-}
-
 void applyTieAlterStart(const MusicXmlMusxMapping& context, mx::api::TieLetRing& tieLetRing, const NoteInfoPtr& noteInfo)
 {
     if (auto tieAlter = context.document->getDetails()->getForNote<details::TieAlterStart>(noteInfo)) {
         if (tieAlter->freezeDirection) {
-            tieLetRing.curveOrientation = musicXmlTieOrientation(tieAlter->down ? CurveContourDirection::Down : CurveContourDirection::Up);
+            tieLetRing.curveOrientation = enumConvert<mx::api::CurveOrientation>(
+                tieAlter->down ? CurveContourDirection::Down : CurveContourDirection::Up);
         }
     }
 }
@@ -434,6 +424,8 @@ void appendEntryNotes(
     const EntryInfoPtr::InterpretedIterator& entryIt,
     const MusxInstance<others::Measure>& musxMeasure,
     int userVoiceNumber,
+    size_t measureIndex,
+    size_t staffIndex,
     bool hasMultipleLayers,
     bool hasVoice1Voice2,
     MusicXmlPitchContext pitchContext)
@@ -442,9 +434,21 @@ void appendEntryNotes(
     const auto entry = entryInfo->getEntry();
     auto rememberFirstNote = [&](size_t noteIndex) {
         context.entryNumberToFirstNote.try_emplace(entry->getEntryNumber(), MusicXmlNoteLocation{
+            .measureIndex = measureIndex,
+            .staffIndex = staffIndex,
             .userVoiceNumber = userVoiceNumber,
             .noteIndex = noteIndex
         });
+    };
+    auto rememberExactNote = [&](const NoteInfoPtr& noteInfo, size_t noteIndex) {
+        context.noteLocations.try_emplace(
+            musicXmlNoteKey(entry->getEntryNumber(), noteInfo->getNoteId()),
+            MusicXmlNoteLocation{
+                .measureIndex = measureIndex,
+                .staffIndex = staffIndex,
+                .userVoiceNumber = userVoiceNumber,
+                .noteIndex = noteIndex
+            });
     };
     for (size_t tupletIndex : entryInfo.findTupletInfo()) {
         const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
@@ -495,6 +499,7 @@ void appendEntryNotes(
         if (noteIndex == 0) {
             rememberFirstNote(voice.notes.size());
         }
+        rememberExactNote(noteInfo, voice.notes.size());
         voice.notes.emplace_back(note);
     }
 }
@@ -507,6 +512,7 @@ void createNotesForMeasureStaff(
     mx::api::StaffData& staff,
     const MusxInstance<others::Measure>& musxMeasure,
     StaffCmper staffId,
+    size_t measureIndex,
     size_t staffIndex)
 {
     (void)measure;
@@ -541,7 +547,7 @@ void createNotesForMeasureStaff(
                 if (entryIt.calcIsPastLogicalEndOfFrame()) {
                     break;
                 }
-                appendEntryNotes(context, voice, entryIt, musxMeasure, userVoiceNumber, hasMultipleLayers, usesV1V2, pitchContext);
+                appendEntryNotes(context, voice, entryIt, musxMeasure, userVoiceNumber, measureIndex, staffIndex, hasMultipleLayers, usesV1V2, pitchContext);
                 emittedNotes = true;
             }
         }

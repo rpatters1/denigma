@@ -506,6 +506,7 @@ void assignStaffAttributes(
 void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part)
 {
     context.clearCurrent();
+    context.currentPart = &part;
 
     const auto stavesIt = context.partIdToStaves.find(part.uniqueId);
     if (stavesIt == context.partIdToStaves.end() || stavesIt->second.empty()) {
@@ -538,7 +539,26 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
             const auto musxStaffAtEnd = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId,
                 musxMeasure->getCmper(), musxMeasure->calcDuration(staffId).calcEduDuration());
             assignBarlines(context, measure, musxMeasure, isFinalMeasure, musxStaffAtEnd);
-            createNotesForMeasureStaff(context, measure, staff, musxMeasure, staffId, staffIndex);
+            createNotesForMeasureStaff(context, measure, staff, musxMeasure, staffId, measureIndex, staffIndex);
+        }
+    }
+
+    for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
+        const auto& musxMeasure = musxMeasures[measureIndex];
+        auto& measure = part.measures[measureIndex];
+        for (size_t staffIndex = 0; staffIndex < stavesIt->second.size(); ++staffIndex) {
+            const StaffCmper staffId = stavesIt->second[staffIndex];
+            auto& staff = measure.staves[staffIndex];
+            processSmartShapes(context, staff, musxMeasure, staffId, staffIndex);
+        }
+    }
+
+    for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
+        const auto& musxMeasure = musxMeasures[measureIndex];
+        auto& measure = part.measures[measureIndex];
+        for (size_t staffIndex = 0; staffIndex < stavesIt->second.size(); ++staffIndex) {
+            const StaffCmper staffId = stavesIt->second[staffIndex];
+            auto& staff = measure.staves[staffIndex];
             processExpressions(context, measure, staff, musxMeasure, staffId, staffIndex);
         }
     }
