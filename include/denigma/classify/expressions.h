@@ -46,6 +46,7 @@ enum class ExpressionType
     Dynamic,
     Fermata,
     BreathMark,
+    PseudoTie,
     NonArpeggio,
     TempoMark,
     TempoAlteration,
@@ -131,6 +132,18 @@ struct ExpressionBreathMark
     std::optional<std::string> glyphName;
 };
 
+enum class PseudoTieType
+{
+    LaissezVibrer,
+    TieEnd
+};
+
+struct ExpressionPseudoTie
+{
+    PseudoTieType type{ PseudoTieType::LaissezVibrer };
+    musx::dom::CurveContourDirection direction{ musx::dom::CurveContourDirection::Unspecified };
+};
+
 struct ExpressionNonArpeggio
 {
     musx::util::ArpeggioSpanCandidate candidate;
@@ -162,7 +175,7 @@ struct Suppress
 };
 
 using ExpressionRunValue = std::variant<std::monostate, DynamicMark, DynamicQualifier, ExpressionFermata, ExpressionBreathMark, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
-using ExpressionValue = std::variant<std::monostate, DynamicMark, ExpressionFermata, ExpressionBreathMark, ExpressionNonArpeggio, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
+using ExpressionValue = std::variant<std::monostate, DynamicMark, ExpressionFermata, ExpressionBreathMark, ExpressionPseudoTie, ExpressionNonArpeggio, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
 
 struct ExpressionRun
 {
@@ -208,6 +221,9 @@ public:
 
     const ExpressionBreathMark& breathMark() const
     { return checkedPayload<ExpressionBreathMark, ExpressionType::BreathMark>("BreathMark"); }
+
+    const ExpressionPseudoTie& pseudoTie() const
+    { return checkedPayload<ExpressionPseudoTie, ExpressionType::PseudoTie>("PseudoTie"); }
 
     const ExpressionNonArpeggio& nonArpeggio() const
     { return checkedPayload<ExpressionNonArpeggio, ExpressionType::NonArpeggio>("NonArpeggio"); }

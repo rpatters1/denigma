@@ -389,6 +389,8 @@ void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<oth
             case classify::ExpressionType::NonArpeggio:
                 appendArpeggioCandidate(context, mnxMeasure, classification.nonArpeggio().candidate);
                 break;
+            case classify::ExpressionType::PseudoTie:
+                break;
             case classify::ExpressionType::Error:
                 context->logMessage(LogMsg() << classification.error().message, MessageSeverity::Warning);
                 break;

@@ -703,21 +703,71 @@ static ExpressionClassification classifyShapeExpressionDefinition(const musx::do
     return suppressExpression();
 }
 
+static musx::dom::CurveContourDirection calcShapeExpressionContour(
+    const musx::dom::MusxInstance<musx::dom::others::ShapeDef>& shape)
+{
+    return shape ? shape->calcSlurContour() : musx::dom::CurveContourDirection::Unspecified;
+}
+
+static std::optional<ExpressionClassification> classifyPseudoTieExpression(
+    const musx::dom::MusxInstance<musx::dom::others::ShapeDef>& shape,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+{
+    if (!assignment) {
+        return std::nullopt;
+    }
+    const auto entryInfo = assignment->calcAssociatedEntry();
+    if (!entryInfo) {
+        return std::nullopt;
+    }
+
+    auto makeResult = [&](PseudoTieType type) {
+        ExpressionClassification result;
+        result.type = ExpressionType::PseudoTie;
+        result.basis = ClassificationBasis::Heuristic;
+        result.value = ExpressionPseudoTie{ type, calcShapeExpressionContour(shape) };
+        return result;
+    };
+
+    if (assignment->calcIsPseudoTie(musx::utils::PseudoTieMode::LaissezVibrer, entryInfo)) {
+        return makeResult(PseudoTieType::LaissezVibrer);
+    }
+    if (assignment->calcIsPseudoTie(musx::utils::PseudoTieMode::TieEnd, entryInfo)) {
+        return makeResult(PseudoTieType::TieEnd);
+    }
+    return std::nullopt;
+}
+
 static ExpressionClassification classifyAssignedShapeExpression(
     const musx::dom::MusxInstance<musx::dom::others::ShapeExpressionDef>& def,
     const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
 {
     const CategoryType categoryType = categoryTypeForExpression(def);
+    const auto shape = def ? def->getShape() : musx::dom::MusxInstance<musx::dom::others::ShapeDef>{};
+    const auto shapeType = shape ? shape->recognize() : musx::dom::KnownShapeDefType::Unrecognized;
+
+    switch (shapeType) {
+    case musx::dom::KnownShapeDefType::SlurTieCurveLeft:
+    case musx::dom::KnownShapeDefType::SlurTieCurveRight:
+        if (const auto pseudoTie = classifyPseudoTieExpression(shape, assignment)) {
+            return *pseudoTie;
+        }
+        break;
+    case musx::dom::KnownShapeDefType::VerticalLineRightHooks:
+        if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForAssignment(assignment)) {
+            ExpressionClassification result;
+            result.type = ExpressionType::NonArpeggio;
+            result.basis = ClassificationBasis::FinaleCategory;
+            result.value = ExpressionNonArpeggio{ nonArpeggio.value() };
+            return result;
+        }
+        break;
+    default:
+        break;
+    }
 
     if (const auto tempo = classifyTempo(def, categoryType)) {
         return *tempo;
-    }
-    if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForAssignment(assignment)) {
-        ExpressionClassification result;
-        result.type = ExpressionType::NonArpeggio;
-        result.basis = ClassificationBasis::FinaleCategory;
-        result.value = ExpressionNonArpeggio{ nonArpeggio.value() };
-        return result;
     }
     if (assignmentUsesTopStaff(assignment)) {
         return classifySystemTextExpression({}, {}, categoryType);
