@@ -375,6 +375,45 @@ TEST(MusicXmlNotes, TieTargetTypesExportSmoke)
     const auto outputPath = exportMusicXmlFixture("tie_target_types.musx");
     const auto actualScore = loadScoreData(outputPath);
     ASSERT_TRUE(actualScore);
+
+    const auto findBarlineIndex = [](const mx::api::MeasureData& measure, mx::api::HorizontalAlignment location) -> std::optional<size_t> {
+        for (size_t barlineIndex = 0; barlineIndex < measure.barlines.size(); ++barlineIndex) {
+            if (measure.barlines.at(barlineIndex).location == location) {
+                return barlineIndex;
+            }
+        }
+        return std::nullopt;
+    };
+
+    ASSERT_FALSE(actualScore->parts.empty());
+    const auto& measures = actualScore->parts.front().measures;
+    ASSERT_GE(measures.size(), 4u);
+
+    const auto& firstEndingMeasure = measures.at(2);
+    const auto firstEndingStartIndex = findBarlineIndex(firstEndingMeasure, mx::api::HorizontalAlignment::left);
+    const auto firstEndingStopIndex = findBarlineIndex(firstEndingMeasure, mx::api::HorizontalAlignment::right);
+    ASSERT_TRUE(firstEndingStartIndex);
+    ASSERT_TRUE(firstEndingStopIndex);
+    EXPECT_LT(*firstEndingStartIndex, *firstEndingStopIndex);
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStartIndex).barlineType, mx::api::BarlineType::unspecified);
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStartIndex).endingType, mx::api::EndingType::start);
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStartIndex).endingNumber, 1);
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStopIndex).barlineType, mx::api::BarlineType::lightHeavy);
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStopIndex).endingType, mx::api::EndingType::stop);
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStopIndex).endingNumber, 1);
+
+    const auto& secondEndingMeasure = measures.at(3);
+    const auto secondEndingStartIndex = findBarlineIndex(secondEndingMeasure, mx::api::HorizontalAlignment::left);
+    const auto secondEndingStopIndex = findBarlineIndex(secondEndingMeasure, mx::api::HorizontalAlignment::right);
+    ASSERT_TRUE(secondEndingStartIndex);
+    ASSERT_TRUE(secondEndingStopIndex);
+    EXPECT_LT(*secondEndingStartIndex, *secondEndingStopIndex);
+    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStartIndex).barlineType, mx::api::BarlineType::unspecified);
+    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStartIndex).endingType, mx::api::EndingType::start);
+    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStartIndex).endingNumber, 2);
+    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStopIndex).barlineType, mx::api::BarlineType::unspecified);
+    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStopIndex).endingType, mx::api::EndingType::discontinue);
+    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStopIndex).endingNumber, 2);
 }
 
 TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)

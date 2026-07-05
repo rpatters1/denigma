@@ -368,12 +368,11 @@ mx::api::NoteData createRestData(
 
     auto rest = mx::api::NoteData{};
     rest.isRest = true;
-    rest.noteType = mx::api::NoteType::normal;
     rest.userRequestedVoiceNumber = userVoiceNumber;
 
     if (entryInfo) {
         const auto entry = entryInfo->getEntry();
-        rest.noteType = entry->graceNote ? mx::api::NoteType::grace : mx::api::NoteType::normal;
+        rest.isGrace = entry->graceNote;
         rest.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
     } else {
         rest.durationData.durationName = mx::api::DurationName::whole;
@@ -469,7 +468,7 @@ void appendEntryNotes(
         auto note = mx::api::NoteData{};
         // MX uses this as "is in a chord group"; it suppresses <chord/> on the first note internally.
         note.isChord = entry->notes.size() > 1;
-        note.noteType = entry->graceNote ? mx::api::NoteType::grace : mx::api::NoteType::normal;
+        note.isGrace = entry->graceNote;
         note.userRequestedVoiceNumber = userVoiceNumber;
         note.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
         note.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));

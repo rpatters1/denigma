@@ -61,8 +61,15 @@ mx::api::BarlineData& ensureBarlineData(
 
     auto barline = mx::api::BarlineData{};
     barline.location = location;
+    barline.barlineType = mx::api::BarlineType::unspecified;
     if (location == mx::api::HorizontalAlignment::right) {
         barline.tickTimePosition = mx::api::TICK_TIME_INFINITY;
+    }
+    if (location == mx::api::HorizontalAlignment::left) {
+        const auto rightBarlineIt = std::find_if(measure.barlines.begin(), measure.barlines.end(), [](const auto& existingBarline) {
+            return existingBarline.location == mx::api::HorizontalAlignment::right;
+        });
+        return *measure.barlines.insert(rightBarlineIt, barline);
     }
     measure.barlines.emplace_back(barline);
     return measure.barlines.back();
@@ -169,6 +176,7 @@ void assignRepeatEndings(
                 }
             }
         }
+        const auto endingNumber = startBarline.endingNumber;
 
         const auto endMeasureIndex = static_cast<size_t>(ending->getCmper() + ending->calcEndingLength() - 2);
         ASSERT_IF(endMeasureIndex >= part.measures.size()) {
@@ -176,7 +184,7 @@ void assignRepeatEndings(
         }
         auto& stopBarline = ensureBarlineData(part.measures[endMeasureIndex], mx::api::HorizontalAlignment::right);
         stopBarline.endingType = ending->calcIsOpen() ? mx::api::EndingType::discontinue : mx::api::EndingType::stop;
-        stopBarline.endingNumber = startBarline.endingNumber;
+        stopBarline.endingNumber = endingNumber;
     }
 }
 
