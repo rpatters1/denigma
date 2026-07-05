@@ -99,7 +99,7 @@ Jump classifyVisualJump(const musx::dom::MusxInstance<musx::dom::others::TextRep
         if (const auto codepoint = utils::utf8ToCodepoint(repeatText->text)) {
             if (const auto* glyphName = smufl_mapping::getGlyphNameForFont(
                     def->font->getName(),
-                    *codepoint,
+                    codepoint.value(),
                     def->font->calcIsSMuFL(),
                     smufl_mapping::SmuflGlyphSource::Finale)) {
                 glyphNameView = *glyphName;
