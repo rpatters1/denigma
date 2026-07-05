@@ -167,3 +167,16 @@ TEST(MusicXmlSmartShapes, SlursTwoVoicesMatchReference)
 
     EXPECT_EQ(createComparableSlurEvents(*referenceScore), createComparableSlurEvents(*actualScore));
 }
+
+TEST(MusicXmlSmartShapes, DISABLED_SlursOverbarsMatchReference)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("slurs_overbars.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore.has_value());
+
+    const auto referenceScore = loadScoreData(std::filesystem::path("inputs") / "musicxml" / "slurs_overbars-ref.musicxml");
+    ASSERT_TRUE(referenceScore.has_value());
+
+    EXPECT_EQ(createComparableSlurEvents(*referenceScore), createComparableSlurEvents(*actualScore));
+}

@@ -111,6 +111,9 @@ SmartShapeNumberLevels assignSmartShapeNumberLevels(
     const MusxInstanceList<others::Measure>& musxMeasures,
     const std::vector<StaffCmper>& staves)
 {
+    /// @todo This musical-range heuristic cannot fully account for MusicXML serialized note order
+    /// with backup-based voices; see MusicXmlSmartShapes.DISABLED_SlursOverbarsMatchReference.
+    /// If mx::api gains writer-side spanner number assignment, remove this.
     std::vector<NumberedSmartShape> shapes;
     std::unordered_set<Cmper> seenShapes;
 

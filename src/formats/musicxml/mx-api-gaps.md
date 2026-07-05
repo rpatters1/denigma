@@ -50,6 +50,14 @@ Needed API shape: a tie-notation data model separate from playback tie booleans,
 
 ## Smart Shapes And Spanners
 
+### Spanner number assignment in serialized order
+
+MusicXML `number` attributes for slurs, wedges, and similar spanners disambiguate simultaneously open spanners of the same element type. For slurs, "open" is effectively determined by serialized MusicXML note order, not only by musical time. When voices are written with `<backup>` elements, a slur that has musically ended may still appear open to a streaming reader until the later voice containing its stop is serialized.
+
+Denigma can identify matching MUSX smart-shape start and stop endpoints, but `mx::api` controls final note serialization order. Denigma currently uses a part-local musical-range heuristic for smart-shape number assignment, which cannot fully match serialized-order cases such as non-overlapping slurs split across voices.
+
+Needed API shape: `mx::api` should assign or normalize spanner `number` attributes during writing, using the actual serialization order it controls and the paired start/stop data in the API model. If that becomes available, Denigma should remove its local smart-shape number heuristic.
+
 ### Optional wedge color
 
 MusicXML `<wedge>` supports a `color` attribute, but omitting it is the normal way to request the default score color.
