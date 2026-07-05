@@ -118,13 +118,23 @@ static musx::util::Fraction calcJumpLocation(const MusxInstance<others::TextRepe
     return result;
 }
 
-static std::optional<MusxInstance<others::TextRepeatAssign>> searchForJump(const MnxMusxMappingPtr& context, classify::Jump jumpType, const MusxInstance<others::Measure>& musxMeasure)
+enum class JumpClassificationSide
+{
+    Visual,
+    Playback
+};
+
+static std::optional<MusxInstance<others::TextRepeatAssign>> searchForJump(
+    classify::Jump jumpType,
+    const MusxInstance<others::Measure>& musxMeasure,
+    JumpClassificationSide side)
 {
     if (musxMeasure->hasTextRepeat) {
         auto textRepeatAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::TextRepeatAssign>(SCORE_PARTID, musxMeasure->getCmper());
         for (const auto& next : textRepeatAssigns) {
-            const auto it = context->textRepeat2Jump.find(next->textRepeatId);
-            if (it != context->textRepeat2Jump.end() && it->second == jumpType) {
+            const auto classification = classify::classifyJump(next);
+            const auto candidate = (side == JumpClassificationSide::Visual) ? classification.visual : classification.playback;
+            if (candidate == jumpType) {
                 return next;
             }
         }
@@ -133,18 +143,16 @@ static std::optional<MusxInstance<others::TextRepeatAssign>> searchForJump(const
 }
 
 static void createFine(
-    const MnxMusxMappingPtr& context,
     mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    if (auto repeatAssign = searchForJump(context, classify::Jump::Fine, musxMeasure)) {
+    if (auto repeatAssign = searchForJump(classify::Jump::Fine, musxMeasure, JumpClassificationSide::Playback)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
         mnxMeasure.ensure_fine(mnxFractionFromFraction(location));
     }
 }
 
 static void createJump(
-    const MnxMusxMappingPtr& context,
     mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
@@ -156,7 +164,7 @@ static void createJump(
     });
 
     for (const auto& mapping : jumpMapping) {
-        if (auto repeatAssign = searchForJump(context, mapping.first, musxMeasure)) {
+        if (auto repeatAssign = searchForJump(mapping.first, musxMeasure, JumpClassificationSide::Playback)) {
             auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
             mnxMeasure.ensure_jump(mapping.second, mnxFractionFromFraction(location));
         }            
@@ -196,11 +204,10 @@ static void assignRepeats(mnxdom::global::Measure& mnxMeasure, const MusxInstanc
 }
 
 static void createSegno(
-    const MnxMusxMappingPtr& context,
     mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    if (auto repeatAssign = searchForJump(context, classify::Jump::Segno, musxMeasure)) {
+    if (auto repeatAssign = searchForJump(classify::Jump::Segno, musxMeasure, JumpClassificationSide::Visual)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
         auto segno = mnxMeasure.ensure_segno(mnxFractionFromFraction(location));
         if (auto repeatText = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
@@ -331,12 +338,12 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         assignBarline(context, mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
         createEnding(mnxMeasure, musxMeasure);
         createBarlineFermata(context, mnxMeasure, musxMeasure);
-        createFine(context, mnxMeasure, musxMeasure);
-        createJump(context, mnxMeasure, musxMeasure);
+        createFine(mnxMeasure, musxMeasure);
+        createJump(mnxMeasure, musxMeasure);
         assignKey(mnxMeasure, musxMeasure, prevKeyFifths);
         assignDisplayNumber(mnxMeasure, musxMeasure);
         assignRepeats(mnxMeasure, musxMeasure);
-        createSegno(context, mnxMeasure, musxMeasure);
+        createSegno(mnxMeasure, musxMeasure);
         createTempos(context, mnxMeasure, musxMeasure);
         assignTimeSignature(context, mnxMeasure, musxMeasure, prevTimeSig);
     }

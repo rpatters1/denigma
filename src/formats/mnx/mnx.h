@@ -92,7 +92,6 @@ struct MnxMusxMapping
     std::unordered_set<std::string> lyricLineIds;
 
     // musx mappings
-    std::unordered_map<Cmper, classify::Jump> textRepeat2Jump;
     std::unordered_map<std::string, mnxdom::json_pointer> noteJsonById;
     std::unordered_map<EntryNumber, EntryTarget> entryTargetByNumber;
 

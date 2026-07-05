@@ -226,14 +226,6 @@ static void createScores(const MnxMusxMappingPtr& context)
     }
 }
 
-static void createMappings(const MnxMusxMappingPtr& context)
-{
-    auto textRepeatDefs = context->document->getOthers()->getArray<others::TextRepeatDef>(SCORE_PARTID);
-    for (const auto& def : textRepeatDefs) {
-        context->textRepeat2Jump.emplace(def->getCmper(), classify::classifyJump(def));
-    }
-}
-
 static std::unique_ptr<mnxdom::Document> createMnxDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
     auto document = denigma::createMusxDocument<MusxReader>(inputData, denigmaContext);
@@ -241,8 +233,6 @@ static std::unique_ptr<mnxdom::Document> createMnxDocument(const CommandInputDat
     context->mnxDocument = std::make_unique<mnxdom::Document>();
     context->musxParts = others::PartDefinition::getInUserOrder(document);
     MusxLoggerScope mnxMusxLogger(makeMusxLogCallback(context));
-
-    createMappings(context);   // map repeat text, text exprs, articulations, etc. to semantic values
 
     createMnx(context);
     createGlobal(context);
