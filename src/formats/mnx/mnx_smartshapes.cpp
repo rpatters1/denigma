@@ -63,8 +63,10 @@ void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 continue;
             }
             const auto shape = context->document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum);
-            if (!shape || shape->startTermSeg->endPoint->staffId != context->current.staff
-                       || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()) {
+            if (!shape || !shape->calcIsValid()) {
+                continue;
+            }
+            if (shape->startTermSeg->endPoint->staffId != context->current.staff || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()) {
                 continue;
             }
             using ST = musx::dom::others::SmartShape::ShapeType;
@@ -100,7 +102,7 @@ void processSlurs(const MnxMusxMappingPtr&, mnxdom::sequence::Event& mnxEvent, c
                 if (shape->startTermSeg->endPoint->entryNumber != musxEntry->getEntryNumber()) {
                     continue;
                 }
-                if (shape->calcIsSlur()) {
+                if (shape->calcIsSlur() && shape->calcIsValid()) {
                     auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
                     mnxSlur.set_lineType(shape->calcIsDashed() ? mnxdom::LineType::Dashed : mnxdom::LineType::Solid);
                     if (auto contourDir = shape->calcContourDirection(); contourDir != CurveContourDirection::Unspecified) {

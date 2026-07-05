@@ -9,6 +9,8 @@ Run the test executable from `tests/data`, not from the repository root.
 
 The GoogleTest binary expects the current working directory basename to be `data` and resolves inputs/outputs relative to that directory. Running it from the repository root causes broad false failures such as missing input files, `Unknown or misplaced option: --mnx`, or assertions from `tests/denigmatests.cpp` that the cwd is not `data`.
 
+In tests that read fixtures or write generated outputs, call `setupTestDataPaths();` at the start of the test to initialize the fixture and output paths consistently.
+
 Preferred commands:
 
 ```bash
