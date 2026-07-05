@@ -132,8 +132,7 @@ SmartShapeNumberLevels assignSmartShapeNumberLevels(
             }
 
             const auto shape = context.document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum);
-            if (!shape || !shape->startTermSeg || !shape->endTermSeg
-                || !shape->startTermSeg->endPoint || !shape->endTermSeg->endPoint) {
+            if (!shape || !shape->calcIsValid()) {
                 continue;
             }
             const auto startPoint = shape->startTermSeg->endPoint;
@@ -270,9 +269,7 @@ bool processSlur(
     const MusxInstance<others::SmartShape>& shape,
     const SmartShapeNumberLevels& numberLevels)
 {
-    if (!shape || shape->hidden || !shape->startTermSeg || !shape->endTermSeg
-        || !shape->startTermSeg->endPoint || !shape->endTermSeg->endPoint
-        || !shape->calcIsSlur() || !shape->entryBased) {
+    if (shape->hidden || !shape->calcIsSlur() || !shape->entryBased) {
         return false;
     }
 
@@ -320,8 +317,7 @@ void appendHairpin(
     mx::api::WedgeType wedgeType,
     const SmartShapeNumberLevels& numberLevels)
 {
-    if (!shape || shape->hidden || !shape->startTermSeg || !shape->endTermSeg
-        || !shape->startTermSeg->endPoint || !shape->endTermSeg->endPoint) {
+    if (shape->hidden) {
         return;
     }
     const auto startPoint = shape->startTermSeg->endPoint;
@@ -380,8 +376,10 @@ void processSmartShapesForStaff(
             continue;
         }
         const auto shape = context.document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum);
-        if (!shape || !shape->startTermSeg || !shape->startTermSeg->endPoint
-            || shape->startTermSeg->endPoint->staffId != staffId
+        if (!shape || !shape->calcIsValid()) {
+            continue;
+        }
+        if (shape->startTermSeg->endPoint->staffId != staffId
             || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()) {
             continue;
         }
