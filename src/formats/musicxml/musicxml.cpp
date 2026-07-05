@@ -27,6 +27,7 @@
 
 #include "musicxml.h"
 #include "core/musx_reader.h"
+#include "denigma/classify/jumps.h"
 #include "utils/mathutils.h"
 
 #include "mx/api/DocumentManager.h"
@@ -70,6 +71,14 @@ void createTiming(const MusicXmlMusxMapping& context, MusicXmlTimingPlan& timing
     timing.divisions = baseDivisions;
 }
 
+void createMappings(MusicXmlMusxMapping& context)
+{
+    const auto textRepeatDefs = context.document->getOthers()->getArray<others::TextRepeatDef>(context.forPartId);
+    for (const auto& def : textRepeatDefs) {
+        context.textRepeat2Jump.emplace(def->getCmper(), classify::classifyJump(def));
+    }
+}
+
 mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
     auto document = denigma::createMusxDocument<MusxReader>(inputData, denigmaContext);
@@ -77,6 +86,7 @@ mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, con
     context.musicXmlScore = std::make_unique<mx::api::ScoreData>();
 
     createTiming(context, context.timing);
+    createMappings(context);
     createMetaData(context);
     createDefaults(context);
     createParts(context);

@@ -95,16 +95,16 @@ BEGIN_ENUM_CONVERSION(music_theory::ClefType, mx::api::ClefSymbol)
     case music_theory::ClefType::TabSerif: return mx::api::ClefSymbol::tab;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarline)
-    case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves: return mx::api::GroupBarline::no;
-    case details::StaffGroup::DrawBarlineStyle::ThroughStaves: return mx::api::GroupBarline::yes;
-    case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
-END_ENUM_CONVERSION
-
 BEGIN_ENUM_CONVERSION(CurveContourDirection, mx::api::CurveOrientation)
     case CurveContourDirection::Unspecified: return mx::api::CurveOrientation::unspecified;
     case CurveContourDirection::Up: return mx::api::CurveOrientation::overhand;
     case CurveContourDirection::Down: return mx::api::CurveOrientation::underhand;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarline)
+    case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves: return mx::api::GroupBarline::no;
+    case details::StaffGroup::DrawBarlineStyle::ThroughStaves: return mx::api::GroupBarline::yes;
+    case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(classify::Dynamic, mx::api::MarkType)

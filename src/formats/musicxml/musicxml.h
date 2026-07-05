@@ -87,6 +87,12 @@ void processExpressions(
     const musx::dom::MusxInstance<musx::dom::others::Measure>& musxMeasure,
     musx::dom::StaffCmper staffId,
     size_t staffIndex);
+void processJumps(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    const musx::dom::MusxInstance<musx::dom::others::Measure>& musxMeasure,
+    musx::dom::StaffCmper staffId,
+    size_t staffIndex);
 void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note, const musx::dom::EntryInfoPtr& entryInfo);
 void processSmartShapes(
     MusicXmlMusxMapping& context,

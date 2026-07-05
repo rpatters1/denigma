@@ -109,6 +109,18 @@ void parseMusicXmlFormattedText(const MusicXmlMusxMapping& context, const musx::
     }, parsingOptions);
 }
 
+mx::api::WordsData musicXmlWordsFromEnigmaTextChunk(const MusicXmlMusxMapping& context, const musx::util::EnigmaTextChunk& chunk,
+    const MusicXmlFormattedTextOptions& options)
+{
+    ASSERT_IF(!chunk.styles.font) {
+        throw std::logic_error("MusicXML formatted text chunk has no font data.");
+    }
+    mx::api::WordsData result;
+    result.fontData = context.musicXmlFontDataFromFontInfo(*chunk.styles.font, options.fallback);
+    result.text = chunk.text;
+    return result;
+}
+
 mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
     const musx::dom::texts::LyricsTextBase& lyricText, size_t syllableIndex, const MusicXmlFormattedTextOptions& options)
 {

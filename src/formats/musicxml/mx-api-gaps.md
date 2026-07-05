@@ -170,6 +170,14 @@ Needed API shape: ending data with a string/list representation for the MusicXML
 
 ## Directions and Expressions
 
+### Direction words justification
+
+MusicXML `<words>` supports both `halign` and `justify`. Finale text repeats use their justification setting for both horizontal alignment and text justification, and Finale's MusicXML export emits `justify` for right-justified jump text such as segno / D.S. markings.
+
+`mx::api::WordsData` exposes `PositionData::horizontalAlignmnet`, which MX writes as `halign`, but it does not expose a separate `justify` field for direction words. Denigma can set `halign` from `TextRepeatDef::justification`, but cannot currently emit the parallel `justify` attribute through `mx::api`.
+
+Needed API shape: add a `justify` field to `mx::api::WordsData`, parallel to `PageTextData::justify`, and have `DirectionWriter::emitWords()` set `FormattedTextID::setJustify()`.
+
 ### Interleaved words and symbols
 
 MusicXML direction types can interleave `<words>` and `<symbol>` elements in the same direction-type group. This is the correct representation for Finale expressions that mix normal formatted text with SMuFL music glyphs, such as dynamic expressions with text before or after dynamic glyphs, or arbitrary text expressions containing embedded music symbols.

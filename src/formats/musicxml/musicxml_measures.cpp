@@ -615,6 +615,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         for (size_t staffIndex = 0; staffIndex < stavesIt->second.size(); ++staffIndex) {
             const StaffCmper staffId = stavesIt->second[staffIndex];
             auto& staff = measure.staves[staffIndex];
+            processJumps(context, staff, musxMeasure, staffId, staffIndex);
             processExpressions(context, measure, staff, musxMeasure, staffId, staffIndex);
         }
     }

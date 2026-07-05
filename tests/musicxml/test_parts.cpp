@@ -342,6 +342,31 @@ TEST(MusicXmlParts, RepeatsExportSmoke)
     ASSERT_TRUE(actualScore);
 }
 
+TEST(MusicXmlParts, RepeatsExportJumpSound)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("repeats.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    constexpr size_t jumpMeasureIndex = 9;
+    const auto& measures = actualScore->parts.front().measures;
+    ASSERT_GT(measures.size(), jumpMeasureIndex);
+    ASSERT_FALSE(measures.at(jumpMeasureIndex).staves.empty());
+
+    const auto& directions = measures.at(jumpMeasureIndex).staves.front().directions;
+    const auto jumpDirectionIt = std::find_if(directions.begin(), directions.end(), [](const auto& direction) {
+        return direction.isSoundDataSpecified && direction.soundData.dalsegno == "12";
+    });
+    ASSERT_NE(jumpDirectionIt, directions.end());
+    EXPECT_EQ(jumpDirectionIt->tickTimePosition, 0);
+    ASSERT_FALSE(jumpDirectionIt->words.empty());
+    EXPECT_EQ(jumpDirectionIt->words.front().text, "Segno");
+    EXPECT_EQ(jumpDirectionIt->words.front().positionData.horizontalAlignmnet, mx::api::HorizontalAlignment::right);
+}
+
 TEST(MusicXmlParts, RepeatsExportEndingBrackets)
 {
     setupTestDataPaths();

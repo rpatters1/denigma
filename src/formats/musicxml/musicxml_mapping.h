@@ -29,6 +29,7 @@
 
 #include "core/denigma.h"
 #include "core/finale_options.h"
+#include "denigma/classify/jumps.h"
 #include "musx/musx.h"
 #include "mx/api/FontData.h"
 #include "mx/api/CurveData.h"
@@ -158,6 +159,7 @@ struct MusicXmlMusxMapping
     std::unordered_map<std::string, std::vector<musx::dom::StaffCmper>> partIdToStaves;
     std::unordered_map<std::string, mx::api::PartSymbolData> partIdToPartSymbol;
     std::unordered_map<std::string, MusicXmlPitchContext> partIdToPitchContext;
+    std::unordered_map<musx::dom::Cmper, classify::Jump> textRepeat2Jump;
     std::unordered_map<musx::dom::EntryNumber, MusicXmlNoteLocation> entryNumberToFirstNote;
     std::unordered_map<std::uint64_t, MusicXmlNoteLocation> noteLocations;
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;

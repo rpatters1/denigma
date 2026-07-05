@@ -103,6 +103,7 @@ set(DENIGMA_FORMAT_MUSICXML_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_expressions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_formatted_text.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_instruments.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/musicxml_jumps.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_mapping.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_measures.cpp
     ${CMAKE_CURRENT_LIST_DIR}/musicxml_metadata.cpp
