@@ -49,24 +49,33 @@ namespace {
 
 using BarlineType = others::Measure::BarlineType;
 
-void setBarlineData(
+mx::api::BarlineData& ensureBarlineData(
     mx::api::MeasureData& measure,
-    mx::api::BarlineType barlineType,
     mx::api::HorizontalAlignment location)
 {
+    for (auto& barline : measure.barlines) {
+        if (barline.location == location) {
+            return barline;
+        }
+    }
+
     auto barline = mx::api::BarlineData{};
-    barline.barlineType = barlineType;
     barline.location = location;
     if (location == mx::api::HorizontalAlignment::right) {
         barline.tickTimePosition = mx::api::TICK_TIME_INFINITY;
     }
-    for (auto& existing : measure.barlines) {
-        if (existing.location == location) {
-            existing = barline;
-            return;
-        }
-    }
     measure.barlines.emplace_back(barline);
+    return measure.barlines.back();
+}
+
+mx::api::BarlineData& setBarlineData(
+    mx::api::MeasureData& measure,
+    mx::api::BarlineType barlineType,
+    mx::api::HorizontalAlignment location)
+{
+    auto& barline = ensureBarlineData(measure, location);
+    barline.barlineType = barlineType;
+    return barline;
 }
 
 void setBarline(
@@ -119,10 +128,56 @@ void assignBarlines(
         if (classification.isShort) {
             setBarlineData(measure, mx::api::BarlineType::short_, mx::api::HorizontalAlignment::right);
         }
-        return;
+    } else {
+        setBarline(context, measure, classification.type, mx::api::HorizontalAlignment::right);
     }
 
-    setBarline(context, measure, classification.type, mx::api::HorizontalAlignment::right);
+    const auto setRepeat = [&](mx::api::HorizontalAlignment location, mx::api::BarlineType repeatBarlineType) {
+        auto& barline = ensureBarlineData(measure, location);
+        if (barline.barlineType == mx::api::BarlineType::unspecified || barline.barlineType == mx::api::BarlineType::normal) {
+            barline.barlineType = repeatBarlineType;
+        }
+        barline.repeat = true;
+    };
+
+    if (musxMeasure->forwardRepeatBar) {
+        setRepeat(mx::api::HorizontalAlignment::left, mx::api::BarlineType::heavyLight);
+    }
+    if (musxMeasure->backwardsRepeatBar) {
+        setRepeat(mx::api::HorizontalAlignment::right, mx::api::BarlineType::lightHeavy);
+    }
+}
+
+void assignRepeatEndings(
+    const MusicXmlMusxMapping& context,
+    mx::api::PartData& part)
+{
+    const auto endingStarts = context.document->getOthers()->getArray<others::RepeatEndingStart>(context.forPartId);
+    for (const auto& ending : endingStarts) {
+        const auto measureIndex = static_cast<size_t>(ending->getCmper() - 1);
+        ASSERT_IF(measureIndex >= part.measures.size()) {
+            continue;
+        }
+        auto& startBarline = ensureBarlineData(part.measures[measureIndex], mx::api::HorizontalAlignment::left);
+        startBarline.endingType = mx::api::EndingType::start;
+        if (const auto passList = context.document->getOthers()->get<others::RepeatPassList>(context.forPartId, ending->getCmper())) {
+            if (!passList->values.empty()) {
+                startBarline.endingNumber = passList->values.front();
+                if (passList->values.size() > 1) {
+                    context.logMessage(LogMsg() << "MusicXML ending at measure " << ending->getCmper()
+                        << " has multiple pass numbers, but mx::api can only export the first.", MessageSeverity::Info);
+                }
+            }
+        }
+
+        const auto endMeasureIndex = static_cast<size_t>(ending->getCmper() + ending->calcEndingLength() - 2);
+        ASSERT_IF(endMeasureIndex >= part.measures.size()) {
+            continue;
+        }
+        auto& stopBarline = ensureBarlineData(part.measures[endMeasureIndex], mx::api::HorizontalAlignment::right);
+        stopBarline.endingType = ending->calcIsOpen() ? mx::api::EndingType::discontinue : mx::api::EndingType::stop;
+        stopBarline.endingNumber = startBarline.endingNumber;
+    }
 }
 
 mx::api::KeyMode musicXmlKeyModeFromMusxKeySignature(const MusxInstance<KeySignature>& keySignature)
@@ -543,6 +598,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         }
     }
 
+    assignRepeatEndings(context, part);
     processSmartShapes(context, musxMeasures, stavesIt->second);
 
     for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {

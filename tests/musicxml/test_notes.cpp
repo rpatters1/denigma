@@ -368,6 +368,15 @@ TEST(MusicXmlNotes, LargeOrchestraTiesMatchFinale)
     compareTieEvents(*actualScore, *expectedScore);
 }
 
+TEST(MusicXmlNotes, TieTargetTypesExportSmoke)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("tie_target_types.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+}
+
 TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)
 {
     setupTestDataPaths();

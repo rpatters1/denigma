@@ -146,7 +146,7 @@ std::vector<std::vector<ComparableKeySignature>> createEffectiveKeySignatureTrac
     for (const auto& part : score.parts) {
         size_t staffCount = 1;
         for (const auto& measure : part.measures) {
-            staffCount = std::max(staffCount, measure.staves.size());
+            staffCount = (std::max)(staffCount, measure.staves.size());
         }
 
         std::vector<std::vector<ComparableKeySignature>> partTracks(staffCount);
@@ -331,6 +331,73 @@ TEST(MusicXmlParts, ShortBarlineStyleAppliesPerPart)
     EXPECT_EQ(effectiveRightBarlineType(secondPartMeasures.at(0)), mx::api::BarlineType::normal) << "second part measure 1";
     EXPECT_EQ(effectiveRightBarlineType(secondPartMeasures.at(1)), mx::api::BarlineType::normal) << "second part measure 2";
     EXPECT_EQ(effectiveRightBarlineType(secondPartMeasures.at(2)), mx::api::BarlineType::lightHeavy) << "second part measure 3";
+}
+
+TEST(MusicXmlParts, RepeatsExportSmoke)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("repeats.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+}
+
+TEST(MusicXmlParts, RepeatsExportEndingBrackets)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("repeats.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+
+    auto endingTypeCount = [&](mx::api::EndingType endingType) {
+        size_t result = 0;
+        for (const auto& part : actualScore->parts) {
+            for (const auto& measure : part.measures) {
+                for (const auto& barline : measure.barlines) {
+                    if (barline.endingType == endingType) {
+                        ++result;
+                    }
+                }
+            }
+        }
+        return result;
+    };
+
+    EXPECT_GE(endingTypeCount(mx::api::EndingType::start), 2u) << "volta starts";
+    EXPECT_GE(endingTypeCount(mx::api::EndingType::stop), 2u) << "closed volta stops";
+
+    ASSERT_FALSE(actualScore->parts.empty());
+    const auto& measures = actualScore->parts.front().measures;
+    ASSERT_GE(measures.size(), 11u);
+    const auto findBarline = [](const mx::api::MeasureData& measure, mx::api::HorizontalAlignment location) -> const mx::api::BarlineData* {
+        for (const auto& barline : measure.barlines) {
+            if (barline.location == location) {
+                return &barline;
+            }
+        }
+        return nullptr;
+    };
+
+    const auto* firstEndingStart = findBarline(measures.at(3), mx::api::HorizontalAlignment::left);
+    ASSERT_NE(firstEndingStart, nullptr);
+    EXPECT_EQ(firstEndingStart->endingType, mx::api::EndingType::start);
+    EXPECT_EQ(firstEndingStart->endingNumber, 1);
+
+    const auto* firstEndingStop = findBarline(measures.at(5), mx::api::HorizontalAlignment::right);
+    ASSERT_NE(firstEndingStop, nullptr);
+    EXPECT_EQ(firstEndingStop->endingType, mx::api::EndingType::stop);
+    EXPECT_EQ(firstEndingStop->endingNumber, 1);
+
+    const auto* fourthEndingStart = findBarline(measures.at(6), mx::api::HorizontalAlignment::left);
+    ASSERT_NE(fourthEndingStart, nullptr);
+    EXPECT_EQ(fourthEndingStart->endingType, mx::api::EndingType::start);
+    EXPECT_EQ(fourthEndingStart->endingNumber, 4);
+
+    const auto* fourthEndingStop = findBarline(measures.at(10), mx::api::HorizontalAlignment::right);
+    ASSERT_NE(fourthEndingStop, nullptr);
+    EXPECT_EQ(fourthEndingStop->endingType, mx::api::EndingType::stop);
+    EXPECT_EQ(fourthEndingStop->endingNumber, 4);
 }
 
 TEST(MusicXmlParts, IndependentKeySignaturesMatchFinale)
