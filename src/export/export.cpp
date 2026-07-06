@@ -73,6 +73,7 @@ formats::musicxml::Options makeMusicXmlOptions(const DenigmaContext& denigmaCont
 {
     formats::musicxml::Options options;
     options.common = makeCommonOptions(denigmaContext);
+    options.includeTempoTool = denigmaContext.includeTempoTool;
     return options;
 }
 

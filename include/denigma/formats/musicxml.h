@@ -33,6 +33,7 @@ struct Options final : public IOptions
 {
     /// Options common to all converters.
     CommonOptions common;
+    bool includeTempoTool{ false };
 };
 
 /// @class EnigmaXmlToMusicXmlConverter

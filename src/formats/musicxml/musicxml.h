@@ -60,6 +60,7 @@ MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, con
 std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);
 mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacement placement);
 mx::api::MarkType musicXmlFermataType(const classify::Fermata& fermata);
+double musicXmlQuarterNotesPerMinute(const classify::TempoInfo& tempo);
 
 void createDefaults(const MusicXmlMusxMapping& context);
 void createMeasures(MusicXmlMusxMapping& context);

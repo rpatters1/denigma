@@ -32,9 +32,11 @@
 
 #include "mx/api/BarlineData.h"
 #include "mx/api/ClefData.h"
+#include "mx/api/DirectionData.h"
 #include "mx/api/KeyData.h"
 #include "mx/api/MeasureData.h"
 #include "mx/api/PartData.h"
+#include "mx/api/SoundData.h"
 #include "mx/api/StaffData.h"
 
 using namespace musx::dom;
@@ -266,6 +268,43 @@ std::optional<std::pair<std::string, std::string>> musicXmlTimeSignatureComponen
         return std::nullopt;
     }
     return std::pair{beats, beatType};
+}
+
+void processTempoChanges(
+    MusicXmlMusxMapping& context,
+    mx::api::MeasureData& measure,
+    const MusxInstance<others::Measure>& musxMeasure)
+{
+    if (!context.denigmaContext->includeTempoTool || measure.staves.empty()) {
+        return;
+    }
+
+    std::optional<NoteType> tempoUnit;
+    const auto tempoChanges = musxMeasure->getDocument()->getOthers()->getArray<others::TempoChange>(SCORE_PARTID, musxMeasure->getCmper());
+    auto& directions = measure.staves.front().directions;
+    for (const auto& tempoChange : tempoChanges) {
+        if (tempoChange->isRelative) {
+            continue;
+        }
+        if (!tempoUnit) {
+            auto [count, unit] = musxMeasure->createTimeSignature()->calcSimplified();
+            static_cast<void>(count);
+            tempoUnit = std::min(unit, NoteType::Quarter);
+        }
+        const auto noteType = tempoUnit.value_or(NoteType::Quarter);
+        const double quarterNotesPerMinute =
+            musicXmlQuarterNotesPerMinute(classify::TempoInfo{ {}, tempoChange->getAbsoluteTempo(noteType), Edu(noteType) });
+        if (quarterNotesPerMinute < 0.0) {
+            continue;
+        }
+
+        mx::api::DirectionData direction;
+        direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(Fraction::fromEdu(tempoChange->eduPosition));
+        direction.isStaffValueSpecified = false;
+        direction.soundData.tempo = quarterNotesPerMinute;
+        direction.isSoundDataSpecified = direction.soundData.isSpecified();
+        directions.emplace_back(std::move(direction));
+    }
 }
 
 std::pair<std::string, std::string> musicXmlCumulativeTimeSignatureText(const MusxInstance<TimeSignature>& timeSignature)
@@ -612,6 +651,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
     for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
         const auto& musxMeasure = musxMeasures[measureIndex];
         auto& measure = part.measures[measureIndex];
+        processTempoChanges(context, measure, musxMeasure);
         for (size_t staffIndex = 0; staffIndex < stavesIt->second.size(); ++staffIndex) {
             const StaffCmper staffId = stavesIt->second[staffIndex];
             auto& staff = measure.staves[staffIndex];

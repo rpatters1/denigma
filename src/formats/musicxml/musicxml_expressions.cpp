@@ -66,16 +66,6 @@ bool isTopStaffAssignment(const MusxInstance<others::MeasureExprAssign>& assignm
     return assignment->staffAssign == static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
 }
 
-double musicXmlQuarterNotesPerMinute(const classify::TempoInfo& tempo)
-{
-    if (tempo.beatsPerMinute <= 0 || tempo.beatUnitEdu <= 0) {
-        return mx::api::DOUBLE_UNSPECIFIED;
-    }
-
-    constexpr EduFloat eduPerQuarterNote = EduFloat(NoteType::Quarter);
-    return static_cast<double>(tempo.beatsPerMinute) * static_cast<double>(tempo.beatUnitEdu) / eduPerQuarterNote;
-}
-
 std::optional<mx::api::DirectionData> createTempoExpressionDirection(
     MusicXmlMusxMapping& context,
     size_t staffIndex,
@@ -109,6 +99,16 @@ enum class GroupedDirectionAction
 };
 
 } // namespace
+
+double musicXmlQuarterNotesPerMinute(const classify::TempoInfo& tempo)
+{
+    if (tempo.beatsPerMinute <= 0 || tempo.beatUnitEdu <= 0) {
+        return mx::api::DOUBLE_UNSPECIFIED;
+    }
+
+    constexpr EduFloat eduPerQuarterNote = EduFloat(NoteType::Quarter);
+    return static_cast<double>(tempo.beatsPerMinute) * static_cast<double>(tempo.beatUnitEdu) / eduPerQuarterNote;
+}
 
 void processExpressions(
     MusicXmlMusxMapping& context,
