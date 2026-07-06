@@ -66,6 +66,14 @@ MusicXML `<octave-shift>` supports the same `number` attribute pattern used by o
 
 Needed API shape: write `OttavaStart::spannerStart.numberLevel` and `SpannerStop::numberLevel` as MusicXML `<octave-shift number="...">` when the value is positive, matching the existing slur, wedge, and generic spanner behavior.
 
+### Ottava stop size for importer compatibility
+
+MusicXML allows the `<octave-shift>` `size` attribute to be omitted, including on `type="stop"` elements. However, some importers use the stop `size` to reconstruct the active octave-shift timeline.
+
+`mx::api::OttavaStart` carries an explicit ottava type, so `mx::impl::DirectionWriter::emitOttavaStart()` can write `size="8"` or `size="15"`. Ottava stops are currently represented only as `mx::api::SpannerStop`, and `mx::impl::DirectionWriter::emitOttavaStop()` writes `type="stop"` without a `size` attribute. Denigma therefore cannot emit stop sizes for ottavas through the current API, even when doing so is needed for compatibility with importers such as MuseScore.
+
+Needed API shape: either an ottava-specific stop type that carries the same 8va / 8vb / 15ma / 15mb amount as the start, or writer support that derives and emits the matching stop `size` for `<octave-shift type="stop">`.
+
 ### Optional wedge color
 
 MusicXML `<wedge>` supports a `color` attribute, but omitting it is the normal way to request the default score color.
