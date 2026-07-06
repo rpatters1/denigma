@@ -19,12 +19,12 @@
 
 #include "musicxml.h"
 
-#include <algorithm>
 #include <iterator>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "denigma/classify/jumps.h"
 #include "musicxml_formatted_text.h"
 #include "musx/util/EnigmaString.h"
 #include "mx/api/CodaData.h"
@@ -46,15 +46,6 @@ namespace {
 std::string jumpTargetId(MeasCmper measureId)
 {
     return std::to_string(measureId);
-}
-
-std::optional<classify::Jump> jumpForTextRepeatId(const MusicXmlMusxMapping& context, Cmper textRepeatId)
-{
-    const auto it = context.textRepeat2Jump.find(textRepeatId);
-    if (it == context.textRepeat2Jump.end()) {
-        return std::nullopt;
-    }
-    return it->second;
 }
 
 MusxInstance<others::StaffSystem> systemForMeasure(const MusicXmlMusxMapping& context, MeasCmper measureId)
@@ -138,27 +129,21 @@ void appendVisibleJump(
     direction.words.insert(direction.words.end(), std::make_move_iterator(words.begin()), std::make_move_iterator(words.end()));
 }
 
-void appendSoundJump(
-    MusicXmlMusxMapping& context,
-    mx::api::DirectionData& direction,
-    classify::Jump jump,
-    const MusxInstance<others::TextRepeatAssign>& assignment)
+void appendSoundJump(mx::api::DirectionData& direction, classify::Jump playback, const MusxInstance<others::TextRepeatAssign>& assignment)
 {
     auto& sound = direction.soundData;
-    if (assignment->jumpAction == others::RepeatActionType::NoJump) {
-        switch (jump) {
-        case classify::Jump::Segno:
-            sound.segno = jumpTargetId(assignment->getCmper());
-            break;
-        case classify::Jump::Coda:
-            sound.coda = jumpTargetId(assignment->getCmper());
-            break;
-        default:
-            break;
-        }
+    switch (playback) {
+    case classify::Jump::Segno:
+        sound.segno = jumpTargetId(assignment->getCmper());
+        break;
+    case classify::Jump::Coda:
+        sound.coda = jumpTargetId(assignment->getCmper());
+        break;
+    default:
+        break;
     }
 
-    switch (jump) {
+    switch (playback) {
     case classify::Jump::DaCapo:
     case classify::Jump::DCAlFine:
     case classify::Jump::DCAlCoda:
@@ -173,33 +158,14 @@ void appendSoundJump(
 
     if (const auto targetMeasure = assignment->calcTargetMeasure()) {
         const auto targetId = jumpTargetId(*targetMeasure);
-        switch (assignment->jumpAction) {
-        case others::RepeatActionType::JumpToMark: {
-            const auto targetAssigns = context.document->getOthers()->getArray<others::TextRepeatAssign>(context.forPartId);
-            const auto targetIt = std::find_if(targetAssigns.begin(), targetAssigns.end(), [&](const auto& targetAssign) {
-                return targetAssign && targetAssign->getCmper() == *targetMeasure && targetAssign->textRepeatId == assignment->targetValue;
-            });
-            if (targetIt == targetAssigns.end()) {
-                context.logMessage(LogMsg() << "MusicXML jump in measure " << assignment->getCmper()
-                    << " has an unresolved text repeat target.", MessageSeverity::Info);
-                break;
-            }
-            const auto targetJump = jumpForTextRepeatId(context, (*targetIt)->textRepeatId);
-            if (targetJump == classify::Jump::Segno) {
-                sound.dalsegno = targetId;
-            } else if (targetJump == classify::Jump::Coda) {
-                sound.tocoda = targetId;
-            }
+        switch (playback) {
+        case classify::Jump::DalSegno:
+        case classify::Jump::DsAlFine:
+        case classify::Jump::DsAlCoda:
+            sound.dalsegno = targetId;
             break;
-        }
-        case others::RepeatActionType::JumpAbsolute:
-        case others::RepeatActionType::JumpRelative:
-            if (jump == classify::Jump::Segno || jump == classify::Jump::DalSegno || jump == classify::Jump::DsAlFine
-                || jump == classify::Jump::DsAlCoda) {
-                sound.dalsegno = targetId;
-            } else if (jump == classify::Jump::Coda || jump == classify::Jump::ToCoda) {
-                sound.tocoda = targetId;
-            }
+        case classify::Jump::ToCoda:
+            sound.tocoda = targetId;
             break;
         default:
             break;
@@ -227,8 +193,8 @@ void processJumps(
         if (!shouldEmitJumpForStaff(context, assignment, staffId, staffIndex)) {
             continue;
         }
-        const auto jump = jumpForTextRepeatId(context, assignment->textRepeatId).value_or(classify::Jump::None);
-        if (jump == classify::Jump::None) {
+        const auto jump = classify::classifyJump(assignment);
+        if (jump.visual == classify::Jump::None && jump.playback == classify::Jump::None) {
             continue;
         }
 
@@ -239,8 +205,10 @@ void processJumps(
         direction.placement = mx::api::Placement::above;
         direction.isStaffValueSpecified = true;
 
-        appendVisibleJump(context, direction, jump, repeatDef, repeatText);
-        appendSoundJump(context, direction, jump, assignment);
+        if (jump.visual != classify::Jump::None) {
+            appendVisibleJump(context, direction, jump.visual, repeatDef, repeatText);
+        }
+        appendSoundJump(direction, jump.playback, assignment);
 
         if (!mx::api::isDirectionDataEmpty(direction)) {
             staff.directions.emplace_back(std::move(direction));
