@@ -22,17 +22,93 @@
 
 #include "musicxml.h"
 
+#include <optional>
+#include <unordered_map>
+#include <utility>
+
 #include "denigma/classify/expressions.h"
+#include "musicxml_formatted_text.h"
+#include "mx/api/DirectionData.h"
 #include "mx/api/MarkData.h"
 #include "mx/api/NoteData.h"
 #include "mx/api/StaffData.h"
 
 using namespace musx::dom;
+using namespace musx::util;
 
 namespace denigma {
 namespace formats {
 namespace musicxml {
 namespace detail {
+
+namespace {
+
+mx::api::DirectionData createExpressionDirection(
+    const MusicXmlMusxMapping& context,
+    size_t staffIndex,
+    const MusxInstance<others::MeasureExprAssign>& assignment,
+    VerticalPlacement placement,
+    bool isStaffValueSpecified = true)
+{
+    auto direction = mx::api::DirectionData{};
+    direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(Fraction::fromEdu(assignment->eduPosition));
+    direction.placement = enumConvert<mx::api::Placement>(placement);
+    direction.isStaffValueSpecified = isStaffValueSpecified;
+    if (assignment->layer > 0 || assignment->voice2) {
+        const LayerIndex layer = assignment->layer > 0 ? assignment->layer - 1 : 0;
+        direction.voice = musicXmlVoiceNumber(staffIndex, layer, assignment->voice2 ? 2 : 1);
+    }
+    return direction;
+}
+
+bool isTopStaffAssignment(const MusxInstance<others::MeasureExprAssign>& assignment)
+{
+    return assignment->staffAssign == static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
+}
+
+double musicXmlQuarterNotesPerMinute(const classify::TempoInfo& tempo)
+{
+    if (tempo.beatsPerMinute <= 0 || tempo.beatUnitEdu <= 0) {
+        return mx::api::DOUBLE_UNSPECIFIED;
+    }
+
+    constexpr EduFloat eduPerQuarterNote = EduFloat(NoteType::Quarter);
+    return static_cast<double>(tempo.beatsPerMinute) * static_cast<double>(tempo.beatUnitEdu) / eduPerQuarterNote;
+}
+
+std::optional<mx::api::DirectionData> createTempoExpressionDirection(
+    MusicXmlMusxMapping& context,
+    size_t staffIndex,
+    const MusxInstance<others::MeasureExprAssign>& assignment,
+    const classify::ExpressionClassification& classification,
+    VerticalPlacement placement,
+    bool isStaffValueSpecified)
+{
+    auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    if (classification.enigmaCtx) {
+        direction.words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
+    }
+
+    const double quarterNotesPerMinute = musicXmlQuarterNotesPerMinute(classification.tempoMark().tempo);
+    if (quarterNotesPerMinute >= 0.0) {
+        direction.soundData.tempo = quarterNotesPerMinute;
+        direction.isSoundDataSpecified = direction.soundData.isSpecified();
+    }
+
+    if (mx::api::isDirectionDataEmpty(direction)) {
+        return std::nullopt;
+    }
+    return direction;
+}
+
+enum class GroupedDirectionAction
+{
+    None,
+    Emit,
+    ReplacePrior
+};
+
+} // namespace
 
 void processExpressions(
     MusicXmlMusxMapping& context,
@@ -79,18 +155,46 @@ void processExpressions(
         }
     };
 
+    struct DirectionGroupTracking
+    {
+        size_t directionIndex{};
+        bool emittedFromTopStaffAssignment{};
+    };
+
     const auto exprAssigns = context.document->getOthers()->getArray<others::MeasureExprAssign>(
         musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
+    std::unordered_map<int, DirectionGroupTracking> directionGroups;
     for (const auto& assignment : exprAssigns) {
-        if (assignment->hidden || assignment->staffAssign != staffId) {
+        if (assignment->hidden) {
             continue;
         }
         if (!assignment->calcIsAssignedInRequestedPart()) {
             continue;
         }
 
+        const StaffCmper assignedStaffId = assignment->calcAssignedStaffId(false);
+        if (assignedStaffId != staffId) {
+            continue;
+        }
+
         const auto classification = classify::classifyExpression(assignment);
         const auto placement = assignment->calcVerticalPlacement();
+        const bool emittedFromTopStaffAssignment = isTopStaffAssignment(assignment);
+        const bool isStaffValueSpecified = !emittedFromTopStaffAssignment;
+        GroupedDirectionAction groupedDirectionAction = GroupedDirectionAction::Emit;
+        DirectionGroupTracking* groupTracking = nullptr;
+        if (assignment->staffGroup > 0) {
+            const auto groupIt = directionGroups.find(assignment->staffGroup);
+            if (groupIt == directionGroups.end()) {
+                groupedDirectionAction = GroupedDirectionAction::Emit;
+            } else if (groupIt->second.emittedFromTopStaffAssignment && assignment->staffAssign >= 0) {
+                groupedDirectionAction = GroupedDirectionAction::ReplacePrior;
+                groupTracking = &groupIt->second;
+            } else {
+                groupedDirectionAction = GroupedDirectionAction::None;
+            }
+        }
+        
         for (const auto& run : classification.runs) {
             if (const auto* dynamic = run.as<classify::DynamicMark>()) {
                 appendDynamicExpression(context, staff, staffIndex, assignment, *dynamic, placement);
@@ -99,6 +203,26 @@ void processExpressions(
         switch (classification.type) {
         case classify::ExpressionType::Dynamic:
             break;
+        case classify::ExpressionType::TempoMark: {
+            if (groupedDirectionAction == GroupedDirectionAction::None) {
+                break;
+            }
+            auto direction = createTempoExpressionDirection(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified);
+            if (!direction) {
+                break;
+            }
+            if (groupedDirectionAction == GroupedDirectionAction::ReplacePrior) {
+                staff.directions[groupTracking->directionIndex] = std::move(*direction);
+                groupTracking->emittedFromTopStaffAssignment = false;
+                break;
+            }
+            staff.directions.emplace_back(std::move(*direction));
+            if (assignment->staffGroup > 0) {
+                directionGroups.emplace(assignment->staffGroup, DirectionGroupTracking{ staff.directions.size() - 1, emittedFromTopStaffAssignment });
+            }
+            break;
+        }
         case classify::ExpressionType::Fermata: {
             const auto& fermata = classification.fermata();
             if (!assignment->calcIsPartOfStaffListAssignment() && !fermata.isRightBarline) {
