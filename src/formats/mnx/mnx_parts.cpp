@@ -211,17 +211,56 @@ static void createClefs(
         });
 }
 
-static MusxInstance<others::StaffComposite> findCompositeForIdentity(
+static std::optional<std::pair<MusicPoint, InstrumentInfo::InstrumentChange>> findChangeForIdentity(
     const InstrumentInfo& instInfo,
     const InstrumentInfo::InstrumentIdentity& identity)
 {
     for (const auto& [point, change] : instInfo.getChanges()) {
-        static_cast<void>(point);
         if (change.identity == identity) {
-            return change.topStaffComposite;
+            return std::make_pair(point, change);
         }
     }
-    return nullptr;
+    return std::nullopt;
+}
+
+static bool createFirstClefForInactiveInstrument(
+    const MnxMusxMappingPtr& context,
+    mnxdom::part::Measure& mnxMeasure,
+    std::optional<int> mnxStaffNumber,
+    const MusxInstance<others::Measure>& musxMeasure,
+    StaffCmper staffCmper,
+    std::optional<ClefIndex>& prevClefIndex)
+{
+    if (context->currSplitInstrumentUuid) {
+        const auto& instInfo = context->document->getInstrumentForStaff(staffCmper);
+        const auto identity = instInfo.getInstrumentIdentityAt(MusicPoint(musxMeasure->getCmper(), musx::util::Fraction{}));
+        if (identity.instUuid != context->currSplitInstrumentUuid.value()) {
+            if (musxMeasure->getCmper() == 1) {
+                const auto splitIdentity = InstrumentInfo::InstrumentIdentity{ context->currSplitInstrumentUuid.value() };
+                if (const auto splitChange = findChangeForIdentity(instInfo, splitIdentity)) {
+                    const auto& splitPoint = splitChange->first;
+                    const auto musxStaff = others::StaffComposite::createCurrent(
+                        musxMeasure->getDocument(),
+                        musxMeasure->getRequestedPartId(),
+                        staffCmper,
+                        splitPoint.measureId,
+                        splitPoint.position.calcEduDuration());
+                    if (!musxStaff) {
+                        return true;
+                    }
+                    prevClefIndex = createClef(
+                        context,
+                        mnxMeasure,
+                        mnxStaffNumber,
+                        musxStaff->calcClefIndex(/*forWrittenPitch*/ true),
+                        0,
+                        musxStaff);
+                }
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 static void createMeasures(const MnxMusxMappingPtr& context, mnxdom::Part& part)
@@ -260,17 +299,10 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnxdom::Part& part)
         for (size_t x = 0; x < context->currPartStaves.size(); x++) {
             const StaffCmper staffCmper = context->currPartStaves[x];
             std::optional<int> staffNumber = (context->currPartStaves.size() > 1) ? std::optional<int>(int(x) + 1) : std::nullopt;
-            if (context->currSplitInstrumentUuid) {
-                const auto& instInfo = context->document->getInstrumentForStaff(staffCmper);
-                const auto identity = instInfo.getInstrumentIdentityAt(MusicPoint(musxMeasure->getCmper(), musx::util::Fraction{}));
-                if (musxMeasure->getCmper() == 1) {
-                    const auto musxStaff = findCompositeForIdentity(instInfo, identity);
-                    prevClefs[x] = createClef(context, mnxMeasure, staffNumber, musxStaff->calcClefIndexAt(1, 0, /*forWrittenPitch*/ true), 0, musxStaff);
-                }
-                if (identity.instUuid != context->currSplitInstrumentUuid.value()) {
-                    continue;
-                }
-            } else if (musxMeasure->getCmper() == 1) {
+            if (createFirstClefForInactiveInstrument(context, mnxMeasure, staffNumber, musxMeasure, staffCmper, prevClefs[x])) {
+                continue;
+            }
+            if (!context->currSplitInstrumentUuid && musxMeasure->getCmper() == 1) {
                 const auto musxStaff = others::StaffComposite::createCurrent(musxDocument, musxMeasure->getRequestedPartId(), staffCmper, 1, 0);
                 prevClefs[x] = createClef(context, mnxMeasure, staffNumber, musxStaff->calcClefIndex(/*forWrittenPitch*/ true), 0, musxStaff);
             }
@@ -380,8 +412,8 @@ void createParts(const MnxMusxMappingPtr& context)
         for (const auto& identity : identities) {
             auto partStaff = staff;
             if (context->denigmaContext->mnxSplitInstruments) {
-                if (auto splitStaff = findCompositeForIdentity(instInfo, identity)) {
-                    partStaff = splitStaff;
+                if (const auto splitChange = findChangeForIdentity(instInfo, identity)) {
+                    partStaff = splitChange->second.topStaffComposite;
                 }
             }
             std::string id = "P" + std::to_string(++partNumber);

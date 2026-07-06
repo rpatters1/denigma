@@ -195,7 +195,10 @@ Jump classifyPlaybackJump(const musx::dom::MusxInstance<musx::dom::others::TextR
         if (isJumpCommand(visual)) {
             return visual;
         }
-        return playbackJumpToMarker(classifyTargetMarker(assignment));
+        if (const auto targetMarker = classifyTargetMarker(assignment); targetMarker != Jump::None) {
+            return playbackJumpToMarker(targetMarker);
+        }
+        return playbackJumpToMarker(visual);
     case RepeatActionType::JumpAuto:
         return visual;
     }
