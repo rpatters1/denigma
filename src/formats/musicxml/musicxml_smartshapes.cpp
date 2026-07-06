@@ -31,6 +31,7 @@
 #include "mx/api/CurveData.h"
 #include "mx/api/DirectionData.h"
 #include "mx/api/LineData.h"
+#include "mx/api/OttavaData.h"
 #include "mx/api/WedgeData.h"
 
 using namespace musx::dom;
@@ -46,6 +47,19 @@ namespace {
 constexpr int MUSICXML_MAX_NUMBER_LEVEL = 16;
 
 using SmartShapeNumberLevels = std::unordered_map<Cmper, int>;
+
+struct MusicXmlOttavaEndpointAdjustment
+{
+    bool enabled{};
+    bool startBeforeGraceNotes{};
+    bool stopAfterEntriesAtEnd{};
+};
+
+constexpr MusicXmlOttavaEndpointAdjustment MUSICXML_OTTAVA_ENDPOINT_ADJUSTMENT{
+    .enabled = true,
+    .startBeforeGraceNotes = true,
+    .stopAfterEntriesAtEnd = true
+};
 
 struct NumberedSmartShape
 {
@@ -219,15 +233,57 @@ std::optional<MusicXmlNoteLocation> findEndpointLocation(
     return std::nullopt;
 }
 
+int calcEndpointTick(const MusicXmlMusxMapping& context, const std::shared_ptr<smartshape::EndPoint>& endpoint)
+{
+    return context.timing.calcNearestMusicXmlDivisions(endpoint->calcGlobalPosition());
+}
+
+int calcTickAfterEntriesStartingAt(const mx::api::StaffData& staff, int tick)
+{
+    auto adjustedTick = tick;
+    for (const auto& [voiceIndex, voice] : staff.voices) {
+        static_cast<void>(voiceIndex);
+        for (const auto& note : voice.notes) {
+            if (note.tickTimePosition == tick) {
+                const auto noteEndTick = note.tickTimePosition + (std::max)(0, note.durationData.durationTimeTicks);
+                adjustedTick = (std::max)(adjustedTick, noteEndTick);
+            }
+        }
+    }
+    return adjustedTick;
+}
+
+int calcOttavaStartTick(const MusicXmlMusxMapping& context, const std::shared_ptr<smartshape::EndPoint>& endpoint)
+{
+    const auto tick = calcEndpointTick(context, endpoint);
+    if (!MUSICXML_OTTAVA_ENDPOINT_ADJUSTMENT.enabled || !MUSICXML_OTTAVA_ENDPOINT_ADJUSTMENT.startBeforeGraceNotes) {
+        return tick;
+    }
+    return tick;
+}
+
+int calcOttavaStopTick(
+    const MusicXmlMusxMapping& context,
+    const std::shared_ptr<smartshape::EndPoint>& endpoint,
+    const mx::api::StaffData& staff)
+{
+    const auto tick = calcEndpointTick(context, endpoint);
+    if (!MUSICXML_OTTAVA_ENDPOINT_ADJUSTMENT.enabled || !MUSICXML_OTTAVA_ENDPOINT_ADJUSTMENT.stopAfterEntriesAtEnd) {
+        return tick;
+    }
+    return calcTickAfterEntriesStartingAt(staff, tick);
+}
+
 mx::api::DirectionData createSmartShapeDirection(
     MusicXmlMusxMapping& context,
     const std::shared_ptr<smartshape::EndPoint>& endpoint,
     StaffCmper staffId,
     size_t staffIndex,
-    VerticalPlacement placement)
+    VerticalPlacement placement,
+    std::optional<int> tickTimePosition = std::nullopt)
 {
     auto direction = mx::api::DirectionData{};
-    direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(endpoint->calcGlobalPosition());
+    direction.tickTimePosition = tickTimePosition.value_or(calcEndpointTick(context, endpoint));
     direction.placement = enumConvert<mx::api::Placement>(placement);
     direction.isStaffValueSpecified = true;
     (void)staffId;
@@ -357,6 +413,51 @@ void appendHairpin(
     }
 }
 
+void appendOttava(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    StaffCmper staffId,
+    size_t staffIndex,
+    const MusxInstance<others::SmartShape>& shape,
+    const SmartShapeNumberLevels& numberLevels)
+{
+    if (shape->hidden) {
+        return;
+    }
+    const auto startPoint = shape->startTermSeg->endPoint;
+    const auto endPoint = shape->endTermSeg->endPoint;
+    if (!startPoint->calcIsAssigned() || !endPoint->calcIsAssigned()) {
+        return;
+    }
+    if (startPoint->staffId != staffId) {
+        return;
+    }
+
+    const auto placement = shape->calcVerticalPlacementForBeatAttached();
+    auto startDirection = createSmartShapeDirection(
+        context, startPoint, staffId, staffIndex, placement, calcOttavaStartTick(context, startPoint));
+    auto ottavaStart = mx::api::OttavaStart{};
+    ottavaStart.ottavaType = enumConvert<mx::api::OttavaType>(shape->shapeType);
+    ottavaStart.spannerStart.tickTimePosition = startDirection.tickTimePosition;
+    if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
+        ottavaStart.spannerStart.numberLevel = *numberLevel;
+    }
+    startDirection.ottavaStarts.emplace_back(std::move(ottavaStart));
+    staff.directions.emplace_back(std::move(startDirection));
+
+    if (auto* stopStaff = staffDataForEndpoint(context, endPoint)) {
+        auto stopDirection = createSmartShapeDirection(
+            context, endPoint, staffId, staffIndex, placement, calcOttavaStopTick(context, endPoint, *stopStaff));
+        auto ottavaStop = mx::api::SpannerStop{};
+        ottavaStop.tickTimePosition = stopDirection.tickTimePosition;
+        if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
+            ottavaStop.numberLevel = *numberLevel;
+        }
+        stopDirection.ottavaStops.emplace_back(std::move(ottavaStop));
+        stopStaff->directions.emplace_back(std::move(stopDirection));
+    }
+}
+
 void processSmartShapesForStaff(
     MusicXmlMusxMapping& context,
     mx::api::StaffData& staff,
@@ -398,6 +499,12 @@ void processSmartShapesForStaff(
             break;
         case ST::Decrescendo:
             appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::diminuendo, numberLevels);
+            break;
+        case ST::OctaveDown:
+        case ST::OctaveUp:
+        case ST::TwoOctaveDown:
+        case ST::TwoOctaveUp:
+            appendOttava(context, staff, staffId, staffIndex, shape, numberLevels);
             break;
         default:
             break;

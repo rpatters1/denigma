@@ -32,6 +32,7 @@
 #include "mx/api/CurveData.h"
 #include "mx/api/DurationData.h"
 #include "mx/api/MarkData.h"
+#include "mx/api/OttavaData.h"
 #include "mx/api/PartGroupData.h"
 #include "mx/api/PitchData.h"
 #include "mx/api/PositionData.h"
@@ -190,6 +191,13 @@ BEGIN_ENUM_CONVERSION(classify::Ornament::Type, mx::api::MarkType)
     case classify::Ornament::Type::Shake: return mx::api::MarkType::shake;
     case classify::Ornament::Type::Trill: return mx::api::MarkType::trillMark;
     case classify::Ornament::Type::Turn: return mx::api::MarkType::turn;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mx::api::OttavaType)
+    case others::SmartShape::ShapeType::OctaveDown: return mx::api::OttavaType::o8vb;
+    case others::SmartShape::ShapeType::OctaveUp: return mx::api::OttavaType::o8va;
+    case others::SmartShape::ShapeType::TwoOctaveDown: return mx::api::OttavaType::o15mb;
+    case others::SmartShape::ShapeType::TwoOctaveUp: return mx::api::OttavaType::o15ma;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(VerticalPlacement, mx::api::Placement)

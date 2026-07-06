@@ -29,6 +29,7 @@
 
 #include "core/denigma.h"
 #include "core/finale_options.h"
+#include "core/ottavas.h"
 #include "musx/musx.h"
 #include "mx/api/FontData.h"
 #include "mx/api/CurveData.h"
@@ -87,6 +88,7 @@ struct MusicXmlCurrentLocation
     musx::dom::LayerIndex layer{};
     int voice{};
     musx::util::Fraction positionInMeasure;
+    OttavaShapeMap ottavasApplicableInMeasure;
 
     void clear()
     {
@@ -95,6 +97,7 @@ struct MusicXmlCurrentLocation
         layer = 0;
         voice = 0;
         positionInMeasure = {};
+        ottavasApplicableInMeasure.clear();
     }
 };
 

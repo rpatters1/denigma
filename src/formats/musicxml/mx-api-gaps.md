@@ -58,6 +58,14 @@ Denigma can identify matching MUSX smart-shape start and stop endpoints, but `mx
 
 Needed API shape: `mx::api` should assign or normalize spanner `number` attributes during writing, using the actual serialization order it controls and the paired start/stop data in the API model. If that becomes available, Denigma should remove its local smart-shape number heuristic.
 
+### Ottava number attributes
+
+MusicXML `<octave-shift>` supports the same `number` attribute pattern used by other spanners, which is needed to disambiguate overlapping ottavas.
+
+`mx::api::OttavaStart` stores its number in `spannerStart.numberLevel`, and ottava stops use `mx::api::SpannerStop::numberLevel`. The reader path preserves this via the generic spanner helpers, but `mx::impl::DirectionWriter::emitOttavaStart()` and `emitOttavaStop()` currently do not write the `number` attribute. Denigma can assign ottava number levels, but they are dropped when serialized through `mx::api`.
+
+Needed API shape: write `OttavaStart::spannerStart.numberLevel` and `SpannerStop::numberLevel` as MusicXML `<octave-shift number="...">` when the value is positive, matching the existing slur, wedge, and generic spanner behavior.
+
 ### Optional wedge color
 
 MusicXML `<wedge>` supports a `color` attribute, but omitting it is the normal way to request the default score color.

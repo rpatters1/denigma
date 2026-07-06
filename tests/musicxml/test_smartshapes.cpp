@@ -180,3 +180,74 @@ TEST(MusicXmlSmartShapes, DISABLED_SlursOverbarsMatchReference)
 
     EXPECT_EQ(createComparableSlurEvents(*referenceScore), createComparableSlurEvents(*actualScore));
 }
+
+TEST(MusicXmlSmartShapes, OverlappingOttavas)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("ottavas.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+    ASSERT_FALSE(score->parts.empty());
+
+    const auto& part = score->parts.at(0);
+    ASSERT_GE(part.measures.size(), 2);
+    ASSERT_FALSE(part.measures.at(0).staves.empty());
+    ASSERT_FALSE(part.measures.at(1).staves.empty());
+
+    const auto& measure1Staff = part.measures.at(0).staves.at(0);
+    ASSERT_GE(measure1Staff.directions.size(), 2);
+    ASSERT_EQ(measure1Staff.directions.at(0).ottavaStarts.size(), 1);
+    EXPECT_EQ(measure1Staff.directions.at(0).placement, mx::api::Placement::above);
+    EXPECT_EQ(measure1Staff.directions.at(0).ottavaStarts.front().ottavaType, mx::api::OttavaType::o15ma);
+    ASSERT_EQ(measure1Staff.directions.at(1).ottavaStarts.size(), 1);
+    EXPECT_EQ(measure1Staff.directions.at(1).placement, mx::api::Placement::below);
+    EXPECT_EQ(measure1Staff.directions.at(1).ottavaStarts.front().ottavaType, mx::api::OttavaType::o8vb);
+
+    const auto& measure2Staff = part.measures.at(1).staves.at(0);
+    ASSERT_GE(measure2Staff.directions.size(), 2);
+    ASSERT_EQ(measure2Staff.directions.at(0).ottavaStops.size(), 1);
+    ASSERT_EQ(measure2Staff.directions.at(1).ottavaStops.size(), 1);
+
+    const auto& voice2 = measure2Staff.voices.at(0);
+    ASSERT_GE(voice2.notes.size(), 3);
+    const auto secondMeasure2NoteEnd = voice2.notes.at(1).tickTimePosition + voice2.notes.at(1).durationData.durationTimeTicks;
+    EXPECT_EQ(measure2Staff.directions.at(0).tickTimePosition, secondMeasure2NoteEnd);
+    EXPECT_EQ(measure2Staff.directions.at(1).tickTimePosition, secondMeasure2NoteEnd);
+
+    const auto& voice1 = measure1Staff.voices.at(0);
+    ASSERT_GE(voice1.notes.size(), 4);
+    EXPECT_EQ(voice1.notes.at(0).pitchData.octave, 7);
+    EXPECT_EQ(voice1.notes.at(1).pitchData.octave, 7);
+    EXPECT_EQ(voice1.notes.at(2).pitchData.octave, 6);
+    EXPECT_EQ(voice1.notes.at(3).pitchData.octave, 6);
+    EXPECT_EQ(voice2.notes.at(0).pitchData.octave, 6);
+    EXPECT_EQ(voice2.notes.at(1).pitchData.octave, 6);
+    EXPECT_EQ(voice2.notes.at(2).pitchData.octave, 5);
+}
+
+TEST(MusicXmlSmartShapes, OttavaEndOfBar)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("ottava_end_of_bar.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+    ASSERT_FALSE(score->parts.empty());
+
+    const auto& part = score->parts.at(0);
+    ASSERT_GE(part.measures.size(), 2);
+    ASSERT_FALSE(part.measures.at(0).staves.empty());
+    ASSERT_FALSE(part.measures.at(1).staves.empty());
+
+    const auto& measure1Staff = part.measures.at(0).staves.at(0);
+    ASSERT_FALSE(measure1Staff.directions.empty());
+    ASSERT_EQ(measure1Staff.directions.back().ottavaStarts.size(), 1);
+    EXPECT_EQ(measure1Staff.directions.back().ottavaStarts.front().ottavaType, mx::api::OttavaType::o8va);
+
+    const auto& measure2Staff = part.measures.at(1).staves.at(0);
+    ASSERT_FALSE(measure2Staff.directions.empty());
+    ASSERT_EQ(measure2Staff.directions.front().ottavaStops.size(), 1);
+    const auto& voice = measure2Staff.voices.at(0);
+    ASSERT_FALSE(voice.notes.empty());
+    const auto firstNoteEnd = voice.notes.front().tickTimePosition + voice.notes.front().durationData.durationTimeTicks;
+    EXPECT_EQ(measure2Staff.directions.front().tickTimePosition, firstNoteEnd);
+}

@@ -200,7 +200,7 @@ MusicXmlPitchContext pitchContextForStaff(const MusicXmlMusxMapping& context, St
     return pitchContextForPart(context, partIt->second);
 }
 
-mx::api::PitchData createPitchData(const NoteInfoPtr& noteInfo, MusicXmlPitchContext pitchContext)
+mx::api::PitchData createPitchData(MusicXmlMusxMapping& context, const NoteInfoPtr& noteInfo, MusicXmlPitchContext pitchContext)
 {
     const auto [noteName, octave, alteration, staffPosition] = [&]() {
         if (pitchContext == MusicXmlPitchContext::Concert) {
@@ -209,7 +209,15 @@ mx::api::PitchData createPitchData(const NoteInfoPtr& noteInfo, MusicXmlPitchCon
         return noteInfo.calcNoteProperties();
     }();
     (void)staffPosition;
-    return mx::api::PitchData(enumConvert<mx::api::Step>(noteName), alteration, octave);
+    const auto octaveAdjustment = calcOttavaOctaveAdjustment(
+        context.current.ottavasApplicableInMeasure,
+        noteInfo,
+        [&](const NoteInfoPtr&) {
+            context.logMessage(
+                LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava",
+                MessageSeverity::Verbose);
+        });
+    return mx::api::PitchData(enumConvert<mx::api::Step>(noteName), alteration, octave + octaveAdjustment);
 }
 
 void applyAccidentalData(mx::api::NoteData& note, const NoteInfoPtr& noteInfo)
@@ -472,7 +480,7 @@ void appendEntryNotes(
         note.userRequestedVoiceNumber = userVoiceNumber;
         note.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
         note.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
-        note.pitchData = createPitchData(noteInfo, pitchContext);
+        note.pitchData = createPitchData(context, noteInfo, pitchContext);
         /// @todo When mx::api::NoteData exposes a per-note staffIndex, set it here from NoteInfoPtr::calcStaff()
         /// for notes crossed to another staff within the same MusicXML part.
         applyAccidentalData(note, noteInfo);
@@ -516,6 +524,8 @@ void createNotesForMeasureStaff(
 {
     (void)measure;
 
+    context.current.ottavasApplicableInMeasure = collectOttavasForMeasureStaff(
+        context.document, context.forPartId, musxMeasure, staffId);
     const Fraction legacyPickupSpacer = musxMeasure->calcMinLegacyPickupSpacer(staffId);
     musx::dom::details::GFrameHoldContext gfHold(context.document, context.forPartId, staffId, musxMeasure->getCmper(), legacyPickupSpacer);
     if (!gfHold) {
