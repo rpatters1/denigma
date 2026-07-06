@@ -33,6 +33,7 @@
 #include "core/denigma.h"
 #include "core/cue_layers.h"
 #include "core/finale_options.h"
+#include "core/ottavas.h"
 #include "musx/musx.h"
 #include "mnxdom.h"
 
@@ -118,7 +119,7 @@ struct MnxMusxMapping
         std::optional<details::GFrameHoldContext> gfhold;
         std::map<LayerIndex, int> layerVoices;
         CueLayerPlan cueDiscardPlan;
-        std::unordered_map<Cmper, MusxInstance<others::SmartShape>> ottavasApplicableInMeasure;
+        OttavaShapeMap ottavasApplicableInMeasure;
 
         void clear()
         {

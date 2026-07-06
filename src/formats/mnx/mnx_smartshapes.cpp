@@ -118,21 +118,13 @@ void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::
     mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     const StaffCmper staffCmper = context->current.staff;
-    context->current.ottavasApplicableInMeasure.clear();
+    context->current.ottavasApplicableInMeasure = collectOttavasForMeasureStaff(
+        context->document, musxMeasure->getRequestedPartId(), musxMeasure, staffCmper);
     if (musxMeasure->hasSmartShape) {
         auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
         for (const auto& asgn : shapeAssigns) {
             if (auto shape = context->document->getOthers()->get<others::SmartShape>(asgn->getRequestedPartId(), asgn->shapeNum)) {
-                if (!shape->hidden && (shape->startTermSeg->endPoint->staffId == staffCmper || shape->endTermSeg->endPoint->staffId == staffCmper)) {
-                    switch (shape->shapeType) {
-                        default: continue;
-                        case others::SmartShape::ShapeType::OctaveDown:
-                        case others::SmartShape::ShapeType::OctaveUp:
-                        case others::SmartShape::ShapeType::TwoOctaveDown:
-                        case others::SmartShape::ShapeType::TwoOctaveUp:
-                            break;
-                    }
-                    context->current.ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
+                if (context->current.ottavasApplicableInMeasure.contains(shape->getCmper())) {
                     if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
                         auto mnxOttava = mnxMeasure.ensure_ottavas().append(
                             enumConvert<mnxdom::OttavaAmount>(shape->shapeType),

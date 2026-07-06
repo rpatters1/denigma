@@ -225,21 +225,12 @@ static void deferJumpTies(const MnxMusxMappingPtr& context, const NoteInfoPtr& m
 mnxdom::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote)
 {
     auto [noteName, octave, alteration, _] = musxNote.calcNotePropertiesConcert();
-    for (const auto& it : context->current.ottavasApplicableInMeasure) {
-        auto shape = it.second;
-        if (shape->calcAppliesTo(musxNote.getEntryInfo())) {
-            // if the note is a tie continuation, the ottava has to apply to the original note
-            auto tiedFromNoteInfo = musxNote;
-            while (tiedFromNoteInfo && tiedFromNoteInfo->tieEnd) {
-                tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
-            }
-            if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
-                octave += int(enumConvert<mnxdom::OttavaAmount>(shape->shapeType));
-            } else if (!musxNote.isSameNote(tiedFromNoteInfo)) {
-                context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", MessageSeverity::Verbose);
-            }
-        }
-    }
+    octave += calcOttavaOctaveAdjustment(
+        context->current.ottavasApplicableInMeasure,
+        musxNote,
+        [&](const NoteInfoPtr&) {
+            context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", MessageSeverity::Verbose);
+        });
     auto mnxNote = mnxEvent.ensure_notes().append(
         mnxdom::sequence::Pitch::make(enumConvert<mnxdom::NoteStep>(noteName), octave, alteration));
     if (musxNote->freezeAcci || musxNote->parenAcci) {
