@@ -58,22 +58,6 @@ Denigma can identify matching MUSX smart-shape start and stop endpoints, but `mx
 
 Needed API shape: `mx::api` should assign or normalize spanner `number` attributes during writing, using the actual serialization order it controls and the paired start/stop data in the API model. If that becomes available, Denigma should remove its local smart-shape number heuristic.
 
-### Ottava number attributes
-
-MusicXML `<octave-shift>` supports the same `number` attribute pattern used by other spanners, which is needed to disambiguate overlapping ottavas.
-
-`mx::api::OttavaStart` stores its number in `spannerStart.numberLevel`, and ottava stops use `mx::api::SpannerStop::numberLevel`. The reader path preserves this via the generic spanner helpers, but `mx::impl::DirectionWriter::emitOttavaStart()` and `emitOttavaStop()` currently do not write the `number` attribute. Denigma can assign ottava number levels, but they are dropped when serialized through `mx::api`.
-
-Needed API shape: write `OttavaStart::spannerStart.numberLevel` and `SpannerStop::numberLevel` as MusicXML `<octave-shift number="...">` when the value is positive, matching the existing slur, wedge, and generic spanner behavior.
-
-### Ottava stop size for importer compatibility
-
-MusicXML allows the `<octave-shift>` `size` attribute to be omitted, including on `type="stop"` elements. However, some importers use the stop `size` to reconstruct the active octave-shift timeline.
-
-`mx::api::OttavaStart` carries an explicit ottava type, so `mx::impl::DirectionWriter::emitOttavaStart()` can write `size="8"` or `size="15"`. Ottava stops are currently represented only as `mx::api::SpannerStop`, and `mx::impl::DirectionWriter::emitOttavaStop()` writes `type="stop"` without a `size` attribute. Denigma therefore cannot emit stop sizes for ottavas through the current API, even when doing so is needed for compatibility with importers such as MuseScore.
-
-Needed API shape: either an ottava-specific stop type that carries the same 8va / 8vb / 15ma / 15mb amount as the start, or writer support that derives and emits the matching stop `size` for `<octave-shift type="stop">`.
-
 ## Notes
 
 ### Non-arpeggiate endpoints
@@ -83,14 +67,6 @@ MusicXML `<non-arpeggiate>` is attached only to the top and bottom notes of the 
 `mx::api::MarkType::nonArpeggiate` can emit a `<non-arpeggiate>` element, but `mx::api::MarkData` does not expose the required endpoint `type` or `number`. Denigma can resolve Finale non-arpeggio expressions to the correct top note of the top entry and bottom note of the bottom entry, but cannot write the correct paired MusicXML notation through the public API.
 
 Needed API shape: note-attached non-arpeggiate data with endpoint type (`top` / `bottom`) and optional number, or equivalent fields on `MarkData` that are only meaningful for `MarkType::nonArpeggiate`.
-
-### Cross-staff note staff override
-
-MusicXML represents cross-staff notation by keeping the note in its logical part/voice sequence and writing a per-note `<staff>` element that names the visual target staff within the part. This is especially important for cross-staff chords, where moving individual notes into different staff containers would break chord ordering and timing.
-
-`mx::api::NoteData` currently has no per-note staff override. `mx::impl::NoteWriter::setStaffAndVoice()` writes `<staff>` from the current `StaffData` container cursor, so Denigma cannot correctly emit notes crossed to another staff through the public API.
-
-Needed API shape: an optional 0-based `staffIndex` override on `mx::api::NoteData`, defaulting to "use the containing staff cursor." `NoteWriter` should prefer the note override when writing `<staff>`, and the reader should preserve the MusicXML note staff when possible.
 
 ## Time Signatures
 

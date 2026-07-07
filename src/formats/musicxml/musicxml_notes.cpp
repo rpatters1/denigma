@@ -477,12 +477,31 @@ void appendEntryNotes(
         // MX uses this as "is in a chord group"; it suppresses <chord/> on the first note internally.
         note.isChord = entry->notes.size() > 1;
         note.isGrace = entry->graceNote;
+        if (note.isGrace) {
+            note.graceSlash = entryInfo.calcGraceNoteSlash(context.finaleOptions.graceOptions)
+                ? mx::api::Bool::yes
+                : mx::api::Bool::no;
+        }
         note.userRequestedVoiceNumber = userVoiceNumber;
         note.tickTimePosition = context.timing.calcMusicXmlDivisions(entryIt.getEffectiveElapsedDuration(/*global*/ true));
         note.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
         note.pitchData = createPitchData(context, noteInfo, pitchContext);
-        /// @todo When mx::api::NoteData exposes a per-note staffIndex, set it here from NoteInfoPtr::calcStaff()
-        /// for notes crossed to another staff within the same MusicXML part.
+        if (const auto stavesIt = context.partIdToStaves.find(context.currentPart->uniqueId); stavesIt != context.partIdToStaves.end()) {
+            ASSERT_IF(staffIndex >= stavesIt->second.size()) {
+                throw std::logic_error("Containing staff index is outside the current MusicXML part staff list.");
+            }
+            const auto containingStaffId = stavesIt->second[staffIndex];
+            if (const auto noteStaffId = noteInfo.calcStaff(); noteStaffId != containingStaffId) {
+                const auto noteStaffIt = std::find(stavesIt->second.begin(), stavesIt->second.end(), noteStaffId);
+                if (noteStaffIt != stavesIt->second.end()) {
+                    note.crossStaffIndex = static_cast<int>(std::distance(stavesIt->second.begin(), noteStaffIt));
+                } else {
+                    context.logMessage(LogMsg() << "Cross-staff note in entry " << entry->getEntryNumber()
+                        << " points to staff " << noteStaffId << ", which is not included in MusicXML part "
+                        << context.currentPart->uniqueId << ".", MessageSeverity::Warning);
+                }
+            }
+        }
         applyAccidentalData(note, noteInfo);
         if (noteIndex == 0) {
             note.beams = createBeamData(context, entryInfo);

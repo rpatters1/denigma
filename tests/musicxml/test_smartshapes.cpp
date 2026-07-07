@@ -198,10 +198,10 @@ TEST(MusicXmlSmartShapes, OverlappingOttavas)
     ASSERT_GE(measure1Staff.directions.size(), 2);
     ASSERT_EQ(measure1Staff.directions.at(0).ottavaStarts.size(), 1);
     EXPECT_EQ(measure1Staff.directions.at(0).placement, mx::api::Placement::above);
-    EXPECT_EQ(measure1Staff.directions.at(0).ottavaStarts.front().ottavaType, mx::api::OttavaType::o15mb);
+    EXPECT_EQ(measure1Staff.directions.at(0).ottavaStarts.front().ottavaType, mx::api::OttavaType::o15ma);
     ASSERT_EQ(measure1Staff.directions.at(1).ottavaStarts.size(), 1);
     EXPECT_EQ(measure1Staff.directions.at(1).placement, mx::api::Placement::below);
-    EXPECT_EQ(measure1Staff.directions.at(1).ottavaStarts.front().ottavaType, mx::api::OttavaType::o8va);
+    EXPECT_EQ(measure1Staff.directions.at(1).ottavaStarts.front().ottavaType, mx::api::OttavaType::o8vb);
 
     const auto& measure2Staff = part.measures.at(1).staves.at(0);
     ASSERT_GE(measure2Staff.directions.size(), 2);
@@ -241,7 +241,7 @@ TEST(MusicXmlSmartShapes, OttavaEndOfBar)
     const auto& measure1Staff = part.measures.at(0).staves.at(0);
     ASSERT_FALSE(measure1Staff.directions.empty());
     ASSERT_EQ(measure1Staff.directions.back().ottavaStarts.size(), 1);
-    EXPECT_EQ(measure1Staff.directions.back().ottavaStarts.front().ottavaType, mx::api::OttavaType::o8vb);
+    EXPECT_EQ(measure1Staff.directions.back().ottavaStarts.front().ottavaType, mx::api::OttavaType::o8va);
 
     const auto& measure2Staff = part.measures.at(1).staves.at(0);
     ASSERT_FALSE(measure2Staff.directions.empty());
@@ -264,7 +264,7 @@ TEST(MusicXmlSmartShapes, OttavasSimpleMatchesExpectedOttavas)
     ASSERT_GE(part.measures.size(), 4);
 
     const auto expectOttava = [&](size_t measureIndex, mx::api::OttavaType ottavaType, mx::api::Placement placement,
-                                  size_t lastOttavaNoteIndex) {
+                                  size_t lastOttavaNoteIndex, int expectedStopSize) {
         const auto& staff = part.measures.at(measureIndex).staves.at(0);
         ASSERT_FALSE(staff.directions.empty());
         ASSERT_EQ(staff.directions.front().ottavaStarts.size(), 1);
@@ -274,13 +274,15 @@ TEST(MusicXmlSmartShapes, OttavasSimpleMatchesExpectedOttavas)
         const auto& voice = staff.voices.at(0);
         ASSERT_GT(voice.notes.size(), lastOttavaNoteIndex);
         ASSERT_FALSE(staff.directions.back().ottavaStops.empty());
+        ASSERT_TRUE(staff.directions.back().ottavaStops.front().size.has_value());
+        EXPECT_EQ(*staff.directions.back().ottavaStops.front().size, expectedStopSize);
         const auto expectedStopTick = voice.notes.at(lastOttavaNoteIndex).tickTimePosition
                                       + voice.notes.at(lastOttavaNoteIndex).durationData.durationTimeTicks;
         EXPECT_EQ(staff.directions.back().tickTimePosition, expectedStopTick);
     };
 
-    expectOttava(0, mx::api::OttavaType::o8vb, mx::api::Placement::above, 2);
-    expectOttava(1, mx::api::OttavaType::o8va, mx::api::Placement::below, 2);
-    expectOttava(2, mx::api::OttavaType::o15mb, mx::api::Placement::above, 1);
-    expectOttava(3, mx::api::OttavaType::o15ma, mx::api::Placement::below, 1);
+    expectOttava(0, mx::api::OttavaType::o8va, mx::api::Placement::above, 2, 8);
+    expectOttava(1, mx::api::OttavaType::o8vb, mx::api::Placement::below, 2, 8);
+    expectOttava(2, mx::api::OttavaType::o15ma, mx::api::Placement::above, 1, 15);
+    expectOttava(3, mx::api::OttavaType::o15mb, mx::api::Placement::below, 1, 15);
 }

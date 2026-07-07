@@ -445,11 +445,17 @@ void appendOttava(
     if (auto* stopStaff = staffDataForEndpoint(context, endPoint)) {
         auto stopDirection = createSmartShapeDirection(
             context, endPoint, staffId, staffIndex, placement, calcOttavaStopTick(context, endPoint, *stopStaff));
-        auto ottavaStop = mx::api::SpannerStop{};
-        ottavaStop.tickTimePosition = stopDirection.tickTimePosition;
+        auto ottavaStop = mx::api::OttavaStop{};
+        ottavaStop.spannerStop.tickTimePosition = stopDirection.tickTimePosition;
         if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
-            ottavaStop.numberLevel = *numberLevel;
+            ottavaStop.spannerStop.numberLevel = *numberLevel;
         }
+        constexpr int kOttavaSize = 8;
+        constexpr int k15maSize = 15;
+        ottavaStop.size = shape->shapeType == others::SmartShape::ShapeType::OctaveDown
+            || shape->shapeType == others::SmartShape::ShapeType::OctaveUp
+            ? kOttavaSize
+            : k15maSize;
         stopDirection.ottavaStops.emplace_back(std::move(ottavaStop));
         stopStaff->directions.emplace_back(std::move(stopDirection));
     }
