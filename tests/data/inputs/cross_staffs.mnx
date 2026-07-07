@@ -1,0 +1,466 @@
+{
+    "global": {
+        "measures": [
+            {
+                "id": "m1",
+                "key": {
+                    "fifths": 0
+                },
+                "time": {
+                    "count": 4,
+                    "unit": 4
+                }
+            },
+            {
+                "id": "m2"
+            },
+            {
+                "id": "m3"
+            },
+            {
+                "id": "m4"
+            },
+            {
+                "id": "m5"
+            },
+            {
+                "barline": {
+                    "type": "regular"
+                },
+                "id": "m6"
+            }
+        ]
+    },
+    "layouts": [
+        {
+            "content": [
+                {
+                    "content": [
+                        {
+                            "sources": [
+                                {
+                                    "part": "P1",
+                                    "staff": 1
+                                }
+                            ],
+                            "type": "staff"
+                        },
+                        {
+                            "sources": [
+                                {
+                                    "part": "P1",
+                                    "staff": 2
+                                }
+                            ],
+                            "type": "staff"
+                        }
+                    ],
+                    "symbol": "brace",
+                    "type": "group"
+                }
+            ],
+            "id": "S0-ScrVw"
+        },
+        {
+            "content": [
+                {
+                    "content": [
+                        {
+                            "sources": [
+                                {
+                                    "part": "P1",
+                                    "staff": 1
+                                }
+                            ],
+                            "type": "staff"
+                        },
+                        {
+                            "sources": [
+                                {
+                                    "part": "P1",
+                                    "staff": 2
+                                }
+                            ],
+                            "type": "staff"
+                        }
+                    ],
+                    "symbol": "brace",
+                    "type": "group"
+                }
+            ],
+            "id": "S0-Sys1"
+        },
+        {
+            "content": [
+                {
+                    "content": [
+                        {
+                            "sources": [
+                                {
+                                    "part": "P1",
+                                    "staff": 1
+                                }
+                            ],
+                            "type": "staff"
+                        },
+                        {
+                            "sources": [
+                                {
+                                    "part": "P1",
+                                    "staff": 2
+                                }
+                            ],
+                            "type": "staff"
+                        }
+                    ],
+                    "symbol": "brace",
+                    "type": "group"
+                }
+            ],
+            "id": "S0-Sys2"
+        },
+        {
+            "content": [
+                {
+                    "content": [
+                        {
+                            "sources": [
+                                {
+                                    "part": "P1",
+                                    "staff": 1
+                                }
+                            ],
+                            "type": "staff"
+                        },
+                        {
+                            "sources": [
+                                {
+                                    "part": "P1",
+                                    "staff": 2
+                                }
+                            ],
+                            "type": "staff"
+                        }
+                    ],
+                    "symbol": "brace",
+                    "type": "group"
+                }
+            ],
+            "id": "S0-Sys3"
+        }
+    ],
+    "mnx": {
+        "_x": {
+            "mnxdom": {
+                "client": {
+                    "commit": "91addf9320fc-dirty",
+                    "name": "denigma",
+                    "version": "4.0.0"
+                },
+                "createdAt": "2026-07-07T13:54:08Z",
+                "mnxSchema": "https://w3c-cg.github.io/mnx/docs/mnx-schema.json/version/19",
+                "mnxdom": {
+                    "commit": "b901088",
+                    "version": "3.1.0"
+                },
+                "provenanceSchemaVersion": 1,
+                "source": {
+                    "filename": "cross_staffs.musx",
+                    "format": "musx"
+                }
+            }
+        },
+        "support": {
+            "useBeams": true
+        },
+        "version": 19
+    },
+    "parts": [
+        {
+            "id": "P1",
+            "measures": [
+                {
+                    "clefs": [
+                        {
+                            "clef": {
+                                "glyph": "gClef",
+                                "sign": "G",
+                                "staffPosition": -2
+                            },
+                            "staff": 1
+                        },
+                        {
+                            "clef": {
+                                "glyph": "fClef",
+                                "sign": "F",
+                                "staffPosition": 2
+                            },
+                            "staff": 2
+                        }
+                    ],
+                    "id": "P1.m1",
+                    "sequences": []
+                },
+                {
+                    "id": "P1.m2",
+                    "sequences": []
+                },
+                {
+                    "id": "P1.m3",
+                    "sequences": [
+                        {
+                            "content": [
+                                {
+                                    "duration": {
+                                        "base": "quarter"
+                                    },
+                                    "id": "ev25",
+                                    "rest": {}
+                                },
+                                {
+                                    "duration": {
+                                        "base": "quarter"
+                                    },
+                                    "id": "ev26",
+                                    "notes": [
+                                        {
+                                            "id": "ev26n1",
+                                            "pitch": {
+                                                "octave": 3,
+                                                "step": "A"
+                                            },
+                                            "staff": 2
+                                        },
+                                        {
+                                            "id": "ev26n2",
+                                            "pitch": {
+                                                "octave": 4,
+                                                "step": "F"
+                                            }
+                                        },
+                                        {
+                                            "id": "ev26n3",
+                                            "pitch": {
+                                                "octave": 4,
+                                                "step": "A"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "duration": {
+                                        "base": "half"
+                                    },
+                                    "id": "ev27",
+                                    "rest": {}
+                                }
+                            ],
+                            "staff": 1,
+                            "voice": "s1layer1"
+                        },
+                        {
+                            "content": [
+                                {
+                                    "duration": {
+                                        "base": "whole"
+                                    },
+                                    "id": "ev33",
+                                    "notes": [
+                                        {
+                                            "id": "ev33n1",
+                                            "pitch": {
+                                                "octave": 2,
+                                                "step": "A"
+                                            }
+                                        },
+                                        {
+                                            "id": "ev33n2",
+                                            "pitch": {
+                                                "octave": 3,
+                                                "step": "D"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "staff": 2,
+                            "voice": "s2layer1"
+                        }
+                    ]
+                },
+                {
+                    "clefs": [
+                        {
+                            "clef": {
+                                "glyph": "cClef",
+                                "sign": "C",
+                                "staffPosition": 0
+                            },
+                            "staff": 2
+                        }
+                    ],
+                    "id": "P1.m4",
+                    "sequences": [
+                        {
+                            "content": [
+                                {
+                                    "duration": {
+                                        "base": "half"
+                                    },
+                                    "id": "ev32",
+                                    "notes": [
+                                        {
+                                            "id": "ev32n1",
+                                            "pitch": {
+                                                "octave": 3,
+                                                "step": "A"
+                                            },
+                                            "staff": 2
+                                        },
+                                        {
+                                            "id": "ev32n2",
+                                            "pitch": {
+                                                "octave": 4,
+                                                "step": "F"
+                                            }
+                                        },
+                                        {
+                                            "id": "ev32n3",
+                                            "pitch": {
+                                                "octave": 4,
+                                                "step": "A"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "duration": {
+                                        "base": "quarter"
+                                    },
+                                    "id": "ev29",
+                                    "notes": [
+                                        {
+                                            "id": "ev29n1",
+                                            "pitch": {
+                                                "octave": 3,
+                                                "step": "A"
+                                            },
+                                            "staff": 2
+                                        },
+                                        {
+                                            "id": "ev29n2",
+                                            "pitch": {
+                                                "octave": 4,
+                                                "step": "F"
+                                            }
+                                        },
+                                        {
+                                            "id": "ev29n3",
+                                            "pitch": {
+                                                "octave": 4,
+                                                "step": "A"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "duration": {
+                                        "base": "quarter"
+                                    },
+                                    "id": "ev34",
+                                    "rest": {}
+                                }
+                            ],
+                            "staff": 1,
+                            "voice": "s1layer1"
+                        }
+                    ]
+                },
+                {
+                    "id": "P1.m5",
+                    "sequences": [
+                        {
+                            "content": [
+                                {
+                                    "duration": {
+                                        "base": "half"
+                                    },
+                                    "id": "ev30",
+                                    "rest": {}
+                                },
+                                {
+                                    "duration": {
+                                        "base": "quarter"
+                                    },
+                                    "id": "ev31",
+                                    "notes": [
+                                        {
+                                            "id": "ev31n1",
+                                            "pitch": {
+                                                "octave": 3,
+                                                "step": "A"
+                                            },
+                                            "staff": 2
+                                        },
+                                        {
+                                            "id": "ev31n2",
+                                            "pitch": {
+                                                "octave": 4,
+                                                "step": "F"
+                                            }
+                                        },
+                                        {
+                                            "id": "ev31n3",
+                                            "pitch": {
+                                                "octave": 4,
+                                                "step": "A"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "duration": {
+                                        "base": "quarter"
+                                    },
+                                    "id": "ev35",
+                                    "rest": {}
+                                }
+                            ],
+                            "staff": 1,
+                            "voice": "s1layer1"
+                        }
+                    ]
+                },
+                {
+                    "id": "P1.m6",
+                    "sequences": []
+                }
+            ],
+            "staves": 2
+        }
+    ],
+    "scores": [
+        {
+            "layout": "S0-ScrVw",
+            "name": "Score",
+            "pages": [
+                {
+                    "systems": [
+                        {
+                            "layout": "S0-Sys1",
+                            "measure": "m1"
+                        },
+                        {
+                            "layout": "S0-Sys2",
+                            "measure": "m2"
+                        },
+                        {
+                            "layout": "S0-Sys3",
+                            "measure": "m6"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
