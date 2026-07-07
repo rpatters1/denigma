@@ -162,6 +162,14 @@ The generated MX core model represents this as `DirectionTypeChoiceChoice` with 
 
 Needed API shape: a public direction text model that can represent an ordered run of formatted words and formatted SMuFL symbols, preserving order and per-chunk formatting. This could either extend `DirectionData` with a mixed words/symbol collection or add a higher-level formatted direction text object that writes MusicXML `<words>` / `<symbol>` siblings in order.
 
+### Direction system relation
+
+MusicXML `<direction>` supports a `system` attribute with values such as `only-top` and `also-top`, distinguishing directions that belong to the system's top staff from ordinary staff-local directions. This is the correct semantic for Finale expressions assigned to TOP staff, and for grouped staff-list expressions where a top-staff assignment is later supplemented by a concrete staff assignment.
+
+The generated MX core model exposes this as `core::SystemRelation` on `core::Direction`, but `mx::api::DirectionData` does not expose any public field for the direction `system` attribute. Denigma can currently approximate some TOP-assigned expression behavior structurally, but cannot emit the actual MusicXML `system="only-top"` / `system="also-top"` semantics through `mx::api`.
+
+Needed API shape: add a public direction system-relation field to `mx::api::DirectionData`, with reader/writer support for MusicXML `system="only-top|also-top|none"`.
+
 ### Other dynamics SMuFL glyphs
 
 MusicXML 4.0 defines `other-dynamics` as `other-text`, so it can carry a `smufl` attribute for preserving a specific SMuFL glyph name in addition to optional text content.
