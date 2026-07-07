@@ -53,6 +53,14 @@ BEGIN_ENUM_CONVERSION(AlignJustify, mx::api::HorizontalAlignment)
     case AlignJustify::Center: return mx::api::HorizontalAlignment::center;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(others::TextBlock::TextJustify, mx::api::HorizontalAlignment)
+    case others::TextBlock::TextJustify::Left: return mx::api::HorizontalAlignment::left;
+    case others::TextBlock::TextJustify::Center: return mx::api::HorizontalAlignment::center;
+    case others::TextBlock::TextJustify::Right: return mx::api::HorizontalAlignment::right;
+    case others::TextBlock::TextJustify::Full: return mx::api::HorizontalAlignment::unspecified;
+    case others::TextBlock::TextJustify::ForcedFull: return mx::api::HorizontalAlignment::unspecified;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(classify::ArticulationMark::Type, mx::api::MarkType)
     case classify::ArticulationMark::Type::Accent: return mx::api::MarkType::accent;
     case classify::ArticulationMark::Type::BrassBend: return mx::api::MarkType::brassBend;

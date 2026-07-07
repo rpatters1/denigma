@@ -56,7 +56,7 @@ std::string mxResultMessage(std::string_view operation, const mx::api::ApiError&
 
 void createTiming(const MusicXmlMusxMapping& context, MusicXmlTimingPlan& timing)
 {
-    constexpr int MIN_DIVISIONS_PER_QUARTER = 4;
+    constexpr int MIN_DIVISIONS_PER_QUARTER = 8;
     int baseDivisions = MIN_DIVISIONS_PER_QUARTER;
     for (const auto& measure : context.document->getOthers()->getArray<others::Measure>(context.forPartId)) {
         const auto quarterDuration = measure->calcDuration() * 4;

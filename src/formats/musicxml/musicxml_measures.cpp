@@ -18,6 +18,7 @@
  */
 
 #include "musicxml.h"
+#include "musicxml_formatted_text.h"
 
 #include <cstdlib>
 #include <iomanip>
@@ -699,6 +700,70 @@ void assignStaffAttributes(
     }
 }
 
+void processMeasureText(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    const MusxInstance<others::Measure>& musxMeasure,
+    StaffCmper staffId)
+{
+    if (!musxMeasure->hasTextBlock) {
+        return;
+    }
+    const auto textAssignments = context.document->getDetails()->getArray<details::MeasureTextAssign>(
+        musxMeasure->getRequestedPartId(), staffId, musxMeasure->getCmper());
+    for (const auto& assignment : textAssignments) {
+        if (assignment->hidden) {
+            continue;
+        }
+        const auto currentStaff = others::StaffComposite::createCurrent(
+            context.document, context.forPartId, staffId, musxMeasure->getCmper(), assignment->xDispEdu);
+        if (!currentStaff) {
+            continue;
+        }
+
+        auto rawText = assignment->getRawTextCtx(context.forPartId);
+        if (!rawText) {
+            continue;
+        }
+
+        auto direction = mx::api::DirectionData{};
+        direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(Fraction::fromEdu((std::max)(Edu{}, assignment->xDispEdu)));
+        direction.words = musicXmlWordsFromEnigmaText(context, rawText);
+        if (direction.words.empty()) {
+            continue;
+        }
+
+        const auto textBlock = assignment->getTextBlock();
+        const auto horizontalAlignment = textBlock ? enumConvert<mx::api::HorizontalAlignment>(textBlock->justify)
+                                                   : mx::api::HorizontalAlignment::unspecified;
+        const Evpu resolvedYEvpu = assignment->yDisp + (textBlock ? textBlock->yAdd : Evpu{});
+        const Evpu defaultXEvpu = (textBlock ? textBlock->xAdd : Evpu{}) + (assignment->xDispEdu == 0 ? assignment->xDispEvpu : Evpu{});
+        const Evpu defaultYEvpu = resolvedYEvpu - currentStaff->calcTopLineEvpu();
+        const bool hasDefaultX = defaultXEvpu != 0;
+        const bool hasDefaultY = defaultYEvpu != 0;
+        if (resolvedYEvpu > currentStaff->calcTopLineEvpu()) {
+            direction.placement = mx::api::Placement::above;
+        } else if (resolvedYEvpu < currentStaff->calcBottomLineEvpu()) {
+            direction.placement = mx::api::Placement::below;
+        }
+        for (auto& words : direction.words) {
+            if (hasDefaultX) {
+                words.positionData.defaultX = context.musicXmlTenthsFromEvpu(defaultXEvpu);
+                words.positionData.isDefaultXSpecified = true;
+            }
+            if (hasDefaultY) {
+                words.positionData.defaultY = context.musicXmlTenthsFromEvpu(defaultYEvpu);
+                words.positionData.isDefaultYSpecified = true;
+            }
+            if (horizontalAlignment != mx::api::HorizontalAlignment::unspecified) {
+                words.positionData.horizontalAlignmnet = horizontalAlignment;
+            }
+        }
+
+        staff.directions.emplace_back(std::move(direction));
+    }
+}
+
 void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part)
 {
     context.clearCurrent();
@@ -749,6 +814,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         for (size_t staffIndex = 0; staffIndex < stavesIt->second.size(); ++staffIndex) {
             const StaffCmper staffId = stavesIt->second[staffIndex];
             auto& staff = measure.staves[staffIndex];
+            processMeasureText(context, staff, musxMeasure, staffId);
             processJumps(context, staff, musxMeasure, staffId, staffIndex);
             processExpressions(context, measure, staff, musxMeasure, staffId, staffIndex);
         }

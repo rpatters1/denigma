@@ -218,6 +218,80 @@ TEST(MusicXmlExpressions, TempoVariedStavesSmoke)
     expectMeasureTempos(*violin, 5, violinExpected);
 }
 
+TEST(MusicXmlExpressions, MeasureTextSmoke)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("measure_text.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto referenceScore = loadScoreData(getInputPath() / "musicxml/measure_text-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(referenceScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+    ASSERT_FALSE(referenceScore->parts.empty());
+
+    struct MeasureTextDirection
+    {
+        size_t measureIndex{};
+        std::string text;
+        mx::api::Placement placement{mx::api::Placement::unspecified};
+        std::optional<double> defaultX;
+        std::optional<double> defaultY;
+        std::optional<double> relativeX;
+        std::optional<int> offset;
+    };
+
+    const auto collectMeasureTextDirections = [](const mx::api::ScoreData& score) {
+        std::vector<MeasureTextDirection> result;
+        for (size_t measureIndex = 0; measureIndex < score.parts.front().measures.size(); ++measureIndex) {
+            const auto& measure = score.parts.front().measures.at(measureIndex);
+            for (const auto& staff : measure.staves) {
+                for (const auto& direction : staff.directions) {
+                    if (direction.words.size() != 1 || direction.isSoundDataSpecified) {
+                        continue;
+                    }
+                    const auto& words = direction.words.front();
+                    result.push_back({
+                        measureIndex,
+                        words.text,
+                        direction.placement,
+                        words.positionData.isDefaultXSpecified ? std::make_optional(words.positionData.defaultX) : std::nullopt,
+                        words.positionData.isDefaultYSpecified ? std::make_optional(words.positionData.defaultY) : std::nullopt,
+                        words.positionData.isRelativeXSpecified ? std::make_optional(words.positionData.relativeX) : std::nullopt,
+                        direction.tickTimePosition > 0 ? std::make_optional(direction.tickTimePosition) : std::nullopt
+                    });
+                }
+            }
+        }
+        return result;
+    };
+
+    const auto actualDirections = collectMeasureTextDirections(*actualScore);
+    const auto referenceDirections = collectMeasureTextDirections(*referenceScore);
+
+    ASSERT_EQ(actualDirections.size(), 3u);
+    ASSERT_EQ(referenceDirections.size(), actualDirections.size());
+
+    constexpr double kDefaultYTolerance = 1.0;
+    for (size_t index = 0; index < actualDirections.size(); ++index) {
+        const auto& actual = actualDirections[index];
+        const auto& reference = referenceDirections[index];
+
+        EXPECT_EQ(actual.measureIndex, reference.measureIndex);
+        EXPECT_EQ(actual.text, reference.text);
+        EXPECT_EQ(actual.placement, reference.placement);
+        ASSERT_EQ(actual.defaultY.has_value(), reference.defaultY.has_value());
+        if (actual.defaultY && reference.defaultY) {
+            EXPECT_NEAR(*actual.defaultY, *reference.defaultY, kDefaultYTolerance);
+        }
+        EXPECT_EQ(actual.offset, reference.offset);
+        if (reference.relativeX && *reference.relativeX < 0.0) {
+            ASSERT_TRUE(actual.defaultX.has_value());
+            EXPECT_NEAR(*actual.defaultX, *reference.relativeX, kDefaultYTolerance);
+        }
+    }
+}
+
 TEST(MusicXmlExpressions, TempoToolChanges)
 {
     setupTestDataPaths();
