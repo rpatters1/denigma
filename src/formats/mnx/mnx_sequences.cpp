@@ -466,7 +466,6 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
     musx::util::Fraction& elapsedInSequence, bool hasVoice1Voice2,
     bool inGrace, const std::optional<size_t>& tupletIndex = std::nullopt, bool inTremolo = false)
 {
-    const auto musxGraceOptions = context->finaleOptions.graceOptions;
     auto next = firstEntryInfo;
     while (next) {
         if (tupletIndex) {
@@ -485,12 +484,7 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
         } else if (!inGrace && entry->graceNote) {
             auto grace = content.appendGrace();
             next = addEntryToContent(context, grace.content(), next, elapsedInSequence, hasVoice1Voice2, true);
-            if (!musxGraceOptions) {
-                throw std::invalid_argument("Document contains no grace note options!");
-            }
-            bool slash = (entry->slashGrace || musxGraceOptions->slashFlaggedGraceNotes)
-                        && entryInfo.calcCanBeBeamed() && entryInfo.calcUnbeamed();
-            grace.set_or_clear_slash(slash);
+            grace.set_or_clear_slash(entryInfo.calcGraceNoteSlash(context->finaleOptions.graceOptions));
             continue;
         }
 
