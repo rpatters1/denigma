@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <optional>
 #include <stdexcept>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -27,6 +28,7 @@
 #include "formats/musicxml/musicxml.h"
 #include "musx/util/Fraction.h"
 #include "mx/api/ScoreData.h"
+#include "pugixml.hpp"
 #include "musicxml_test.h"
 #include "test_utils.h"
 
@@ -68,6 +70,90 @@ struct ComparableStemEvent
     int octave{};
     mx::api::Stem stem{mx::api::Stem::unspecified};
 };
+
+struct ComparableCrossStaffEvent
+{
+    size_t partIndex{};
+    size_t measureIndex{};
+    size_t staffIndex{};
+    int voiceIndex{};
+    musx::util::Fraction tickTimePosition;
+    musx::util::Fraction durationTime;
+    bool isChord{};
+    mx::api::Step step{};
+    int alter{};
+    int octave{};
+    std::optional<int> crossStaffIndex;
+
+    bool operator==(const ComparableCrossStaffEvent&) const = default;
+};
+
+struct ComparableGraceSlashEvent
+{
+    size_t partIndex{};
+    size_t measureIndex{};
+    size_t staffIndex{};
+    int voiceIndex{};
+    musx::util::Fraction tickTimePosition;
+    mx::api::Step step{};
+    int alter{};
+    int octave{};
+    mx::api::Bool graceSlash{mx::api::Bool::unspecified};
+
+    bool operator==(const ComparableGraceSlashEvent&) const = default;
+};
+
+struct ComparableMnxCrossStaffEvent
+{
+    size_t measureIndex{};
+    int sequenceStaff{};
+    int noteStaff{};
+    mx::api::Step step{};
+    int alter{};
+    int octave{};
+
+    bool operator==(const ComparableMnxCrossStaffEvent&) const = default;
+};
+
+struct ComparableGraceGroup
+{
+    size_t partIndex{};
+    size_t measureIndex{};
+    size_t staffIndex{};
+    int voiceIndex{};
+    bool slashed{};
+    std::vector<std::tuple<mx::api::Step, int, int>> pitches;
+
+    bool operator==(const ComparableGraceGroup&) const = default;
+};
+
+mx::api::Step parseStep(const std::string& step)
+{
+    if (step == "A") return mx::api::Step::a;
+    if (step == "B") return mx::api::Step::b;
+    if (step == "C") return mx::api::Step::c;
+    if (step == "D") return mx::api::Step::d;
+    if (step == "E") return mx::api::Step::e;
+    if (step == "F") return mx::api::Step::f;
+    if (step == "G") return mx::api::Step::g;
+    throw std::logic_error("Unexpected MNX pitch step.");
+}
+
+std::filesystem::path exportMnxFixture(const std::string& musxFile)
+{
+    std::filesystem::path inputPath;
+    copyInputToOutput(musxFile, inputPath);
+
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    auto outputPath = inputPath;
+    outputPath.replace_extension(".mnx");
+    EXPECT_TRUE(std::filesystem::exists(outputPath)) << "Missing MNX output " << pathString(outputPath);
+    return outputPath;
+}
 
 std::vector<ComparableNoteEvent> createComparableNoteEvents(const mx::api::ScoreData& score)
 {
@@ -187,6 +273,220 @@ std::vector<ComparableStemEvent> createComparableStemEvents(const mx::api::Score
     return result;
 }
 
+std::vector<ComparableMnxCrossStaffEvent> createComparableMnxCrossStaffEvents(const nlohmann::json& mnx)
+{
+    std::vector<ComparableMnxCrossStaffEvent> result;
+    if (!mnx.contains("parts") || mnx["parts"].empty()) {
+        return result;
+    }
+    const auto& measures = mnx["parts"][0]["measures"];
+    for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
+        const auto& measure = measures.at(measureIndex);
+        if (!measure.contains("sequences")) {
+            continue;
+        }
+        for (const auto& sequence : measure["sequences"]) {
+            if (!sequence.contains("staff") || !sequence.contains("content")) {
+                continue;
+            }
+            const int sequenceStaff = sequence["staff"];
+            for (const auto& item : sequence["content"]) {
+                if (!item.contains("notes")) {
+                    continue;
+                }
+                for (const auto& note : item["notes"]) {
+                    if (!note.contains("staff")) {
+                        continue;
+                    }
+                    const auto& pitch = note["pitch"];
+                    result.push_back({
+                        measureIndex,
+                        sequenceStaff,
+                        note["staff"],
+                        parseStep(pitch["step"]),
+                        pitch.value("alter", 0),
+                        pitch["octave"]
+                    });
+                }
+            }
+        }
+    }
+    std::sort(result.begin(), result.end(), [](const ComparableMnxCrossStaffEvent& lhs, const ComparableMnxCrossStaffEvent& rhs) {
+        if (lhs.measureIndex != rhs.measureIndex) return lhs.measureIndex < rhs.measureIndex;
+        if (lhs.sequenceStaff != rhs.sequenceStaff) return lhs.sequenceStaff < rhs.sequenceStaff;
+        if (lhs.noteStaff != rhs.noteStaff) return lhs.noteStaff < rhs.noteStaff;
+        if (lhs.step != rhs.step) return lhs.step < rhs.step;
+        if (lhs.alter != rhs.alter) return lhs.alter < rhs.alter;
+        return lhs.octave < rhs.octave;
+    });
+    return result;
+}
+
+std::vector<ComparableMnxCrossStaffEvent> createComparableMusicXmlCrossStaffEvents(const std::filesystem::path& path)
+{
+    pugi::xml_document document;
+    const auto loadResult = document.load_file(path.c_str());
+    if (!loadResult) {
+        throw std::logic_error("Unable to load MusicXML output for cross-staff comparison.");
+    }
+
+    std::vector<ComparableMnxCrossStaffEvent> result;
+    const auto part = document.child("score-partwise").child("part");
+    size_t measureIndex = 0;
+    for (auto measure = part.child("measure"); measure; measure = measure.next_sibling("measure"), ++measureIndex) {
+        std::vector<pugi::xml_node> eventNotes;
+        const auto flushEvent = [&]() {
+            if (eventNotes.empty()) {
+                return;
+            }
+            std::vector<std::pair<int, int>> noteStaffCounts;
+            for (const auto& note : eventNotes) {
+                const auto pitch = note.child("pitch");
+                if (!pitch) {
+                    continue;
+                }
+                const int staffNumber = note.child("staff").text().as_int();
+                const auto countIt = std::find_if(noteStaffCounts.begin(), noteStaffCounts.end(), [staffNumber](const auto& pair) {
+                    return pair.first == staffNumber;
+                });
+                if (countIt == noteStaffCounts.end()) {
+                    noteStaffCounts.emplace_back(staffNumber, 1);
+                } else {
+                    ++countIt->second;
+                }
+            }
+            if (noteStaffCounts.size() <= 1) {
+                eventNotes.clear();
+                return;
+            }
+            const auto homeStaffIt = std::max_element(noteStaffCounts.begin(), noteStaffCounts.end(), [](const auto& lhs, const auto& rhs) {
+                if (lhs.second != rhs.second) return lhs.second < rhs.second;
+                return lhs.first > rhs.first;
+            });
+            const int homeStaff = homeStaffIt->first;
+            for (const auto& note : eventNotes) {
+                const auto pitch = note.child("pitch");
+                if (!pitch) {
+                    continue;
+                }
+                const int noteStaff = note.child("staff").text().as_int();
+                if (noteStaff == homeStaff) {
+                    continue;
+                }
+                result.push_back({
+                    measureIndex,
+                    homeStaff,
+                    noteStaff,
+                    parseStep(pitch.child_value("step")),
+                    pitch.child("alter").text().as_int(),
+                    pitch.child("octave").text().as_int()
+                });
+            }
+            eventNotes.clear();
+        };
+
+        for (auto note = measure.child("note"); note; note = note.next_sibling("note")) {
+            if (!note.child("pitch")) {
+                flushEvent();
+                continue;
+            }
+            if (!note.child("chord")) {
+                flushEvent();
+            }
+            eventNotes.emplace_back(note);
+        }
+        flushEvent();
+    }
+    std::sort(result.begin(), result.end(), [](const ComparableMnxCrossStaffEvent& lhs, const ComparableMnxCrossStaffEvent& rhs) {
+        if (lhs.measureIndex != rhs.measureIndex) return lhs.measureIndex < rhs.measureIndex;
+        if (lhs.sequenceStaff != rhs.sequenceStaff) return lhs.sequenceStaff < rhs.sequenceStaff;
+        if (lhs.noteStaff != rhs.noteStaff) return lhs.noteStaff < rhs.noteStaff;
+        if (lhs.step != rhs.step) return lhs.step < rhs.step;
+        if (lhs.alter != rhs.alter) return lhs.alter < rhs.alter;
+        return lhs.octave < rhs.octave;
+    });
+    return result;
+}
+
+std::vector<ComparableGraceGroup> createComparableMnxGraceGroups(const nlohmann::json& mnx)
+{
+    std::vector<ComparableGraceGroup> result;
+    if (!mnx.contains("parts") || mnx["parts"].empty()) {
+        return result;
+    }
+    const auto& measures = mnx["parts"][0]["measures"];
+    for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
+        const auto& measure = measures.at(measureIndex);
+        if (!measure.contains("sequences")) {
+            continue;
+        }
+        for (const auto& sequence : measure["sequences"]) {
+            if (!sequence.contains("content")) {
+                continue;
+            }
+            const size_t staffIndex = static_cast<size_t>(sequence.value("staff", 1) - 1);
+            const int voiceIndex = 0;
+            for (const auto& item : sequence["content"]) {
+                if (item.value("type", "") != "grace") {
+                    continue;
+                }
+                auto group = ComparableGraceGroup{ 0, measureIndex, staffIndex, voiceIndex, !item.contains("slash"), {} };
+                for (const auto& event : item["content"]) {
+                    if (!event.contains("notes")) {
+                        continue;
+                    }
+                    for (const auto& note : event["notes"]) {
+                        const auto& pitch = note["pitch"];
+                        group.pitches.emplace_back(parseStep(pitch["step"]), pitch.value("alter", 0), pitch["octave"]);
+                    }
+                }
+                result.emplace_back(std::move(group));
+            }
+        }
+    }
+    return result;
+}
+
+std::vector<ComparableGraceGroup> createComparableMusicXmlGraceGroups(const std::filesystem::path& path)
+{
+    pugi::xml_document document;
+    const auto loadResult = document.load_file(path.c_str());
+    if (!loadResult) {
+        throw std::logic_error("Unable to load MusicXML output for grace comparison.");
+    }
+
+    std::vector<ComparableGraceGroup> result;
+    const auto part = document.child("score-partwise").child("part");
+    size_t measureIndex = 0;
+    for (auto measure = part.child("measure"); measure; measure = measure.next_sibling("measure"), ++measureIndex) {
+        std::optional<bool> previousSlashed;
+        for (auto note = measure.child("note"); note; note = note.next_sibling("note")) {
+            const auto grace = note.child("grace");
+            if (!grace) {
+                previousSlashed.reset();
+                continue;
+            }
+            const auto pitch = note.child("pitch");
+            if (!pitch) {
+                previousSlashed.reset();
+                continue;
+            }
+            const bool slashed = std::string_view(grace.attribute("slash").as_string()) == "yes";
+            if (!previousSlashed || *previousSlashed != slashed) {
+                const auto staffNode = note.child("staff");
+                const int staffNumber = staffNode ? staffNode.text().as_int() : 1;
+                result.push_back({ 0, measureIndex, static_cast<size_t>(staffNumber - 1), 0, slashed, {} });
+            }
+            result.back().pitches.emplace_back(
+                parseStep(pitch.child_value("step")),
+                pitch.child("alter").text().as_int(),
+                pitch.child("octave").text().as_int());
+            previousSlashed = slashed;
+        }
+    }
+    return result;
+}
+
 void compareNoteEvents(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
 {
     const auto actualEvents = createComparableNoteEvents(actual);
@@ -217,6 +517,26 @@ void compareStemEventsSetByExporter(const mx::api::ScoreData& actual, const mx::
         ASSERT_NE(expectedIt, expectedEvents.end()) << "missing reference note for exported stem";
         EXPECT_EQ(actualEvent.stem, expectedIt->stem);
         expectedEvents.erase(expectedIt);
+    }
+}
+
+void compareCrossStaffEventsToMnx(const std::filesystem::path& musicXmlPath, const nlohmann::json& mnx)
+{
+    const auto musicXmlEvents = createComparableMusicXmlCrossStaffEvents(musicXmlPath);
+    const auto mnxEvents = createComparableMnxCrossStaffEvents(mnx);
+    ASSERT_EQ(musicXmlEvents.size(), mnxEvents.size()) << "cross-staff event count vs MNX";
+    for (size_t eventIndex = 0; eventIndex < mnxEvents.size(); ++eventIndex) {
+        EXPECT_EQ(musicXmlEvents[eventIndex], mnxEvents[eventIndex]) << "cross-staff event vs MNX " << eventIndex;
+    }
+}
+
+void compareGraceGroupsToMnx(const std::filesystem::path& musicXmlPath, const nlohmann::json& mnx)
+{
+    const auto musicXmlGroups = createComparableMusicXmlGraceGroups(musicXmlPath);
+    const auto mnxGroups = createComparableMnxGraceGroups(mnx);
+    ASSERT_EQ(musicXmlGroups.size(), mnxGroups.size()) << "grace group count vs MNX";
+    for (size_t groupIndex = 0; groupIndex < mnxGroups.size(); ++groupIndex) {
+        EXPECT_EQ(musicXmlGroups[groupIndex], mnxGroups[groupIndex]) << "grace group vs MNX " << groupIndex;
     }
 }
 
@@ -427,6 +747,30 @@ TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)
     ASSERT_TRUE(expectedScore);
 
     compareStemEventsSetByExporter(*actualScore, *expectedScore);
+}
+
+TEST(MusicXmlNotes, CrossStaffNotesMatchFinale)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("cross_staffs.musx");
+    const auto mnxPath = exportMnxFixture("cross_staffs.musx");
+    nlohmann::json mnx;
+    openJson(mnxPath, mnx);
+
+    compareCrossStaffEventsToMnx(outputPath, mnx);
+}
+
+TEST(MusicXmlNotes, GraceSlashStatesMatchFinale)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("grace_beamed.musx");
+    const auto mnxPath = exportMnxFixture("grace_beamed.musx");
+    nlohmann::json mnx;
+    openJson(mnxPath, mnx);
+
+    compareGraceGroupsToMnx(outputPath, mnx);
 }
 
 TEST(MusicXmlNotes, VoicesKeyboardUsesStaffQualifiedVoiceNumbers)
