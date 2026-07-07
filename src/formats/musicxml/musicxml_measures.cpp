@@ -370,6 +370,27 @@ mx::api::KeyData createKeyData(
     return key;
 }
 
+std::optional<mx::api::TransposeData> createTransposeData(
+    const MusicXmlMusxMapping& context,
+    const MusxInstance<others::StaffComposite>& staff)
+{
+    const auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
+    if (!transpositionDisp && !transpositionAlt) {
+        return std::nullopt;
+    }
+
+    const bool shouldEmitTransposition = context.finaleOptions.effectivePartGlobals->showTransposed
+        || (context.finaleOptions.miscOptions->keepWrittenOctaveInConcertPitch
+            && music_theory::calcTranspositionIsOctave(transpositionDisp, transpositionAlt));
+    if (!shouldEmitTransposition) {
+        return std::nullopt;
+    }
+
+    return mx::api::TransposeData(
+        -music_theory::calc12EdoHalfstepsInInterval(transpositionDisp, transpositionAlt),
+        -transpositionDisp);
+}
+
 bool keyDataEqualIgnoringStaffIndex(const mx::api::KeyData& lhs, const mx::api::KeyData& rhs)
 {
     auto normalizedLhs = lhs;
@@ -384,6 +405,27 @@ bool keyDataChanged(
     const mx::api::KeyData& current)
 {
     return !previous || !keyDataEqualIgnoringStaffIndex(*previous, current);
+}
+
+bool transposeDataEqualIgnoringStaffAndTick(const mx::api::TransposeData& lhs, const mx::api::TransposeData& rhs)
+{
+    auto normalizedLhs = lhs;
+    auto normalizedRhs = rhs;
+    normalizedLhs.staffIndex = mx::api::INDEX_UNSPECIFIED;
+    normalizedRhs.staffIndex = mx::api::INDEX_UNSPECIFIED;
+    normalizedLhs.tickTimePosition = 0;
+    normalizedRhs.tickTimePosition = 0;
+    return normalizedLhs == normalizedRhs;
+}
+
+bool transposeDataEqualIgnoringStaffAndTick(
+    const std::optional<mx::api::TransposeData>& lhs,
+    const std::optional<mx::api::TransposeData>& rhs)
+{
+    if (!lhs || !rhs) {
+        return !lhs && !rhs;
+    }
+    return transposeDataEqualIgnoringStaffAndTick(*lhs, *rhs);
 }
 
 void assignKeySignatures(
@@ -537,10 +579,15 @@ void assignStaffAttributes(
     const MusxInstanceList<others::Measure>& musxMeasures,
     const std::vector<StaffCmper>& staves)
 {
-    ASSERT_IF(part.measures.size() != musxMeasures.size()) {
+    ASSERT_IF(part.measures.size() != musxMeasures.size() || musxMeasures.empty()) {
+        context.logMessage(LogMsg() << "Cannot assign MusicXML staff attributes for part " << part.uniqueId
+            << ": measure count mismatch or empty MUSX measure list (MusicXML measures="
+            << part.measures.size() << ", MUSX measures=" << musxMeasures.size() << ").",
+            MessageSeverity::Warning);
         return;
     }
 
+    const MeasCmper finaleMeasureId = musxMeasures.back()->getCmper();
     const auto systems = context.document->getOthers()->getArray<others::StaffSystem>(context.forPartId);
     const auto systemForMeasure = [&systems](MeasCmper measureId) -> MusxInstance<others::StaffSystem> {
         MusxInstance<others::StaffSystem> result;
@@ -553,54 +600,101 @@ void assignStaffAttributes(
         return result;
     };
 
-    const auto finalMeasureId = musxMeasures.empty() ? MeasCmper{} : musxMeasures.back()->getCmper();
     for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
         const auto staffId = staves[staffIndex];
-        std::set<MeasCmper> attributeChanges{ 1 };
+        std::set<MusicPoint> attributeChanges{ MusicPoint{} };
         if (const auto rawStaff = context.document->getOthers()->get<others::Staff>(context.forPartId, staffId); rawStaff && rawStaff->hasStyles) {
             const auto styleAssigns = context.document->getOthers()->getArray<others::StaffStyleAssign>(context.forPartId, staffId);
             for (const auto& styleAssign : styleAssigns) {
-                attributeChanges.emplace(styleAssign->startMeas);
-                if (const auto nextLocation = styleAssign->nextLocation()) {
-                    const auto nextMeasure = nextLocation->measureId;
-                    attributeChanges.emplace(nextMeasure == styleAssign->startMeas && nextMeasure < finalMeasureId ? nextMeasure + 1 : nextMeasure);
+                attributeChanges.emplace(styleAssign->startMeas, Fraction::fromEdu(styleAssign->startEdu));
+                if (const auto nextLocation = styleAssign->nextLocation(staffId)) {
+                    attributeChanges.emplace(*nextLocation);
                 }
             }
         }
         for (const auto& system : systems) {
             const auto systemStaves = context.document->getOthers()->getArray<others::StaffUsed>(context.forPartId, system->getCmper());
             if (systemStaves.getIndexForStaff(staffId).has_value()) {
-                attributeChanges.emplace(system->startMeas);
+                attributeChanges.emplace(system->startMeas, Fraction{});
             }
         }
 
         int prevStaffLines = music_theory::STANDARD_NUMBER_OF_STAFFLINES;
-        for (const auto measureId : attributeChanges) {
-            auto& measure = part.measures[size_t(measureId - 1)];
-            ASSERT_IF(measure.staves.size() != staves.size()) {
-                return;
-            }
-            const auto system = systemForMeasure(measureId);
-            ASSERT_IF(!system) {
+        std::optional<mx::api::TransposeData> prevTransposition;
+        for (const auto& point : attributeChanges) {
+            if (point.measureId <= 0 || size_t(point.measureId) > part.measures.size()) {
                 continue;
             }
-            const auto systemStaves = context.document->getOthers()->getArray<others::StaffUsed>(context.forPartId, system->getCmper());
-            if (!systemStaves.getIndexForStaff(staffId).has_value()) {
-                continue;
-            }
-            const auto staff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, measureId, 0);
-            ASSERT_IF(!staff) {
-                continue;
-            }
-            const int staffLines = staff->calcNumberOfStafflines();
-            if (staffLines != prevStaffLines) {
-                measure.staves[staffIndex].staffLines = staffLines;
-            }
-            prevStaffLines = staffLines;
 
-            const Fraction lineSpaceFactor{staff->lineSpace, Evpu(EVPU_PER_SPACE)};
-            const Fraction systemScale = system->calcStaffScaling(staffId);
-            context.layout.setStaffSize(measure.staves[staffIndex], staffId, lineSpaceFactor * systemScale, systemScale);
+            const auto pointStaff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId,
+                point.measureId, point.position.calcEduDuration());
+            ASSERT_IF(!pointStaff) {
+                context.logMessage(LogMsg() << "No staff composite found for staff " << staffId
+                    << " at measure " << point.measureId << ", edu " << point.position.calcEduDuration()
+                    << " while assigning MusicXML staff attributes.", MessageSeverity::Warning);
+                continue;
+            }
+
+            const auto measureStartStaff = [&]() -> MusxInstance<others::StaffComposite> {
+                if (point.position == 0) {
+                    return pointStaff;
+                }
+                if (point.measureId < finaleMeasureId) {
+                    return others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, point.measureId + 1, 0);
+                }
+                return nullptr;
+            }();
+
+            if (measureStartStaff) {
+                // items here can only be changed at start of measure in musicxml/mx::api
+                const auto measureId = measureStartStaff->getMeasureId();
+                auto& measure = part.measures[size_t(measureId - 1)];
+                ASSERT_IF(measure.staves.size() != staves.size()) {
+                    context.logMessage(LogMsg() << "Measure " << measureId << " in part " << part.uniqueId
+                        << " has " << measure.staves.size() << " staves, expected " << staves.size()
+                        << " while assigning MusicXML measure-start staff attributes.", MessageSeverity::Warning);
+                    return;
+                }
+                const auto system = systemForMeasure(measureId);
+                ASSERT_IF(!system) {
+                    context.logMessage(LogMsg() << "No staff system found for measure " << measureId
+                        << " while assigning MusicXML staff attributes for staff " << staffId << ".",
+                        MessageSeverity::Warning);
+                    continue;
+                }
+                const int staffLines = measureStartStaff->calcNumberOfStafflines();
+                if (staffLines != prevStaffLines) {
+                    measure.staves[staffIndex].staffLines = staffLines;
+                }
+                prevStaffLines = staffLines;
+
+                const Fraction lineSpaceFactor{measureStartStaff->lineSpace, Evpu(EVPU_PER_SPACE)};
+                const Fraction systemScale = system->calcStaffScaling(staffId);
+                context.layout.setStaffSize(measure.staves[staffIndex], staffId, lineSpaceFactor * systemScale, systemScale);
+            }
+
+            const auto currentTransposition = createTransposeData(context, pointStaff);
+            if (!transposeDataEqualIgnoringStaffAndTick(prevTransposition, currentTransposition)) {
+                const bool initialPointCoveredByPart =
+                    point == MusicPoint{}
+                    && transposeDataEqualIgnoringStaffAndTick(currentTransposition, part.transposition);
+                if (!initialPointCoveredByPart) {
+                    auto& measure = part.measures[size_t(point.measureId - 1)];
+                    ASSERT_IF(measure.staves.size() != staves.size()) {
+                        context.logMessage(LogMsg() << "Measure " << point.measureId << " in part " << part.uniqueId
+                            << " has " << measure.staves.size() << " staves, expected " << staves.size()
+                            << " while assigning MusicXML transposition attributes.", MessageSeverity::Warning);
+                        return;
+                    }
+                    auto transpose = currentTransposition.value_or(mx::api::TransposeData{});
+                    if (staves.size() > 1) {
+                        transpose.staffIndex = static_cast<int>(staffIndex);
+                    }
+                    transpose.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(point.position);
+                    measure.transpositions.emplace_back(transpose);
+                }
+                prevTransposition = currentTransposition;
+            }
         }
     }
 }

@@ -128,14 +128,6 @@ Needed API shape: a richer time signature representation that can preserve the M
 
 ## Transposition
 
-### Transposition changes after the first measure
-
-MusicXML encodes `<transpose>` inside measure `<attributes>`, so transposition can change during the score.
-
-`mx::api::PartData::transposition` is a convenience field that writes the initial transposition in the first measure only. The API comment explicitly says subsequent transposition changes are not currently supported.
-
-Needed API shape: positionable transposition data on measures, with enough information to write `<transpose>` in any measure where it changes.
-
 ### Concert-score `for-part`
 
 MusicXML supports `<for-part>` in `<attributes>` for concert scores with transposed parts. This allows a concert-score file to describe transpositions for extracted or rendered parts.

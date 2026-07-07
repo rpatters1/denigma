@@ -122,6 +122,18 @@ struct ComparableKeySignature
     auto operator<=>(const ComparableKeySignature&) const = default;
 };
 
+struct ComparableTranspositionEvent
+{
+    size_t partIndex{};
+    size_t measureIndex{};
+    int tickTimePosition{};
+    int staffIndex{};
+    int chromatic{};
+    int diatonic{};
+
+    auto operator<=>(const ComparableTranspositionEvent&) const = default;
+};
+
 ComparableTimeSignature createComparableTimeSignature(const mx::api::TimeSignatureData& timeSignature)
 {
     return {
@@ -170,6 +182,29 @@ std::vector<std::vector<ComparableKeySignature>> createEffectiveKeySignatureTrac
 
         result.insert(result.end(), partTracks.begin(), partTracks.end());
     }
+    return result;
+}
+
+std::vector<ComparableTranspositionEvent> collectTranspositionEvents(const mx::api::ScoreData& score)
+{
+    std::vector<ComparableTranspositionEvent> result;
+    for (size_t partIndex = 0; partIndex < score.parts.size(); ++partIndex) {
+        const auto& part = score.parts[partIndex];
+        for (size_t measureIndex = 0; measureIndex < part.measures.size(); ++measureIndex) {
+            const auto& measure = part.measures[measureIndex];
+            for (const auto& transposition : measure.transpositions) {
+                result.push_back({
+                    partIndex,
+                    measureIndex,
+                    transposition.tickTimePosition,
+                    transposition.staffIndex,
+                    transposition.chromatic,
+                    transposition.diatonic
+                });
+            }
+        }
+    }
+    std::sort(result.begin(), result.end());
     return result;
 }
 
@@ -226,6 +261,16 @@ void compareKeySignatures(const mx::api::ScoreData& actual, const mx::api::Score
             EXPECT_EQ(actualTracks[trackIndex][measureIndex], expectedTracks[trackIndex][measureIndex])
                 << "measure " << (measureIndex + 1);
         }
+    }
+}
+
+void compareTranspositions(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
+{
+    const auto actualEvents = collectTranspositionEvents(actual);
+    const auto expectedEvents = collectTranspositionEvents(expected);
+    ASSERT_EQ(actualEvents.size(), expectedEvents.size()) << "transposition event count";
+    for (size_t index = 0; index < expectedEvents.size(); ++index) {
+        EXPECT_EQ(actualEvents[index], expectedEvents[index]) << "transposition event " << index;
     }
 }
 
@@ -436,6 +481,19 @@ TEST(MusicXmlParts, IndependentKeySignaturesMatchFinale)
     ASSERT_TRUE(expectedScore);
 
     compareKeySignatures(*actualScore, *expectedScore);
+}
+
+TEST(MusicXmlParts, IndependentTranspositionsMatchFinale)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("transposition.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/transposition-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(expectedScore);
+
+    compareTranspositions(*actualScore, *expectedScore);
 }
 
 TEST(MusicXmlParts, ChangingTimeSignaturesMatchFinale)
