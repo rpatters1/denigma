@@ -20,6 +20,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -45,7 +46,7 @@ void parseMusicXmlFormattedText(
     const MusicXmlMusxMapping& context,
     const musx::util::EnigmaParsingContext& text,
     const MusicXmlFormattedTextOptions& options = {});
-mx::api::WordsData musicXmlWordsFromEnigmaTextChunk(
+std::optional<mx::api::WordsData> musicXmlWordsFromEnigmaTextChunk(
     const MusicXmlMusxMapping& context,
     const musx::util::EnigmaTextChunk& chunk,
     const MusicXmlFormattedTextOptions& options = {});

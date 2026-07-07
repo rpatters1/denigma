@@ -109,11 +109,14 @@ void parseMusicXmlFormattedText(const MusicXmlMusxMapping& context, const musx::
     }, parsingOptions);
 }
 
-mx::api::WordsData musicXmlWordsFromEnigmaTextChunk(const MusicXmlMusxMapping& context, const musx::util::EnigmaTextChunk& chunk,
+std::optional<mx::api::WordsData> musicXmlWordsFromEnigmaTextChunk(const MusicXmlMusxMapping& context, const musx::util::EnigmaTextChunk& chunk,
     const MusicXmlFormattedTextOptions& options)
 {
     ASSERT_IF(!chunk.styles.font) {
         throw std::logic_error("MusicXML formatted text chunk has no font data.");
+    }
+    if (chunk.styles.font->hidden) {
+        return std::nullopt;
     }
     mx::api::WordsData result;
     result.fontData = context.musicXmlFontDataFromFontInfo(*chunk.styles.font, options.fallback);
@@ -181,19 +184,18 @@ std::vector<mx::api::WordsData> musicXmlWordsFromEnigmaText(const MusicXmlMusxMa
 {
     std::vector<mx::api::WordsData> result;
     auto parserOptions = options;
-    parserOptions.onChunk = [&](const mx::api::FontData& fontData, const std::string& chunk) {
-        if (chunk.empty()) {
-            return;
+    text.parseEnigmaText([&](const std::string& chunkText, const musx::util::EnigmaStyles& styles) -> bool {
+        musx::util::EnigmaTextChunk chunk{ chunkText, styles };
+        auto words = musicXmlWordsFromEnigmaTextChunk(context, chunk, options);
+        if (!words) {
+            return true;
         }
-        mx::api::WordsData words;
-        words.fontData = fontData;
-        words.text = chunk;
-        result.emplace_back(std::move(words));
+        result.emplace_back(std::move(*words));
         if (options.onChunk) {
-            options.onChunk(fontData, chunk);
+            options.onChunk(result.back().fontData, result.back().text);
         }
-    };
-    parseMusicXmlFormattedText(context, text, parserOptions);
+        return true;
+    }, musx::util::EnigmaString::EnigmaParsingOptions(options.accidentalStyle));
     return result;
 }
 

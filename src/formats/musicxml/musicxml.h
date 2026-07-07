@@ -74,13 +74,13 @@ void createNotesForMeasureStaff(
     size_t measureIndex,
     size_t staffIndex);
 void createParts(MusicXmlMusxMapping& context);
-void appendDynamicExpression(
+std::vector<mx::api::DirectionData> createDynamicExpressionDirections(
     MusicXmlMusxMapping& context,
-    mx::api::StaffData& staff,
     size_t staffIndex,
     const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment,
-    const classify::DynamicMark& dynamic,
-    musx::dom::VerticalPlacement placement);
+    const classify::ExpressionClassification& classification,
+    musx::dom::VerticalPlacement placement,
+    bool isStaffValueSpecified = true);
 void processExpressions(
     MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,

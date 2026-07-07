@@ -27,6 +27,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "core/cue_layers.h"
 #include "core/denigma.h"
 #include "core/finale_options.h"
 #include "core/ottavas.h"
@@ -136,6 +137,11 @@ inline std::uint64_t musicXmlNoteKey(musx::dom::EntryNumber entryNumber, musx::d
     return (std::uint64_t(entryNumber) << 32) | std::uint64_t(noteId);
 }
 
+inline std::uint64_t musicXmlMeasureStaffKey(musx::dom::MeasCmper measure, musx::dom::StaffCmper staff)
+{
+    return (std::uint64_t(measure) << 32) | std::uint64_t(static_cast<std::uint32_t>(staff));
+}
+
 struct MusicXmlMusxMapping
 {
     MusicXmlMusxMapping(const DenigmaContext& context, const musx::dom::DocumentPtr& doc, musx::dom::Cmper partId)
@@ -163,6 +169,7 @@ struct MusicXmlMusxMapping
     std::unordered_map<std::string, MusicXmlPitchContext> partIdToPitchContext;
     std::unordered_map<musx::dom::EntryNumber, MusicXmlNoteLocation> entryNumberToFirstNote;
     std::unordered_map<std::uint64_t, MusicXmlNoteLocation> noteLocations;
+    std::unordered_map<std::uint64_t, CueLayerPlan> cueDiscardPlansByMeasureStaff;
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;
     std::unordered_set<std::uint64_t> pendingTieStopKeys;
 
@@ -173,6 +180,7 @@ struct MusicXmlMusxMapping
         layout.clear();
         entryNumberToFirstNote.clear();
         noteLocations.clear();
+        cueDiscardPlansByMeasureStaff.clear();
     }
 
     double musicXmlTenthsFromEvpu(double evpu, double backoutScaling = 1.0) const;

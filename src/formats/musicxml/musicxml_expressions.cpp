@@ -91,6 +91,24 @@ std::optional<mx::api::DirectionData> createTempoExpressionDirection(
     return direction;
 }
 
+std::optional<mx::api::DirectionData> createWordsExpressionDirection(
+    MusicXmlMusxMapping& context,
+    size_t staffIndex,
+    const MusxInstance<others::MeasureExprAssign>& assignment,
+    const classify::ExpressionClassification& classification,
+    VerticalPlacement placement,
+    bool isStaffValueSpecified)
+{
+    auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    if (classification.enigmaCtx) {
+        direction.words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
+    }
+    if (mx::api::isDirectionDataEmpty(direction)) {
+        return std::nullopt;
+    }
+    return direction;
+}
+
 enum class GroupedDirectionAction
 {
     None,
@@ -163,6 +181,7 @@ void processExpressions(
 
     const auto exprAssigns = context.document->getOthers()->getArray<others::MeasureExprAssign>(
         musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
+    const auto cuePlanIt = context.cueDiscardPlansByMeasureStaff.find(musicXmlMeasureStaffKey(musxMeasure->getCmper(), staffId));
     std::unordered_map<int, DirectionGroupTracking> directionGroups;
     for (const auto& assignment : exprAssigns) {
         if (assignment->hidden) {
@@ -174,6 +193,11 @@ void processExpressions(
 
         const StaffCmper assignedStaffId = assignment->calcAssignedStaffId(false);
         if (assignedStaffId != staffId) {
+            continue;
+        }
+        if (cuePlanIt != context.cueDiscardPlansByMeasureStaff.end()
+            && assignment->layer > 0
+            && cuePlanIt->second.skipsLayer(assignment->layer - 1)) {
             continue;
         }
 
@@ -194,33 +218,54 @@ void processExpressions(
                 groupedDirectionAction = GroupedDirectionAction::None;
             }
         }
-        
-        for (const auto& run : classification.runs) {
-            if (const auto* dynamic = run.as<classify::DynamicMark>()) {
-                appendDynamicExpression(context, staff, staffIndex, assignment, *dynamic, placement);
-            }
-        }
-        switch (classification.type) {
-        case classify::ExpressionType::Dynamic:
-            break;
-        case classify::ExpressionType::TempoMark: {
-            if (groupedDirectionAction == GroupedDirectionAction::None) {
-                break;
-            }
-            auto direction = createTempoExpressionDirection(
-                context, staffIndex, assignment, classification, placement, isStaffValueSpecified);
-            if (!direction) {
-                break;
+
+        auto emitGroupedDirection = [&](std::optional<mx::api::DirectionData> direction) {
+            if (!direction || groupedDirectionAction == GroupedDirectionAction::None) {
+                return;
             }
             if (groupedDirectionAction == GroupedDirectionAction::ReplacePrior) {
                 staff.directions[groupTracking->directionIndex] = std::move(*direction);
                 groupTracking->emittedFromTopStaffAssignment = false;
-                break;
+                return;
             }
             staff.directions.emplace_back(std::move(*direction));
             if (assignment->staffGroup > 0) {
                 directionGroups.emplace(assignment->staffGroup, DirectionGroupTracking{ staff.directions.size() - 1, emittedFromTopStaffAssignment });
             }
+        };
+        
+        switch (classification.type) {
+        case classify::ExpressionType::Dynamic: {
+            const auto directions = createDynamicExpressionDirections(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified);
+            if (directions.empty() || groupedDirectionAction == GroupedDirectionAction::None) {
+                break;
+            }
+            bool firstDirectionHandled = false;
+            for (auto direction : directions) {
+                if (groupedDirectionAction == GroupedDirectionAction::ReplacePrior && !firstDirectionHandled) {
+                    staff.directions[groupTracking->directionIndex] = std::move(direction);
+                    groupTracking->emittedFromTopStaffAssignment = false;
+                } else {
+                    staff.directions.emplace_back(std::move(direction));
+                    if (!firstDirectionHandled && assignment->staffGroup > 0 && groupedDirectionAction == GroupedDirectionAction::Emit) {
+                        directionGroups.emplace(assignment->staffGroup,
+                            DirectionGroupTracking{ staff.directions.size() - 1, emittedFromTopStaffAssignment });
+                    }
+                }
+                firstDirectionHandled = true;
+            }
+            break;
+        }
+        case classify::ExpressionType::TempoMark: {
+            emitGroupedDirection(createTempoExpressionDirection(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
+            break;
+        }
+        case classify::ExpressionType::TempoAlteration:
+        case classify::ExpressionType::GenericText: {
+            emitGroupedDirection(createWordsExpressionDirection(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
             break;
         }
         case classify::ExpressionType::Fermata: {

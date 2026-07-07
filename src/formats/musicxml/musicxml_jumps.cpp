@@ -97,9 +97,12 @@ std::vector<mx::api::WordsData> createJumpWords(
     EnigmaTextChunk chunk{ repeatText->text, EnigmaStyles(context.document) };
     chunk.styles.font = repeatDef->font;
     auto words = musicXmlWordsFromEnigmaTextChunk(context, chunk);
-    words.positionData.horizontalAlignmnet = enumConvert<mx::api::HorizontalAlignment>(repeatDef->justification);
+    if (!words) {
+        return {};
+    }
+    words->positionData.horizontalAlignmnet = enumConvert<mx::api::HorizontalAlignment>(repeatDef->justification);
     /// @todo Also set the MusicXML <words> justify attribute from TextRepeatDef::justification when mx::api::WordsData exposes it.
-    return { std::move(words) };
+    return { std::move(*words) };
 }
 
 void appendVisibleJump(

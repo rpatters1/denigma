@@ -32,6 +32,55 @@
 
 namespace denigma::test::musicxml {
 
+namespace {
+
+struct ComparableWordsDirection
+{
+    size_t measureIndex{};
+    size_t staffIndex{};
+    int tickTimePosition{};
+    mx::api::Placement placement{mx::api::Placement::unspecified};
+    std::vector<std::string> words;
+};
+
+std::vector<ComparableWordsDirection> collectWordsOnlyDirections(
+    const mx::api::ScoreData& score,
+    const std::function<bool(const ComparableWordsDirection&)>& predicate)
+{
+    std::vector<ComparableWordsDirection> result;
+    if (score.parts.empty()) {
+        return result;
+    }
+    const auto& measures = score.parts.front().measures;
+    for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
+        const auto& measure = measures.at(measureIndex);
+        for (size_t staffIndex = 0; staffIndex < measure.staves.size(); ++staffIndex) {
+            const auto& staff = measure.staves.at(staffIndex);
+            for (const auto& direction : staff.directions) {
+                if (direction.words.empty() || direction.isSoundDataSpecified) {
+                    continue;
+                }
+                ComparableWordsDirection comparable{
+                    measureIndex,
+                    staffIndex,
+                    direction.tickTimePosition,
+                    direction.placement,
+                    {}
+                };
+                for (const auto& word : direction.words) {
+                    comparable.words.emplace_back(word.text);
+                }
+                if (predicate(comparable)) {
+                    result.emplace_back(std::move(comparable));
+                }
+            }
+        }
+    }
+    return result;
+}
+
+} // namespace
+
 TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
 {
     setupTestDataPaths();
@@ -64,6 +113,26 @@ TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
     EXPECT_EQ(tempoDirectionCount, 2u);
     EXPECT_TRUE(foundVisibleTempoDirection);
     EXPECT_TRUE(foundSoundOnlyTempo);
+}
+
+TEST(MusicXmlExpressions, GenericTextDirectionsMatchReference)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("slurs_2staves.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+
+    const auto isWarmDirection = [](const ComparableWordsDirection& direction) {
+        return direction.words.size() == 1 && direction.words.front() == "warm";
+    };
+    const auto actualDirections = collectWordsOnlyDirections(*actualScore, isWarmDirection);
+
+    ASSERT_EQ(actualDirections.size(), 1u);
+    EXPECT_EQ(actualDirections.front().measureIndex, 2u);
+    EXPECT_EQ(actualDirections.front().staffIndex, 0u);
+    EXPECT_EQ(actualDirections.front().placement, mx::api::Placement::below);
+    EXPECT_EQ(actualDirections.front().words, std::vector<std::string>{ "warm" });
 }
 
 TEST(MusicXmlExpressions, TempoVariedStavesSmoke)

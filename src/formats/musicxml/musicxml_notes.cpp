@@ -556,6 +556,7 @@ void createNotesForMeasureStaff(
     const auto pitchContext = pitchContextForStaff(context, staffId);
     /// @todo Export cue notes/rests instead of omitting cue layers.
     const auto cueLayerPlan = createCueLayerPlan(gfHold, context.denigmaContext->cueLayer);
+    context.cueDiscardPlansByMeasureStaff.emplace(musicXmlMeasureStaffKey(musxMeasure->getCmper(), staffId), cueLayerPlan);
     const auto layerVoices = gfHold.calcVoices();
     const bool hasMultipleLayers = layerVoices.size() > 1;
     for (const auto& [layer, numVoice2Entries] : layerVoices) {
