@@ -396,9 +396,6 @@ void appendHairpin(
     }
     wedgeStart.wedgeType = wedgeType;
     wedgeStart.lineData.lineType = mx::api::LineType::solid;
-    wedgeStart.colorData.red = 0;
-    wedgeStart.colorData.green = 0;
-    wedgeStart.colorData.blue = 0;
     startDirection.wedgeStarts.emplace_back(std::move(wedgeStart));
     staff.directions.emplace_back(std::move(startDirection));
 

@@ -53,6 +53,34 @@ BEGIN_ENUM_CONVERSION(AlignJustify, mx::api::HorizontalAlignment)
     case AlignJustify::Center: return mx::api::HorizontalAlignment::center;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(classify::ArticulationMark::Type, mx::api::MarkType)
+    case classify::ArticulationMark::Type::Accent: return mx::api::MarkType::accent;
+    case classify::ArticulationMark::Type::BrassBend: return mx::api::MarkType::brassBend;
+    case classify::ArticulationMark::Type::BrassDoit: return mx::api::MarkType::doit;
+    case classify::ArticulationMark::Type::BrassFalloff: return mx::api::MarkType::falloff;
+    case classify::ArticulationMark::Type::BrassFlip: return mx::api::MarkType::flip;
+    case classify::ArticulationMark::Type::BrassLift: return mx::api::MarkType::unspecified;
+    case classify::ArticulationMark::Type::BrassOpen: return mx::api::MarkType::open;
+    case classify::ArticulationMark::Type::BrassPlop: return mx::api::MarkType::plop;
+    case classify::ArticulationMark::Type::BrassScoop: return mx::api::MarkType::scoop;
+    case classify::ArticulationMark::Type::BrassSmear: return mx::api::MarkType::smear;
+    case classify::ArticulationMark::Type::BrassStopped: return mx::api::MarkType::stopped;
+    case classify::ArticulationMark::Type::BuzzPizzicato: return mx::api::MarkType::otherTechnical;
+    case classify::ArticulationMark::Type::DownBow: return mx::api::MarkType::downBow;
+    case classify::ArticulationMark::Type::Fingernails: return mx::api::MarkType::fingernails;
+    case classify::ArticulationMark::Type::SnapPizzicato: return mx::api::MarkType::snapPizzicato;
+    case classify::ArticulationMark::Type::SoftAccent: return mx::api::MarkType::softAccent;
+    case classify::ArticulationMark::Type::Spiccato: return mx::api::MarkType::spiccato;
+    case classify::ArticulationMark::Type::Staccatissimo: return mx::api::MarkType::staccatissimo;
+    case classify::ArticulationMark::Type::Staccato: return mx::api::MarkType::staccato;
+    case classify::ArticulationMark::Type::Stress: return mx::api::MarkType::stress;
+    case classify::ArticulationMark::Type::StringHarmonic: return mx::api::MarkType::harmonic;
+    case classify::ArticulationMark::Type::StrongAccent: return mx::api::MarkType::strongAccent;
+    case classify::ArticulationMark::Type::Tenuto: return mx::api::MarkType::tenuto;
+    case classify::ArticulationMark::Type::Unstress: return mx::api::MarkType::unstress;
+    case classify::ArticulationMark::Type::UpBow: return mx::api::MarkType::upBow;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(BarlineType, mx::api::BarlineType)
     case BarlineType::None: return mx::api::BarlineType::none;
     case BarlineType::OptionsDefault: return mx::api::BarlineType::unspecified;
@@ -81,7 +109,10 @@ BEGIN_ENUM_CONVERSION(details::Bracket::BracketStyle, mx::api::BracketType)
     case details::Bracket::BracketStyle::ThickLine: return mx::api::BracketType::line;
     case details::Bracket::BracketStyle::BracketStraightHooks: return mx::api::BracketType::bracket;
     case details::Bracket::BracketStyle::PianoBrace: return mx::api::BracketType::brace;
+    case details::Bracket::BracketStyle::Unknown4: return mx::api::BracketType::unspecified;
+    case details::Bracket::BracketStyle::Unknown5: return mx::api::BracketType::unspecified;
     case details::Bracket::BracketStyle::BracketCurvedHooks: return mx::api::BracketType::bracket;
+    case details::Bracket::BracketStyle::Unknown7: return mx::api::BracketType::unspecified;
     case details::Bracket::BracketStyle::DeskBracket: return mx::api::BracketType::square;
 END_ENUM_CONVERSION
 
@@ -182,6 +213,7 @@ BEGIN_ENUM_CONVERSION(NoteType, mx::api::DurationName)
     case NoteType::Note256th: return mx::api::DurationName::dur256th;
     case NoteType::Note512th: return mx::api::DurationName::dur512th;
     case NoteType::Note1024th: return mx::api::DurationName::dur1024th;
+    default: break; // causes a throw
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(classify::Ornament::Type, mx::api::MarkType)
@@ -198,6 +230,7 @@ BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mx::api::OttavaType)
     case others::SmartShape::ShapeType::OctaveUp: return mx::api::OttavaType::o8vb;
     case others::SmartShape::ShapeType::TwoOctaveDown: return mx::api::OttavaType::o15ma;
     case others::SmartShape::ShapeType::TwoOctaveUp: return mx::api::OttavaType::o15mb;
+    default: break; // causes a throw
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(VerticalPlacement, mx::api::Placement)

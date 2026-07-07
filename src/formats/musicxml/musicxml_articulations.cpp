@@ -48,32 +48,21 @@ constexpr int MAX_SUPPORTED_TREMOLO_MARKS = 5;
 std::optional<mx::api::MarkType> musicXmlMarkType(const classify::ArticulationMark& mark)
 {
     switch (mark.type) {
-    case classify::ArticulationMark::Type::Accent: return mx::api::MarkType::accent;
-    case classify::ArticulationMark::Type::BrassBend: return mx::api::MarkType::brassBend;
-    case classify::ArticulationMark::Type::BrassDoit: return mx::api::MarkType::doit;
-    case classify::ArticulationMark::Type::BrassFalloff: return mx::api::MarkType::falloff;
-    case classify::ArticulationMark::Type::BrassFlip: return mx::api::MarkType::flip;
-    case classify::ArticulationMark::Type::BrassOpen: return mx::api::MarkType::open;
-    case classify::ArticulationMark::Type::BrassPlop: return mx::api::MarkType::plop;
-    case classify::ArticulationMark::Type::BrassScoop: return mx::api::MarkType::scoop;
-    case classify::ArticulationMark::Type::BrassSmear: return mx::api::MarkType::smear;
-    case classify::ArticulationMark::Type::BrassStopped: return mx::api::MarkType::stopped;
-    case classify::ArticulationMark::Type::BuzzPizzicato: return mx::api::MarkType::otherTechnical;
-    case classify::ArticulationMark::Type::DownBow: return mx::api::MarkType::downBow;
-    case classify::ArticulationMark::Type::Fingernails: return mx::api::MarkType::fingernails;
-    case classify::ArticulationMark::Type::SnapPizzicato: return mx::api::MarkType::snapPizzicato;
-    case classify::ArticulationMark::Type::SoftAccent: return mx::api::MarkType::softAccent;
-    case classify::ArticulationMark::Type::Spiccato: return mx::api::MarkType::spiccato;
-    case classify::ArticulationMark::Type::Staccatissimo: return mx::api::MarkType::staccatissimo;
-    case classify::ArticulationMark::Type::Staccato: return mx::api::MarkType::staccato;
-    case classify::ArticulationMark::Type::Stress: return mx::api::MarkType::stress;
-    case classify::ArticulationMark::Type::StringHarmonic: return mx::api::MarkType::harmonic;
-    case classify::ArticulationMark::Type::StrongAccent: return mx::api::MarkType::strongAccent;
-    case classify::ArticulationMark::Type::Tenuto: return mx::api::MarkType::tenuto;
-    case classify::ArticulationMark::Type::Unstress: return mx::api::MarkType::unstress;
-    case classify::ArticulationMark::Type::UpBow: return mx::api::MarkType::upBow;
+    case classify::ArticulationMark::Type::StrongAccent:
+        switch (mark.glyphStyle.placement) {
+        case VerticalPlacement::Above:
+            return mx::api::MarkType::strongAccentUp;
+        case VerticalPlacement::Below:
+            return mx::api::MarkType::strongAccentDown;
+        case VerticalPlacement::Float:
+        case VerticalPlacement::NotApplicable:
+            return mx::api::MarkType::strongAccent;
+        }
+        break;
     case classify::ArticulationMark::Type::BrassLift:
         break;
+    default:
+        return enumConvert<mx::api::MarkType>(mark.type);
     }
     return std::nullopt;
 }

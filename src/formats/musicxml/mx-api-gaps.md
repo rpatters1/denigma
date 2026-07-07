@@ -74,14 +74,6 @@ MusicXML allows the `<octave-shift>` `size` attribute to be omitted, including o
 
 Needed API shape: either an ottava-specific stop type that carries the same 8va / 8vb / 15ma / 15mb amount as the start, or writer support that derives and emits the matching stop `size` for `<octave-shift type="stop">`.
 
-### Optional wedge color
-
-MusicXML `<wedge>` supports a `color` attribute, but omitting it is the normal way to request the default score color.
-
-`mx::api::WedgeStart` has a `ColorData colorData` field but no `isColorSpecified` flag, and `mx::impl::DirectionWriter::emitWedgeStart()` always calls `setAttributesFromColorData`. Denigma therefore cannot emit a colorless wedge start through the current API. Leaving `ColorData` default-constructed writes `color="#FFFFFF"`, which can make hairpins invisible in importers such as MuseScore.
-
-Needed API shape: add an optional color flag to `WedgeStart`, matching other API objects that carry `ColorData`, and write the MusicXML `color` attribute only when it is explicitly specified.
-
 ## Notes
 
 ### Non-arpeggiate endpoints
