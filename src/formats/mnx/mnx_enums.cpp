@@ -50,6 +50,7 @@ BEGIN_ENUM_CONVERSION(BarlineType, mnxdom::BarlineType)
     case BarlineType::Solid: return mnxdom::BarlineType::Heavy;
     case BarlineType::Dashed: return mnxdom::BarlineType::Dashed;
     case BarlineType::Tick: return mnxdom::BarlineType::Tick;
+    default: break; // causes a throw
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(classify::BarlineType, mnxdom::BarlineType)
@@ -60,6 +61,7 @@ BEGIN_ENUM_CONVERSION(classify::BarlineType, mnxdom::BarlineType)
     case classify::BarlineType::Heavy: return mnxdom::BarlineType::Heavy;
     case classify::BarlineType::Dashed: return mnxdom::BarlineType::Dashed;
     case classify::BarlineType::Tick: return mnxdom::BarlineType::Tick;
+    default: break; // causes a throw
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(music_theory::NoteName, mnxdom::NoteStep)
@@ -87,6 +89,7 @@ BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnxdom::NoteValueBase)
     case NoteType::Breve: return mnxdom::NoteValueBase::Breve;
     case NoteType::Longa: return mnxdom::NoteValueBase::Longa;
     case NoteType::Maxima: return mnxdom::NoteValueBase::Maxima;
+    default: break; // causes a throw
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnxdom::TimeSignatureUnit)
@@ -98,6 +101,7 @@ BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnxdom::TimeSignatureUnit)
     case NoteType::Quarter: return mnxdom::TimeSignatureUnit::Quarter;
     case NoteType::Half: return mnxdom::TimeSignatureUnit::Half;
     case NoteType::Whole: return mnxdom::TimeSignatureUnit::Whole;
+    default: break; // causes a throw
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mnxdom::OttavaAmount)
@@ -105,6 +109,7 @@ BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mnxdom::OttavaAmount)
     case others::SmartShape::ShapeType::OctaveUp: return mnxdom::OttavaAmount::OctaveUp;
     case others::SmartShape::ShapeType::TwoOctaveDown: return mnxdom::OttavaAmount::TwoOctavesDown;
     case others::SmartShape::ShapeType::TwoOctaveUp: return mnxdom::OttavaAmount::TwoOctavesUp;
+    default: break; // causes a throw
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(VerticalPlacement, mnxdom::Orientation)

@@ -38,7 +38,7 @@ ToEnum enumConvert(FromEnum value) \
     switch (value) {
 
 #define END_ENUM_CONVERSION \
-    default: \
-        throw std::invalid_argument("Unable to convert enum value: " + std::to_string(int(value))); \
     } \
+    assert(false && "unmapped enum encountered"); \
+    throw std::invalid_argument("Unable to convert enum value: " + std::to_string(int(value))); \
 }
