@@ -306,19 +306,23 @@ TEST(ExpressionClassification, UsesCategoryForTempoTechniqueAndRehearsalText)
     const auto tempo = classifyTextExpression("Allegro", ExpressionCategoryType::TempoMarks);
     EXPECT_EQ(tempo.type, ExpressionType::TempoMark);
     EXPECT_EQ(tempo.basis, ClassificationBasis::FinaleCategoryConfirmed);
+    EXPECT_EQ(tempo.tempoMark().tempo.text, "Allegro");
 
     const auto tempoAlteration = classifyTextExpression("poco rit.", ExpressionCategoryType::TempoAlterations);
     EXPECT_EQ(tempoAlteration.type, ExpressionType::TempoAlteration);
     EXPECT_EQ(tempoAlteration.basis, ClassificationBasis::FinaleCategory);
+    EXPECT_EQ(tempoAlteration.tempoAlteration().tempo.text, "poco rit.");
 
     const auto technique = classifyTextExpression("sul pont.", ExpressionCategoryType::TechniqueText);
     EXPECT_EQ(technique.type, ExpressionType::TechniqueText);
     EXPECT_EQ(technique.basis, ClassificationBasis::FinaleCategoryConfirmed);
     EXPECT_EQ(technique.technique().type, TechniqueType::SulPonticello);
+    EXPECT_EQ(technique.technique().text, "sul pont.");
 
     const auto rehearsal = classifyTextExpression("A", ExpressionCategoryType::RehearsalMarks);
     EXPECT_EQ(rehearsal.type, ExpressionType::RehearsalMark);
     EXPECT_EQ(rehearsal.basis, ClassificationBasis::FinaleCategory);
+    EXPECT_EQ(rehearsal.rehearsalMark().text, "A");
 }
 
 TEST(ExpressionClassification, StrongCategoriesOverrideTextHeuristics)
@@ -343,18 +347,21 @@ TEST(ExpressionClassification, StrongCategoriesOverrideTextHeuristics)
 
 TEST(ExpressionClassification, CorrectsWeakCategoriesWithHeuristics)
 {
-    const auto technique = classifyTextExpression("pizz.", ExpressionCategoryType::ExpressiveText);
+    const auto technique = classifyTextExpression("Pizz.", ExpressionCategoryType::ExpressiveText);
     EXPECT_EQ(technique.type, ExpressionType::TechniqueText);
     EXPECT_EQ(technique.basis, ClassificationBasis::FinaleCategoryCorrected);
     EXPECT_EQ(technique.technique().type, TechniqueType::Pizzicato);
+    EXPECT_EQ(technique.technique().text, "Pizz.");
 
-    const auto tempoAlteration = classifyTextExpression("rit.", ExpressionCategoryType::Invalid);
+    const auto tempoAlteration = classifyTextExpression("Rit.", ExpressionCategoryType::Invalid);
     EXPECT_EQ(tempoAlteration.type, ExpressionType::GenericText);
     EXPECT_EQ(tempoAlteration.basis, ClassificationBasis::FallbackToGenericText);
+    EXPECT_EQ(tempoAlteration.genericText().text, "Rit.");
 
     const auto tempoMark = classifyTextExpression("Allegro", ExpressionCategoryType::Invalid);
     EXPECT_EQ(tempoMark.type, ExpressionType::GenericText);
     EXPECT_EQ(tempoMark.basis, ClassificationBasis::FallbackToGenericText);
+    EXPECT_EQ(tempoMark.genericText().text, "Allegro");
 }
 
 TEST(ExpressionClassification, ClassifiesStringTechniqueTokens)
@@ -411,6 +418,7 @@ TEST(ExpressionClassification, ClassifiesStringTechniqueTokens)
         EXPECT_EQ(result.type, ExpressionType::TechniqueText) << item.text;
         EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryCorrected) << item.text;
         EXPECT_EQ(result.technique().type, item.type) << item.text;
+        EXPECT_EQ(result.technique().text, item.text) << item.text;
     }
 }
 
@@ -434,11 +442,13 @@ TEST(ExpressionClassification, TopStaffAssignmentForcesSystemTextClassification)
     const auto tempoMark = classifyExpression(tempoMarkContext.assignment);
     EXPECT_EQ(tempoMark.type, ExpressionType::TempoMark);
     EXPECT_EQ(tempoMark.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(tempoMark.tempoMark().tempo.text, "Andante");
 
     const auto tempoAlterationContext = makeTextExpressionContext("rit.", ExpressionCategoryType::Misc, {}, true);
     const auto tempoAlteration = classifyExpression(tempoAlterationContext.assignment);
     EXPECT_EQ(tempoAlteration.type, ExpressionType::TempoAlteration);
     EXPECT_EQ(tempoAlteration.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(tempoAlteration.tempoAlteration().tempo.text, "rit.");
 
     const auto dynamicContext = makeTextExpressionContext("mf", ExpressionCategoryType::Misc, {}, true);
     const auto dynamic = classifyExpression(dynamicContext.assignment);
@@ -460,6 +470,7 @@ TEST(ExpressionClassification, TopStaffAssignmentForcesSystemTextClassification)
     const auto fallback = classifyExpression(fallbackContext.assignment);
     EXPECT_EQ(fallback.type, ExpressionType::TempoMark);
     EXPECT_EQ(fallback.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(fallback.tempoMark().tempo.text, "cantabile");
 }
 
 TEST(ExpressionClassification, NumericTextWithoutTopStaffRemainsGeneric)
@@ -467,6 +478,7 @@ TEST(ExpressionClassification, NumericTextWithoutTopStaffRemainsGeneric)
     const auto result = classifyTextExpression("27", ExpressionCategoryType::Misc);
     EXPECT_EQ(result.type, ExpressionType::GenericText);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategory);
+    EXPECT_EQ(result.genericText().text, "27");
 }
 
 TEST(ExpressionClassification, BatchClassificationPropagatesTopStaffSystemTextByDefinition)
@@ -504,7 +516,7 @@ TEST(ExpressionClassification, BatchClassificationPropagatesTopStaffSystemTextBy
 TEST(ExpressionClassification, ClassifiesSystemExpressionWithRehearsalMarkStyleAsRehearsalMark)
 {
     const auto rehearsalContext = makeTextExpressionContext(
-        "dolce",
+        "Dolce",
         ExpressionCategoryType::Misc,
         {},
         true,
@@ -515,6 +527,7 @@ TEST(ExpressionClassification, ClassifiesSystemExpressionWithRehearsalMarkStyleA
 
     EXPECT_EQ(rehearsal.type, ExpressionType::RehearsalMark);
     EXPECT_EQ(rehearsal.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(rehearsal.rehearsalMark().text, "Dolce");
 }
 
 TEST(ExpressionClassification, ExtractsTextExpressionTempoPlayback)
@@ -527,7 +540,7 @@ TEST(ExpressionClassification, ExtractsTextExpressionTempoPlayback)
 
     EXPECT_EQ(result.type, ExpressionType::TempoMark);
     EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
-    EXPECT_EQ(result.tempoMark().tempo.text, "allegro");
+    EXPECT_EQ(result.tempoMark().tempo.text, "Allegro");
     EXPECT_EQ(result.tempoMark().tempo.beatsPerMinute, 132);
     EXPECT_EQ(result.tempoMark().tempo.beatUnitEdu, 1024);
 }
