@@ -456,6 +456,11 @@ static std::optional<ExpressionClassification> classifyRehearsalMark(std::string
     return result;
 }
 
+static bool hasExplicitRehearsalMarkStyle(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+{
+    return def && def->rehearsalMarkStyle != musx::dom::others::RehearsalMarkStyle::None;
+}
+
 static std::optional<ExpressionClassification> classifyRehearsalMarkText(
     std::string_view text,
     std::string_view normalizedText,
@@ -479,10 +484,18 @@ static bool assignmentUsesTopStaff(const musx::dom::MusxInstance<musx::dom::othe
 }
 
 static ExpressionClassification classifySystemTextExpression(
+    const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
     std::string_view text,
     std::string_view normalizedText,
     CategoryType categoryType)
 {
+    if (hasExplicitRehearsalMarkStyle(def)) {
+        ExpressionClassification result;
+        result.type = ExpressionType::RehearsalMark;
+        result.basis = ClassificationBasis::Heuristic;
+        result.value = RehearsalMark{ std::string(normalizedText) };
+        return result;
+    }
     if (const auto tempoAlteration = classifyTempoAlteration(normalizedText, categoryType, false)) {
         return *tempoAlteration;
     }
@@ -686,7 +699,7 @@ static ExpressionClassification classifyAssignedTextExpression(
         return *classification;
     }
     if (assignmentUsesTopStaff(assignment)) {
-        return withEnigmaCtx(classifySystemTextExpression(resolved.text, normalizedText, categoryType), resolved);
+        return withEnigmaCtx(classifySystemTextExpression(def, resolved.text, normalizedText, categoryType), resolved);
     }
     if (const auto technique = classifyTechnique(normalizedText, categoryType)) {
         return withEnigmaCtx(*technique, resolved);
@@ -774,7 +787,7 @@ static ExpressionClassification classifyAssignedShapeExpression(
         return *tempo;
     }
     if (assignmentUsesTopStaff(assignment)) {
-        return classifySystemTextExpression({}, {}, categoryType);
+        return classifySystemTextExpression(nullptr, {}, {}, categoryType);
     }
     return suppressExpression();
 }

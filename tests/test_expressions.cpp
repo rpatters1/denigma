@@ -100,7 +100,8 @@ static TextExpressionContext makeTextExpressionContext(
     const std::string& playbackXml = {},
     bool assignmentTopStaff = false,
     const std::string& fontName = "Times New Roman",
-    int charsetVal = 0)
+    int charsetVal = 0,
+    const std::string& expressionXml = {})
 {
     std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
 <finale>
@@ -129,6 +130,7 @@ static TextExpressionContext makeTextExpressionContext(
         xml += "      <categoryID>" + std::to_string(static_cast<int>(categoryType)) + "</categoryID>\n";
     }
     xml += playbackXml;
+    xml += expressionXml;
     xml += R"xml(    </textExprDef>
 )xml";
     xml += R"xml(  </others>
@@ -497,6 +499,22 @@ TEST(ExpressionClassification, BatchClassificationPropagatesTopStaffSystemTextBy
     EXPECT_EQ(rehearsalResults[0].classification.basis, ClassificationBasis::Heuristic);
     EXPECT_EQ(rehearsalResults[1].classification.type, ExpressionType::RehearsalMark);
     EXPECT_EQ(rehearsalResults[1].classification.basis, ClassificationBasis::Heuristic);
+}
+
+TEST(ExpressionClassification, ClassifiesSystemExpressionWithRehearsalMarkStyleAsRehearsalMark)
+{
+    const auto rehearsalContext = makeTextExpressionContext(
+        "dolce",
+        ExpressionCategoryType::Misc,
+        {},
+        true,
+        "Times New Roman",
+        0,
+        "      <rehearsalMarkStyle>letters</rehearsalMarkStyle>\n");
+    const auto rehearsal = classifyExpression(rehearsalContext.assignment);
+
+    EXPECT_EQ(rehearsal.type, ExpressionType::RehearsalMark);
+    EXPECT_EQ(rehearsal.basis, ClassificationBasis::Heuristic);
 }
 
 TEST(ExpressionClassification, ExtractsTextExpressionTempoPlayback)
