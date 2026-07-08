@@ -82,10 +82,18 @@ std::vector<ComparableWordsDirection> collectWordsOnlyDirections(
 struct ComparableRehearsalDirection
 {
     size_t measureIndex{};
+    int tickTimePosition{};
+    mx::api::Placement placement{mx::api::Placement::unspecified};
     std::string text;
-    std::string fontFamily;
-    std::string placement;
-    std::optional<double> normalizedOffset;
+    std::vector<std::string> fontFamilies;
+    mx::api::FontStyle fontStyle{mx::api::FontStyle::unspecified};
+    mx::api::FontWeight fontWeight{mx::api::FontWeight::unspecified};
+    mx::api::FontSizeType fontSizeType{mx::api::FontSizeType::unspecified};
+    mx::api::CssSize fontSizeCss{mx::api::CssSize::unspecified};
+    std::optional<double> fontSizePoint;
+    int underline{};
+    int overline{};
+    int lineThrough{};
 };
 
 std::string normalizeRehearsalFontFamily(std::string value)
@@ -112,46 +120,57 @@ std::string normalizeRehearsalFontFamily(std::string value)
     return value;
 }
 
-std::vector<ComparableRehearsalDirection> collectRehearsalDirections(const pugi::xml_document& document)
+bool isTextFallbackFontFamily(const std::string& value)
+{
+    std::string lowered = value;
+    std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return lowered == "text";
+}
+
+std::vector<ComparableRehearsalDirection> collectRehearsalDirections(const mx::api::ScoreData& score)
 {
     std::vector<ComparableRehearsalDirection> result;
-    const auto firstPart = document.child("score-partwise").child("part");
-    if (!firstPart) {
+    if (score.parts.empty()) {
         return result;
     }
 
-    int currentDivisions = 0;
-    size_t measureIndex = 0;
-    for (const auto& measureNode : firstPart.children("measure")) {
-        if (const auto divisionsNode = measureNode.child("attributes").child("divisions")) {
-            currentDivisions = divisionsNode.text().as_int();
-        }
-        for (const auto& directionNode : measureNode.children("direction")) {
-            const auto rehearsalNode = directionNode.child("direction-type").child("rehearsal");
-            if (!rehearsalNode) {
-                continue;
-            }
-
-            std::optional<double> normalizedOffset;
-            if (const auto offsetNode = directionNode.child("offset")) {
-                const int offsetValue = offsetNode.text().as_int();
-                if (currentDivisions > 0) {
-                    normalizedOffset = static_cast<double>(offsetValue) / static_cast<double>(currentDivisions);
-                } else {
-                    normalizedOffset = static_cast<double>(offsetValue);
+    const auto& measures = score.parts.front().measures;
+    for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
+        const auto& measure = measures.at(measureIndex);
+        for (const auto& staff : measure.staves) {
+            for (const auto& direction : staff.directions) {
+                for (const auto& rehearsal : direction.rehearsals) {
+                    ComparableRehearsalDirection comparable{
+                        measureIndex,
+                        direction.tickTimePosition,
+                        direction.placement,
+                        rehearsal.text,
+                        {},
+                        rehearsal.fontData.style,
+                        rehearsal.fontData.weight,
+                        rehearsal.fontData.sizeType,
+                        rehearsal.fontData.sizeCss,
+                        rehearsal.fontData.sizeType == mx::api::FontSizeType::point &&
+                                rehearsal.fontData.sizePoint != mx::api::DOUBLE_UNSPECIFIED
+                            ? std::make_optional(rehearsal.fontData.sizePoint)
+                            : std::nullopt,
+                        rehearsal.fontData.underline,
+                        rehearsal.fontData.overline,
+                        rehearsal.fontData.lineThrough
+                    };
+                    comparable.fontFamilies.reserve(rehearsal.fontData.fontFamily.size());
+                    for (const auto& family : rehearsal.fontData.fontFamily) {
+                        auto normalized = normalizeRehearsalFontFamily(family);
+                        if (!isTextFallbackFontFamily(normalized)) {
+                            comparable.fontFamilies.emplace_back(std::move(normalized));
+                        }
+                    }
+                    result.emplace_back(std::move(comparable));
                 }
             }
-
-            ComparableRehearsalDirection rehearsal{
-                measureIndex,
-                rehearsalNode.text().as_string(),
-                normalizeRehearsalFontFamily(rehearsalNode.attribute("font-family").as_string()),
-                directionNode.attribute("placement").as_string(),
-                normalizedOffset
-            };
-            result.emplace_back(std::move(rehearsal));
         }
-        ++measureIndex;
     }
     return result;
 }
@@ -374,33 +393,43 @@ TEST(MusicXmlExpressions, RehearsalMarksMatchReference)
     setupTestDataPaths();
 
     const auto outputPath = exportMusicXmlFixture("rehearsal_marks.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto referenceScore = loadScoreData(getInputPath() / "musicxml/rehearsal_marks-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(referenceScore);
 
-    pugi::xml_document actualDocument;
-    ASSERT_TRUE(actualDocument.load_file(pathString(outputPath).c_str()));
-
-    pugi::xml_document referenceDocument;
-    const auto referencePath = getInputPath() / "musicxml/rehearsal_marks-ref.musicxml";
-    ASSERT_TRUE(referenceDocument.load_file(pathString(referencePath).c_str()));
-
-    const auto actualRehearsals = collectRehearsalDirections(actualDocument);
-    const auto referenceRehearsals = collectRehearsalDirections(referenceDocument);
+    const auto actualRehearsals = collectRehearsalDirections(*actualScore);
+    const auto referenceRehearsals = collectRehearsalDirections(*referenceScore);
 
     ASSERT_EQ(actualRehearsals.size(), referenceRehearsals.size());
     ASSERT_FALSE(actualRehearsals.empty());
 
-    constexpr double kOffsetTolerance = 0.001;
     for (size_t index = 0; index < actualRehearsals.size(); ++index) {
         const auto& actual = actualRehearsals[index];
         const auto& reference = referenceRehearsals[index];
 
         EXPECT_EQ(actual.measureIndex, reference.measureIndex) << "rehearsal " << index;
-        EXPECT_EQ(actual.text, reference.text) << "rehearsal " << index;
-        EXPECT_EQ(actual.fontFamily, reference.fontFamily) << "rehearsal " << index;
+        EXPECT_EQ(actual.tickTimePosition, reference.tickTimePosition) << "rehearsal " << index;
         EXPECT_EQ(actual.placement, reference.placement) << "rehearsal " << index;
-        ASSERT_EQ(actual.normalizedOffset.has_value(), reference.normalizedOffset.has_value()) << "rehearsal " << index;
-        if (actual.normalizedOffset && reference.normalizedOffset) {
-            EXPECT_NEAR(*actual.normalizedOffset, *reference.normalizedOffset, kOffsetTolerance) << "rehearsal " << index;
+        EXPECT_EQ(actual.text, reference.text) << "rehearsal " << index;
+        EXPECT_EQ(actual.fontFamilies, reference.fontFamilies) << "rehearsal " << index;
+        if (reference.fontStyle != mx::api::FontStyle::unspecified) {
+            EXPECT_EQ(actual.fontStyle, reference.fontStyle) << "rehearsal " << index;
+        } else {
+            EXPECT_EQ(actual.fontStyle, mx::api::FontStyle::normal) << "rehearsal " << index;
         }
+        EXPECT_EQ(actual.fontWeight, reference.fontWeight) << "rehearsal " << index;
+        EXPECT_EQ(actual.fontSizeType, reference.fontSizeType) << "rehearsal " << index;
+        if (reference.fontSizeType == mx::api::FontSizeType::css) {
+            EXPECT_EQ(actual.fontSizeCss, reference.fontSizeCss) << "rehearsal " << index;
+        }
+        ASSERT_EQ(actual.fontSizePoint.has_value(), reference.fontSizePoint.has_value()) << "rehearsal " << index;
+        if (actual.fontSizePoint && reference.fontSizePoint) {
+            EXPECT_DOUBLE_EQ(*actual.fontSizePoint, *reference.fontSizePoint) << "rehearsal " << index;
+        }
+        EXPECT_EQ(actual.underline, reference.underline) << "rehearsal " << index;
+        EXPECT_EQ(actual.overline, reference.overline) << "rehearsal " << index;
+        EXPECT_EQ(actual.lineThrough, reference.lineThrough) << "rehearsal " << index;
     }
 }
 
