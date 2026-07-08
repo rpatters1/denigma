@@ -79,6 +79,83 @@ std::vector<ComparableWordsDirection> collectWordsOnlyDirections(
     return result;
 }
 
+struct ComparableRehearsalDirection
+{
+    size_t measureIndex{};
+    std::string text;
+    std::string fontFamily;
+    std::string placement;
+    std::optional<double> normalizedOffset;
+};
+
+std::string normalizeRehearsalFontFamily(std::string value)
+{
+    auto trim = [](std::string& text) {
+        while (!text.empty() && std::isspace(static_cast<unsigned char>(text.front()))) {
+            text.erase(text.begin());
+        }
+        while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back()))) {
+            text.pop_back();
+        }
+    };
+
+    trim(value);
+    std::string lowered = value;
+    std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    constexpr std::string_view suffix = ", text";
+    if (lowered.size() >= suffix.size() && lowered.substr(lowered.size() - suffix.size()) == suffix) {
+        value.erase(value.size() - suffix.size());
+        trim(value);
+    }
+    return value;
+}
+
+std::vector<ComparableRehearsalDirection> collectRehearsalDirections(const pugi::xml_document& document)
+{
+    std::vector<ComparableRehearsalDirection> result;
+    const auto firstPart = document.child("score-partwise").child("part");
+    if (!firstPart) {
+        return result;
+    }
+
+    int currentDivisions = 0;
+    size_t measureIndex = 0;
+    for (const auto& measureNode : firstPart.children("measure")) {
+        if (const auto divisionsNode = measureNode.child("attributes").child("divisions")) {
+            currentDivisions = divisionsNode.text().as_int();
+        }
+        for (const auto& directionNode : measureNode.children("direction")) {
+            const auto rehearsalNode = directionNode.child("direction-type").child("rehearsal");
+            if (!rehearsalNode) {
+                continue;
+            }
+
+            std::optional<double> normalizedOffset;
+            if (const auto offsetNode = directionNode.child("offset")) {
+                const int offsetValue = offsetNode.text().as_int();
+                if (currentDivisions > 0) {
+                    normalizedOffset = static_cast<double>(offsetValue) / static_cast<double>(currentDivisions);
+                } else {
+                    normalizedOffset = static_cast<double>(offsetValue);
+                }
+            }
+
+            ComparableRehearsalDirection rehearsal{
+                measureIndex,
+                rehearsalNode.text().as_string(),
+                normalizeRehearsalFontFamily(rehearsalNode.attribute("font-family").as_string()),
+                directionNode.attribute("placement").as_string(),
+                normalizedOffset
+            };
+            result.emplace_back(std::move(rehearsal));
+        }
+        ++measureIndex;
+    }
+    return result;
+}
+
 } // namespace
 
 TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
@@ -288,6 +365,41 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
         if (reference.relativeX && *reference.relativeX < 0.0) {
             ASSERT_TRUE(actual.defaultX.has_value());
             EXPECT_NEAR(*actual.defaultX, *reference.relativeX, kDefaultYTolerance);
+        }
+    }
+}
+
+TEST(MusicXmlExpressions, RehearsalMarksMatchReference)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("rehearsal_marks.musx");
+
+    pugi::xml_document actualDocument;
+    ASSERT_TRUE(actualDocument.load_file(pathString(outputPath).c_str()));
+
+    pugi::xml_document referenceDocument;
+    const auto referencePath = getInputPath() / "musicxml/rehearsal_marks-ref.musicxml";
+    ASSERT_TRUE(referenceDocument.load_file(pathString(referencePath).c_str()));
+
+    const auto actualRehearsals = collectRehearsalDirections(actualDocument);
+    const auto referenceRehearsals = collectRehearsalDirections(referenceDocument);
+
+    ASSERT_EQ(actualRehearsals.size(), referenceRehearsals.size());
+    ASSERT_FALSE(actualRehearsals.empty());
+
+    constexpr double kOffsetTolerance = 0.001;
+    for (size_t index = 0; index < actualRehearsals.size(); ++index) {
+        const auto& actual = actualRehearsals[index];
+        const auto& reference = referenceRehearsals[index];
+
+        EXPECT_EQ(actual.measureIndex, reference.measureIndex) << "rehearsal " << index;
+        EXPECT_EQ(actual.text, reference.text) << "rehearsal " << index;
+        EXPECT_EQ(actual.fontFamily, reference.fontFamily) << "rehearsal " << index;
+        EXPECT_EQ(actual.placement, reference.placement) << "rehearsal " << index;
+        ASSERT_EQ(actual.normalizedOffset.has_value(), reference.normalizedOffset.has_value()) << "rehearsal " << index;
+        if (actual.normalizedOffset && reference.normalizedOffset) {
+            EXPECT_NEAR(*actual.normalizedOffset, *reference.normalizedOffset, kOffsetTolerance) << "rehearsal " << index;
         }
     }
 }

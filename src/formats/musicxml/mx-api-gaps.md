@@ -168,6 +168,14 @@ MusicXML `<direction>` supports a `system` attribute with values such as `only-t
 
 The generated MX core model exposes this as `core::SystemRelation` on `core::Direction`, but `mx::api::DirectionData` does not expose any public field for the direction `system` attribute. Denigma can currently approximate some TOP-assigned expression behavior structurally, but cannot emit the actual MusicXML `system="only-top"` / `system="also-top"` semantics through `mx::api`.
 
+The missing API affects all expression directions that can originate from Finale TOP assignments. The desired behavior is:
+
+- a standalone TOP assignment should export as `system="only-top"` with no explicit staff value
+- if the same grouped expression is emitted both as TOP and as a concrete staff assignment, the TOP-owned direction should export as `system="also-top"` and the concrete assignment should still carry its staff ownership
+- if the concrete staff assignment is encountered before the TOP assignment, the existing emitted direction should be upgraded from no `system` attribute to `system="also-top"` once the TOP companion is known
+
+Without API support for `SystemRelation`, Denigma cannot represent those cases exactly in the emitted MusicXML even when the grouping logic can detect them.
+
 Needed API shape: add a public direction system-relation field to `mx::api::DirectionData`, with reader/writer support for MusicXML `system="only-top|also-top|none"`.
 
 ### Other dynamics SMuFL glyphs

@@ -53,6 +53,9 @@ mx::api::DirectionData createExpressionDirection(
     auto direction = mx::api::DirectionData{};
     direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(Fraction::fromEdu(assignment->eduPosition));
     direction.placement = enumConvert<mx::api::Placement>(placement);
+    /// @todo When mx::api exposes MusicXML direction system relation, emit standalone
+    /// TOP assignments as system="only-top" instead of approximating them by omitting
+    /// the explicit staff value.
     direction.isStaffValueSpecified = isStaffValueSpecified;
     if (assignment->layer > 0 || assignment->voice2) {
         const LayerIndex layer = assignment->layer > 0 ? assignment->layer - 1 : 0;
@@ -106,6 +109,36 @@ std::optional<mx::api::DirectionData> createWordsExpressionDirection(
     if (mx::api::isDirectionDataEmpty(direction)) {
         return std::nullopt;
     }
+    return direction;
+}
+
+std::optional<mx::api::DirectionData> createRehearsalExpressionDirection(
+    MusicXmlMusxMapping& context,
+    size_t staffIndex,
+    const MusxInstance<others::MeasureExprAssign>& assignment,
+    const classify::ExpressionClassification& classification,
+    VerticalPlacement placement,
+    bool isStaffValueSpecified)
+{
+    auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+
+    mx::api::RehearsalData rehearsal;
+    rehearsal.text = classification.rehearsalMark().text;
+    if (classification.enigmaCtx) {
+        const auto chunks = classification.enigmaCtx->collectEnigmaTextChunks(
+            EnigmaString::EnigmaParsingOptions(EnigmaString::AccidentalStyle::Unicode));
+        const auto chunkIt = std::find_if(chunks.begin(), chunks.end(), [](const auto& chunk) {
+            return !chunk.text.empty() && chunk.styles.font && !chunk.styles.font->hidden;
+        });
+        if (chunkIt != chunks.end()) {
+            const auto words = musicXmlWordsFromEnigmaTextChunk(context, *chunkIt);
+            if (words) {
+                rehearsal.fontData = words->fontData;
+            }
+        }
+    }
+
+    direction.rehearsals.emplace_back(std::move(rehearsal));
     return direction;
 }
 
@@ -204,6 +237,9 @@ void processExpressions(
         const auto classification = classify::classifyExpression(assignment);
         const auto placement = assignment->calcVerticalPlacement();
         const bool emittedFromTopStaffAssignment = isTopStaffAssignment(assignment);
+        /// @todo Once mx::api can write direction system="only-top|also-top", grouped
+        /// TOP/existing-staff combinations should keep both directions and upgrade the
+        /// TOP-owned one to also-top instead of replacing or suppressing entries here.
         const bool isStaffValueSpecified = !emittedFromTopStaffAssignment;
         GroupedDirectionAction groupedDirectionAction = GroupedDirectionAction::Emit;
         DirectionGroupTracking* groupTracking = nullptr;
@@ -265,6 +301,11 @@ void processExpressions(
         case classify::ExpressionType::TempoAlteration:
         case classify::ExpressionType::GenericText: {
             emitGroupedDirection(createWordsExpressionDirection(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
+            break;
+        }
+        case classify::ExpressionType::RehearsalMark: {
+            emitGroupedDirection(createRehearsalExpressionDirection(
                 context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
             break;
         }
