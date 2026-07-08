@@ -61,6 +61,7 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
 mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacement placement);
 mx::api::MarkType musicXmlFermataType(const classify::Fermata& fermata);
 double musicXmlQuarterNotesPerMinute(const classify::TempoInfo& tempo);
+mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
 void createDefaults(const MusicXmlMusxMapping& context);
 void createMeasures(MusicXmlMusxMapping& context);

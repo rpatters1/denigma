@@ -39,8 +39,6 @@ namespace formats {
 namespace musicxml {
 namespace detail {
 
-namespace {
-
 std::string mxResultMessage(std::string_view operation, const mx::api::ApiError& error)
 {
     std::string result = "mx " + std::string(operation) + " failed with result code "
@@ -85,8 +83,6 @@ mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, con
     context.musicXmlScore->sort();
     return *context.musicXmlScore;
 }
-
-} // namespace
 
 void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {

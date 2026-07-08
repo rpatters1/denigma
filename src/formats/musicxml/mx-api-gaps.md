@@ -154,6 +154,22 @@ MusicXML `<words>` supports both `halign` and `justify`. Finale text repeats use
 
 Needed API shape: add a `justify` field to `mx::api::WordsData`, parallel to `PageTextData::justify`, and have `DirectionWriter::emitWords()` set `FormattedTextID::setJustify()`.
 
+### Direction text polygon enclosures beyond square / oval / triangle / diamond
+
+Finale text-expression enclosures can use higher-sided polygons such as pentagon, hexagon, heptagon, and octagon. MusicXML's underlying enclosure vocabulary supports more shapes, but `mx::api::RehearsalEnclosure` currently exposes only `rectangle`, `square`, `oval`, `circle`, `bracket`, `triangle`, `diamond`, and `none`.
+
+Denigma currently degrades MUSX pentagon-through-octagon text enclosures to `square` for both rehearsal marks and generic words directions, since that is the closest public `mx::api` shape. This preserves that the text is enclosed, but not the exact polygon geometry.
+
+Needed API shape: expose the additional MusicXML direction-text enclosure shapes through `mx::api`, so Denigma can round-trip MUSX polygon enclosures without downgrading them to `square`.
+
+### Direction words enclosure serialization
+
+`mx::api::WordsData` exposes an `enclosure` field, which Denigma now uses for generic expression text and standard-framed measure text. However, MX's current `DirectionWriter::emitWords()` implementation does not serialize that field into MusicXML `<words enclosure="...">`.
+
+This means Denigma can build the correct pre-serialization `ScoreData`, but exported MusicXML still drops generic word enclosures unless the downstream MX writer is updated.
+
+Needed API shape: have `DirectionWriter::emitWords()` write `WordsData.enclosure` to the MusicXML `<words>` enclosure attribute, parallel to how rehearsal enclosures are already serialized.
+
 ### Interleaved words and symbols
 
 MusicXML direction types can interleave `<words>` and `<symbol>` elements in the same direction-type group. This is the correct representation for Finale expressions that mix normal formatted text with SMuFL music glyphs, such as dynamic expressions with text before or after dynamic glyphs, or arbitrary text expressions containing embedded music symbols.

@@ -736,6 +736,7 @@ void processMeasureText(
         const auto textBlock = assignment->getTextBlock();
         const auto horizontalAlignment = textBlock ? enumConvert<mx::api::HorizontalAlignment>(textBlock->justify)
                                                    : mx::api::HorizontalAlignment::unspecified;
+        const bool useStandardFrameEnclosure = textBlock && textBlock->shapeId == 0 && textBlock->stdLineThickness > 0;
         const Evpu resolvedYEvpu = assignment->yDisp + (textBlock ? textBlock->yAdd : Evpu{});
         const Evpu defaultXEvpu = (textBlock ? textBlock->xAdd : Evpu{}) + (assignment->xDispEdu == 0 ? assignment->xDispEvpu : Evpu{});
         const Evpu defaultYEvpu = resolvedYEvpu - currentStaff->calcTopLineEvpu();
@@ -757,6 +758,9 @@ void processMeasureText(
             }
             if (horizontalAlignment != mx::api::HorizontalAlignment::unspecified) {
                 words.positionData.horizontalAlignmnet = horizontalAlignment;
+            }
+            if (useStandardFrameEnclosure) {
+                words.enclosure = mx::api::RehearsalEnclosure::rectangle;
             }
         }
 

@@ -36,6 +36,7 @@
 #include "mx/api/PartGroupData.h"
 #include "mx/api/PitchData.h"
 #include "mx/api/PositionData.h"
+#include "mx/api/RehearsalData.h"
 
 using namespace musx::dom;
 using BarlineType = musx::dom::others::Measure::BarlineType;
@@ -178,6 +179,18 @@ BEGIN_ENUM_CONVERSION(classify::Dynamic, mx::api::MarkType)
     case classify::Dynamic::rf: return mx::api::MarkType::rf;
     case classify::Dynamic::rfz: return mx::api::MarkType::rfz;
     case classify::Dynamic::n: return mx::api::MarkType::n;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(others::Enclosure::Shape, mx::api::RehearsalEnclosure)
+    case others::Enclosure::Shape::NoEnclosure: return mx::api::RehearsalEnclosure::none;
+    case others::Enclosure::Shape::Rectangle: return mx::api::RehearsalEnclosure::rectangle;
+    case others::Enclosure::Shape::Ellipse: return mx::api::RehearsalEnclosure::oval;
+    case others::Enclosure::Shape::Triangle: return mx::api::RehearsalEnclosure::triangle;
+    case others::Enclosure::Shape::Diamond: return mx::api::RehearsalEnclosure::diamond;
+    case others::Enclosure::Shape::Pentagon: return mx::api::RehearsalEnclosure::square;
+    case others::Enclosure::Shape::Hexagon: return mx::api::RehearsalEnclosure::square;
+    case others::Enclosure::Shape::Heptagon: return mx::api::RehearsalEnclosure::square;
+    case others::Enclosure::Shape::Octogon: return mx::api::RehearsalEnclosure::square;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(classify::Fermata::Shape, mx::api::MarkType)

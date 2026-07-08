@@ -69,6 +69,33 @@ bool isTopStaffAssignment(const MusxInstance<others::MeasureExprAssign>& assignm
     return assignment->staffAssign == static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
 }
 
+mx::api::RehearsalEnclosure enclosureForTextExpression(
+    const MusxInstance<others::MeasureExprAssign>& assignment)
+{
+    const auto textExpression = assignment ? assignment->getTextExpression() : nullptr;
+    if (!textExpression || !textExpression->hasEnclosure) {
+        return mx::api::RehearsalEnclosure::none;
+    }
+
+    const auto enclosure = textExpression->getEnclosure();
+    if (!enclosure) {
+        return mx::api::RehearsalEnclosure::none;
+    }
+    if (enclosure->lineWidth <= 0) {
+        return mx::api::RehearsalEnclosure::none;
+    }
+
+    if (enclosure->shape == others::Enclosure::Shape::Rectangle) {
+        return enclosure->equalAspect ? mx::api::RehearsalEnclosure::square : mx::api::RehearsalEnclosure::rectangle;
+    }
+    if (enclosure->shape == others::Enclosure::Shape::Ellipse) {
+        return enclosure->equalAspect ? mx::api::RehearsalEnclosure::circle : mx::api::RehearsalEnclosure::oval;
+    }
+    /// @todo Replace the temporary MUSX pentagon-through-octagon fallback to square when mx::api
+    /// exposes matching direction text enclosure shapes.
+    return enumConvert<mx::api::RehearsalEnclosure>(enclosure->shape);
+}
+
 std::optional<mx::api::DirectionData> createTempoExpressionDirection(
     MusicXmlMusxMapping& context,
     size_t staffIndex,
@@ -80,6 +107,10 @@ std::optional<mx::api::DirectionData> createTempoExpressionDirection(
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
     if (classification.enigmaCtx) {
         direction.words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
+    }
+    const auto enclosure = enclosureForTextExpression(assignment);
+    for (auto& words : direction.words) {
+        words.enclosure = enclosure;
     }
 
     const double quarterNotesPerMinute = musicXmlQuarterNotesPerMinute(classification.tempoMark().tempo);
@@ -106,6 +137,10 @@ std::optional<mx::api::DirectionData> createWordsExpressionDirection(
     if (classification.enigmaCtx) {
         direction.words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
     }
+    const auto enclosure = enclosureForTextExpression(assignment);
+    for (auto& words : direction.words) {
+        words.enclosure = enclosure;
+    }
     if (mx::api::isDirectionDataEmpty(direction)) {
         return std::nullopt;
     }
@@ -124,6 +159,7 @@ std::optional<mx::api::DirectionData> createRehearsalExpressionDirection(
 
     mx::api::RehearsalData rehearsal;
     rehearsal.text = classification.rehearsalMark().text;
+    rehearsal.enclosure = enclosureForTextExpression(assignment);
     if (classification.enigmaCtx) {
         const auto chunks = classification.enigmaCtx->collectEnigmaTextChunks(
             EnigmaString::EnigmaParsingOptions(EnigmaString::AccidentalStyle::Unicode));
@@ -300,6 +336,11 @@ void processExpressions(
         }
         case classify::ExpressionType::TempoAlteration:
         case classify::ExpressionType::GenericText: {
+            emitGroupedDirection(createWordsExpressionDirection(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
+            break;
+        }
+        case classify::ExpressionType::TechniqueText: {
             emitGroupedDirection(createWordsExpressionDirection(
                 context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
             break;

@@ -41,6 +41,7 @@ struct ComparableWordsDirection
     int tickTimePosition{};
     mx::api::Placement placement{mx::api::Placement::unspecified};
     std::vector<std::string> words;
+    std::vector<mx::api::RehearsalEnclosure> enclosures;
 };
 
 std::vector<ComparableWordsDirection> collectWordsOnlyDirections(
@@ -65,10 +66,12 @@ std::vector<ComparableWordsDirection> collectWordsOnlyDirections(
                     staffIndex,
                     direction.tickTimePosition,
                     direction.placement,
+                    {},
                     {}
                 };
                 for (const auto& word : direction.words) {
                     comparable.words.emplace_back(word.text);
+                    comparable.enclosures.emplace_back(word.enclosure);
                 }
                 if (predicate(comparable)) {
                     result.emplace_back(std::move(comparable));
@@ -85,6 +88,7 @@ struct ComparableRehearsalDirection
     int tickTimePosition{};
     mx::api::Placement placement{mx::api::Placement::unspecified};
     std::string text;
+    mx::api::RehearsalEnclosure enclosure{mx::api::RehearsalEnclosure::unspecified};
     std::vector<std::string> fontFamilies;
     mx::api::FontStyle fontStyle{mx::api::FontStyle::unspecified};
     mx::api::FontWeight fontWeight{mx::api::FontWeight::unspecified};
@@ -147,6 +151,7 @@ std::vector<ComparableRehearsalDirection> collectRehearsalDirections(const mx::a
                         direction.tickTimePosition,
                         direction.placement,
                         rehearsal.text,
+                        rehearsal.enclosure,
                         {},
                         rehearsal.fontData.style,
                         rehearsal.fontData.weight,
@@ -168,6 +173,57 @@ std::vector<ComparableRehearsalDirection> collectRehearsalDirections(const mx::a
                         }
                     }
                     result.emplace_back(std::move(comparable));
+                }
+            }
+        }
+    }
+    return result;
+}
+
+struct ComparableExpressionEnclosure
+{
+    size_t measureIndex{};
+    int tickTimePosition{};
+    mx::api::Placement placement{mx::api::Placement::unspecified};
+    std::string text;
+    mx::api::RehearsalEnclosure enclosure{mx::api::RehearsalEnclosure::unspecified};
+};
+
+std::vector<ComparableExpressionEnclosure> collectExpressionEnclosures(
+    const mx::api::ScoreData& score,
+    const std::function<bool(const std::string&)>& predicate)
+{
+    std::vector<ComparableExpressionEnclosure> result;
+    if (score.parts.empty()) {
+        return result;
+    }
+
+    const auto& measures = score.parts.front().measures;
+    for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
+        const auto& measure = measures.at(measureIndex);
+        for (const auto& staff : measure.staves) {
+            for (const auto& direction : staff.directions) {
+                for (const auto& word : direction.words) {
+                    if (predicate(word.text)) {
+                        result.push_back({
+                            measureIndex,
+                            direction.tickTimePosition,
+                            direction.placement,
+                            word.text,
+                            word.enclosure
+                        });
+                    }
+                }
+                for (const auto& rehearsal : direction.rehearsals) {
+                    if (predicate(rehearsal.text)) {
+                        result.push_back({
+                            measureIndex,
+                            direction.tickTimePosition,
+                            direction.placement,
+                            rehearsal.text,
+                            rehearsal.enclosure
+                        });
+                    }
                 }
             }
         }
@@ -229,6 +285,7 @@ TEST(MusicXmlExpressions, GenericTextDirectionsMatchReference)
     EXPECT_EQ(actualDirections.front().staffIndex, 0u);
     EXPECT_EQ(actualDirections.front().placement, mx::api::Placement::below);
     EXPECT_EQ(actualDirections.front().words, std::vector<std::string>{ "warm" });
+    EXPECT_EQ(actualDirections.front().enclosures, std::vector<mx::api::RehearsalEnclosure>{ mx::api::RehearsalEnclosure::none });
 }
 
 TEST(MusicXmlExpressions, TempoVariedStavesSmoke)
@@ -412,6 +469,7 @@ TEST(MusicXmlExpressions, RehearsalMarksMatchReference)
         EXPECT_EQ(actual.tickTimePosition, reference.tickTimePosition) << "rehearsal " << index;
         EXPECT_EQ(actual.placement, reference.placement) << "rehearsal " << index;
         EXPECT_EQ(actual.text, reference.text) << "rehearsal " << index;
+        EXPECT_EQ(actual.enclosure, reference.enclosure) << "rehearsal " << index;
         EXPECT_EQ(actual.fontFamilies, reference.fontFamilies) << "rehearsal " << index;
         if (reference.fontStyle != mx::api::FontStyle::unspecified) {
             EXPECT_EQ(actual.fontStyle, reference.fontStyle) << "rehearsal " << index;
@@ -430,6 +488,66 @@ TEST(MusicXmlExpressions, RehearsalMarksMatchReference)
         EXPECT_EQ(actual.underline, reference.underline) << "rehearsal " << index;
         EXPECT_EQ(actual.overline, reference.overline) << "rehearsal " << index;
         EXPECT_EQ(actual.lineThrough, reference.lineThrough) << "rehearsal " << index;
+    }
+}
+
+TEST(MusicXmlExpressions, ExpressionEnclosuresExportExpectedShapes)
+{
+    setupTestDataPaths();
+
+    /// @todo Switch this back to post-write MusicXML verification once MX preserves `WordsData.enclosure`.
+    const auto outputPath = exportMusicXmlFixture("enclosures.musx");
+    EXPECT_TRUE(std::filesystem::exists(outputPath));
+    const auto actualScore = createScoreDataFromMusicXmlFixture("enclosures.musx");
+    ASSERT_TRUE(actualScore);
+
+    const auto actualEnclosures = collectExpressionEnclosures(*actualScore, [](const std::string& text) {
+        return text == "Tempo" || text == "expressive" || text == "pizz." || text == "Reh. 1";
+    });
+
+    const std::vector<ComparableExpressionEnclosure> expected = {
+        { 0u, 0, mx::api::Placement::above, "Tempo", mx::api::RehearsalEnclosure::square },
+        { 0u, 16, mx::api::Placement::below, "expressive", mx::api::RehearsalEnclosure::none },
+        { 1u, 8, mx::api::Placement::above, "pizz.", mx::api::RehearsalEnclosure::rectangle },
+        { 2u, 0, mx::api::Placement::above, "Reh. 1", mx::api::RehearsalEnclosure::oval }
+    };
+
+    ASSERT_EQ(actualEnclosures.size(), expected.size());
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_EQ(actualEnclosures[index].measureIndex, expected[index].measureIndex) << "expression " << index;
+        EXPECT_EQ(actualEnclosures[index].tickTimePosition, expected[index].tickTimePosition) << "expression " << index;
+        EXPECT_EQ(actualEnclosures[index].placement, expected[index].placement) << "expression " << index;
+        EXPECT_EQ(actualEnclosures[index].text, expected[index].text) << "expression " << index;
+        EXPECT_EQ(actualEnclosures[index].enclosure, expected[index].enclosure) << "expression " << index;
+    }
+}
+
+TEST(MusicXmlExpressions, MeasureTextEnclosuresUseStandardFrameRule)
+{
+    setupTestDataPaths();
+
+    /// @todo Switch this back to post-write MusicXML verification once MX preserves `WordsData.enclosure`.
+    const auto outputPath = exportMusicXmlFixture("enclosures.musx");
+    EXPECT_TRUE(std::filesystem::exists(outputPath));
+    const auto actualScore = createScoreDataFromMusicXmlFixture("enclosures.musx");
+    ASSERT_TRUE(actualScore);
+
+    const auto actualEnclosures = collectExpressionEnclosures(*actualScore, [](const std::string& text) {
+        return text == "no enclosure" || text == "has enclosure";
+    });
+
+    const std::vector<ComparableExpressionEnclosure> expected = {
+        { 2u, 16, mx::api::Placement::below, "no enclosure", mx::api::RehearsalEnclosure::none },
+        { 3u, 3, mx::api::Placement::above, "has enclosure", mx::api::RehearsalEnclosure::rectangle }
+    };
+
+    ASSERT_EQ(actualEnclosures.size(), expected.size());
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_EQ(actualEnclosures[index].measureIndex, expected[index].measureIndex) << "measure text " << index;
+        EXPECT_EQ(actualEnclosures[index].tickTimePosition, expected[index].tickTimePosition) << "measure text " << index;
+        EXPECT_EQ(actualEnclosures[index].placement, expected[index].placement) << "measure text " << index;
+        EXPECT_EQ(actualEnclosures[index].text, expected[index].text) << "measure text " << index;
+        EXPECT_EQ(actualEnclosures[index].enclosure, expected[index].enclosure) << "measure text " << index;
     }
 }
 

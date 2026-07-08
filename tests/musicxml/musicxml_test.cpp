@@ -20,6 +20,8 @@
 #include "musicxml_test.h"
 
 #include "core/denigma.h"
+#include "formats/enigmaxml/enigmaxml.h"
+#include "formats/musicxml/musicxml.h"
 #include "gtest/gtest.h"
 #include "mx/api/DocumentManager.h"
 #include "test_utils.h"
@@ -40,6 +42,24 @@ std::filesystem::path exportMusicXmlFixture(const std::string& musxFile)
     outputPath.replace_extension(".musicxml");
     EXPECT_TRUE(std::filesystem::exists(outputPath)) << "Missing MusicXML output " << pathString(outputPath);
     return outputPath;
+}
+
+std::optional<mx::api::ScoreData> createScoreDataFromMusicXmlFixture(const std::string& musxFile)
+{
+    std::filesystem::path inputPath;
+    copyInputToOutput(musxFile, inputPath);
+
+    DenigmaContext denigmaContext(DENIGMA_NAME);
+    denigmaContext.inputFilePath = inputPath;
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
+
+    try {
+        const auto inputData = formats::enigmaxml::detail::extractMusxInputData(inputPath, denigmaContext);
+        return formats::musicxml::detail::createMusicXmlDocument(inputData, denigmaContext);
+    } catch (const std::exception& ex) {
+        ADD_FAILURE() << "Unable to create MusicXML ScoreData from " << pathString(inputPath) << ": " << ex.what();
+    }
+    return std::nullopt;
 }
 
 std::optional<mx::api::ScoreData> loadScoreData(const std::filesystem::path& path)
