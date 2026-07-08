@@ -546,7 +546,9 @@ static CategoryType categoryTypeForExpression(const musx::dom::MusxInstance<musx
     return categoryTypeFromId(def->categoryId);
 }
 
-static ResolvedTextExpression resolveTextExpressionDefinition(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+static ResolvedTextExpression resolveTextExpression(
+    const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment = nullptr)
 {
     ResolvedTextExpression result;
     result.expressionDef = def;
@@ -559,7 +561,9 @@ static ResolvedTextExpression resolveTextExpressionDefinition(const musx::dom::M
             << " has non-existent text block " << def->textIdKey).str();
         return result;
     }
-    result.rawTextCtx = def->getRawTextCtx(musx::dom::SCORE_PARTID);
+    result.rawTextCtx = assignment
+        ? assignment->getRawTextCtx(musx::dom::SCORE_PARTID)
+        : def->getRawTextCtx(musx::dom::SCORE_PARTID);
     if (!result.rawTextCtx) {
         result.errorMessage = (LogMsg() << "Text expression " << def->getCmper()
             << " could not load EnigmaParsingContext for text block " << def->textIdKey).str();
@@ -674,7 +678,7 @@ static ExpressionClassification classifyAssignedTextExpression(
     const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
     const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
 {
-    const ResolvedTextExpression resolved = resolveTextExpressionDefinition(def);
+    const ResolvedTextExpression resolved = resolveTextExpression(def, assignment);
     const CategoryType categoryType = resolved.categoryType;
     const std::string_view normalizedText = resolved.normalizedText;
 
@@ -692,7 +696,7 @@ static ExpressionClassification classifyAssignedTextExpression(
 
 static ExpressionClassification classifyTextExpressionDefinition(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
 {
-    return classifyResolvedTextExpressionDefinition(resolveTextExpressionDefinition(def));
+    return classifyResolvedTextExpressionDefinition(resolveTextExpression(def));
 }
 
 static ExpressionClassification classifyShapeExpressionDefinition(const musx::dom::MusxInstance<musx::dom::others::ShapeExpressionDef>& def)
