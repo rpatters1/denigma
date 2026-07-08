@@ -252,6 +252,36 @@ TEST(MusicXmlSmartShapes, OttavaEndOfBar)
     EXPECT_EQ(measure2Staff.directions.front().tickTimePosition, firstNoteEnd);
 }
 
+static void expectOttava(const mx::api::PartData& part, size_t startMeasureIdx, size_t startNoteIdx, mx::api::OttavaType ottavaType,
+    mx::api::Placement placement, size_t endMeasureIdx, size_t endNoteIdx, int expectedStopSize)
+{
+    {
+        const auto& staff = part.measures.at(startMeasureIdx).staves.at(0);
+        ASSERT_FALSE(staff.directions.empty());
+        ASSERT_EQ(staff.directions.front().ottavaStarts.size(), 1);
+        EXPECT_EQ(staff.directions.front().placement, placement);
+        EXPECT_EQ(staff.directions.front().ottavaStarts.front().ottavaType, ottavaType);
+        const auto& voice = staff.voices.at(0);
+        ASSERT_GT(voice.notes.size(), startNoteIdx);        
+        const auto expectedStartTick = voice.notes.at(startNoteIdx).tickTimePosition;
+        EXPECT_EQ(staff.directions.front().tickTimePosition, expectedStartTick);
+    }
+
+    {
+        const auto& staff = part.measures.at(endMeasureIdx).staves.at(0);
+        ASSERT_FALSE(staff.directions.empty());
+        ASSERT_FALSE(staff.directions.back().ottavaStops.empty());
+        ASSERT_TRUE(staff.directions.back().ottavaStops.front().size.has_value());
+        EXPECT_EQ(*staff.directions.back().ottavaStops.front().size, expectedStopSize);
+        EXPECT_EQ(staff.directions.back().placement, placement);
+        const auto& voice = staff.voices.at(0);
+        ASSERT_GT(voice.notes.size(), endNoteIdx);
+        const auto expectedStopTick = voice.notes.at(endNoteIdx).tickTimePosition
+            + voice.notes.at(endNoteIdx).durationData.durationTimeTicks;
+        EXPECT_EQ(staff.directions.back().tickTimePosition, expectedStopTick);
+    }
+};
+
 TEST(MusicXmlSmartShapes, OttavasSimpleMatchesExpectedOttavas)
 {
     setupTestDataPaths();
@@ -263,26 +293,25 @@ TEST(MusicXmlSmartShapes, OttavasSimpleMatchesExpectedOttavas)
     const auto& part = score->parts.at(0);
     ASSERT_GE(part.measures.size(), 4);
 
-    const auto expectOttava = [&](size_t measureIndex, mx::api::OttavaType ottavaType, mx::api::Placement placement,
-                                  size_t lastOttavaNoteIndex, int expectedStopSize) {
-        const auto& staff = part.measures.at(measureIndex).staves.at(0);
-        ASSERT_FALSE(staff.directions.empty());
-        ASSERT_EQ(staff.directions.front().ottavaStarts.size(), 1);
-        EXPECT_EQ(staff.directions.front().placement, placement);
-        EXPECT_EQ(staff.directions.front().ottavaStarts.front().ottavaType, ottavaType);
+    expectOttava(part, 0, 0, mx::api::OttavaType::o8va, mx::api::Placement::above, 0, 2, 8);
+    expectOttava(part, 1, 0, mx::api::OttavaType::o8vb, mx::api::Placement::below, 1, 2, 8);
+    expectOttava(part, 2, 0, mx::api::OttavaType::o15ma, mx::api::Placement::above, 2, 1, 15);
+    expectOttava(part, 3, 0, mx::api::OttavaType::o15mb, mx::api::Placement::below, 3, 1, 15);
+}
 
-        const auto& voice = staff.voices.at(0);
-        ASSERT_GT(voice.notes.size(), lastOttavaNoteIndex);
-        ASSERT_FALSE(staff.directions.back().ottavaStops.empty());
-        ASSERT_TRUE(staff.directions.back().ottavaStops.front().size.has_value());
-        EXPECT_EQ(*staff.directions.back().ottavaStops.front().size, expectedStopSize);
-        const auto expectedStopTick = voice.notes.at(lastOttavaNoteIndex).tickTimePosition
-                                      + voice.notes.at(lastOttavaNoteIndex).durationData.durationTimeTicks;
-        EXPECT_EQ(staff.directions.back().tickTimePosition, expectedStopTick);
-    };
+TEST(MusicXmlSmartShapes, OttavasEdgeMatchesExpectedOttavas)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("ottavas_edge.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+    ASSERT_FALSE(score->parts.empty());
 
-    expectOttava(0, mx::api::OttavaType::o8va, mx::api::Placement::above, 2, 8);
-    expectOttava(1, mx::api::OttavaType::o8vb, mx::api::Placement::below, 2, 8);
-    expectOttava(2, mx::api::OttavaType::o15ma, mx::api::Placement::above, 1, 15);
-    expectOttava(3, mx::api::OttavaType::o15mb, mx::api::Placement::below, 1, 15);
+    const auto& part = score->parts.at(0);
+    ASSERT_GE(part.measures.size(), 4);
+
+    expectOttava(part, 0, 1, mx::api::OttavaType::o8va, mx::api::Placement::above, 1, 0, 8);
+    expectOttava(part, 2, 1, mx::api::OttavaType::o8va, mx::api::Placement::above, 2, 2, 8);
+    expectOttava(part, 4, 0, mx::api::OttavaType::o8va, mx::api::Placement::above, 4, 3, 8);
+    expectOttava(part, 5, 1, mx::api::OttavaType::o15mb, mx::api::Placement::below, 5, 4, 15);
 }
