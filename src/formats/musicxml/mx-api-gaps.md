@@ -94,6 +94,16 @@ MusicXML supports richer time signatures than a single `beats` / `beat-type` pai
 
 Needed API shape: a richer time signature representation that can preserve the MusicXML structure beyond the common single-pair case.
 
+## Measures
+
+### Measure numbering text and attributes
+
+MusicXML `<measure-numbering>` can carry display text as element content and additional attributes such as `multiple-rest-always`, `multiple-rest-range`, `staff`, and `system`. Finale uses these to distinguish cases like `measure`, `system`, and staff-specific numbering placement, including examples such as `multiple-rest-always="yes" multiple-rest-range="yes" staff="2" system="only-bottom"`.
+
+`mx::api::MeasureData` currently exposes only the coarse `measureNumbering` enum. Denigma can choose between the basic measure/system styles, but it cannot preserve the element text or the other MusicXML measure-numbering attributes through the public API.
+
+Needed API shape: a measure-numbering model on `MeasureData` with element text plus optional fields for `multiple-rest-always`, `multiple-rest-range`, `staff`, and `system`.
+
 ## Transposition
 
 ### Concert-score `for-part`

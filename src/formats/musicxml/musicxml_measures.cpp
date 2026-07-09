@@ -801,7 +801,7 @@ void addMeasureNumber(
         MUSX_ASSERT_IF(!displayNum) {
             return;
         }
-        /// @todo meausure.text = displayNum.value(); // when mx::api supports MeasureData::text.
+        /// @todo meausure.text = displayNum.value(); // when mx::api supports MeasureData::text and full measure-numbering attributes.
     }
 }
 
