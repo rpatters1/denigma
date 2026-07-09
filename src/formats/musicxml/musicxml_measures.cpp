@@ -768,6 +768,43 @@ void processMeasureText(
     }
 }
 
+void addMeasureNumber(
+    MusicXmlMusxMapping& context,
+    mx::api::MeasureData& measure,
+    const MusxInstance<others::Measure>& musxMeasure)
+{
+    const MeasCmper measureId = musxMeasure->getCmper();
+    measure.number = std::to_string(measureId);
+    const auto musxMeasureNumberRegion = musxMeasure->findMeasureNumberRegion();
+    if (!musxMeasureNumberRegion || musxMeasure->noMeasNum) {
+        measure.implicit = mx::api::Bool::yes;
+    }
+    if (musxMeasureNumberRegion) {
+        const auto& scorePartData = context.forPartId == SCORE_PARTID
+            ? musxMeasureNumberRegion->scoreData
+            : musxMeasureNumberRegion->partData;
+        if (measureId == musxMeasureNumberRegion->startMeas) {
+            if (scorePartData->hideFirstMeasure) {
+                measure.implicit = mx::api::Bool::yes;
+            }
+        }
+        if (measureId == musxMeasureNumberRegion->calcFirstDisplayedMeasureId()) {
+            /// @todo select on whether the staff shows measure numbers and whether the region
+            /// forces top/bottom.
+            if (scorePartData->showOnEvery && scorePartData->incidence == 1) {
+                measure.measureNumbering = mx::api::MeasureNumbering::measure;
+            } else if (scorePartData->showOnStart) {
+                measure.measureNumbering = mx::api::MeasureNumbering::system;
+            }
+        }
+        const auto displayNum = musxMeasureNumberRegion->calcDisplayNumberTextFor(measureId);
+        MUSX_ASSERT_IF(!displayNum) {
+            return;
+        }
+        /// @todo meausure.text = displayNum.value(); // when mx::api supports MeasureData::text.
+    }
+}
+
 void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part)
 {
     context.clearCurrent();
@@ -789,7 +826,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         const auto& musxMeasure = musxMeasures[measureIndex];
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
-        measure.number = std::to_string(musxMeasure->getCmper());
+        addMeasureNumber(context, measure, musxMeasure);
         assignKeySignatures(context, measure, musxMeasure, stavesIt->second, pitchContext, prevKeyData);
         assignTimeSignature(measure, musxMeasure, stavesIt->second, prevTimeSig);
         if (const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId); partSymbolIt != context.partIdToPartSymbol.end()) {
