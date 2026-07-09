@@ -318,9 +318,6 @@ static Technique classifyTechniqueText(std::string_view text, std::string_view n
     if (matchesAny(normalizedText, { "senza sord", "open" })) {
         return { TechniqueType::Open, std::string(text) };
     }
-    if (matchesAny(normalizedText, { "trem", "tremolo" })) {
-        return { TechniqueType::Tremolo, std::string(text) };
-    }
     return {};
 }
 

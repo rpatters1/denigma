@@ -422,6 +422,14 @@ TEST(ExpressionClassification, ClassifiesStringTechniqueTokens)
     }
 }
 
+TEST(ExpressionClassification, DoesNotClassifyTremoloTextAsTechnique)
+{
+    const auto result = classifyTextExpression("tremolo", ExpressionCategoryType::ExpressiveText);
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+    EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategory);
+    EXPECT_EQ(result.genericText().text, "tremolo");
+}
+
 TEST(ExpressionClassification, ClassifiesTempoPrimoAsTempoAlteration)
 {
     for (const auto* text : { "Tempo I", "tempo primo", "Tempo Iº" }) {

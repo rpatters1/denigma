@@ -91,7 +91,6 @@ enum class TechniqueType
     StopMute,
     Stopped,
     Open,
-    Tremolo,
     Other
 };
 
