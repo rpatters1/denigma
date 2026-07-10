@@ -69,14 +69,14 @@ static Jump classifyJumpTextAndGlyph(std::string_view text, std::optional<std::s
     if (lowerText == "to coda #" || lowerText == "to coda") {
         return Jump::ToCoda;
     }
-    if (lowerText == "segno") {
-        return Jump::Segno;
-    }
     if (lowerText == "coda") {
         return Jump::Coda;
     }
     if (lowerText == "fine") {
         return Jump::Fine;
+    }
+    if (lowerText == "segno") {
+        return Jump::Segno;
     }
     if (lowerText == "§" || lowerText == "𝄋") {
         return Jump::Segno;
