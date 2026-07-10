@@ -31,8 +31,17 @@ namespace glyph {
 /// @brief Visual style encoded by the source glyph variant.
 struct GlyphStyle
 {
+    /// @enum Placement
+    /// @brief Above/below/automatic style encoded in the source glyph variant.
+    enum class Placement
+    {
+        Automatic,
+        Above,
+        Below
+    };
+
     /// Above/below style encoded in the source glyph variant, when applicable.
-    musx::dom::VerticalPlacement placement{ musx::dom::VerticalPlacement::NotApplicable };
+    Placement placement{ Placement::Automatic };
 };
 
 } // namespace glyph

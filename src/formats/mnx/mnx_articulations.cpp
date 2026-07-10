@@ -31,20 +31,6 @@ namespace formats {
 namespace mnx {
 namespace detail {
 
-mnxdom::MarkingUpDownAuto calcPointing(const classify::glyph::GlyphStyle& glyphStyle)
-{
-    switch (glyphStyle.placement) {
-    case VerticalPlacement::Above:
-        return mnxdom::MarkingUpDownAuto::Up;
-    case VerticalPlacement::Below:
-        return mnxdom::MarkingUpDownAuto::Down;
-    case VerticalPlacement::Float:
-    case VerticalPlacement::NotApplicable:
-        break;
-    }
-    return mnxdom::MarkingUpDownAuto::Auto;
-}
-
 std::optional<mnxdom::Fermata> makeFermata(
     const classify::articulation::Fermata& fermata,
     const classify::glyph::GlyphStyle& glyphStyle,
@@ -82,7 +68,7 @@ std::optional<mnxdom::Fermata> makeFermata(
     result.set_or_clear_symbol(convertSymbol(fermata.shape));
     result.set_or_clear_duration(convertDuration(fermata.duration));
     result.set_or_clear_orient(enumConvert<mnxdom::Orientation>(placement));
-    result.set_or_clear_pointing(calcPointing(glyphStyle));
+    result.set_or_clear_pointing(enumConvert<mnxdom::MarkingUpDownAuto>(glyphStyle.placement));
     return result;
 }
 
@@ -435,7 +421,7 @@ static std::optional<mnxdom::sequence::EventMarkingBase> createEventMarking(
     const classify::articulation::ArticulationMark& mark)
 {
     const auto setPointing = [&](auto marking) -> mnxdom::sequence::EventMarkingBase {
-        marking.set_or_clear_pointing(calcPointing(mark.glyphStyle));
+        marking.set_or_clear_pointing(enumConvert<mnxdom::MarkingUpDownAuto>(mark.glyphStyle.placement));
         return marking;
     };
 

@@ -26,6 +26,7 @@
 
 #include "mnx.h"
 #include "denigma/classify/barlines.h"
+#include "denigma/classify/glyphs.h"
 #include "formats/enum_conversion_macros.h"
 
 namespace denigma {
@@ -62,6 +63,12 @@ BEGIN_ENUM_CONVERSION(classify::barline::BarlineType, mnxdom::BarlineType)
     case classify::barline::BarlineType::Dashed: return mnxdom::BarlineType::Dashed;
     case classify::barline::BarlineType::Tick: return mnxdom::BarlineType::Tick;
     default: break; // causes a throw
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::glyph::GlyphStyle::Placement, mnxdom::MarkingUpDownAuto)
+    case classify::glyph::GlyphStyle::Placement::Automatic: return mnxdom::MarkingUpDownAuto::Auto;
+    case classify::glyph::GlyphStyle::Placement::Above: return mnxdom::MarkingUpDownAuto::Up;
+    case classify::glyph::GlyphStyle::Placement::Below: return mnxdom::MarkingUpDownAuto::Down;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(music_theory::NoteName, mnxdom::NoteStep)

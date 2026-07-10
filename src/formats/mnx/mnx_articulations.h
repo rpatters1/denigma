@@ -48,8 +48,6 @@ namespace formats {
 namespace mnx {
 namespace detail {
 
-mnxdom::MarkingUpDownAuto calcPointing(const classify::glyph::GlyphStyle& glyphStyle);
-
 std::optional<mnxdom::Fermata> makeFermata(
     const classify::articulation::Fermata& fermata,
     const classify::glyph::GlyphStyle& glyphStyle,

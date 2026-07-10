@@ -61,10 +61,10 @@ static glyph::GlyphStyle glyphStyleFromGlyphName(const std::string_view glyphNam
             && glyphName.compare(glyphName.size() - suffix.size(), suffix.size(), suffix) == 0;
     };
     if (endsWith("Above") || endsWith("AboveLegacy")) {
-        return { musx::dom::VerticalPlacement::Above };
+        return { glyph::GlyphStyle::Placement::Above };
     }
     if (endsWith("Below") || endsWith("BelowLegacy")) {
-        return { musx::dom::VerticalPlacement::Below };
+        return { glyph::GlyphStyle::Placement::Below };
     }
     return {};
 }
@@ -74,9 +74,9 @@ static glyph::GlyphStyle glyphStyleFromKnownShapeDefType(musx::dom::KnownShapeDe
     using ST = musx::dom::KnownShapeDefType;
     switch (shapeDefType) {
     case ST::SnapPizzicatoAbove:
-        return { musx::dom::VerticalPlacement::Above };
+        return { glyph::GlyphStyle::Placement::Above };
     case ST::SnapPizzicatoBelow:
-        return { musx::dom::VerticalPlacement::Below };
+        return { glyph::GlyphStyle::Placement::Below };
     default:
         break;
     }

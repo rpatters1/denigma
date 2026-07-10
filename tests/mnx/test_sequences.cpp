@@ -27,7 +27,7 @@
 #include "gtest/gtest.h"
 #include "core/denigma.h"
 #include "denigma/classify/articulations.h"
-#include "formats/mnx/mnx_articulations.h"
+#include "formats/mnx/mnx.h"
 #include "test_utils.h"
 
 using namespace denigma;
@@ -53,12 +53,13 @@ nlohmann::json exportMnxFixture(const std::string& fileName)
 
 TEST(MnxSequences, CalcPointing)
 {
-    using formats::mnx::detail::calcPointing;
+    using formats::mnx::detail::enumConvert;
 
-    EXPECT_EQ(calcPointing(classify::glyph::GlyphStyle{ VerticalPlacement::Above }), mnxdom::MarkingUpDownAuto::Up);
-    EXPECT_EQ(calcPointing(classify::glyph::GlyphStyle{ VerticalPlacement::Below }), mnxdom::MarkingUpDownAuto::Down);
-    EXPECT_EQ(calcPointing(classify::glyph::GlyphStyle{ VerticalPlacement::Float }), mnxdom::MarkingUpDownAuto::Auto);
-    EXPECT_EQ(calcPointing(classify::glyph::GlyphStyle{}), mnxdom::MarkingUpDownAuto::Auto);
+    using Placement = classify::glyph::GlyphStyle::Placement;
+    EXPECT_EQ(enumConvert<mnxdom::MarkingUpDownAuto>(Placement::Above), mnxdom::MarkingUpDownAuto::Up);
+    EXPECT_EQ(enumConvert<mnxdom::MarkingUpDownAuto>(Placement::Below), mnxdom::MarkingUpDownAuto::Down);
+    EXPECT_EQ(enumConvert<mnxdom::MarkingUpDownAuto>(Placement::Automatic), mnxdom::MarkingUpDownAuto::Auto);
+    EXPECT_EQ(enumConvert<mnxdom::MarkingUpDownAuto>(classify::glyph::GlyphStyle{}.placement), mnxdom::MarkingUpDownAuto::Auto);
 }
 
 TEST(MnxSequences, Voice2TripletAtEnd)

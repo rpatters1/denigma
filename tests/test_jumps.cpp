@@ -158,6 +158,7 @@ TEST(JumpClassification, ClassifiesText)
     EXPECT_EQ(classifyTestJump("D.S. al Fine"), jump::Jump::DsAlFine);
     EXPECT_EQ(classifyTestJump("D.S. al Coda"), jump::Jump::DsAlCoda);
     EXPECT_EQ(classifyTestJump("to coda #"), jump::Jump::ToCoda);
+    EXPECT_EQ(classifyTestJump("segno"), jump::Jump::Segno);
     EXPECT_EQ(classifyTestJump("coda"), jump::Jump::Coda);
     EXPECT_EQ(classifyTestJump("to coda"), jump::Jump::ToCoda);
     EXPECT_EQ(classifyTestJump("Fine"), jump::Jump::Fine);
