@@ -36,6 +36,7 @@ namespace {
 using ArticulationType = ArticulationMark::Type;
 using TechniqueType = TechniqueMark::Type;
 using HarmonMuteQualifier = HarmonMute::Qualifier;
+using ParenthesisSide = Parenthesis::Side;
 
 struct AmbiguousMark
 {
@@ -181,6 +182,14 @@ static ArticulationClassification makeVerticalEntryBracket()
 {
     ArticulationClassification result;
     result.value = VerticalEntryBracket{};
+    return result;
+}
+
+static ArticulationClassification makeParenthesis(ParenthesisSide side, std::optional<std::string> glyphName)
+{
+    ArticulationClassification result;
+    result.value = Parenthesis{ side, musx::dom::NoteInfoPtr(), glyphStyleFromGlyphName(glyphName) };
+    setGlyphMetadata(result, std::move(glyphName));
     return result;
 }
 
@@ -795,6 +804,14 @@ static PrivateClassification classifyGlyphName(std::string glyphName)
             return makeOrnament(Ornament::Type::InvertedTurn, std::move(glyphName));
         } },
 
+        // Parenthesis
+        { "noteheadParenthesisLeft", [](std::string glyphName) -> PrivateClassification {
+            return makeParenthesis(ParenthesisSide::Left, std::move(glyphName));
+        } },
+        { "noteheadParenthesisRight", [](std::string glyphName) -> PrivateClassification {
+            return makeParenthesis(ParenthesisSide::Right, std::move(glyphName));
+        } },
+
         // Tremolo
         { "buzzRoll", [](std::string glyphName) -> PrivateClassification {
             return makeTremolo(Tremolo::Style::Unmeasured, 0, std::move(glyphName));
@@ -854,11 +871,50 @@ static PrivateClassification classifyGlyphName(std::string glyphName)
 
 } // namespace
 
+/// @brief Recognizes SMuFL notehead parenthesis glyphs by codepoint alone, regardless of the source font's
+/// own SMuFL classification. This covers fonts that carry raw SMuFL PUA codepoints without being flagged
+/// or registered as a SMuFL or legacy symbol font.
+static ArticulationClassification classifyParenthesisGlyphAnyFont(char32_t symbol)
+{
+    if (const auto* glyphName = smufl_mapping::getGlyphName(symbol)) {
+        if (*glyphName == "noteheadParenthesisLeft") {
+            return makeParenthesis(ParenthesisSide::Left, std::string(*glyphName));
+        }
+        if (*glyphName == "noteheadParenthesisRight") {
+            return makeParenthesis(ParenthesisSide::Right, std::string(*glyphName));
+        }
+    }
+    return {};
+}
+
+/// @brief Recognizes plain ASCII parenthesis characters, but only in a font that is not a symbol font
+/// (where such a codepoint would otherwise be a direct glyph-index reference to something else).
+static ArticulationClassification classifyParenthesisAscii(
+    const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, char32_t symbol)
+{
+    if (!fontInfo || fontInfo->calcIsSymbolFont()) {
+        return {};
+    }
+    if (symbol == U'(') {
+        return makeParenthesis(ParenthesisSide::Left, std::nullopt);
+    }
+    if (symbol == U')') {
+        return makeParenthesis(ParenthesisSide::Right, std::nullopt);
+    }
+    return {};
+}
+
 static PrivateClassification classifySymbol(
     const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, char32_t symbol)
 {
     if (auto unicodeClassification = classifyUnicodeSymbol(symbol)) {
         return unicodeClassification;
+    }
+    if (auto parenthesisClassification = classifyParenthesisGlyphAnyFont(symbol)) {
+        return parenthesisClassification;
+    }
+    if (auto asciiParenClassification = classifyParenthesisAscii(fontInfo, symbol)) {
+        return asciiParenClassification;
     }
     if (fontInfo) {
         if (const auto* glyphName = smufl_mapping::getGlyphNameForFont(
@@ -904,6 +960,9 @@ ArticulationClassification classifyArticulation(
             ? resolveAmbiguousMark(std::get<AmbiguousMark>(std::move(classification)), entryInfo)
             : std::get<ArticulationClassification>(std::move(classification));
         result.placement = symbolContext->placement;
+        if (auto* parenthesis = std::get_if<Parenthesis>(&result.value)) {
+            parenthesis->note = assignment->calcAssociatedNote(entryInfo);
+        }
         return result;
     }
     return {};

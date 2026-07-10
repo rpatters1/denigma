@@ -296,6 +296,26 @@ struct VerticalEntryBracket
     glyph::GlyphStyle glyphStyle{};
 };
 
+/// @struct Parenthesis
+/// @brief Classification for a single notehead parenthesis mark attached to one side of a note.
+struct Parenthesis
+{
+    /// @enum Side
+    /// @brief Which side of the note the parenthesis mark appears on.
+    enum class Side
+    {
+        Left,
+        Right
+    };
+
+    /// Side of the note the parenthesis mark is on.
+    Side side{};
+    /// The note this parenthesis is associated with, per ArticulationAssign::calcAssociatedNote. Falsy if unresolved.
+    musx::dom::NoteInfoPtr note;
+    /// Visual style encoded by the source glyph variant.
+    glyph::GlyphStyle glyphStyle{};
+};
+
 /// @struct OtherMark
 /// @brief Classification for recognized articulation symbols that have no more specific Denigma classification.
 struct OtherMark
@@ -316,7 +336,7 @@ struct OtherMark
 
 /// Variant payload for articulation classification.
 using ArticulationValue = std::variant<std::monostate, ArticulationMarks, TechniqueMark, HarmonMute, Tremolo, Fermata, BreathMark,
-    Caesura, Arpeggio, Ornament, VerticalEntryBracket, OtherMark>;
+    Caesura, Arpeggio, Ornament, VerticalEntryBracket, Parenthesis, OtherMark>;
 
 } // namespace articulation
 

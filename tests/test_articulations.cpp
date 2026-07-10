@@ -276,6 +276,58 @@ TEST(ArticulationClassification, ClassifiesTremoloMarks)
     EXPECT_EQ(tremolo->marks, 3);
 }
 
+TEST(ArticulationClassification, ClassifiesAsciiParenthesesInNonSymbolFont)
+{
+    // A non-symbol charsetVal (SYMBOL_CHARSET_MAC is 4095) means literal ASCII characters, not glyph indices.
+    const auto fontContext = makeFontContext("Times New Roman", /*charsetVal*/ 0);
+
+    const auto left = classifyArticulationSymbol(fontContext.fontInfo, U'(');
+    const auto* leftParen = left.as<articulation::Parenthesis>();
+    ASSERT_NE(leftParen, nullptr);
+    EXPECT_EQ(leftParen->side, articulation::Parenthesis::Side::Left);
+    EXPECT_FALSE(left.glyphName);
+
+    const auto right = classifyArticulationSymbol(fontContext.fontInfo, U')');
+    const auto* rightParen = right.as<articulation::Parenthesis>();
+    ASSERT_NE(rightParen, nullptr);
+    EXPECT_EQ(rightParen->side, articulation::Parenthesis::Side::Right);
+    EXPECT_FALSE(right.glyphName);
+}
+
+TEST(ArticulationClassification, DoesNotClassifyAsciiParenthesesInSymbolFont)
+{
+    // In a symbol font, codepoints 40/41 are glyph indices (which happen to map to the same glyphs via
+    // the legacy font maps), not literal ASCII text, so they must not be misidentified as plain text parens.
+    const auto fontContext = makeFontContext();
+
+    const auto left = classifyArticulationSymbol(fontContext.fontInfo, 40);
+    const auto* leftParen = left.as<articulation::Parenthesis>();
+    ASSERT_NE(leftParen, nullptr);
+    EXPECT_EQ(leftParen->side, articulation::Parenthesis::Side::Left);
+    ASSERT_TRUE(left.glyphName);
+    EXPECT_EQ(left.glyphName.value(), "noteheadParenthesisLeft");
+}
+
+TEST(ArticulationClassification, ClassifiesParenthesisGlyphFromAnyFont)
+{
+    // Neither a symbol font nor a recognized SMuFL font, yet carrying the raw SMuFL codepoint directly.
+    const auto fontContext = makeFontContext("Times New Roman", /*charsetVal*/ 0);
+
+    const auto left = classifyArticulationSymbol(fontContext.fontInfo, 0xE0F5);
+    const auto* leftParen = left.as<articulation::Parenthesis>();
+    ASSERT_NE(leftParen, nullptr);
+    EXPECT_EQ(leftParen->side, articulation::Parenthesis::Side::Left);
+    ASSERT_TRUE(left.glyphName);
+    EXPECT_EQ(left.glyphName.value(), "noteheadParenthesisLeft");
+
+    const auto right = classifyArticulationSymbol(fontContext.fontInfo, 0xE0F6);
+    const auto* rightParen = right.as<articulation::Parenthesis>();
+    ASSERT_NE(rightParen, nullptr);
+    EXPECT_EQ(rightParen->side, articulation::Parenthesis::Side::Right);
+    ASSERT_TRUE(right.glyphName);
+    EXPECT_EQ(right.glyphName.value(), "noteheadParenthesisRight");
+}
+
 TEST(ArticulationClassification, ClassifiesVerticalEntryBracketShapes)
 {
     std::vector<char> xml;

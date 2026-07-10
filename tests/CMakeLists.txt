@@ -22,9 +22,11 @@ endfunction()
         test_barlines.cpp
         test_clefs.cpp
         test_enigmaxml_converter.cpp
+        test_entries.cpp
         test_expressions.cpp
         test_export.cpp
         test_font_names.cpp
+        test_noteheads.cpp
         test_dynamics.cpp
         test_conversion_result.cpp
         test_logging.cpp
