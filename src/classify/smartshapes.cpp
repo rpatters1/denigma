@@ -68,15 +68,15 @@ SmartShapeClassification classifySmartShape(
         return result;
     }
 
-    const auto contour = shape->calcContourDirection();
-    if (shape->entryBased) {
-        result.value = Slur{ contour };
-        return result;
-    }
-
     const auto startEntry = shape->startTermSeg->endPoint->calcAssociatedEntry(true);
     const auto endEntry = shape->endTermSeg->endPoint->calcAssociatedEntry(true);
     if (!startEntry || !endEntry) {
+        return result;
+    }
+
+    const auto contour = shape->calcContourDirection();
+    result.value = Slur{ startEntry, endEntry, contour };
+    if (shape->entryBased) {
         return result;
     }
 
@@ -94,7 +94,7 @@ SmartShapeClassification classifySmartShape(
         return result;
     }
 
-    result.value = Slur{ contour };
+    result.value = Slur{ startEntry, endEntry, contour };
     return result;
 }
 

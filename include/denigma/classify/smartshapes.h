@@ -46,6 +46,8 @@ struct Decrescendo
 
 struct Slur
 {
+    musx::dom::EntryInfoPtr startEntry;
+    musx::dom::EntryInfoPtr endEntry;
     musx::dom::CurveContourDirection contour{ musx::dom::CurveContourDirection::Unspecified };
 };
 

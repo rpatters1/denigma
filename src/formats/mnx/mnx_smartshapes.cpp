@@ -23,6 +23,7 @@
 #include "mnx.h"
 #include "mnx_smartshapes.h"
 #include "mnx_articulations.h"
+#include "denigma/classify/smartshapes.h"
 
 namespace denigma {
 namespace formats {
@@ -69,20 +70,15 @@ void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<oth
             if (shape->startTermSeg->endPoint->staffId != context->current.staff || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()) {
                 continue;
             }
-            using ST = musx::dom::others::SmartShape::ShapeType;
-            switch (shape->shapeType) {
-            case ST::Crescendo:
+            const auto classification = denigma::classify::classifySmartShape(shape);
+            if (classification.as<denigma::classify::smartshape::Crescendo>()) {
                 appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Increasing);
-                break;
-            case ST::Decrescendo:
+            } else if (classification.as<denigma::classify::smartshape::Decrescendo>()) {
                 appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Decreasing);
-                break;
-            default:
-                if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForSmartShape(shape)) {
-                    appendArpeggioCandidate(context, mnxMeasure, nonArpeggio.value());
-                }
-                break;
+            } else if (const auto* nonArpeggio = classification.as<denigma::classify::smartshape::NonArpeggio>()) {
+                appendArpeggioCandidate(context, mnxMeasure, nonArpeggio->candidate);
             }
+            // slurs, ottavas, pseudotie, and arpeggio tie classifications are handled elsewhere
         }
     }
 }
@@ -90,6 +86,7 @@ void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<oth
 void processSlurs(const MnxMusxMappingPtr&, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
 {
     const auto musxEntry = musxEntryInfo->getEntry();
+    const auto currentEntryNumber = musxEntry->getEntryNumber();
     auto createOneSlur = [&](const EntryNumber targetEntry) -> mnxdom::sequence::Slur {
         auto mnxSlurs = mnxEvent.ensure_slurs();
         return mnxSlurs.append(calcEventId(targetEntry));
@@ -99,15 +96,31 @@ void processSlurs(const MnxMusxMappingPtr&, mnxdom::sequence::Event& mnxEvent, c
             SCORE_PARTID, musxEntry->getEntryNumber());
         for (const auto& assign : shapeAssigns) {
             if (auto shape = musxEntry->getDocument()->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum)) {
-                if (shape->startTermSeg->endPoint->entryNumber != musxEntry->getEntryNumber()) {
+                if (!shape->calcIsSlur()) {
                     continue;
                 }
-                if (shape->calcIsSlur() && shape->calcIsValid()) {
-                    auto mnxSlur = createOneSlur(shape->endTermSeg->endPoint->entryNumber);
-                    mnxSlur.set_lineType(shape->calcIsDashed() ? mnxdom::LineType::Dashed : mnxdom::LineType::Solid);
-                    if (auto contourDir = shape->calcContourDirection(); contourDir != CurveContourDirection::Unspecified) {
-                        mnxSlur.set_side(contourDir == CurveContourDirection::Up ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down);
-                    }
+                const auto classification = denigma::classify::classifySmartShape(shape);
+                const auto* slur = classification.as<denigma::classify::smartshape::Slur>();
+                if (!slur) {
+                    // pseudotie and arpeggio tie classifications are handled elsewhere
+                    continue;
+                }
+                MUSX_ASSERT_IF(!slur->startEntry || !slur->endEntry) {
+                    continue;
+                }
+                const auto startEntryNumber = slur->startEntry->getEntry()->getEntryNumber();
+                if (currentEntryNumber != startEntryNumber) {
+                    continue;
+                }
+                const auto targetEntryNumber = slur->endEntry->getEntry()->getEntryNumber();
+                if (targetEntryNumber == currentEntryNumber) {
+                    continue;
+                }
+
+                auto mnxSlur = createOneSlur(targetEntryNumber);
+                mnxSlur.set_lineType(shape->calcIsDashed() ? mnxdom::LineType::Dashed : mnxdom::LineType::Solid);
+                if (slur->contour != CurveContourDirection::Unspecified) {
+                    mnxSlur.set_side(slur->contour == CurveContourDirection::Up ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down);
                 }
             }
         }
