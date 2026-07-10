@@ -442,10 +442,6 @@ static std::optional<mnxdom::sequence::EventMarkingBase> createEventMarking(
     switch (mark.type) {
     case classify::ArticulationMark::Type::Accent:
         return mnxMarkings.ensure_accent();
-    case classify::ArticulationMark::Type::DownBow:
-        return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Down);
-    case classify::ArticulationMark::Type::UpBow:
-        return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Up);
     case classify::ArticulationMark::Type::SoftAccent:
         return mnxMarkings.ensure_softAccent();
     case classify::ArticulationMark::Type::Spiccato:
@@ -462,6 +458,21 @@ static std::optional<mnxdom::sequence::EventMarkingBase> createEventMarking(
         return mnxMarkings.ensure_tenuto();
     case classify::ArticulationMark::Type::Unstress:
         return mnxMarkings.ensure_unstress();
+    default:
+        break;
+    }
+    return std::nullopt;
+}
+
+static std::optional<mnxdom::sequence::EventMarkingBase> createEventMarking(
+    mnxdom::sequence::EventMarkings mnxMarkings,
+    const classify::TechniqueMark& mark)
+{
+    switch (mark.type) {
+    case classify::TechniqueMark::Type::DownBow:
+        return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Down);
+    case classify::TechniqueMark::Type::UpBow:
+        return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Up);
     default:
         break;
     }
@@ -506,6 +517,11 @@ void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Ev
                         if (auto mnxMarking = createEventMarking(mnxMarkings, mark)) {
                             mnxMarking->set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
                         }
+                    }
+                } else if (const auto* technique = classification.as<classify::TechniqueMark>()) {
+                    auto mnxMarkings = mnxEvent.ensure_markings();
+                    if (auto mnxMarking = createEventMarking(mnxMarkings, *technique)) {
+                        mnxMarking->set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
                     }
                 }
             }

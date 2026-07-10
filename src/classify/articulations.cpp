@@ -32,6 +32,8 @@ namespace denigma::classify {
 namespace {
 
 using ArticulationType = ArticulationMark::Type;
+using TechniqueType = TechniqueMark::Type;
+using HarmonMuteQualifier = HarmonMute::Qualifier;
 
 struct AmbiguousMark
 {
@@ -106,6 +108,22 @@ static ArticulationClassification makeArticulationMark(std::vector<ArticulationT
     return result;
 }
 
+static ArticulationClassification makeTechniqueMark(TechniqueType type, std::optional<std::string> glyphName)
+{
+    ArticulationClassification result;
+    result.value = TechniqueMark{ type, glyphStyleFromGlyphName(glyphName) };
+    setGlyphMetadata(result, std::move(glyphName));
+    return result;
+}
+
+static ArticulationClassification makeHarmonMute(HarmonMuteQualifier qualifier, std::optional<std::string> glyphName)
+{
+    ArticulationClassification result;
+    result.value = HarmonMute{ qualifier, glyphStyleFromGlyphName(glyphName) };
+    setGlyphMetadata(result, std::move(glyphName));
+    return result;
+}
+
 static ArticulationClassification makeTremolo(Tremolo::Style style, int marks, std::optional<std::string> glyphName)
 {
     ArticulationClassification result;
@@ -170,11 +188,11 @@ static AmbiguousMark makeAmbiguousMark(
     return { shape, category, glyphStyleFromGlyphName(glyphName), std::move(glyphName) };
 }
 
-static ArticulationClassification makeArticulationMark(
-    ArticulationType type, const GlyphStyle& glyphStyle, std::optional<std::string> glyphName = std::nullopt)
+static ArticulationClassification makeTechniqueMark(
+    TechniqueType type, const GlyphStyle& glyphStyle, std::optional<std::string> glyphName = std::nullopt)
 {
     ArticulationClassification result;
-    result.value = ArticulationMarks{ { { type, glyphStyle } } };
+    result.value = TechniqueMark{ type, glyphStyle };
     setGlyphMetadata(result, std::move(glyphName));
     return result;
 }
@@ -203,18 +221,24 @@ static ArticulationClassification resolveAmbiguousMark(AmbiguousMark mark, const
     switch (mark.shape) {
     case AmbiguousMark::Shape::SmallCircle:
         if (instrumentFamily == musx::dom::InstrumentFamily::Brass) {
-            result = makeArticulationMark(ArticulationType::BrassOpen, mark.glyphStyle, std::move(mark.glyphName));
+            result = makeTechniqueMark(TechniqueType::BrassOpen, mark.glyphStyle, std::move(mark.glyphName));
         } else if (instrumentFamily == musx::dom::InstrumentFamily::Strings
             || instrumentFamily == musx::dom::InstrumentFamily::PluckedStrings) {
-            result = makeArticulationMark(ArticulationType::StringHarmonic, mark.glyphStyle, std::move(mark.glyphName));
+            result = makeTechniqueMark(TechniqueType::StringHarmonic, mark.glyphStyle, std::move(mark.glyphName));
         } else {
             result = makeOtherMark(mark.category, mark.glyphStyle, std::move(mark.glyphName));
         }
         break;
     case AmbiguousMark::Shape::Plus:
-        result = instrumentFamily == musx::dom::InstrumentFamily::Brass
-            ? makeArticulationMark(ArticulationType::BrassStopped, mark.glyphStyle, std::move(mark.glyphName))
-            : makeOtherMark(mark.category, mark.glyphStyle, std::move(mark.glyphName));
+        if (instrumentFamily == musx::dom::InstrumentFamily::Brass) {
+            result = makeTechniqueMark(TechniqueType::BrassStopped, mark.glyphStyle, std::move(mark.glyphName));
+        } else if (instrumentFamily == musx::dom::InstrumentFamily::Strings
+            || instrumentFamily == musx::dom::InstrumentFamily::PluckedStrings) {
+            // Harp may need to be treated separately if '+' has a distinct meaning in harp notation.
+            result = makeTechniqueMark(TechniqueType::LeftHandPizzicato, mark.glyphStyle, std::move(mark.glyphName));
+        } else {
+            result = makeOtherMark(mark.category, mark.glyphStyle, std::move(mark.glyphName));
+        }
         break;
     default:
         result = makeOtherMark(mark.category, mark.glyphStyle, std::move(mark.glyphName));
@@ -286,17 +310,17 @@ static ArticulationClassification classifyShape(
             result = makeVerticalEntryBracket();
             break;
         case ST::SnapPizzicatoAbove:
-            result = makeArticulationMark({ ArticulationType::SnapPizzicato }, std::nullopt);
+            result = makeTechniqueMark(TechniqueType::SnapPizzicato, std::nullopt);
             break;
         case ST::SnapPizzicatoBelow:
-            result = makeArticulationMark({ ArticulationType::SnapPizzicato }, std::nullopt);
+            result = makeTechniqueMark(TechniqueType::SnapPizzicato, std::nullopt);
             break;
         case ST::BuzzPizzicato:
-            result = makeArticulationMark({ ArticulationType::BuzzPizzicato }, std::nullopt);
+            result = makeTechniqueMark(TechniqueType::BuzzPizzicato, std::nullopt);
             break;
         case ST::FingernailPizzCurveUp:
         case ST::FingernailPizzCurveDown:
-            result = makeArticulationMark({ ArticulationType::Fingernails }, std::nullopt);
+            result = makeTechniqueMark(TechniqueType::Fingernails, std::nullopt);
             break;
         default:
             break;
@@ -308,6 +332,8 @@ static ArticulationClassification classifyShape(
                     for (auto& mark : value.marks) {
                         mark.glyphStyle = glyphStyleFromKnownShapeDefType(recognizedShapeType);
                     }
+                } else if constexpr (std::is_same_v<T, TechniqueMark> || std::is_same_v<T, HarmonMute>) {
+                    value.glyphStyle = glyphStyleFromKnownShapeDefType(recognizedShapeType);
                 } else if constexpr (!std::is_same_v<T, std::monostate>) {
                     value.glyphStyle = glyphStyleFromKnownShapeDefType(recognizedShapeType);
                 }
@@ -442,7 +468,7 @@ static PrivateClassification classifyGlyphName(std::string glyphName)
             return makeArticulationMark({ ArticulationType::Unstress }, std::move(glyphName));
         } },
         { "brassBend", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassBend }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassBend, std::move(glyphName));
         } },
         { "brassDoitLong", [](std::string glyphName) -> PrivateClassification {
             return makeArticulationMark({ ArticulationType::BrassDoit }, std::move(glyphName));
@@ -502,43 +528,58 @@ static PrivateClassification classifyGlyphName(std::string glyphName)
             return makeArticulationMark({ ArticulationType::BrassFalloff }, std::move(glyphName));
         } },
         { "brassFlip", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassFlip }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassFlip, std::move(glyphName));
+        } },
+        { "brassMuteHalfClosed", [](std::string glyphName) -> PrivateClassification {
+            return makeTechniqueMark(TechniqueType::BrassHalfMuted, std::move(glyphName));
+        } },
+        { "brassHarmonMuteClosed", [](std::string glyphName) -> PrivateClassification {
+            return makeHarmonMute(HarmonMuteQualifier::Closed, std::move(glyphName));
+        } },
+        { "brassHarmonMuteStemHalfLeft", [](std::string glyphName) -> PrivateClassification {
+            return makeHarmonMute(HarmonMuteQualifier::HalfLeft, std::move(glyphName));
+        } },
+        { "brassHarmonMuteStemHalfRight", [](std::string glyphName) -> PrivateClassification {
+            return makeHarmonMute(HarmonMuteQualifier::HalfRight, std::move(glyphName));
+        } },
+        { "brassHarmonMuteStemOpen", [](std::string glyphName) -> PrivateClassification {
+            return makeHarmonMute(HarmonMuteQualifier::Open, std::move(glyphName));
         } },
         { "brassLiftLong", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftMedium", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftShort", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftSmoothLong", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftSmoothMedium", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftSmoothShort", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftShortMedIncline", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftShortSlightIncline", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftSlight", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftSmoothVeryLong", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftVeryShortMedIncline", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassLiftVeryShortSlightIncline", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "brassPlop", [](std::string glyphName) -> PrivateClassification {
             return makeArticulationMark({ ArticulationType::BrassPlop }, std::move(glyphName));
@@ -547,43 +588,43 @@ static PrivateClassification classifyGlyphName(std::string glyphName)
             return makeArticulationMark({ ArticulationType::BrassScoop }, std::move(glyphName));
         } },
         { "brassSmear", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassSmear }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassSmear, std::move(glyphName));
         } },
         { "brassVeryLiftShort", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BrassLift }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BrassLift, std::move(glyphName));
         } },
         { "pluckedBuzzPizzicato", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::BuzzPizzicato }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::BuzzPizzicato, std::move(glyphName));
         } },
         { "pluckedFingernailFlick", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::Fingernails }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::Fingernails, std::move(glyphName));
         } },
         { "pluckedSnapPizzicatoAbove", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::SnapPizzicato }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::SnapPizzicato, std::move(glyphName));
         } },
         { "pluckedSnapPizzicatoBelow", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::SnapPizzicato }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::SnapPizzicato, std::move(glyphName));
         } },
         { "pluckedSnapPizzicatoAboveGerman", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::SnapPizzicato }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::SnapPizzicato, std::move(glyphName));
         } },
         { "pluckedSnapPizzicatoBelowGerman", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::SnapPizzicato }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::SnapPizzicato, std::move(glyphName));
         } },
         { "pluckedWithFingernails", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::Fingernails }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::Fingernails, std::move(glyphName));
         } },
         { "stringsDownBow", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::DownBow }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::DownBow, std::move(glyphName));
         } },
         { "stringsDownBowTurned", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::DownBow }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::DownBow, std::move(glyphName));
         } },
         { "stringsUpBow", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::UpBow }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::UpBow, std::move(glyphName));
         } },
         { "stringsUpBowTurned", [](std::string glyphName) -> PrivateClassification {
-            return makeArticulationMark({ ArticulationType::UpBow }, std::move(glyphName));
+            return makeTechniqueMark(TechniqueType::UpBow, std::move(glyphName));
         } },
 
         // AmbiguousMark
@@ -598,6 +639,12 @@ static PrivateClassification classifyGlyphName(std::string glyphName)
         { "stringsHarmonic", [](std::string glyphName) -> PrivateClassification {
             return makeAmbiguousMark(
                 AmbiguousMark::Shape::SmallCircle, OtherMark::Category::PerformanceTechnique, std::move(glyphName));
+        } },
+        { "stringsThumbPosition", [](std::string glyphName) -> PrivateClassification {
+            return makeTechniqueMark(TechniqueType::ThumbPosition, std::move(glyphName));
+        } },
+        { "stringsThumbPositionTurned", [](std::string glyphName) -> PrivateClassification {
+            return makeTechniqueMark(TechniqueType::ThumbPosition, std::move(glyphName));
         } },
 
         // BreathMark

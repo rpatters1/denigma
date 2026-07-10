@@ -51,27 +51,15 @@ struct ArticulationMark
     enum class Type
     {
         Accent,
-        BrassBend,
         BrassDoit,
         BrassFalloff,
-        BrassFlip,
-        BrassLift,
-        BrassOpen,
         BrassPlop,
         BrassScoop,
-        BrassSmear,
-        BrassStopped,
-        BuzzPizzicato,
-        Fingernails,
-        SnapPizzicato,
-        UpBow,
-        DownBow,
         SoftAccent,
         Spiccato,
         Staccatissimo,
         Staccato,
         Stress,
-        StringHarmonic,
         StrongAccent,
         Tenuto,
         Unstress
@@ -89,6 +77,57 @@ struct ArticulationMarks
 {
     /// One or more articulation marks represented by the source symbol.
     std::vector<ArticulationMark> marks;
+};
+
+/// @struct TechniqueMark
+/// @brief Classification for one note-attached technique mark represented by a musx articulation symbol.
+struct TechniqueMark
+{
+    /// @enum Type
+    /// @brief Technique mark type recognized by the classifier.
+    enum class Type
+    {
+        BrassBend,
+        BrassFlip,
+        BrassHalfMuted,
+        BrassLift,
+        BrassOpen,
+        BrassSmear,
+        BrassStopped,
+        BuzzPizzicato,
+        Fingernails,
+        LeftHandPizzicato,
+        SnapPizzicato,
+        ThumbPosition,
+        UpBow,
+        DownBow,
+        StringHarmonic
+    };
+
+    /// Technique mark type.
+    Type type{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
+};
+
+/// @struct HarmonMute
+/// @brief Classification for one note-attached Harmon mute technique symbol with qualifier state.
+struct HarmonMute
+{
+    /// @enum Qualifier
+    /// @brief Distinguishes the displayed stem / closed state of the Harmon mute symbol.
+    enum class Qualifier
+    {
+        Closed,
+        HalfLeft,
+        HalfRight,
+        Open
+    };
+
+    /// Harmon mute qualifier encoded by the source glyph.
+    Qualifier qualifier{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct Tremolo
@@ -281,8 +320,8 @@ struct OtherMark
 };
 
 /// Variant payload for articulation classification.
-using ArticulationValue = std::variant<std::monostate, ArticulationMarks, Tremolo, Fermata, BreathMark, Caesura, Arpeggio, Ornament,
-    VerticalEntryBracket, OtherMark>;
+using ArticulationValue = std::variant<std::monostate, ArticulationMarks, TechniqueMark, HarmonMute, Tremolo, Fermata, BreathMark,
+    Caesura, Arpeggio, Ornament, VerticalEntryBracket, OtherMark>;
 
 /// @struct ArticulationClassification
 /// @brief Result returned by articulation classification.
