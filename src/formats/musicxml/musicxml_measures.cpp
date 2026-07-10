@@ -91,7 +91,7 @@ mx::api::BarlineData& setBarlineData(
 void setBarline(
     const MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,
-    classify::BarlineType barlineType,
+    classify::barline::BarlineType barlineType,
     mx::api::HorizontalAlignment location)
 {
     const auto musicXmlBarlineType = enumConvert<mx::api::BarlineType>(barlineType);
@@ -129,12 +129,12 @@ void assignBarlines(
     }
 
     const auto classification = classify::classifyBarline(staff, musxMeasure, isFinalMeasure, barlineOptions);
-    if (classification.type == classify::BarlineType::Unsupported) {
+    if (classification.type == classify::barline::BarlineType::Unsupported) {
         context.logMessage(LogMsg() << "Skipping unsupported MusicXML barline type " << int(musxMeasure->barlineType) << ".", MessageSeverity::Info);
         return;
     }
 
-    if (classification.type == classify::BarlineType::Regular) {
+    if (classification.type == classify::barline::BarlineType::Regular) {
         if (classification.isShort) {
             setBarlineData(measure, mx::api::BarlineType::short_, mx::api::HorizontalAlignment::right);
         }
@@ -294,7 +294,7 @@ void processTempoChanges(
         }
         const auto noteType = tempoUnit.value_or(NoteType::Quarter);
         const double quarterNotesPerMinute =
-            musicXmlQuarterNotesPerMinute(classify::TempoInfo{ {}, tempoChange->getAbsoluteTempo(noteType), Edu(noteType) });
+            musicXmlQuarterNotesPerMinute(classify::expression::TempoInfo{ {}, tempoChange->getAbsoluteTempo(noteType), Edu(noteType) });
         if (quarterNotesPerMinute < 0.0) {
             continue;
         }

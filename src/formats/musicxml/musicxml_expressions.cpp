@@ -43,15 +43,15 @@ namespace detail {
 
 namespace {
 
-void appendTechniquePlayback(mx::api::DirectionData& direction, const classify::TechniqueText& technique)
+void appendTechniquePlayback(mx::api::DirectionData& direction, const classify::expression::TechniqueText& technique)
 {
     // @todo Revisit this when mx::api exposes richer direction playback or technical modeling.
     switch (technique.type) {
-    case classify::TechniqueText::Type::Pizzicato:
+    case classify::expression::TechniqueText::Type::Pizzicato:
         direction.soundData.pizzicato = mx::api::Bool::yes;
         direction.isSoundDataSpecified = direction.soundData.isSpecified();
         break;
-    case classify::TechniqueText::Type::Arco:
+    case classify::expression::TechniqueText::Type::Arco:
         direction.soundData.pizzicato = mx::api::Bool::no;
         direction.isSoundDataSpecified = direction.soundData.isSpecified();
         break;
@@ -204,7 +204,7 @@ enum class GroupedDirectionAction
 
 } // namespace
 
-double musicXmlQuarterNotesPerMinute(const classify::TempoInfo& tempo)
+double musicXmlQuarterNotesPerMinute(const classify::expression::TempoInfo& tempo)
 {
     if (tempo.beatsPerMinute <= 0 || tempo.beatUnitEdu <= 0) {
         return mx::api::DOUBLE_UNSPECIFIED;

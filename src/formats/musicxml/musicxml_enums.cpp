@@ -32,20 +32,20 @@ BEGIN_ENUM_CONVERSION(AlignJustify, mx::api::HorizontalAlignment)
     case AlignJustify::Center: return mx::api::HorizontalAlignment::center;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(classify::ArticulationMark::Type, mx::api::MarkType)
-    case classify::ArticulationMark::Type::Accent: return mx::api::MarkType::accent;
-    case classify::ArticulationMark::Type::BrassDoit: return mx::api::MarkType::doit;
-    case classify::ArticulationMark::Type::BrassFalloff: return mx::api::MarkType::falloff;
-    case classify::ArticulationMark::Type::BrassPlop: return mx::api::MarkType::plop;
-    case classify::ArticulationMark::Type::BrassScoop: return mx::api::MarkType::scoop;
-    case classify::ArticulationMark::Type::SoftAccent: return mx::api::MarkType::softAccent;
-    case classify::ArticulationMark::Type::Spiccato: return mx::api::MarkType::spiccato;
-    case classify::ArticulationMark::Type::Staccatissimo: return mx::api::MarkType::staccatissimo;
-    case classify::ArticulationMark::Type::Staccato: return mx::api::MarkType::staccato;
-    case classify::ArticulationMark::Type::Stress: return mx::api::MarkType::stress;
-    case classify::ArticulationMark::Type::StrongAccent: return mx::api::MarkType::strongAccent;
-    case classify::ArticulationMark::Type::Tenuto: return mx::api::MarkType::tenuto;
-    case classify::ArticulationMark::Type::Unstress: return mx::api::MarkType::unstress;
+BEGIN_ENUM_CONVERSION(classify::articulation::ArticulationMark::Type, mx::api::MarkType)
+    case classify::articulation::ArticulationMark::Type::Accent: return mx::api::MarkType::accent;
+    case classify::articulation::ArticulationMark::Type::BrassDoit: return mx::api::MarkType::doit;
+    case classify::articulation::ArticulationMark::Type::BrassFalloff: return mx::api::MarkType::falloff;
+    case classify::articulation::ArticulationMark::Type::BrassPlop: return mx::api::MarkType::plop;
+    case classify::articulation::ArticulationMark::Type::BrassScoop: return mx::api::MarkType::scoop;
+    case classify::articulation::ArticulationMark::Type::SoftAccent: return mx::api::MarkType::softAccent;
+    case classify::articulation::ArticulationMark::Type::Spiccato: return mx::api::MarkType::spiccato;
+    case classify::articulation::ArticulationMark::Type::Staccatissimo: return mx::api::MarkType::staccatissimo;
+    case classify::articulation::ArticulationMark::Type::Staccato: return mx::api::MarkType::staccato;
+    case classify::articulation::ArticulationMark::Type::Stress: return mx::api::MarkType::stress;
+    case classify::articulation::ArticulationMark::Type::StrongAccent: return mx::api::MarkType::strongAccent;
+    case classify::articulation::ArticulationMark::Type::Tenuto: return mx::api::MarkType::tenuto;
+    case classify::articulation::ArticulationMark::Type::Unstress: return mx::api::MarkType::unstress;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(BarlineType, mx::api::BarlineType)
@@ -60,15 +60,15 @@ BEGIN_ENUM_CONVERSION(BarlineType, mx::api::BarlineType)
     case BarlineType::Custom: return mx::api::BarlineType::unsupported;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(classify::BarlineType, mx::api::BarlineType)
-    case classify::BarlineType::Unsupported: return mx::api::BarlineType::unsupported;
-    case classify::BarlineType::NoBarline: return mx::api::BarlineType::none;
-    case classify::BarlineType::Regular: return mx::api::BarlineType::normal;
-    case classify::BarlineType::Double: return mx::api::BarlineType::lightLight;
-    case classify::BarlineType::Final: return mx::api::BarlineType::lightHeavy;
-    case classify::BarlineType::Heavy: return mx::api::BarlineType::heavy;
-    case classify::BarlineType::Dashed: return mx::api::BarlineType::dashed;
-    case classify::BarlineType::Tick: return mx::api::BarlineType::tick;
+BEGIN_ENUM_CONVERSION(classify::barline::BarlineType, mx::api::BarlineType)
+    case classify::barline::BarlineType::Unsupported: return mx::api::BarlineType::unsupported;
+    case classify::barline::BarlineType::NoBarline: return mx::api::BarlineType::none;
+    case classify::barline::BarlineType::Regular: return mx::api::BarlineType::normal;
+    case classify::barline::BarlineType::Double: return mx::api::BarlineType::lightLight;
+    case classify::barline::BarlineType::Final: return mx::api::BarlineType::lightHeavy;
+    case classify::barline::BarlineType::Heavy: return mx::api::BarlineType::heavy;
+    case classify::barline::BarlineType::Dashed: return mx::api::BarlineType::dashed;
+    case classify::barline::BarlineType::Tick: return mx::api::BarlineType::tick;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(details::Bracket::BracketStyle, mx::api::BracketType)
@@ -100,37 +100,37 @@ BEGIN_ENUM_CONVERSION(CurveContourDirection, mx::api::CurveOrientation)
     case CurveContourDirection::Down: return mx::api::CurveOrientation::underhand;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(classify::Dynamic, mx::api::MarkType)
-    case classify::Dynamic::None: return mx::api::MarkType::unspecified;
-    case classify::Dynamic::Other: return mx::api::MarkType::otherDynamics;
-    case classify::Dynamic::pppppp: return mx::api::MarkType::pppppp;
-    case classify::Dynamic::ppppp: return mx::api::MarkType::ppppp;
-    case classify::Dynamic::pppp: return mx::api::MarkType::pppp;
-    case classify::Dynamic::ppp: return mx::api::MarkType::ppp;
-    case classify::Dynamic::pp: return mx::api::MarkType::pp;
-    case classify::Dynamic::p: return mx::api::MarkType::p;
-    case classify::Dynamic::mp: return mx::api::MarkType::mp;
-    case classify::Dynamic::mf: return mx::api::MarkType::mf;
-    case classify::Dynamic::f: return mx::api::MarkType::f;
-    case classify::Dynamic::ff: return mx::api::MarkType::ff;
-    case classify::Dynamic::fff: return mx::api::MarkType::fff;
-    case classify::Dynamic::ffff: return mx::api::MarkType::ffff;
-    case classify::Dynamic::fffff: return mx::api::MarkType::fffff;
-    case classify::Dynamic::ffffff: return mx::api::MarkType::ffffff;
-    case classify::Dynamic::fp: return mx::api::MarkType::fp;
-    case classify::Dynamic::ffp: return mx::api::MarkType::otherDynamics;
-    case classify::Dynamic::fz: return mx::api::MarkType::fz;
-    case classify::Dynamic::ffz: return mx::api::MarkType::otherDynamics;
-    case classify::Dynamic::pf: return mx::api::MarkType::pf;
-    case classify::Dynamic::sf: return mx::api::MarkType::sf;
-    case classify::Dynamic::sfp: return mx::api::MarkType::sfp;
-    case classify::Dynamic::sfpp: return mx::api::MarkType::sfpp;
-    case classify::Dynamic::sfz: return mx::api::MarkType::sfz;
-    case classify::Dynamic::sffz: return mx::api::MarkType::sffz;
-    case classify::Dynamic::sfzp: return mx::api::MarkType::sfzp;
-    case classify::Dynamic::rf: return mx::api::MarkType::rf;
-    case classify::Dynamic::rfz: return mx::api::MarkType::rfz;
-    case classify::Dynamic::n: return mx::api::MarkType::n;
+BEGIN_ENUM_CONVERSION(classify::dynamics::Dynamic, mx::api::MarkType)
+    case classify::dynamics::Dynamic::None: return mx::api::MarkType::unspecified;
+    case classify::dynamics::Dynamic::Other: return mx::api::MarkType::otherDynamics;
+    case classify::dynamics::Dynamic::pppppp: return mx::api::MarkType::pppppp;
+    case classify::dynamics::Dynamic::ppppp: return mx::api::MarkType::ppppp;
+    case classify::dynamics::Dynamic::pppp: return mx::api::MarkType::pppp;
+    case classify::dynamics::Dynamic::ppp: return mx::api::MarkType::ppp;
+    case classify::dynamics::Dynamic::pp: return mx::api::MarkType::pp;
+    case classify::dynamics::Dynamic::p: return mx::api::MarkType::p;
+    case classify::dynamics::Dynamic::mp: return mx::api::MarkType::mp;
+    case classify::dynamics::Dynamic::mf: return mx::api::MarkType::mf;
+    case classify::dynamics::Dynamic::f: return mx::api::MarkType::f;
+    case classify::dynamics::Dynamic::ff: return mx::api::MarkType::ff;
+    case classify::dynamics::Dynamic::fff: return mx::api::MarkType::fff;
+    case classify::dynamics::Dynamic::ffff: return mx::api::MarkType::ffff;
+    case classify::dynamics::Dynamic::fffff: return mx::api::MarkType::fffff;
+    case classify::dynamics::Dynamic::ffffff: return mx::api::MarkType::ffffff;
+    case classify::dynamics::Dynamic::fp: return mx::api::MarkType::fp;
+    case classify::dynamics::Dynamic::ffp: return mx::api::MarkType::otherDynamics;
+    case classify::dynamics::Dynamic::fz: return mx::api::MarkType::fz;
+    case classify::dynamics::Dynamic::ffz: return mx::api::MarkType::otherDynamics;
+    case classify::dynamics::Dynamic::pf: return mx::api::MarkType::pf;
+    case classify::dynamics::Dynamic::sf: return mx::api::MarkType::sf;
+    case classify::dynamics::Dynamic::sfp: return mx::api::MarkType::sfp;
+    case classify::dynamics::Dynamic::sfpp: return mx::api::MarkType::sfpp;
+    case classify::dynamics::Dynamic::sfz: return mx::api::MarkType::sfz;
+    case classify::dynamics::Dynamic::sffz: return mx::api::MarkType::sffz;
+    case classify::dynamics::Dynamic::sfzp: return mx::api::MarkType::sfzp;
+    case classify::dynamics::Dynamic::rf: return mx::api::MarkType::rf;
+    case classify::dynamics::Dynamic::rfz: return mx::api::MarkType::rfz;
+    case classify::dynamics::Dynamic::n: return mx::api::MarkType::n;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(others::Enclosure::Shape, mx::api::RehearsalEnclosure)
@@ -145,15 +145,15 @@ BEGIN_ENUM_CONVERSION(others::Enclosure::Shape, mx::api::RehearsalEnclosure)
     case others::Enclosure::Shape::Octogon: return mx::api::RehearsalEnclosure::square;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(classify::Fermata::Shape, mx::api::MarkType)
-    case classify::Fermata::Shape::Angled: return mx::api::MarkType::fermataAngled;
-    case classify::Fermata::Shape::Curlew: return mx::api::MarkType::fermataCurlew;
-    case classify::Fermata::Shape::DoubleAngled: return mx::api::MarkType::fermataDoubleAngled;
-    case classify::Fermata::Shape::DoubleDot: return mx::api::MarkType::fermataDoubleDot;
-    case classify::Fermata::Shape::DoubleSquare: return mx::api::MarkType::fermataDoubleSquare;
-    case classify::Fermata::Shape::HalfCurve: return mx::api::MarkType::fermataHalfCurve;
-    case classify::Fermata::Shape::Normal: return mx::api::MarkType::fermataNormal;
-    case classify::Fermata::Shape::Square: return mx::api::MarkType::fermataSquare;
+BEGIN_ENUM_CONVERSION(classify::articulation::Fermata::Shape, mx::api::MarkType)
+    case classify::articulation::Fermata::Shape::Angled: return mx::api::MarkType::fermataAngled;
+    case classify::articulation::Fermata::Shape::Curlew: return mx::api::MarkType::fermataCurlew;
+    case classify::articulation::Fermata::Shape::DoubleAngled: return mx::api::MarkType::fermataDoubleAngled;
+    case classify::articulation::Fermata::Shape::DoubleDot: return mx::api::MarkType::fermataDoubleDot;
+    case classify::articulation::Fermata::Shape::DoubleSquare: return mx::api::MarkType::fermataDoubleSquare;
+    case classify::articulation::Fermata::Shape::HalfCurve: return mx::api::MarkType::fermataHalfCurve;
+    case classify::articulation::Fermata::Shape::Normal: return mx::api::MarkType::fermataNormal;
+    case classify::articulation::Fermata::Shape::Square: return mx::api::MarkType::fermataSquare;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(MusicXmlPitchContext, KeySignature::KeyContext)
@@ -189,13 +189,13 @@ BEGIN_ENUM_CONVERSION(NoteType, mx::api::DurationName)
     default: break; // causes a throw
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(classify::Ornament::Type, mx::api::MarkType)
-    case classify::Ornament::Type::InvertedMordent: return mx::api::MarkType::invertedMordent;
-    case classify::Ornament::Type::InvertedTurn: return mx::api::MarkType::invertedTurn;
-    case classify::Ornament::Type::Mordent: return mx::api::MarkType::mordent;
-    case classify::Ornament::Type::Shake: return mx::api::MarkType::shake;
-    case classify::Ornament::Type::Trill: return mx::api::MarkType::trillMark;
-    case classify::Ornament::Type::Turn: return mx::api::MarkType::turn;
+BEGIN_ENUM_CONVERSION(classify::articulation::Ornament::Type, mx::api::MarkType)
+    case classify::articulation::Ornament::Type::InvertedMordent: return mx::api::MarkType::invertedMordent;
+    case classify::articulation::Ornament::Type::InvertedTurn: return mx::api::MarkType::invertedTurn;
+    case classify::articulation::Ornament::Type::Mordent: return mx::api::MarkType::mordent;
+    case classify::articulation::Ornament::Type::Shake: return mx::api::MarkType::shake;
+    case classify::articulation::Ornament::Type::Trill: return mx::api::MarkType::trillMark;
+    case classify::articulation::Ornament::Type::Turn: return mx::api::MarkType::turn;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mx::api::OttavaType)
@@ -212,22 +212,22 @@ BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarli
     case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(classify::TechniqueMark::Type, mx::api::MarkType)
-    case classify::TechniqueMark::Type::BrassBend: return mx::api::MarkType::brassBend;
-    case classify::TechniqueMark::Type::BrassFlip: return mx::api::MarkType::flip;
-    case classify::TechniqueMark::Type::BrassHalfMuted: return mx::api::MarkType::halfMuted;
-    case classify::TechniqueMark::Type::BrassLift: return mx::api::MarkType::unspecified;
-    case classify::TechniqueMark::Type::BrassOpen: return mx::api::MarkType::open;
-    case classify::TechniqueMark::Type::BrassSmear: return mx::api::MarkType::smear;
-    case classify::TechniqueMark::Type::BrassStopped: return mx::api::MarkType::stopped;
-    case classify::TechniqueMark::Type::BuzzPizzicato: return mx::api::MarkType::unspecified;
-    case classify::TechniqueMark::Type::Fingernails: return mx::api::MarkType::fingernails;
-    case classify::TechniqueMark::Type::LeftHandPizzicato: return mx::api::MarkType::unspecified;
-    case classify::TechniqueMark::Type::SnapPizzicato: return mx::api::MarkType::snapPizzicato;
-    case classify::TechniqueMark::Type::ThumbPosition: return mx::api::MarkType::thumbPosition;
-    case classify::TechniqueMark::Type::UpBow: return mx::api::MarkType::upBow;
-    case classify::TechniqueMark::Type::DownBow: return mx::api::MarkType::downBow;
-    case classify::TechniqueMark::Type::StringHarmonic: return mx::api::MarkType::harmonic;
+BEGIN_ENUM_CONVERSION(classify::articulation::TechniqueMark::Type, mx::api::MarkType)
+    case classify::articulation::TechniqueMark::Type::BrassBend: return mx::api::MarkType::brassBend;
+    case classify::articulation::TechniqueMark::Type::BrassFlip: return mx::api::MarkType::flip;
+    case classify::articulation::TechniqueMark::Type::BrassHalfMuted: return mx::api::MarkType::halfMuted;
+    case classify::articulation::TechniqueMark::Type::BrassLift: return mx::api::MarkType::unspecified;
+    case classify::articulation::TechniqueMark::Type::BrassOpen: return mx::api::MarkType::open;
+    case classify::articulation::TechniqueMark::Type::BrassSmear: return mx::api::MarkType::smear;
+    case classify::articulation::TechniqueMark::Type::BrassStopped: return mx::api::MarkType::stopped;
+    case classify::articulation::TechniqueMark::Type::BuzzPizzicato: return mx::api::MarkType::unspecified;
+    case classify::articulation::TechniqueMark::Type::Fingernails: return mx::api::MarkType::fingernails;
+    case classify::articulation::TechniqueMark::Type::LeftHandPizzicato: return mx::api::MarkType::unspecified;
+    case classify::articulation::TechniqueMark::Type::SnapPizzicato: return mx::api::MarkType::snapPizzicato;
+    case classify::articulation::TechniqueMark::Type::ThumbPosition: return mx::api::MarkType::thumbPosition;
+    case classify::articulation::TechniqueMark::Type::UpBow: return mx::api::MarkType::upBow;
+    case classify::articulation::TechniqueMark::Type::DownBow: return mx::api::MarkType::downBow;
+    case classify::articulation::TechniqueMark::Type::StringHarmonic: return mx::api::MarkType::harmonic;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(others::TextBlock::TextJustify, mx::api::HorizontalAlignment)

@@ -59,8 +59,8 @@ inline int musicXmlVoiceNumber(size_t staffIndex, musx::dom::LayerIndex layer, i
 MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, const std::string& partId);
 std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);
 mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacement placement);
-mx::api::MarkType musicXmlFermataType(const classify::Fermata& fermata);
-double musicXmlQuarterNotesPerMinute(const classify::TempoInfo& tempo);
+mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fermata);
+double musicXmlQuarterNotesPerMinute(const classify::expression::TempoInfo& tempo);
 mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 
 void createDefaults(const MusicXmlMusxMapping& context);

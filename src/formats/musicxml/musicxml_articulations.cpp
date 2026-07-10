@@ -45,9 +45,9 @@ namespace {
 constexpr int MIN_SUPPORTED_TREMOLO_MARKS = 1;
 constexpr int MAX_SUPPORTED_TREMOLO_MARKS = 5;
 
-mx::api::MarkType musicXmlArticulationType(const classify::ArticulationMark& mark)
+mx::api::MarkType musicXmlArticulationType(const classify::articulation::ArticulationMark& mark)
 {
-    if (mark.type == classify::ArticulationMark::Type::StrongAccent) {
+    if (mark.type == classify::articulation::ArticulationMark::Type::StrongAccent) {
         switch (mark.glyphStyle.placement) {
         case VerticalPlacement::Above:
             return mx::api::MarkType::strongAccentUp;
@@ -61,12 +61,12 @@ mx::api::MarkType musicXmlArticulationType(const classify::ArticulationMark& mar
     return enumConvert<mx::api::MarkType>(mark.type);
 }
 
-mx::api::MarkType musicXmlTechniqueType(const classify::TechniqueMark& mark)
+mx::api::MarkType musicXmlTechniqueType(const classify::articulation::TechniqueMark& mark)
 {
     return enumConvert<mx::api::MarkType>(mark.type);
 }
 
-mx::api::MarkType musicXmlHarmonMuteType(const classify::HarmonMute&)
+mx::api::MarkType musicXmlHarmonMuteType(const classify::articulation::HarmonMute&)
 {
     return mx::api::MarkType::harmonMute;
 }
@@ -88,12 +88,12 @@ mx::api::MarkData fallbackMarkData(
     return markData;
 }
 
-mx::api::MarkType musicXmlOtherMarkType(const classify::OtherMark& mark)
+mx::api::MarkType musicXmlOtherMarkType(const classify::articulation::OtherMark& mark)
 {
     switch (mark.category) {
-    case classify::OtherMark::Category::PerformanceTechnique:
+    case classify::articulation::OtherMark::Category::PerformanceTechnique:
         return mx::api::MarkType::otherTechnical;
-    case classify::OtherMark::Category::Articulation:
+    case classify::articulation::OtherMark::Category::Articulation:
         return mx::api::MarkType::otherArticulation;
     }
     return mx::api::MarkType::otherArticulation;
@@ -114,32 +114,32 @@ mx::api::MarkType musicXmlTremoloType(int marks)
 
 } // namespace
 
-mx::api::MarkType musicXmlFermataType(const classify::Fermata& fermata)
+mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fermata)
 {
     switch (fermata.glyphStyle.placement) {
     case VerticalPlacement::Above:
         switch (fermata.shape) {
-        case classify::Fermata::Shape::Normal: return mx::api::MarkType::fermataNormalUpright;
-        case classify::Fermata::Shape::Angled: return mx::api::MarkType::fermataAngledUpright;
-        case classify::Fermata::Shape::Square: return mx::api::MarkType::fermataSquareUpright;
-        case classify::Fermata::Shape::Curlew:
-        case classify::Fermata::Shape::DoubleAngled:
-        case classify::Fermata::Shape::DoubleDot:
-        case classify::Fermata::Shape::DoubleSquare:
-        case classify::Fermata::Shape::HalfCurve:
+        case classify::articulation::Fermata::Shape::Normal: return mx::api::MarkType::fermataNormalUpright;
+        case classify::articulation::Fermata::Shape::Angled: return mx::api::MarkType::fermataAngledUpright;
+        case classify::articulation::Fermata::Shape::Square: return mx::api::MarkType::fermataSquareUpright;
+        case classify::articulation::Fermata::Shape::Curlew:
+        case classify::articulation::Fermata::Shape::DoubleAngled:
+        case classify::articulation::Fermata::Shape::DoubleDot:
+        case classify::articulation::Fermata::Shape::DoubleSquare:
+        case classify::articulation::Fermata::Shape::HalfCurve:
             break;
         }
         break;
     case VerticalPlacement::Below:
         switch (fermata.shape) {
-        case classify::Fermata::Shape::Normal: return mx::api::MarkType::fermataNormalInverted;
-        case classify::Fermata::Shape::Angled: return mx::api::MarkType::fermataAngledInverted;
-        case classify::Fermata::Shape::Square: return mx::api::MarkType::fermataSquareInverted;
-        case classify::Fermata::Shape::Curlew:
-        case classify::Fermata::Shape::DoubleAngled:
-        case classify::Fermata::Shape::DoubleDot:
-        case classify::Fermata::Shape::DoubleSquare:
-        case classify::Fermata::Shape::HalfCurve:
+        case classify::articulation::Fermata::Shape::Normal: return mx::api::MarkType::fermataNormalInverted;
+        case classify::articulation::Fermata::Shape::Angled: return mx::api::MarkType::fermataAngledInverted;
+        case classify::articulation::Fermata::Shape::Square: return mx::api::MarkType::fermataSquareInverted;
+        case classify::articulation::Fermata::Shape::Curlew:
+        case classify::articulation::Fermata::Shape::DoubleAngled:
+        case classify::articulation::Fermata::Shape::DoubleDot:
+        case classify::articulation::Fermata::Shape::DoubleSquare:
+        case classify::articulation::Fermata::Shape::HalfCurve:
             break;
         }
         break;
@@ -152,7 +152,7 @@ mx::api::MarkType musicXmlFermataType(const classify::Fermata& fermata)
 
 namespace {
 
-void appendOrnament(mx::api::NoteData& note, const classify::Ornament& ornament, VerticalPlacement placement)
+void appendOrnament(mx::api::NoteData& note, const classify::articulation::Ornament& ornament, VerticalPlacement placement)
 {
     auto mark = musicXmlMark(enumConvert<mx::api::MarkType>(ornament.type), placement);
     /// @todo Export ornament accidentals once mx::api exposes the placement-bearing accidental-mark children.
@@ -173,12 +173,12 @@ void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note,
         if (!classification) {
             continue;
         }
-        if (const auto* articulation = classification.as<classify::ArticulationMarks>()) {
-            auto hasMark = [&](classify::ArticulationMark::Type type) {
+        if (const auto* articulation = classification.as<classify::articulation::ArticulationMarks>()) {
+            auto hasMark = [&](classify::articulation::ArticulationMark::Type type) {
                 return std::ranges::any_of(articulation->marks, [type](const auto& mark) { return mark.type == type; });
             };
-            if (articulation->marks.size() == 2 && hasMark(classify::ArticulationMark::Type::Staccato)
-                    && hasMark(classify::ArticulationMark::Type::Tenuto)) {
+            if (articulation->marks.size() == 2 && hasMark(classify::articulation::ArticulationMark::Type::Staccato)
+                    && hasMark(classify::articulation::ArticulationMark::Type::Tenuto)) {
                 note.noteAttachmentData.marks.emplace_back(musicXmlMark(mx::api::MarkType::detachedLegato, classification.placement));
                 continue;
             }
@@ -191,7 +191,7 @@ void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note,
                         fallbackMarkData(mx::api::MarkType::otherArticulation, classification, "unmapped articulation"));
                 }
             }
-        } else if (const auto* technique = classification.as<classify::TechniqueMark>()) {
+        } else if (const auto* technique = classification.as<classify::articulation::TechniqueMark>()) {
             const auto markType = musicXmlTechniqueType(*technique);
             if (markType != mx::api::MarkType::unspecified) {
                 note.noteAttachmentData.marks.emplace_back(musicXmlMark(markType, classification.placement));
@@ -199,23 +199,23 @@ void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note,
                 note.noteAttachmentData.marks.emplace_back(
                     fallbackMarkData(mx::api::MarkType::otherTechnical, classification, "unmapped technique"));
             }
-        } else if (const auto* harmonMute = classification.as<classify::HarmonMute>()) {
+        } else if (const auto* harmonMute = classification.as<classify::articulation::HarmonMute>()) {
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(musicXmlHarmonMuteType(*harmonMute), classification.placement));
-        } else if (const auto* fermata = classification.as<classify::Fermata>()) {
+        } else if (const auto* fermata = classification.as<classify::articulation::Fermata>()) {
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(musicXmlFermataType(*fermata), classification.placement));
-        } else if (classification.is<classify::BreathMark>()) {
+        } else if (classification.is<classify::articulation::BreathMark>()) {
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(mx::api::MarkType::breathMark, classification.placement));
-        } else if (classification.is<classify::Caesura>()) {
+        } else if (classification.is<classify::articulation::Caesura>()) {
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(mx::api::MarkType::caesura, classification.placement));
-        } else if (const auto* other = classification.as<classify::OtherMark>()) {
+        } else if (const auto* other = classification.as<classify::articulation::OtherMark>()) {
             note.noteAttachmentData.marks.emplace_back(
                 fallbackMarkData(musicXmlOtherMarkType(*other), classification, "unmapped mark"));
-        } else if (const auto* ornament = classification.as<classify::Ornament>()) {
+        } else if (const auto* ornament = classification.as<classify::articulation::Ornament>()) {
             appendOrnament(note, *ornament, classification.placement);
-        } else if (const auto* tremolo = classification.as<classify::Tremolo>()) {
+        } else if (const auto* tremolo = classification.as<classify::articulation::Tremolo>()) {
             constexpr int fallbackUnmeasuredTremoloMarks = 3;
             int marks = tremolo->marks;
-            if (tremolo->style == classify::Tremolo::Style::Unmeasured) {
+            if (tremolo->style == classify::articulation::Tremolo::Style::Unmeasured) {
                 context.logMessage(LogMsg() << "Unmeasured tremolo at entry " << entry->getEntryNumber()
                     << " cannot be exported through mx::api yet. Emitting a 3-slash single-note tremolo.", MessageSeverity::Info);
                 marks = fallbackUnmeasuredTremoloMarks;
