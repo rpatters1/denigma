@@ -268,6 +268,8 @@ void processExpressions(
     const auto exprAssigns = context.document->getOthers()->getArray<others::MeasureExprAssign>(
         musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
     const auto cuePlanIt = context.cueDiscardPlansByMeasureStaff.find(musicXmlMeasureStaffKey(musxMeasure->getCmper(), staffId));
+    /// @todo Export harp pedal diagrams here once mx::api exposes a public harp-pedals direction
+    /// model. The generated MX core supports `<harp-pedals>`, but the public api layer does not.
     std::unordered_map<int, DirectionGroupTracking> directionGroups;
     for (const auto& assignment : exprAssigns) {
         if (assignment->hidden) {
