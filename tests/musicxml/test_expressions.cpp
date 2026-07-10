@@ -491,6 +491,74 @@ TEST(MusicXmlExpressions, RehearsalMarksMatchReference)
     }
 }
 
+TEST(MusicXmlExpressions, TechniquesMatchReference)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("techniques.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+
+    struct ComparableTechniqueDirection
+    {
+        std::string text;
+        std::optional<mx::api::Bool> pizzicato;
+    };
+
+    const auto collectTechniqueDirections = [](const mx::api::ScoreData& score) {
+        std::vector<ComparableTechniqueDirection> result;
+        if (score.parts.empty()) {
+            return result;
+        }
+        const auto& measures = score.parts.front().measures;
+        for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
+            const auto& measure = measures.at(measureIndex);
+            for (size_t staffIndex = 0; staffIndex < measure.staves.size(); ++staffIndex) {
+                const auto& staff = measure.staves.at(staffIndex);
+                for (const auto& direction : staff.directions) {
+                    if (direction.words.empty()) {
+                        continue;
+                    }
+                    EXPECT_EQ(direction.words.size(), 1u);
+                    if (direction.words.size() != 1u) {
+                        continue;
+                    }
+                    ComparableTechniqueDirection comparable{
+                        direction.words.front().text,
+                        std::nullopt
+                    };
+                    if (direction.isSoundDataSpecified && direction.soundData.pizzicato != mx::api::Bool::unspecified) {
+                        comparable.pizzicato = direction.soundData.pizzicato;
+                    }
+                    result.emplace_back(std::move(comparable));
+                }
+            }
+        }
+        return result;
+    };
+
+    const auto actualDirections = collectTechniqueDirections(*actualScore);
+
+    const std::vector<ComparableTechniqueDirection> expected = {
+        { "pizz.", mx::api::Bool::yes },
+        { "arco", mx::api::Bool::no },
+        { "mute", std::nullopt },
+        { "arco", mx::api::Bool::no },
+        { "senza sord.", std::nullopt },
+        { "mute", std::nullopt },
+        { "open", std::nullopt },
+        { "harmon mute", std::nullopt },
+        { "stopped", std::nullopt },
+        { "open", std::nullopt }
+    };
+
+    ASSERT_EQ(actualDirections.size(), expected.size());
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_EQ(actualDirections[index].text, expected[index].text) << "direction " << index;
+        EXPECT_EQ(actualDirections[index].pizzicato, expected[index].pizzicato) << "direction " << index;
+    }
+}
+
 TEST(MusicXmlExpressions, ExpressionEnclosuresExportExpectedShapes)
 {
     setupTestDataPaths();

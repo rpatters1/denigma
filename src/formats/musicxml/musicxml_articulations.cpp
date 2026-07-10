@@ -23,7 +23,9 @@
 #include "musicxml.h"
 
 #include <algorithm>
+#include <exception>
 #include <optional>
+#include <string_view>
 
 #include "denigma/classify/articulations.h"
 #include "mx/api/MarkData.h"
@@ -62,7 +64,35 @@ std::optional<mx::api::MarkType> musicXmlMarkType(const classify::ArticulationMa
     case classify::ArticulationMark::Type::BrassLift:
         break;
     default:
-        return enumConvert<mx::api::MarkType>(mark.type);
+        try {
+            return enumConvert<mx::api::MarkType>(mark.type);
+        } catch (const std::exception&) {
+            break;
+        }
+    }
+    return std::nullopt;
+}
+
+std::string articulationFallbackName(const classify::ArticulationMark& mark, const classify::ArticulationClassification& classification)
+{
+    if (classification.glyphName && !classification.glyphName->empty()) {
+        return classification.glyphName.value();
+    }
+    switch (mark.type) {
+    case classify::ArticulationMark::Type::BrassLift:
+        return "brass lift";
+    default:
+        return "unsupported articulation";
+    }
+}
+
+std::optional<mx::api::MarkType> musicXmlOtherMarkType(const classify::OtherMark& mark)
+{
+    switch (mark.category) {
+    case classify::OtherMark::Category::PerformanceTechnique:
+        return mx::api::MarkType::otherTechnical;
+    case classify::OtherMark::Category::Articulation:
+        return mx::api::MarkType::otherArticulation;
     }
     return std::nullopt;
 }
@@ -151,13 +181,16 @@ void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note,
                 continue;
             }
             for (const auto& mark : articulation->marks) {
+                auto markData = musicXmlMark(mx::api::MarkType::otherTechnical, classification.placement);
                 if (const auto markType = musicXmlMarkType(mark)) {
-                    auto markData = musicXmlMark(markType.value(), classification.placement);
-                    if (mark.type == classify::ArticulationMark::Type::BuzzPizzicato) {
-                        markData.name = "buzz pizzicato";
-                    }
-                    note.noteAttachmentData.marks.emplace_back(markData);
+                    markData.markType = markType.value();
+                } else {
+                    markData.name = articulationFallbackName(mark, classification);
                 }
+                if (mark.type == classify::ArticulationMark::Type::BuzzPizzicato) {
+                    markData.name = "buzz pizzicato";
+                }
+                note.noteAttachmentData.marks.emplace_back(markData);
             }
         } else if (const auto* fermata = classification.as<classify::Fermata>()) {
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(musicXmlFermataType(*fermata), classification.placement));
@@ -165,6 +198,15 @@ void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note,
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(mx::api::MarkType::breathMark, classification.placement));
         } else if (classification.is<classify::Caesura>()) {
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(mx::api::MarkType::caesura, classification.placement));
+        } else if (const auto* other = classification.as<classify::OtherMark>()) {
+            if (const auto markType = musicXmlOtherMarkType(*other)) {
+                auto markData = musicXmlMark(markType.value(), classification.placement);
+                if (classification.glyphName && !classification.glyphName->empty()) {
+                    /// @todo Set the MusicXML smufl attribute here once mx::api exposes it for other-* mark payloads.
+                    markData.name = classification.glyphName.value();
+                }
+                note.noteAttachmentData.marks.emplace_back(std::move(markData));
+            }
         } else if (const auto* ornament = classification.as<classify::Ornament>()) {
             appendOrnament(note, *ornament, classification.placement);
         } else if (const auto* tremolo = classification.as<classify::Tremolo>()) {

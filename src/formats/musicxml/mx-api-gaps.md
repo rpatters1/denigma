@@ -222,6 +222,8 @@ MusicXML's `other-articulation`, `other-technical`, `other-ornament`, and `other
 
 Needed API shape: a SMuFL glyph-name field on mark data for `other-articulation`, `other-technical`, and `other-ornament`, and a corresponding public model for `other-notation` if MX intends to expose that notation category through `mx::api`.
 
+Denigma keeps technique text as a words direction. Only the playback-style `arco`/`pizzicato` values are copied into `DirectionData::soundData.pizzicato`; the rest remain textual until `mx::api` grows richer playback or direction-technical modeling.
+
 ### Nested tuplet time-modification
 
 MusicXML uses `<time-modification>` on notes for the cumulative timing effect of tuplets, with `<tuplet>` notations identifying the visual start and stop points.

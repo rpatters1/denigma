@@ -43,6 +43,23 @@ namespace detail {
 
 namespace {
 
+void appendTechniquePlayback(mx::api::DirectionData& direction, const classify::Technique& technique)
+{
+    // @todo Revisit this when mx::api exposes richer direction playback or technical modeling.
+    switch (technique.type) {
+    case classify::TechniqueType::Pizzicato:
+        direction.soundData.pizzicato = mx::api::Bool::yes;
+        direction.isSoundDataSpecified = direction.soundData.isSpecified();
+        break;
+    case classify::TechniqueType::Arco:
+        direction.soundData.pizzicato = mx::api::Bool::no;
+        direction.isSoundDataSpecified = direction.soundData.isSpecified();
+        break;
+    default:
+        break;
+    }
+}
+
 mx::api::DirectionData createExpressionDirection(
     const MusicXmlMusxMapping& context,
     size_t staffIndex,
@@ -273,10 +290,12 @@ void processExpressions(
         const auto classification = classify::classifyExpression(assignment);
         const auto placement = assignment->calcVerticalPlacement();
         const bool emittedFromTopStaffAssignment = isTopStaffAssignment(assignment);
+        const bool isVoiceAttached = assignment->layer > 0 || assignment->voice2;
+        const bool singleStaffPart = measure.staves.size() == 1;
         /// @todo Once mx::api can write direction system="only-top|also-top", grouped
         /// TOP/existing-staff combinations should keep both directions and upgrade the
         /// TOP-owned one to also-top instead of replacing or suppressing entries here.
-        const bool isStaffValueSpecified = !emittedFromTopStaffAssignment;
+        const bool isStaffValueSpecified = !emittedFromTopStaffAssignment && (!singleStaffPart || isVoiceAttached);
         GroupedDirectionAction groupedDirectionAction = GroupedDirectionAction::Emit;
         DirectionGroupTracking* groupTracking = nullptr;
         if (assignment->staffGroup > 0) {
@@ -341,8 +360,12 @@ void processExpressions(
             break;
         }
         case classify::ExpressionType::TechniqueText: {
-            emitGroupedDirection(createWordsExpressionDirection(
-                context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
+            auto direction = createWordsExpressionDirection(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified);
+            if (direction) {
+                appendTechniquePlayback(*direction, classification.technique());
+            }
+            emitGroupedDirection(std::move(direction));
             break;
         }
         case classify::ExpressionType::RehearsalMark: {
