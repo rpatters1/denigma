@@ -1,25 +1,3 @@
-/*
- * Copyright (C) 2026, Robert Patterson
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-
 #include "musicxml.h"
 
 #include "denigma/classify/articulations.h"
@@ -54,40 +32,20 @@ BEGIN_ENUM_CONVERSION(AlignJustify, mx::api::HorizontalAlignment)
     case AlignJustify::Center: return mx::api::HorizontalAlignment::center;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(others::TextBlock::TextJustify, mx::api::HorizontalAlignment)
-    case others::TextBlock::TextJustify::Left: return mx::api::HorizontalAlignment::left;
-    case others::TextBlock::TextJustify::Center: return mx::api::HorizontalAlignment::center;
-    case others::TextBlock::TextJustify::Right: return mx::api::HorizontalAlignment::right;
-    case others::TextBlock::TextJustify::Full: return mx::api::HorizontalAlignment::unspecified;
-    case others::TextBlock::TextJustify::ForcedFull: return mx::api::HorizontalAlignment::unspecified;
-END_ENUM_CONVERSION
-
 BEGIN_ENUM_CONVERSION(classify::ArticulationMark::Type, mx::api::MarkType)
     case classify::ArticulationMark::Type::Accent: return mx::api::MarkType::accent;
-    case classify::ArticulationMark::Type::BrassBend: return mx::api::MarkType::brassBend;
     case classify::ArticulationMark::Type::BrassDoit: return mx::api::MarkType::doit;
     case classify::ArticulationMark::Type::BrassFalloff: return mx::api::MarkType::falloff;
-    case classify::ArticulationMark::Type::BrassFlip: return mx::api::MarkType::flip;
-    case classify::ArticulationMark::Type::BrassLift: return mx::api::MarkType::unspecified;
-    case classify::ArticulationMark::Type::BrassOpen: return mx::api::MarkType::open;
     case classify::ArticulationMark::Type::BrassPlop: return mx::api::MarkType::plop;
     case classify::ArticulationMark::Type::BrassScoop: return mx::api::MarkType::scoop;
-    case classify::ArticulationMark::Type::BrassSmear: return mx::api::MarkType::smear;
-    case classify::ArticulationMark::Type::BrassStopped: return mx::api::MarkType::stopped;
-    case classify::ArticulationMark::Type::BuzzPizzicato: return mx::api::MarkType::otherTechnical;
-    case classify::ArticulationMark::Type::DownBow: return mx::api::MarkType::downBow;
-    case classify::ArticulationMark::Type::Fingernails: return mx::api::MarkType::fingernails;
-    case classify::ArticulationMark::Type::SnapPizzicato: return mx::api::MarkType::snapPizzicato;
     case classify::ArticulationMark::Type::SoftAccent: return mx::api::MarkType::softAccent;
     case classify::ArticulationMark::Type::Spiccato: return mx::api::MarkType::spiccato;
     case classify::ArticulationMark::Type::Staccatissimo: return mx::api::MarkType::staccatissimo;
     case classify::ArticulationMark::Type::Staccato: return mx::api::MarkType::staccato;
     case classify::ArticulationMark::Type::Stress: return mx::api::MarkType::stress;
-    case classify::ArticulationMark::Type::StringHarmonic: return mx::api::MarkType::harmonic;
     case classify::ArticulationMark::Type::StrongAccent: return mx::api::MarkType::strongAccent;
     case classify::ArticulationMark::Type::Tenuto: return mx::api::MarkType::tenuto;
     case classify::ArticulationMark::Type::Unstress: return mx::api::MarkType::unstress;
-    case classify::ArticulationMark::Type::UpBow: return mx::api::MarkType::upBow;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(BarlineType, mx::api::BarlineType)
@@ -140,12 +98,6 @@ BEGIN_ENUM_CONVERSION(CurveContourDirection, mx::api::CurveOrientation)
     case CurveContourDirection::Unspecified: return mx::api::CurveOrientation::unspecified;
     case CurveContourDirection::Up: return mx::api::CurveOrientation::overhand;
     case CurveContourDirection::Down: return mx::api::CurveOrientation::underhand;
-END_ENUM_CONVERSION
-
-BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarline)
-    case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves: return mx::api::GroupBarline::no;
-    case details::StaffGroup::DrawBarlineStyle::ThroughStaves: return mx::api::GroupBarline::yes;
-    case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(classify::Dynamic, mx::api::MarkType)
@@ -252,6 +204,38 @@ BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mx::api::OttavaType)
     case others::SmartShape::ShapeType::TwoOctaveDown: return mx::api::OttavaType::o15mb;
     case others::SmartShape::ShapeType::TwoOctaveUp: return mx::api::OttavaType::o15ma;
     default: break; // causes a throw
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarline)
+    case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves: return mx::api::GroupBarline::no;
+    case details::StaffGroup::DrawBarlineStyle::ThroughStaves: return mx::api::GroupBarline::yes;
+    case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::TechniqueMark::Type, mx::api::MarkType)
+    case classify::TechniqueMark::Type::BrassBend: return mx::api::MarkType::brassBend;
+    case classify::TechniqueMark::Type::BrassFlip: return mx::api::MarkType::flip;
+    case classify::TechniqueMark::Type::BrassHalfMuted: return mx::api::MarkType::halfMuted;
+    case classify::TechniqueMark::Type::BrassLift: return mx::api::MarkType::unspecified;
+    case classify::TechniqueMark::Type::BrassOpen: return mx::api::MarkType::open;
+    case classify::TechniqueMark::Type::BrassSmear: return mx::api::MarkType::smear;
+    case classify::TechniqueMark::Type::BrassStopped: return mx::api::MarkType::stopped;
+    case classify::TechniqueMark::Type::BuzzPizzicato: return mx::api::MarkType::unspecified;
+    case classify::TechniqueMark::Type::Fingernails: return mx::api::MarkType::fingernails;
+    case classify::TechniqueMark::Type::LeftHandPizzicato: return mx::api::MarkType::unspecified;
+    case classify::TechniqueMark::Type::SnapPizzicato: return mx::api::MarkType::snapPizzicato;
+    case classify::TechniqueMark::Type::ThumbPosition: return mx::api::MarkType::thumbPosition;
+    case classify::TechniqueMark::Type::UpBow: return mx::api::MarkType::upBow;
+    case classify::TechniqueMark::Type::DownBow: return mx::api::MarkType::downBow;
+    case classify::TechniqueMark::Type::StringHarmonic: return mx::api::MarkType::harmonic;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(others::TextBlock::TextJustify, mx::api::HorizontalAlignment)
+    case others::TextBlock::TextJustify::Left: return mx::api::HorizontalAlignment::left;
+    case others::TextBlock::TextJustify::Center: return mx::api::HorizontalAlignment::center;
+    case others::TextBlock::TextJustify::Right: return mx::api::HorizontalAlignment::right;
+    case others::TextBlock::TextJustify::Full: return mx::api::HorizontalAlignment::unspecified;
+    case others::TextBlock::TextJustify::ForcedFull: return mx::api::HorizontalAlignment::unspecified;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(VerticalPlacement, mx::api::Placement)

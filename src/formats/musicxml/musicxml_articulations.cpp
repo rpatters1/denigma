@@ -23,8 +23,6 @@
 #include "musicxml.h"
 
 #include <algorithm>
-#include <exception>
-#include <optional>
 #include <string_view>
 
 #include "denigma/classify/articulations.h"
@@ -47,10 +45,9 @@ namespace {
 constexpr int MIN_SUPPORTED_TREMOLO_MARKS = 1;
 constexpr int MAX_SUPPORTED_TREMOLO_MARKS = 5;
 
-std::optional<mx::api::MarkType> musicXmlMarkType(const classify::ArticulationMark& mark)
+mx::api::MarkType musicXmlArticulationType(const classify::ArticulationMark& mark)
 {
-    switch (mark.type) {
-    case classify::ArticulationMark::Type::StrongAccent:
+    if (mark.type == classify::ArticulationMark::Type::StrongAccent) {
         switch (mark.glyphStyle.placement) {
         case VerticalPlacement::Above:
             return mx::api::MarkType::strongAccentUp;
@@ -58,35 +55,40 @@ std::optional<mx::api::MarkType> musicXmlMarkType(const classify::ArticulationMa
             return mx::api::MarkType::strongAccentDown;
         case VerticalPlacement::Float:
         case VerticalPlacement::NotApplicable:
-            return mx::api::MarkType::strongAccent;
-        }
-        break;
-    case classify::ArticulationMark::Type::BrassLift:
-        break;
-    default:
-        try {
-            return enumConvert<mx::api::MarkType>(mark.type);
-        } catch (const std::exception&) {
             break;
         }
     }
-    return std::nullopt;
+    return enumConvert<mx::api::MarkType>(mark.type);
 }
 
-std::string articulationFallbackName(const classify::ArticulationMark& mark, const classify::ArticulationClassification& classification)
+mx::api::MarkType musicXmlTechniqueType(const classify::TechniqueMark& mark)
+{
+    return enumConvert<mx::api::MarkType>(mark.type);
+}
+
+mx::api::MarkType musicXmlHarmonMuteType(const classify::HarmonMute&)
+{
+    return mx::api::MarkType::harmonMute;
+}
+
+std::string fallbackNameForClassification(const classify::ArticulationClassification& classification, std::string_view fallbackName)
 {
     if (classification.glyphName && !classification.glyphName->empty()) {
         return classification.glyphName.value();
     }
-    switch (mark.type) {
-    case classify::ArticulationMark::Type::BrassLift:
-        return "brass lift";
-    default:
-        return "unsupported articulation";
-    }
+    return std::string(fallbackName);
 }
 
-std::optional<mx::api::MarkType> musicXmlOtherMarkType(const classify::OtherMark& mark)
+mx::api::MarkData fallbackMarkData(
+    mx::api::MarkType fallbackType, const classify::ArticulationClassification& classification, std::string_view fallbackName)
+{
+    auto markData = musicXmlMark(fallbackType, classification.placement);
+    /// @todo Switch from MarkData.name to a dedicated SMuFL glyph-name field once mx::api exposes it for other-* mark payloads.
+    markData.name = fallbackNameForClassification(classification, fallbackName);
+    return markData;
+}
+
+mx::api::MarkType musicXmlOtherMarkType(const classify::OtherMark& mark)
 {
     switch (mark.category) {
     case classify::OtherMark::Category::PerformanceTechnique:
@@ -94,7 +96,7 @@ std::optional<mx::api::MarkType> musicXmlOtherMarkType(const classify::OtherMark
     case classify::OtherMark::Category::Articulation:
         return mx::api::MarkType::otherArticulation;
     }
-    return std::nullopt;
+    return mx::api::MarkType::otherArticulation;
 }
 
 mx::api::MarkType musicXmlTremoloType(int marks)
@@ -181,17 +183,24 @@ void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note,
                 continue;
             }
             for (const auto& mark : articulation->marks) {
-                auto markData = musicXmlMark(mx::api::MarkType::otherTechnical, classification.placement);
-                if (const auto markType = musicXmlMarkType(mark)) {
-                    markData.markType = markType.value();
+                const auto markType = musicXmlArticulationType(mark);
+                if (markType != mx::api::MarkType::unspecified) {
+                    note.noteAttachmentData.marks.emplace_back(musicXmlMark(markType, classification.placement));
                 } else {
-                    markData.name = articulationFallbackName(mark, classification);
+                    note.noteAttachmentData.marks.emplace_back(
+                        fallbackMarkData(mx::api::MarkType::otherArticulation, classification, "unmapped articulation"));
                 }
-                if (mark.type == classify::ArticulationMark::Type::BuzzPizzicato) {
-                    markData.name = "buzz pizzicato";
-                }
-                note.noteAttachmentData.marks.emplace_back(markData);
             }
+        } else if (const auto* technique = classification.as<classify::TechniqueMark>()) {
+            const auto markType = musicXmlTechniqueType(*technique);
+            if (markType != mx::api::MarkType::unspecified) {
+                note.noteAttachmentData.marks.emplace_back(musicXmlMark(markType, classification.placement));
+            } else {
+                note.noteAttachmentData.marks.emplace_back(
+                    fallbackMarkData(mx::api::MarkType::otherTechnical, classification, "unmapped technique"));
+            }
+        } else if (const auto* harmonMute = classification.as<classify::HarmonMute>()) {
+            note.noteAttachmentData.marks.emplace_back(musicXmlMark(musicXmlHarmonMuteType(*harmonMute), classification.placement));
         } else if (const auto* fermata = classification.as<classify::Fermata>()) {
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(musicXmlFermataType(*fermata), classification.placement));
         } else if (classification.is<classify::BreathMark>()) {
@@ -199,14 +208,8 @@ void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note,
         } else if (classification.is<classify::Caesura>()) {
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(mx::api::MarkType::caesura, classification.placement));
         } else if (const auto* other = classification.as<classify::OtherMark>()) {
-            if (const auto markType = musicXmlOtherMarkType(*other)) {
-                auto markData = musicXmlMark(markType.value(), classification.placement);
-                if (classification.glyphName && !classification.glyphName->empty()) {
-                    /// @todo Set the MusicXML smufl attribute here once mx::api exposes it for other-* mark payloads.
-                    markData.name = classification.glyphName.value();
-                }
-                note.noteAttachmentData.marks.emplace_back(std::move(markData));
-            }
+            note.noteAttachmentData.marks.emplace_back(
+                fallbackMarkData(musicXmlOtherMarkType(*other), classification, "unmapped mark"));
         } else if (const auto* ornament = classification.as<classify::Ornament>()) {
             appendOrnament(note, *ornament, classification.placement);
         } else if (const auto* tremolo = classification.as<classify::Tremolo>()) {
