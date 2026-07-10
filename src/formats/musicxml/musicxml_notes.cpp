@@ -262,6 +262,9 @@ void applyMusicXmlTies(MusicXmlMusxMapping& context, mx::api::NoteData& note, co
     }
     note.isTieStart = true;
     context.pendingTieStopKeys.emplace(noteKey(tiedTo));
+    /// @todo Apply TieAlterStart orientation here too once mx::api can express it on a regular
+    /// (paired) tie without duplicating <tied>. See "Curve orientation on a regular (paired) tie"
+    /// in mx-api-gaps.md.
 }
 
 void applyLyrics(MusicXmlMusxMapping& context, mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
