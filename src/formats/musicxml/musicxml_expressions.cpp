@@ -43,15 +43,15 @@ namespace detail {
 
 namespace {
 
-void appendTechniquePlayback(mx::api::DirectionData& direction, const classify::Technique& technique)
+void appendTechniquePlayback(mx::api::DirectionData& direction, const classify::TechniqueText& technique)
 {
     // @todo Revisit this when mx::api exposes richer direction playback or technical modeling.
     switch (technique.type) {
-    case classify::TechniqueType::Pizzicato:
+    case classify::TechniqueText::Type::Pizzicato:
         direction.soundData.pizzicato = mx::api::Bool::yes;
         direction.isSoundDataSpecified = direction.soundData.isSpecified();
         break;
-    case classify::TechniqueType::Arco:
+    case classify::TechniqueText::Type::Arco:
         direction.soundData.pizzicato = mx::api::Bool::no;
         direction.isSoundDataSpecified = direction.soundData.isSpecified();
         break;
@@ -130,7 +130,7 @@ std::optional<mx::api::DirectionData> createTempoExpressionDirection(
         words.enclosure = enclosure;
     }
 
-    const double quarterNotesPerMinute = musicXmlQuarterNotesPerMinute(classification.tempoMark().tempo);
+    const double quarterNotesPerMinute = musicXmlQuarterNotesPerMinute(classification.tempoText().tempo);
     if (quarterNotesPerMinute >= 0.0) {
         direction.soundData.tempo = quarterNotesPerMinute;
         direction.isSoundDataSpecified = direction.soundData.isSpecified();
@@ -365,7 +365,7 @@ void processExpressions(
             auto direction = createWordsExpressionDirection(
                 context, staffIndex, assignment, classification, placement, isStaffValueSpecified);
             if (direction) {
-                appendTechniquePlayback(*direction, classification.technique());
+                appendTechniquePlayback(*direction, classification.techniqueText());
             }
             emitGroupedDirection(std::move(direction));
             break;
