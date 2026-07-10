@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "core/denigma.h"
+#include "denigma/classify/entries.h"
 #include "denigma/classify/expressions.h"
 #include "musicxml_mapping.h"
 #include "mx/api/DirectionData.h"
@@ -96,6 +97,10 @@ void processJumps(
     musx::dom::StaffCmper staffId,
     size_t staffIndex);
 void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note, const musx::dom::EntryInfoPtr& entryInfo);
+void applyNoteheadData(
+    mx::api::NoteData& note,
+    const musx::dom::NoteInfoPtr& noteInfo,
+    const classify::EntryNoteheadClassification& entryNoteheads);
 void processSmartShapes(
     MusicXmlMusxMapping& context,
     const musx::dom::MusxInstanceList<musx::dom::others::Measure>& musxMeasures,

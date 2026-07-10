@@ -3,6 +3,7 @@
 #include "denigma/classify/articulations.h"
 #include "denigma/classify/barlines.h"
 #include "denigma/classify/dynamics.h"
+#include "denigma/classify/noteheads.h"
 #include "formats/enum_conversion_macros.h"
 
 #include "mx/api/BarlineData.h"
@@ -10,6 +11,7 @@
 #include "mx/api/CurveData.h"
 #include "mx/api/DurationData.h"
 #include "mx/api/MarkData.h"
+#include "mx/api/NoteData.h"
 #include "mx/api/OttavaData.h"
 #include "mx/api/PartGroupData.h"
 #include "mx/api/PitchData.h"
@@ -196,6 +198,17 @@ BEGIN_ENUM_CONVERSION(classify::articulation::Ornament::Type, mx::api::MarkType)
     case classify::articulation::Ornament::Type::Shake: return mx::api::MarkType::shake;
     case classify::articulation::Ornament::Type::Trill: return mx::api::MarkType::trillMark;
     case classify::articulation::Ornament::Type::Turn: return mx::api::MarkType::turn;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::notehead::Shape, mx::api::Notehead)
+    case classify::notehead::Shape::Regular: return mx::api::Notehead::normal;
+    case classify::notehead::Shape::X: return mx::api::Notehead::x;
+    case classify::notehead::Shape::Diamond: return mx::api::Notehead::diamond;
+    case classify::notehead::Shape::SmallSlash: return mx::api::Notehead::slash;
+    case classify::notehead::Shape::LargeSlash: return mx::api::Notehead::slash;
+    case classify::notehead::Shape::Circle: return mx::api::Notehead::circled;
+    case classify::notehead::Shape::Other: return mx::api::Notehead::other;
+    case classify::notehead::Shape::Unclassified: break; // causes a throw; callers must not convert an unclassified shape
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mx::api::OttavaType)

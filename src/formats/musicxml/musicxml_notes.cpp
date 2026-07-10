@@ -474,6 +474,7 @@ void appendEntryNotes(
         return;
     }
 
+    const auto entryNoteheads = classify::classifyEntryNoteheads(entryInfo);
     for (size_t noteIndex = 0; noteIndex < entry->notes.size(); ++noteIndex) {
         NoteInfoPtr noteInfo(entryInfo, noteIndex);
         auto note = mx::api::NoteData{};
@@ -506,6 +507,7 @@ void appendEntryNotes(
             }
         }
         applyAccidentalData(note, noteInfo);
+        applyNoteheadData(note, noteInfo, entryNoteheads);
         if (noteIndex == 0) {
             note.beams = createBeamData(context, entryInfo);
             applyTupletData(note, entryInfo);
