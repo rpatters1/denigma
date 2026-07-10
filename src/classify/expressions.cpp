@@ -22,6 +22,7 @@
 #include "denigma/classify/expressions.h"
 
 #include <algorithm>
+#include <array>
 #include <optional>
 #include <span>
 #include <string>
@@ -31,6 +32,8 @@
 #include "core/denigma.h"
 #include "denigma/classify/articulations.h"
 #include "classify/classify.h"
+#include "smufl_mapping.h"
+#include "utils/smufl_support.h"
 #include "utils/stringutils.h"
 #include "utils/utf8_iterator.h"
 
@@ -256,75 +259,75 @@ static bool matchesAny(std::string_view text, const std::initializer_list<std::s
     });
 }
 
-static Technique classifyTechniqueText(std::string_view text, std::string_view normalizedText)
+static TechniqueText classifyTechniqueText(std::string_view text, std::string_view normalizedText)
 {
     if (matchesAny(normalizedText, { "arco" })) {
-        return { TechniqueType::Arco, std::string(text) };
+        return { TechniqueText::Type::Arco, std::string(text) };
     }
     if (matchesAny(normalizedText, { "pizz", "pizzicato" })) {
-        return { TechniqueType::Pizzicato, std::string(text) };
+        return { TechniqueText::Type::Pizzicato, std::string(text) };
     }
     if (matchesAny(normalizedText, { "col legno", "c. legno" })) {
-        return { TechniqueType::ColLegno, std::string(text) };
+        return { TechniqueText::Type::ColLegno, std::string(text) };
     }
     if (matchesAny(normalizedText, { "col legno battuto", "col legno batt", "c. legno battuto", "c. legno batt" })) {
-        return { TechniqueType::ColLegnoBattuto, std::string(text) };
+        return { TechniqueText::Type::ColLegnoBattuto, std::string(text) };
     }
     if (matchesAny(normalizedText, { "col legno tratto", "col legno tratt", "c. legno tratto", "c. legno tratt" })) {
-        return { TechniqueType::ColLegnoTratto, std::string(text) };
+        return { TechniqueText::Type::ColLegnoTratto, std::string(text) };
     }
     if (matchesAny(normalizedText, { "sul pont", "sul ponticello", "s. pont" })) {
-        return { TechniqueType::SulPonticello, std::string(text) };
+        return { TechniqueText::Type::SulPonticello, std::string(text) };
     }
     if (matchesAny(normalizedText, { "sul tasto", "s. tasto" })) {
-        return { TechniqueType::SulTasto, std::string(text) };
+        return { TechniqueText::Type::SulTasto, std::string(text) };
     }
     if (matchesAny(normalizedText, { "flautando", "flaut" })) {
-        return { TechniqueType::Flautando, std::string(text) };
+        return { TechniqueText::Type::Flautando, std::string(text) };
     }
     if (matchesAny(normalizedText, { "ord", "ordinario" })) {
-        return { TechniqueType::Ordinario, std::string(text) };
+        return { TechniqueText::Type::Ordinario, std::string(text) };
     }
     if (matchesAny(normalizedText, {
         "straight mute", "straight", "con sordino straight", "straight sord",
         "metal mute", "wood mute", "fiber mute", "fibre mute"
     })) {
-        return { TechniqueType::StraightMute, std::string(text) };
+        return { TechniqueText::Type::StraightMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "cup mute", "cup", "con sordino cup", "cup sord" })) {
-        return { TechniqueType::CupMute, std::string(text) };
+        return { TechniqueText::Type::CupMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "harmon mute", "harmon", "wah-wah mute", "wah wah mute", "wah-wah", "wah wah" })) {
-        return { TechniqueType::HarmonMute, std::string(text) };
+        return { TechniqueText::Type::HarmonMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "plunger mute", "plunger" })) {
-        return { TechniqueType::PlungerMute, std::string(text) };
+        return { TechniqueText::Type::PlungerMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "bucket mute", "bucket" })) {
-        return { TechniqueType::BucketMute, std::string(text) };
+        return { TechniqueText::Type::BucketMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "solotone mute", "solotone" })) {
-        return { TechniqueType::SolotoneMute, std::string(text) };
+        return { TechniqueText::Type::SolotoneMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "stop mute", "brass mute" })) {
-        return { TechniqueType::StopMute, std::string(text) };
+        return { TechniqueText::Type::StopMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "stopped", "stop" })) {
-        return { TechniqueType::Stopped, std::string(text) };
+        return { TechniqueText::Type::Stopped, std::string(text) };
     }
     if (matchesAny(normalizedText, { "con sord", "mute", "muted" })) {
-        return { TechniqueType::Mute, std::string(text) };
+        return { TechniqueText::Type::Mute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "senza sord", "open" })) {
-        return { TechniqueType::Open, std::string(text) };
+        return { TechniqueText::Type::Open, std::string(text) };
     }
     return {};
 }
 
 static std::optional<ExpressionClassification> classifyTechnique(std::string_view text, std::string_view normalizedText, CategoryType categoryType)
 {
-    Technique technique = classifyTechniqueText(text, normalizedText);
-    if (technique.type == TechniqueType::None) {
+    TechniqueText technique = classifyTechniqueText(text, normalizedText);
+    if (technique.type == TechniqueText::Type::None) {
         return std::nullopt;
     }
 
@@ -404,7 +407,7 @@ static std::optional<ExpressionClassification> classifyTempo(
     result.basis = recognizedText
         ? basisForRecognition(categoryType, CategoryType::TempoMarks)
         : ClassificationBasis::FinaleCategory;
-    result.value = TempoMark{ TempoInfo{ std::string(text), 0, 0 } };
+    result.value = TempoText{ TempoInfo{ std::string(text), 0, 0 } };
     return result;
 }
 
@@ -418,7 +421,7 @@ static std::optional<ExpressionClassification> classifyTempo(
         ExpressionClassification result;
         result.type = ExpressionType::TempoMark;
         result.basis = basisForRecognition(categoryType, CategoryType::TempoMarks);
-        result.value = TempoMark{ TempoInfo{ std::string(text), def->value, def->auxData1 } };
+        result.value = TempoText{ TempoInfo{ std::string(text), def->value, def->auxData1 } };
         return result;
     }
     return classifyTempo(text, normalizedText, categoryType);
@@ -437,7 +440,7 @@ static std::optional<ExpressionClassification> classifyTempo(
         ExpressionClassification result;
         result.type = ExpressionType::TempoMark;
         result.basis = basisForRecognition(categoryType, CategoryType::TempoMarks);
-        result.value = TempoMark{ TempoInfo{ {}, def->value, def->auxData1 } };
+        result.value = TempoText{ TempoInfo{ {}, def->value, def->auxData1 } };
         return result;
     }
     return std::nullopt;
@@ -514,7 +517,7 @@ static ExpressionClassification classifySystemTextExpression(
     ExpressionClassification result;
     result.type = ExpressionType::TempoMark;
     result.basis = ClassificationBasis::Heuristic;
-    result.value = TempoMark{ TempoInfo{ std::string(text), 0, 0 } };
+    result.value = TempoText{ TempoInfo{ std::string(text), 0, 0 } };
     return result;
 }
 
@@ -629,6 +632,104 @@ static std::optional<ExpressionClassification> classifySymbolExpression(const Re
     return std::nullopt;
 }
 
+static std::optional<HarpDiagram::PedalPosition> harpPedalPositionFromGlyphName(std::string_view glyphName)
+{
+    using PedalPosition = HarpDiagram::PedalPosition;
+    if (glyphName == "harpPedalRaised") {
+        return PedalPosition::Flat;
+    }
+    if (glyphName == "harpPedalCentered") {
+        return PedalPosition::Natural;
+    }
+    if (glyphName == "harpPedalLowered") {
+        return PedalPosition::Sharp;
+    }
+    return std::nullopt;
+}
+
+static std::optional<HarpDiagram::PedalPosition> harpPedalPositionFromCodepoint(char32_t codepoint)
+{
+    using PedalPosition = HarpDiagram::PedalPosition;
+    switch (codepoint) {
+    case 0xE680: return PedalPosition::Flat;
+    case 0xE681: return PedalPosition::Natural;
+    case 0xE682: return PedalPosition::Sharp;
+    default: return std::nullopt;
+    }
+}
+
+static bool isHarpPedalDividerCodepoint(char32_t codepoint)
+{
+    return codepoint == 0xE683;
+}
+
+static std::optional<ExpressionClassification> classifyHarpDiagramExpression(const ResolvedTextExpression& resolved)
+{
+    const auto chunks = collectVisibleExpressionChunks(resolved.rawTextCtx);
+    if (chunks.empty()) {
+        return std::nullopt;
+    }
+
+    std::array<HarpDiagram::PedalPosition, 7> pedalPositions{};
+    size_t pedalIndex = 0;
+    bool sawDivider = false;
+
+    for (const auto& chunk : chunks) {
+        const auto font = chunk.styles.font;
+        if (!font) {
+            return std::nullopt;
+        }
+        const bool fontIsSmufl = font->calcIsSMuFL();
+        bool utf8Valid = true;
+        for (utils::Utf8Iterator iter(chunk.text); !iter.atEnd(); iter.next()) {
+            if (!iter.valid()) {
+                utf8Valid = false;
+                break;
+            }
+            const auto glyphName = [&]() -> std::optional<std::string> {
+                if (fontIsSmufl) {
+                    if (const auto* name = smufl_mapping::getGlyphName(iter->codepoint)) {
+                        return std::string(*name);
+                    }
+                    return std::nullopt;
+                }
+                return utils::smuflGlyphNameForFont(font, iter->codepoint);
+            }();
+            if ((glyphName && *glyphName == "harpPedalDivider") || isHarpPedalDividerCodepoint(iter->codepoint)) {
+                if (sawDivider || pedalIndex != 3) {
+                    return std::nullopt;
+                }
+                sawDivider = true;
+                continue;
+            }
+
+            const auto pedalPosition = glyphName
+                ? harpPedalPositionFromGlyphName(*glyphName)
+                : harpPedalPositionFromCodepoint(iter->codepoint);
+            if (!pedalPosition || pedalIndex >= pedalPositions.size()) {
+                return std::nullopt;
+            }
+            pedalPositions[pedalIndex++] = pedalPosition.value();
+        }
+        if (!utf8Valid) {
+            return std::nullopt;
+        }
+    }
+
+    if (!sawDivider || pedalIndex != pedalPositions.size()) {
+        return std::nullopt;
+    }
+
+    ExpressionClassification result;
+    result.type = ExpressionType::HarpDiagram;
+    result.basis = basisForSymbolRecognition(resolved.categoryType);
+    result.value = HarpDiagram{
+        pedalPositions[0], pedalPositions[1], pedalPositions[2],
+        pedalPositions[3], pedalPositions[4], pedalPositions[5], pedalPositions[6]
+    };
+    return result;
+}
+
 static ExpressionClassification withEnigmaCtx(ExpressionClassification result, const ResolvedTextExpression& resolved)
 {
     if (resolved.rawTextCtx) {
@@ -644,6 +745,9 @@ static std::optional<ExpressionClassification> classifyResolvedTextExpressionBef
 
     if (const auto error = classifyTextExpressionError(resolved)) {
         return error;
+    }
+    if (const auto harpDiagram = classifyHarpDiagramExpression(resolved)) {
+        return withEnigmaCtx(*harpDiagram, resolved);
     }
     if (const auto symbol = classifySymbolExpression(resolved)) {
         return withEnigmaCtx(*symbol, resolved);

@@ -248,7 +248,7 @@ static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measu
                     continue;
                 }
                 const auto& classification = expAssignClassification.classification;
-                if (const auto* tempo = classification.as<classify::TempoMark>();
+                if (const auto* tempo = classification.as<classify::TempoText>();
                     tempo && tempo->tempo.beatsPerMinute > 0 && tempo->tempo.beatUnitEdu > 0) {
                     temposAtPositions.emplace(expAssign->eduPosition, tempo->tempo);
                 }

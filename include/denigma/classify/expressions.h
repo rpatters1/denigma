@@ -46,6 +46,7 @@ enum class ExpressionType
     Dynamic,
     Fermata,
     BreathMark,
+    HarpDiagram,
     PseudoTie,
     NonArpeggio,
     TempoMark,
@@ -67,36 +68,36 @@ enum class ClassificationBasis
     FallbackToGenericText
 };
 
-/// @enum TechniqueType
-/// @brief Common performance technique text values recognized by the classifier.
-enum class TechniqueType
+struct TechniqueText
 {
-    None,
-    Arco,
-    Pizzicato,
-    ColLegno,
-    ColLegnoBattuto,
-    ColLegnoTratto,
-    SulPonticello,
-    SulTasto,
-    Flautando,
-    Ordinario,
-    Mute,
-    StraightMute,
-    CupMute,
-    HarmonMute,
-    PlungerMute,
-    BucketMute,
-    SolotoneMute,
-    StopMute,
-    Stopped,
-    Open,
-    Other
-};
+    /// @enum Type
+    /// @brief Common performance technique text values recognized by the classifier.
+    enum class Type
+    {
+        None,
+        Arco,
+        Pizzicato,
+        ColLegno,
+        ColLegnoBattuto,
+        ColLegnoTratto,
+        SulPonticello,
+        SulTasto,
+        Flautando,
+        Ordinario,
+        Mute,
+        StraightMute,
+        CupMute,
+        HarmonMute,
+        PlungerMute,
+        BucketMute,
+        SolotoneMute,
+        StopMute,
+        Stopped,
+        Open,
+        Other
+    };
 
-struct Technique
-{
-    TechniqueType type{};
+    Type type{};
     std::string text;
 };
 
@@ -107,7 +108,7 @@ struct TempoInfo
     int beatUnitEdu{};
 };
 
-struct TempoMark
+struct TempoText
 {
     TempoInfo tempo;
 };
@@ -129,6 +130,24 @@ struct ExpressionBreathMark
 {
     BreathMark breathMark{};
     std::optional<std::string> glyphName;
+};
+
+struct HarpDiagram
+{
+    enum class PedalPosition
+    {
+        Flat,
+        Natural,
+        Sharp
+    };
+
+    PedalPosition d{};
+    PedalPosition c{};
+    PedalPosition b{};
+    PedalPosition e{};
+    PedalPosition f{};
+    PedalPosition g{};
+    PedalPosition a{};
 };
 
 enum class PseudoTieType
@@ -173,8 +192,8 @@ struct Suppress
 {
 };
 
-using ExpressionRunValue = std::variant<std::monostate, DynamicMark, DynamicQualifier, ExpressionFermata, ExpressionBreathMark, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
-using ExpressionValue = std::variant<std::monostate, DynamicMark, ExpressionFermata, ExpressionBreathMark, ExpressionPseudoTie, ExpressionNonArpeggio, TempoMark, TempoAlteration, Technique, RehearsalMark, GenericText, ExpressionError, Suppress>;
+using ExpressionRunValue = std::variant<std::monostate, DynamicMark, DynamicQualifier, ExpressionFermata, ExpressionBreathMark, TempoText, TempoAlteration, TechniqueText, RehearsalMark, GenericText, ExpressionError, Suppress>;
+using ExpressionValue = std::variant<std::monostate, DynamicMark, ExpressionFermata, ExpressionBreathMark, HarpDiagram, ExpressionPseudoTie, ExpressionNonArpeggio, TempoText, TempoAlteration, TechniqueText, RehearsalMark, GenericText, ExpressionError, Suppress>;
 
 struct ExpressionRun
 {
@@ -221,20 +240,23 @@ public:
     const ExpressionBreathMark& breathMark() const
     { return checkedPayload<ExpressionBreathMark, ExpressionType::BreathMark>("BreathMark"); }
 
+    const HarpDiagram& harpDiagram() const
+    { return checkedPayload<HarpDiagram, ExpressionType::HarpDiagram>("HarpDiagram"); }
+
     const ExpressionPseudoTie& pseudoTie() const
     { return checkedPayload<ExpressionPseudoTie, ExpressionType::PseudoTie>("PseudoTie"); }
 
     const ExpressionNonArpeggio& nonArpeggio() const
     { return checkedPayload<ExpressionNonArpeggio, ExpressionType::NonArpeggio>("NonArpeggio"); }
 
-    const TempoMark& tempoMark() const
-    { return checkedPayload<TempoMark, ExpressionType::TempoMark>("TempoMark"); }
+    const TempoText& tempoText() const
+    { return checkedPayload<TempoText, ExpressionType::TempoMark>("TempoText"); }
 
     const TempoAlteration& tempoAlteration() const
     { return checkedPayload<TempoAlteration, ExpressionType::TempoAlteration>("TempoAlteration"); }
 
-    const Technique& technique() const
-    { return checkedPayload<Technique, ExpressionType::TechniqueText>("TechniqueText"); }
+    const TechniqueText& techniqueText() const
+    { return checkedPayload<TechniqueText, ExpressionType::TechniqueText>("TechniqueText"); }
 
     const RehearsalMark& rehearsalMark() const
     { return checkedPayload<RehearsalMark, ExpressionType::RehearsalMark>("RehearsalMark"); }
