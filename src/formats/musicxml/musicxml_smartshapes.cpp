@@ -28,6 +28,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "denigma/classify/smartshapes.h"
 #include "mx/api/CurveData.h"
 #include "mx/api/DirectionData.h"
 #include "mx/api/LineData.h"
@@ -206,27 +207,24 @@ SmartShapeNumberLevels assignSmartShapeNumberLevels(
     return result;
 }
 
-std::optional<MusicXmlNoteLocation> findEndpointLocation(
+std::optional<MusicXmlNoteLocation> findEntryNoteLocation(
     const MusicXmlMusxMapping& context,
-    const std::shared_ptr<smartshape::EndPoint>& endpoint,
+    const EntryInfoPtr& entryInfo,
     NoteNumber noteId)
 {
-    if (!endpoint || !endpoint->calcIsAssigned()) {
+    if (!entryInfo) {
         return std::nullopt;
     }
 
-    if (endpoint->entryNumber == 0) {
-        return std::nullopt;
-    }
-
+    const auto entryNumber = entryInfo->getEntry()->getEntryNumber();
     if (noteId != 0) {
-        const auto noteIt = context.noteLocations.find(musicXmlNoteKey(endpoint->entryNumber, noteId));
+        const auto noteIt = context.noteLocations.find(musicXmlNoteKey(entryNumber, noteId));
         if (noteIt != context.noteLocations.end()) {
             return noteIt->second;
         }
     }
 
-    const auto entryIt = context.entryNumberToFirstNote.find(endpoint->entryNumber);
+    const auto entryIt = context.entryNumberToFirstNote.find(entryNumber);
     if (entryIt != context.entryNumberToFirstNote.end()) {
         return entryIt->second;
     }
@@ -326,20 +324,16 @@ mx::api::StaffData* staffDataForEndpoint(
 bool processSlur(
     MusicXmlMusxMapping& context,
     const MusxInstance<others::SmartShape>& shape,
+    const classify::SmartShapeClassification& classification,
     const SmartShapeNumberLevels& numberLevels)
 {
-    if (shape->hidden || !shape->calcIsSlur() || !shape->entryBased) {
+    const auto* slur = classification.as<classify::smartshape::Slur>();
+    if (!slur) {
         return false;
     }
 
-    const auto startAssign = shape->startTermSeg->endPoint->getEntryAssignment();
-    const auto endAssign = shape->endTermSeg->endPoint->getEntryAssignment();
-    if (!startAssign || !endAssign) {
-        return false;
-    }
-
-    const auto startLocation = findEndpointLocation(context, shape->startTermSeg->endPoint, shape->startNoteId);
-    const auto endLocation = findEndpointLocation(context, shape->endTermSeg->endPoint, shape->endNoteId);
+    const auto startLocation = findEntryNoteLocation(context, slur->startEntry, shape->startNoteId);
+    const auto endLocation = findEntryNoteLocation(context, slur->endEntry, shape->endNoteId);
     if (!startLocation || !endLocation) {
         return false;
     }
@@ -354,7 +348,7 @@ bool processSlur(
     if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
         start.numberLevel = *numberLevel;
     }
-    start.curveOrientation = enumConvert<mx::api::CurveOrientation>(shape->calcContourDirection());
+    start.curveOrientation = enumConvert<mx::api::CurveOrientation>(slur->contour);
     if (shape->calcIsDashed()) {
         start.lineData.lineType = mx::api::LineType::dashed;
     }
@@ -365,6 +359,36 @@ bool processSlur(
     }
     endNote->noteAttachmentData.curveStops.emplace_back(std::move(stop));
     return true;
+}
+
+void processArpeggiatedTie(
+    MusicXmlMusxMapping& context,
+    const MusxInstance<others::SmartShape>& shape,
+    const classify::smartshape::ArpeggiatedTie& arpeggiatedTie)
+{
+    const auto startEntry = shape->startTermSeg->endPoint->calcAssociatedEntry(true);
+    ASSERT_IF(!startEntry || startEntry->getEntry()->notes.size() != 1) {
+        return;
+    }
+    ASSERT_IF(!arpeggiatedTie.tiedTo) {
+        return;
+    }
+
+    const auto startLocation = findEntryNoteLocation(context, startEntry, 0);
+    const auto endLocation = findEntryNoteLocation(
+        context, arpeggiatedTie.tiedTo.getEntryInfo(), arpeggiatedTie.tiedTo->getNoteId());
+    if (!startLocation || !endLocation) {
+        return;
+    }
+
+    auto* startNote = noteDataAt(context, *startLocation);
+    auto* endNote = noteDataAt(context, *endLocation);
+    if (!startNote || !endNote) {
+        return;
+    }
+
+    startNote->isTieStart = true;
+    endNote->isTieStop = true;
 }
 
 void appendHairpin(
@@ -483,34 +507,28 @@ void processSmartShapesForStaff(
             continue;
         }
         const auto shape = context.document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum);
-        if (!shape || !shape->calcIsValid()) {
+        ASSERT_IF(!shape) {
             continue;
         }
         if (shape->startTermSeg->endPoint->staffId != staffId
-            || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()) {
+            || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()
+            || shape->hidden) {
             continue;
         }
 
-        if (processSlur(context, shape, numberLevels)) {
+        const auto classification = classify::classifySmartShape(shape);
+        if (processSlur(context, shape, classification, numberLevels)) {
             continue;
         }
 
-        using ST = others::SmartShape::ShapeType;
-        switch (shape->shapeType) {
-        case ST::Crescendo:
+        if (classification.as<classify::smartshape::Crescendo>()) {
             appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::crescendo, numberLevels);
-            break;
-        case ST::Decrescendo:
+        } else if (classification.as<classify::smartshape::Decrescendo>()) {
             appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::diminuendo, numberLevels);
-            break;
-        case ST::OctaveDown:
-        case ST::OctaveUp:
-        case ST::TwoOctaveDown:
-        case ST::TwoOctaveUp:
+        } else if (classification.as<classify::smartshape::Ottava>()) {
             appendOttava(context, staff, staffId, staffIndex, shape, numberLevels);
-            break;
-        default:
-            break;
+        } else if (const auto* arpeggiatedTie = classification.as<classify::smartshape::ArpeggiatedTie>()) {
+            processArpeggiatedTie(context, shape, *arpeggiatedTie);
         }
     }
 }

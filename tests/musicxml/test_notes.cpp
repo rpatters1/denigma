@@ -736,6 +736,42 @@ TEST(MusicXmlNotes, TieTargetTypesExportSmoke)
     EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStopIndex).endingNumber, 2);
 }
 
+TEST(MusicXmlNotes, TieTargetTypesArpeggiatedTiesExportSmoke)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("tie_target_types.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+
+    const auto tieEvents = createComparableTieEvents(*actualScore);
+    const auto findTieEvent = [&](size_t measureIndex, mx::api::Step step, int octave, bool isTieStart) -> const ComparableNoteEvent* {
+        for (const auto& event : tieEvents) {
+            if (event.measureIndex == measureIndex && event.step == step && event.octave == octave
+                && event.isTieStart == isTieStart && event.isTieStop == !isTieStart) {
+                return &event;
+            }
+        }
+        return nullptr;
+    };
+
+    // The E4/G4 chord tones in measure 3 (first ending) are separate single-note entries stacked
+    // into a chord across layers, so Finale cannot connect them to measure 2 with an ordinary
+    // entry-based tie. It uses arpeggiated-tie smart shapes instead. Measure indices below are
+    // zero-based (measure "2" and "3" in the 1-based MusicXML output).
+    constexpr size_t arpeggiatedTieStartMeasureIndex = 1;
+    constexpr size_t firstEndingMeasureIndex = 2;
+
+    EXPECT_TRUE(findTieEvent(arpeggiatedTieStartMeasureIndex, mx::api::Step::e, 4, true))
+        << "expected an E4 arpeggiated tie start in measure 2";
+    EXPECT_TRUE(findTieEvent(arpeggiatedTieStartMeasureIndex, mx::api::Step::g, 4, true))
+        << "expected a G4 arpeggiated tie start in measure 2";
+    EXPECT_TRUE(findTieEvent(firstEndingMeasureIndex, mx::api::Step::e, 4, false))
+        << "expected an E4 arpeggiated tie stop in measure 3 (first ending)";
+    EXPECT_TRUE(findTieEvent(firstEndingMeasureIndex, mx::api::Step::g, 4, false))
+        << "expected a G4 arpeggiated tie stop in measure 3 (first ending)";
+}
+
 TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)
 {
     setupTestDataPaths();
