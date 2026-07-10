@@ -26,6 +26,8 @@
 namespace denigma {
 namespace classify {
 
+namespace jump {
+
 /// @enum Jump
 /// @brief Jump or repeat-text classes recognized by the classifier.
 enum class Jump
@@ -43,11 +45,13 @@ enum class Jump
     DsAlCoda
 };
 
+} // namespace jump
+
 /// @brief Classification of a Finale text repeat assignment.
 struct JumpClassification
 {
-    Jump visual{ Jump::None };   ///< Classification from the repeat text/glyph.
-    Jump playback{ Jump::None }; ///< Classification from Finale's playback action and target.
+    jump::Jump visual{ jump::Jump::None };   ///< Classification from the repeat text/glyph.
+    jump::Jump playback{ jump::Jump::None }; ///< Classification from Finale's playback action and target.
 };
 
 /// Classifies a Finale text repeat definition by text/glyph only.

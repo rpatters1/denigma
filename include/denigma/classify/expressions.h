@@ -31,6 +31,7 @@
 
 #include "denigma/classify/articulations.h"
 #include "denigma/classify/dynamics.h"
+#include "denigma/classify/glyphs.h"
 #include "musx/musx.h"
 
 namespace denigma {
@@ -67,6 +68,8 @@ enum class ClassificationBasis
     FinaleCategoryCorrected,
     FallbackToGenericText
 };
+
+namespace expression {
 
 struct TechniqueText
 {
@@ -118,17 +121,17 @@ struct TempoAlteration
     TempoInfo tempo;
 };
 
-struct ExpressionFermata
+struct Fermata
 {
-    Fermata fermata{};
+    articulation::Fermata fermata{};
     std::optional<std::string> glyphName;
-    GlyphStyle glyphStyle{};
+    glyph::GlyphStyle glyphStyle{};
     bool isRightBarline{};
 };
 
-struct ExpressionBreathMark
+struct BreathMark
 {
-    BreathMark breathMark{};
+    articulation::BreathMark breathMark{};
     std::optional<std::string> glyphName;
 };
 
@@ -179,7 +182,7 @@ struct GenericText
 
 struct DynamicQualifier
 {
-    DynamicChange change{ DynamicChange::Absolute };
+    dynamics::DynamicChange change{ dynamics::DynamicChange::Absolute };
     std::string text;
 };
 
@@ -192,8 +195,8 @@ struct Suppress
 {
 };
 
-using ExpressionRunValue = std::variant<std::monostate, DynamicMark, DynamicQualifier, ExpressionFermata, ExpressionBreathMark, TempoText, TempoAlteration, TechniqueText, RehearsalMark, GenericText, ExpressionError, Suppress>;
-using ExpressionValue = std::variant<std::monostate, DynamicMark, ExpressionFermata, ExpressionBreathMark, HarpDiagram, ExpressionPseudoTie, ExpressionNonArpeggio, TempoText, TempoAlteration, TechniqueText, RehearsalMark, GenericText, ExpressionError, Suppress>;
+using ExpressionRunValue = std::variant<std::monostate, dynamics::DynamicMark, DynamicQualifier, Fermata, BreathMark, TempoText, TempoAlteration, TechniqueText, RehearsalMark, GenericText, ExpressionError, Suppress>;
+using ExpressionValue = std::variant<std::monostate, dynamics::DynamicMark, Fermata, BreathMark, HarpDiagram, ExpressionPseudoTie, ExpressionNonArpeggio, TempoText, TempoAlteration, TechniqueText, RehearsalMark, GenericText, ExpressionError, Suppress>;
 
 struct ExpressionRun
 {
@@ -206,13 +209,15 @@ struct ExpressionRun
     { return std::get_if<T>(&value); }
 };
 
+} // namespace expression
+
 struct ExpressionClassification
 {
     ExpressionType type{ ExpressionType::GenericText };
     ClassificationBasis basis{ ClassificationBasis::FallbackToGenericText };
     std::optional<musx::util::EnigmaParsingContext> enigmaCtx;
-    ExpressionValue value{};
-    std::vector<ExpressionRun> runs;
+    expression::ExpressionValue value{};
+    std::vector<expression::ExpressionRun> runs;
 
     template <typename T>
     const T* as() const noexcept
@@ -231,41 +236,41 @@ private:
 
 public:
 
-    const DynamicMark& dynamic() const
-    { return checkedPayload<DynamicMark, ExpressionType::Dynamic>("Dynamic"); }
+    const dynamics::DynamicMark& dynamic() const
+    { return checkedPayload<dynamics::DynamicMark, ExpressionType::Dynamic>("Dynamic"); }
 
-    const ExpressionFermata& fermata() const
-    { return checkedPayload<ExpressionFermata, ExpressionType::Fermata>("Fermata"); }
+    const expression::Fermata& fermata() const
+    { return checkedPayload<expression::Fermata, ExpressionType::Fermata>("Fermata"); }
 
-    const ExpressionBreathMark& breathMark() const
-    { return checkedPayload<ExpressionBreathMark, ExpressionType::BreathMark>("BreathMark"); }
+    const expression::BreathMark& breathMark() const
+    { return checkedPayload<expression::BreathMark, ExpressionType::BreathMark>("BreathMark"); }
 
-    const HarpDiagram& harpDiagram() const
-    { return checkedPayload<HarpDiagram, ExpressionType::HarpDiagram>("HarpDiagram"); }
+    const expression::HarpDiagram& harpDiagram() const
+    { return checkedPayload<expression::HarpDiagram, ExpressionType::HarpDiagram>("HarpDiagram"); }
 
-    const ExpressionPseudoTie& pseudoTie() const
-    { return checkedPayload<ExpressionPseudoTie, ExpressionType::PseudoTie>("PseudoTie"); }
+    const expression::ExpressionPseudoTie& pseudoTie() const
+    { return checkedPayload<expression::ExpressionPseudoTie, ExpressionType::PseudoTie>("PseudoTie"); }
 
-    const ExpressionNonArpeggio& nonArpeggio() const
-    { return checkedPayload<ExpressionNonArpeggio, ExpressionType::NonArpeggio>("NonArpeggio"); }
+    const expression::ExpressionNonArpeggio& nonArpeggio() const
+    { return checkedPayload<expression::ExpressionNonArpeggio, ExpressionType::NonArpeggio>("NonArpeggio"); }
 
-    const TempoText& tempoText() const
-    { return checkedPayload<TempoText, ExpressionType::TempoMark>("TempoText"); }
+    const expression::TempoText& tempoText() const
+    { return checkedPayload<expression::TempoText, ExpressionType::TempoMark>("TempoText"); }
 
-    const TempoAlteration& tempoAlteration() const
-    { return checkedPayload<TempoAlteration, ExpressionType::TempoAlteration>("TempoAlteration"); }
+    const expression::TempoAlteration& tempoAlteration() const
+    { return checkedPayload<expression::TempoAlteration, ExpressionType::TempoAlteration>("TempoAlteration"); }
 
-    const TechniqueText& techniqueText() const
-    { return checkedPayload<TechniqueText, ExpressionType::TechniqueText>("TechniqueText"); }
+    const expression::TechniqueText& techniqueText() const
+    { return checkedPayload<expression::TechniqueText, ExpressionType::TechniqueText>("TechniqueText"); }
 
-    const RehearsalMark& rehearsalMark() const
-    { return checkedPayload<RehearsalMark, ExpressionType::RehearsalMark>("RehearsalMark"); }
+    const expression::RehearsalMark& rehearsalMark() const
+    { return checkedPayload<expression::RehearsalMark, ExpressionType::RehearsalMark>("RehearsalMark"); }
 
-    const GenericText& genericText() const
-    { return checkedPayload<GenericText, ExpressionType::GenericText>("GenericText"); }
+    const expression::GenericText& genericText() const
+    { return checkedPayload<expression::GenericText, ExpressionType::GenericText>("GenericText"); }
 
-    const ExpressionError& error() const
-    { return checkedPayload<ExpressionError, ExpressionType::Error>("Error"); }
+    const expression::ExpressionError& error() const
+    { return checkedPayload<expression::ExpressionError, ExpressionType::Error>("Error"); }
 };
 
 struct ExpressionAssignmentClassification

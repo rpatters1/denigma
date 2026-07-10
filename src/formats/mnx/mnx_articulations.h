@@ -34,29 +34,33 @@ using namespace musx::util;
 namespace denigma {
 
 namespace classify {
+namespace articulation {
 struct Arpeggio;
 struct BreathMark;
 struct Fermata;
+} // namespace articulation
+namespace glyph {
 struct GlyphStyle;
+} // namespace glyph
 }
 
 namespace formats {
 namespace mnx {
 namespace detail {
 
-mnxdom::MarkingUpDownAuto calcPointing(const classify::GlyphStyle& glyphStyle);
+mnxdom::MarkingUpDownAuto calcPointing(const classify::glyph::GlyphStyle& glyphStyle);
 
 std::optional<mnxdom::Fermata> makeFermata(
-    const classify::Fermata& fermata,
-    const classify::GlyphStyle& glyphStyle,
+    const classify::articulation::Fermata& fermata,
+    const classify::glyph::GlyphStyle& glyphStyle,
     VerticalPlacement placement);
 
-std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement);
+std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::articulation::BreathMark& breathMark, VerticalPlacement placement);
 
 std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
     const EntryInfoPtr& sourceEntry,
     const MusxInstance<details::ArticulationAssign>& assign,
-    const classify::Arpeggio& arpeggio);
+    const classify::articulation::Arpeggio& arpeggio);
 void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
 void finalizeArpeggios(const MnxMusxMappingPtr& context);
 void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo);

@@ -29,6 +29,8 @@
 
 namespace denigma::classify {
 
+using namespace articulation;
+
 namespace {
 
 using ArticulationType = ArticulationMark::Type;
@@ -46,13 +48,13 @@ struct AmbiguousMark
 
     Shape shape{};
     OtherMark::Category category{};
-    GlyphStyle glyphStyle{};
+    glyph::GlyphStyle glyphStyle{};
     std::optional<std::string> glyphName;
 };
 
 using PrivateClassification = std::variant<ArticulationClassification, AmbiguousMark>;
 
-static GlyphStyle glyphStyleFromGlyphName(const std::string_view glyphName)
+static glyph::GlyphStyle glyphStyleFromGlyphName(const std::string_view glyphName)
 {
     const auto endsWith = [&](const std::string_view suffix) {
         return glyphName.size() >= suffix.size()
@@ -67,7 +69,7 @@ static GlyphStyle glyphStyleFromGlyphName(const std::string_view glyphName)
     return {};
 }
 
-static GlyphStyle glyphStyleFromKnownShapeDefType(musx::dom::KnownShapeDefType shapeDefType)
+static glyph::GlyphStyle glyphStyleFromKnownShapeDefType(musx::dom::KnownShapeDefType shapeDefType)
 {
     using ST = musx::dom::KnownShapeDefType;
     switch (shapeDefType) {
@@ -81,7 +83,7 @@ static GlyphStyle glyphStyleFromKnownShapeDefType(musx::dom::KnownShapeDefType s
     return {};
 }
 
-static GlyphStyle glyphStyleFromGlyphName(const std::optional<std::string>& glyphName)
+static glyph::GlyphStyle glyphStyleFromGlyphName(const std::optional<std::string>& glyphName)
 {
     if (glyphName) {
         return glyphStyleFromGlyphName(std::string_view(glyphName.value()));
@@ -189,7 +191,7 @@ static AmbiguousMark makeAmbiguousMark(
 }
 
 static ArticulationClassification makeTechniqueMark(
-    TechniqueType type, const GlyphStyle& glyphStyle, std::optional<std::string> glyphName = std::nullopt)
+    TechniqueType type, const glyph::GlyphStyle& glyphStyle, std::optional<std::string> glyphName = std::nullopt)
 {
     ArticulationClassification result;
     result.value = TechniqueMark{ type, glyphStyle };
@@ -198,7 +200,7 @@ static ArticulationClassification makeTechniqueMark(
 }
 
 static ArticulationClassification makeOtherMark(
-    OtherMark::Category category, const GlyphStyle& glyphStyle, std::optional<std::string> glyphName = std::nullopt)
+    OtherMark::Category category, const glyph::GlyphStyle& glyphStyle, std::optional<std::string> glyphName = std::nullopt)
 {
     ArticulationClassification result;
     result.value = OtherMark{ category, glyphStyle };

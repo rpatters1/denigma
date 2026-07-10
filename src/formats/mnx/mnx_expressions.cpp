@@ -53,11 +53,11 @@ ExpressionAttachmentContext calcAttachmentContext(const MnxMusxMappingPtr& conte
 
 struct MnxDynamicProjection
 {
-    classify::Dynamic dynamic{};
+    classify::dynamics::Dynamic dynamic{};
     std::string prefixText;
     std::string suffixText;
     std::vector<std::string> glyphs;
-    classify::DynamicChange change{ classify::DynamicChange::Absolute };
+    classify::dynamics::DynamicChange change{ classify::dynamics::DynamicChange::Absolute };
 
     [[nodiscard]] bool containsText() const noexcept
     { return !prefixText.empty() || !glyphs.empty() || !suffixText.empty(); }
@@ -65,14 +65,14 @@ struct MnxDynamicProjection
 
 std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::ExpressionClassification& classification)
 {
-    auto appendText = [](std::string& dest, const classify::ExpressionRun& run) {
+    auto appendText = [](std::string& dest, const classify::expression::ExpressionRun& run) {
         dest += run.chunk.text;
     };
-    auto mergeQualifier = [](classify::DynamicChange& current, classify::DynamicChange next) {
-        if (next == classify::DynamicChange::Absolute) {
+    auto mergeQualifier = [](classify::dynamics::DynamicChange& current, classify::dynamics::DynamicChange next) {
+        if (next == classify::dynamics::DynamicChange::Absolute) {
             return true;
         }
-        if (current == classify::DynamicChange::Absolute) {
+        if (current == classify::dynamics::DynamicChange::Absolute) {
             current = next;
             return true;
         }
@@ -83,7 +83,7 @@ std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::
     bool sawDynamic = false;
     bool afterDynamic = false;
     for (const auto& run : classification.runs) {
-        if (const auto* dynamicMark = run.as<classify::DynamicMark>()) {
+        if (const auto* dynamicMark = run.as<classify::dynamics::DynamicMark>()) {
             if (sawDynamic) {
                 return std::nullopt;
             }
@@ -94,7 +94,7 @@ std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::
             continue;
         }
 
-        if (const auto* genericText = run.as<classify::GenericText>()) {
+        if (const auto* genericText = run.as<classify::expression::GenericText>()) {
             (void)genericText;
             if (afterDynamic) {
                 appendText(result.suffixText, run);
@@ -104,7 +104,7 @@ std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::
             continue;
         }
 
-        if (const auto* qualifier = run.as<classify::DynamicQualifier>()) {
+        if (const auto* qualifier = run.as<classify::expression::DynamicQualifier>()) {
             if (!mergeQualifier(result.change, qualifier->change)) {
                 return std::nullopt;
             }
@@ -119,14 +119,14 @@ std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::
         return std::nullopt;
     }
 
-    if (!sawDynamic || result.dynamic == classify::Dynamic{}) {
+    if (!sawDynamic || result.dynamic == classify::dynamics::Dynamic{}) {
         return std::nullopt;
     }
     result.prefixText = utils::trimAscii(result.prefixText);
     result.suffixText = utils::trimAscii(result.suffixText);
-    if (result.dynamic == classify::Dynamic::Other && result.glyphs.empty() && result.prefixText.empty() && result.suffixText.empty()) {
-        const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const classify::ExpressionRun& run) {
-            return std::holds_alternative<classify::DynamicMark>(run.value);
+    if (result.dynamic == classify::dynamics::Dynamic::Other && result.glyphs.empty() && result.prefixText.empty() && result.suffixText.empty()) {
+        const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const classify::expression::ExpressionRun& run) {
+            return std::holds_alternative<classify::dynamics::DynamicMark>(run.value);
         });
         if (dynamicIt != classification.runs.end()) {
             result.prefixText = utils::trimAscii(dynamicIt->chunk.text);
@@ -137,14 +137,14 @@ std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::
 }
 
 std::pair<std::optional<mnxdom::DynamicValue>, std::optional<mnxdom::DynamicValue>> calcDynamicType(
-    classify::Dynamic dynamic, bool& copyGlyphs, bool& isAccent)
+    classify::dynamics::Dynamic dynamic, bool& copyGlyphs, bool& isAccent)
 {
     std::optional<mnxdom::DynamicValue> dynValue;
     std::optional<mnxdom::DynamicValue> attackValue;
     copyGlyphs = false;
     isAccent = false;
 
-    using DynType = classify::Dynamic;
+    using DynType = classify::dynamics::Dynamic;
     switch (dynamic) {
         case DynType::pppppp:
         case DynType::ppppp:
@@ -248,7 +248,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
     bool isAccent{};
     bool copyGlyphs{};
     const auto [dynValue, attackValue] = calcDynamicType(dynamicClass->dynamic, copyGlyphs, isAccent);
-    if (!dynValue && (dynamicClass->change == classify::DynamicChange::Absolute || !dynamicClass->containsText())) {
+    if (!dynValue && (dynamicClass->change == classify::dynamics::DynamicChange::Absolute || !dynamicClass->containsText())) {
         return;
     }
 
@@ -258,7 +258,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
     }
 
     auto mnxDynamic = [&]() -> mnxdom::part::DynamicGroupBase {
-        using DynRelType = classify::DynamicChange;
+        using DynRelType = classify::dynamics::DynamicChange;
         if (dynamicClass->change != DynRelType::Absolute) {
             auto relValue = dynamicClass->change == DynRelType::RelativeIncrease
                 ? mnxdom::DynamicRelativeValue::Louder
@@ -318,7 +318,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
 }
 
 void attachFermata(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxMeasure,
-    const MusxInstance<others::MeasureExprAssign>& asgn, const denigma::classify::ExpressionFermata& fermataInfo,
+    const MusxInstance<others::MeasureExprAssign>& asgn, const denigma::classify::expression::Fermata& fermataInfo,
     const ExpressionAttachmentContext& attachment, const mnxdom::Fermata& fermata)
 {
     if (asgn->calcIsPartOfStaffListAssignment() || fermataInfo.isRightBarline) {

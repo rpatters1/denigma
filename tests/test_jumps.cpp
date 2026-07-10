@@ -137,13 +137,13 @@ static TextRepeatContext makeJumpToMarkContext()
         document->getOthers()->get<others::TextRepeatAssign>(SCORE_PARTID, 1, 0) };
 }
 
-static Jump classifyTestJump(const std::string& text)
+static jump::Jump classifyTestJump(const std::string& text)
 {
     const auto context = makeTextRepeatContext(text);
     return classifyJump(context.def).visual;
 }
 
-static Jump classifyTestJumpWithMaestro(const std::string& text)
+static jump::Jump classifyTestJumpWithMaestro(const std::string& text)
 {
     const auto context = makeTextRepeatContext(text, "Maestro", 4095);
     return classifyJump(context.def).visual;
@@ -153,43 +153,43 @@ static Jump classifyTestJumpWithMaestro(const std::string& text)
 
 TEST(JumpClassification, ClassifiesText)
 {
-    EXPECT_EQ(classifyTestJump("D.C. al Fine"), Jump::DCAlFine);
-    EXPECT_EQ(classifyTestJump("D.C. al Coda"), Jump::DCAlCoda);
-    EXPECT_EQ(classifyTestJump("D.S. al Fine"), Jump::DsAlFine);
-    EXPECT_EQ(classifyTestJump("D.S. al Coda"), Jump::DsAlCoda);
-    EXPECT_EQ(classifyTestJump("to coda #"), Jump::ToCoda);
-    EXPECT_EQ(classifyTestJump("coda"), Jump::Coda);
-    EXPECT_EQ(classifyTestJump("to coda"), Jump::ToCoda);
-    EXPECT_EQ(classifyTestJump("Fine"), Jump::Fine);
+    EXPECT_EQ(classifyTestJump("D.C. al Fine"), jump::Jump::DCAlFine);
+    EXPECT_EQ(classifyTestJump("D.C. al Coda"), jump::Jump::DCAlCoda);
+    EXPECT_EQ(classifyTestJump("D.S. al Fine"), jump::Jump::DsAlFine);
+    EXPECT_EQ(classifyTestJump("D.S. al Coda"), jump::Jump::DsAlCoda);
+    EXPECT_EQ(classifyTestJump("to coda #"), jump::Jump::ToCoda);
+    EXPECT_EQ(classifyTestJump("coda"), jump::Jump::Coda);
+    EXPECT_EQ(classifyTestJump("to coda"), jump::Jump::ToCoda);
+    EXPECT_EQ(classifyTestJump("Fine"), jump::Jump::Fine);
 }
 
 TEST(JumpClassification, ClassifiesUnicodeSymbols)
 {
-    EXPECT_EQ(classifyTestJump("§"), Jump::Segno);
-    EXPECT_EQ(classifyTestJump("𝄋"), Jump::Segno);
-    EXPECT_EQ(classifyTestJump("𝄌"), Jump::Coda);
+    EXPECT_EQ(classifyTestJump("§"), jump::Jump::Segno);
+    EXPECT_EQ(classifyTestJump("𝄋"), jump::Jump::Segno);
+    EXPECT_EQ(classifyTestJump("𝄌"), jump::Jump::Coda);
 }
 
 TEST(JumpClassification, ClassifiesLegacyGlyphs)
 {
-    EXPECT_EQ(classifyTestJumpWithMaestro("%"), Jump::Segno);
-    EXPECT_EQ(classifyTestJumpWithMaestro("\xC3\x9E"), Jump::Coda);
+    EXPECT_EQ(classifyTestJumpWithMaestro("%"), jump::Jump::Segno);
+    EXPECT_EQ(classifyTestJumpWithMaestro("\xC3\x9E"), jump::Jump::Coda);
 }
 
 TEST(JumpClassification, UnknownTextReturnsNone)
 {
-    EXPECT_EQ(classifyTestJump("Allegro"), Jump::None);
+    EXPECT_EQ(classifyTestJump("Allegro"), jump::Jump::None);
 }
 
 TEST(JumpClassification, ClassifiesPlaybackFromRepeatAction)
 {
     const auto stopContext = makeTextRepeatContext("Coda", "Times New Roman", 0, "stop");
     const auto stopClassification = classifyJump(stopContext.assignment);
-    EXPECT_EQ(stopClassification.visual, Jump::Coda);
-    EXPECT_EQ(stopClassification.playback, Jump::Fine);
+    EXPECT_EQ(stopClassification.visual, jump::Jump::Coda);
+    EXPECT_EQ(stopClassification.playback, jump::Jump::Fine);
 
     const auto jumpToMarkContext = makeJumpToMarkContext();
     const auto jumpToMarkClassification = classifyJump(jumpToMarkContext.assignment);
-    EXPECT_EQ(jumpToMarkClassification.visual, Jump::None);
-    EXPECT_EQ(jumpToMarkClassification.playback, Jump::DalSegno);
+    EXPECT_EQ(jumpToMarkClassification.visual, jump::Jump::None);
+    EXPECT_EQ(jumpToMarkClassification.playback, jump::Jump::DalSegno);
 }

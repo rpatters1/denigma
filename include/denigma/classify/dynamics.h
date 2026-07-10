@@ -31,6 +31,8 @@
 namespace denigma {
 namespace classify {
 
+namespace dynamics {
+
 /// @enum Dynamic
 /// @brief Dynamic marking classes recognized by the classifier.
 enum class Dynamic
@@ -87,14 +89,16 @@ struct DynamicMark
     std::vector<std::string> glyphs;
 };
 
+} // namespace dynamics
+
 /// Classifies a source text chunk as a single plain dynamic mark.
-std::optional<DynamicMark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk, bool forceOther = false);
+std::optional<dynamics::DynamicMark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk, bool forceOther = false);
 /// Returns the canonical text spelling for a dynamic.
-std::string dynamicCanonicalText(Dynamic dynamic);
+std::string dynamicCanonicalText(dynamics::Dynamic dynamic);
 /// Returns canonical SMuFL glyph names for a dynamic.
-std::vector<std::string> dynamicCanonicalGlyphs(Dynamic dynamic);
+std::vector<std::string> dynamicCanonicalGlyphs(dynamics::Dynamic dynamic);
 /// Returns canonical per-letter SMuFL glyph names for a dynamic.
-std::vector<std::string> dynamicCanonicalLetterGlyphs(Dynamic dynamic);
+std::vector<std::string> dynamicCanonicalLetterGlyphs(dynamics::Dynamic dynamic);
 /// Returns per-letter SMuFL glyph names for recognized dynamic letters, omitting other characters.
 std::vector<std::string> dynamicLettersToLetterGlyphs(std::string_view letters);
 /// Returns the dynamic letters represented by known dynamic glyph names.

@@ -21,42 +21,20 @@
  */
 #pragma once
 
-#include "denigma/classify/dynamics.h"
 #include "musx/musx.h"
 
-#include <span>
-#include <vector>
+namespace denigma {
+namespace classify {
+namespace glyph {
 
-namespace denigma::classify {
-
-using ExpressionCategoryType = musx::dom::others::MarkingCategory::CategoryType;
-
-inline ExpressionCategoryType categoryTypeFromId(musx::dom::Cmper categoryId)
+/// @struct GlyphStyle
+/// @brief Visual style encoded by the source glyph variant.
+struct GlyphStyle
 {
-    switch (static_cast<ExpressionCategoryType>(categoryId)) {
-    case ExpressionCategoryType::Invalid:
-    case ExpressionCategoryType::Dynamics:
-    case ExpressionCategoryType::TempoMarks:
-    case ExpressionCategoryType::TempoAlterations:
-    case ExpressionCategoryType::ExpressiveText:
-    case ExpressionCategoryType::TechniqueText:
-    case ExpressionCategoryType::RehearsalMarks:
-    case ExpressionCategoryType::Misc:
-        return static_cast<ExpressionCategoryType>(categoryId);
-    }
-    return ExpressionCategoryType::Misc;
-}
-
-namespace detail {
-
-struct DynamicSpan
-{
-    std::span<const char> sourceText;
-    dynamics::DynamicMark mark;
+    /// Above/below style encoded in the source glyph variant, when applicable.
+    musx::dom::VerticalPlacement placement{ musx::dom::VerticalPlacement::NotApplicable };
 };
 
-std::vector<DynamicSpan> findDynamicSpans(const musx::util::EnigmaTextChunk& chunk);
-
-} // namespace detail
-
-} // namespace denigma::classify
+} // namespace glyph
+} // namespace classify
+} // namespace denigma

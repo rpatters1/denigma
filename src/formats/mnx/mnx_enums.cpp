@@ -53,14 +53,14 @@ BEGIN_ENUM_CONVERSION(BarlineType, mnxdom::BarlineType)
     default: break; // causes a throw
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(classify::BarlineType, mnxdom::BarlineType)
-    case classify::BarlineType::NoBarline: return mnxdom::BarlineType::NoBarline;
-    case classify::BarlineType::Regular: return mnxdom::BarlineType::Regular;
-    case classify::BarlineType::Double: return mnxdom::BarlineType::Double;
-    case classify::BarlineType::Final: return mnxdom::BarlineType::Final;
-    case classify::BarlineType::Heavy: return mnxdom::BarlineType::Heavy;
-    case classify::BarlineType::Dashed: return mnxdom::BarlineType::Dashed;
-    case classify::BarlineType::Tick: return mnxdom::BarlineType::Tick;
+BEGIN_ENUM_CONVERSION(classify::barline::BarlineType, mnxdom::BarlineType)
+    case classify::barline::BarlineType::NoBarline: return mnxdom::BarlineType::NoBarline;
+    case classify::barline::BarlineType::Regular: return mnxdom::BarlineType::Regular;
+    case classify::barline::BarlineType::Double: return mnxdom::BarlineType::Double;
+    case classify::barline::BarlineType::Final: return mnxdom::BarlineType::Final;
+    case classify::barline::BarlineType::Heavy: return mnxdom::BarlineType::Heavy;
+    case classify::barline::BarlineType::Dashed: return mnxdom::BarlineType::Dashed;
+    case classify::barline::BarlineType::Tick: return mnxdom::BarlineType::Tick;
     default: break; // causes a throw
 END_ENUM_CONVERSION
 

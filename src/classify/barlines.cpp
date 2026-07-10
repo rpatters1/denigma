@@ -23,6 +23,8 @@
 
 namespace denigma::classify {
 
+using namespace barline;
+
 namespace {
 
 using MusxBarlineType = musx::dom::others::Measure::BarlineType;

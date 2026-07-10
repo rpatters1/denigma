@@ -5,6 +5,7 @@ set(DENIGMA_CLASSIFY_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/dynamics.cpp
     ${CMAKE_CURRENT_LIST_DIR}/expressions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/jumps.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smartshapes.cpp
 )
 
 # The dependencies here are deliberately kept as light as possible.

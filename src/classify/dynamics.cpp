@@ -36,6 +36,8 @@
 
 namespace denigma::classify {
 
+using namespace dynamics;
+
 namespace {
 
 struct DynamicText

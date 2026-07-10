@@ -67,25 +67,25 @@ static void assignBarline(
         musxStaff, musxMeasure, isForFinalMeasure, musxBarlineOptions);
     
     switch (classification.type) {
-    case classify::BarlineType::Unsupported:
+    case classify::barline::BarlineType::Unsupported:
         break;
-    case classify::BarlineType::Regular:
+    case classify::barline::BarlineType::Regular:
         if (classification.isShort) {
             mnxMeasure.ensure_barline(mnxdom::BarlineType::Short);
         } else if (isForFinalMeasure) {
             mnxMeasure.ensure_barline(mnxdom::BarlineType::Regular);
         }
         break;
-    case classify::BarlineType::Final:
+    case classify::barline::BarlineType::Final:
         if (!isForFinalMeasure) {
             mnxMeasure.ensure_barline(mnxdom::BarlineType::Final);
         }
         break;
-    case classify::BarlineType::Dashed:
-    case classify::BarlineType::Double:
-    case classify::BarlineType::Heavy:
-    case classify::BarlineType::NoBarline:
-    case classify::BarlineType::Tick:
+    case classify::barline::BarlineType::Dashed:
+    case classify::barline::BarlineType::Double:
+    case classify::barline::BarlineType::Heavy:
+    case classify::barline::BarlineType::NoBarline:
+    case classify::barline::BarlineType::Tick:
         mnxMeasure.ensure_barline(enumConvert<mnxdom::BarlineType>(classification.type));
         break;
     }
@@ -125,7 +125,7 @@ enum class JumpClassificationSide
 };
 
 static std::optional<MusxInstance<others::TextRepeatAssign>> searchForJump(
-    classify::Jump jumpType,
+    classify::jump::Jump jumpType,
     const MusxInstance<others::Measure>& musxMeasure,
     JumpClassificationSide side)
 {
@@ -146,7 +146,7 @@ static void createFine(
     mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    if (auto repeatAssign = searchForJump(classify::Jump::Fine, musxMeasure, JumpClassificationSide::Playback)) {
+    if (auto repeatAssign = searchForJump(classify::jump::Jump::Fine, musxMeasure, JumpClassificationSide::Playback)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
         mnxMeasure.ensure_fine(mnxFractionFromFraction(location));
     }
@@ -156,11 +156,11 @@ static void createJump(
     mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    constexpr auto jumpMapping = std::to_array<std::pair<classify::Jump, mnxdom::JumpType>>(
+    constexpr auto jumpMapping = std::to_array<std::pair<classify::jump::Jump, mnxdom::JumpType>>(
     {
-        {classify::Jump::DalSegno, mnxdom::JumpType::Segno},
-        {classify::Jump::DsAlCoda, mnxdom::JumpType::Segno},
-        {classify::Jump::DsAlFine, mnxdom::JumpType::DsAlFine},
+        {classify::jump::Jump::DalSegno, mnxdom::JumpType::Segno},
+        {classify::jump::Jump::DsAlCoda, mnxdom::JumpType::Segno},
+        {classify::jump::Jump::DsAlFine, mnxdom::JumpType::DsAlFine},
     });
 
     for (const auto& mapping : jumpMapping) {
@@ -207,7 +207,7 @@ static void createSegno(
     mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    if (auto repeatAssign = searchForJump(classify::Jump::Segno, musxMeasure, JumpClassificationSide::Visual)) {
+    if (auto repeatAssign = searchForJump(classify::jump::Jump::Segno, musxMeasure, JumpClassificationSide::Visual)) {
         auto location = calcJumpLocation(repeatAssign.value(), musxMeasure);
         auto segno = mnxMeasure.ensure_segno(mnxFractionFromFraction(location));
         if (auto repeatText = musxMeasure->getDocument()->getOthers()->get<others::TextRepeatText>(SCORE_PARTID, repeatAssign.value()->textRepeatId)) {
@@ -230,7 +230,7 @@ static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measu
             tempo.ensure_location(mnxFractionFromFraction(pos));
         }    
     };
-    std::map<Edu, classify::TempoInfo> temposAtPositions;
+    std::map<Edu, classify::expression::TempoInfo> temposAtPositions;
     if (musxMeasure->hasExpression) {
         // Search in order of decreasing precedence. Using emplace keeps the first tempo at a beat location.
         const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
@@ -248,7 +248,7 @@ static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measu
                     continue;
                 }
                 const auto& classification = expAssignClassification.classification;
-                if (const auto* tempo = classification.as<classify::TempoText>();
+                if (const auto* tempo = classification.as<classify::expression::TempoText>();
                     tempo && tempo->tempo.beatsPerMinute > 0 && tempo->tempo.beatUnitEdu > 0) {
                     temposAtPositions.emplace(expAssign->eduPosition, tempo->tempo);
                 }
@@ -267,7 +267,7 @@ static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measu
                     tempoUnit = std::min(unit, NoteType::Quarter);
                 }
                 const auto noteType = tempoUnit.value_or(NoteType::Quarter);
-                temposAtPositions.emplace(tempoChange->eduPosition, classify::TempoInfo{ {}, tempoChange->getAbsoluteTempo(noteType), Edu(noteType) });
+                temposAtPositions.emplace(tempoChange->eduPosition, classify::expression::TempoInfo{ {}, tempoChange->getAbsoluteTempo(noteType), Edu(noteType) });
             }
         }
     }
@@ -310,7 +310,7 @@ static void createBarlineFermata(const MnxMusxMappingPtr& context, mnxdom::globa
         if (!exprAssign->hidden && exprAssign->calcIsPartOfStaffListAssignment()) {
             if (const auto textExp = exprAssign->getTextExpression(); textExp && textExp->horzMeasExprAlign == others::HorizontalMeasExprAlign::RightBarline) {
                 const auto classification = classify::classifyExpression(textExp);
-                if (const auto* fermata = classification.as<classify::ExpressionFermata>()) {
+                if (const auto* fermata = classification.as<classify::expression::Fermata>()) {
                     auto placement = exprAssign->calcVerticalPlacement();
                     if (const auto mnxFermata = makeFermata(fermata->fermata, fermata->glyphStyle, placement)) {
                         mnxMeasure.set_fermata(mnxFermata.value());

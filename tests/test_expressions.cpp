@@ -50,22 +50,22 @@ struct ShapeExpressionContext
     MusxInstance<others::MeasureExprAssign> assignment;
 };
 
-static const DynamicMark& firstDynamicMark(const ExpressionClassification& classification)
+static const dynamics::DynamicMark& firstDynamicMark(const ExpressionClassification& classification)
 {
-    const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const ExpressionRun& run) {
-        return run.as<DynamicMark>() != nullptr;
+    const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::ExpressionRun& run) {
+        return run.as<dynamics::DynamicMark>() != nullptr;
     });
     EXPECT_NE(dynamicIt, classification.runs.end());
-    return *dynamicIt->as<DynamicMark>();
+    return *dynamicIt->as<dynamics::DynamicMark>();
 }
 
-static const DynamicQualifier& firstDynamicQualifier(const ExpressionClassification& classification)
+static const expression::DynamicQualifier& firstDynamicQualifier(const ExpressionClassification& classification)
 {
-    const auto qualifierIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const ExpressionRun& run) {
-        return run.as<DynamicQualifier>() != nullptr;
+    const auto qualifierIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::ExpressionRun& run) {
+        return run.as<expression::DynamicQualifier>() != nullptr;
     });
     EXPECT_NE(qualifierIt, classification.runs.end());
-    return *qualifierIt->as<DynamicQualifier>();
+    return *qualifierIt->as<expression::DynamicQualifier>();
 }
 
 static std::string categoryXmlName(ExpressionCategoryType categoryType)
@@ -236,15 +236,15 @@ TEST(ExpressionClassification, ClassifiesConcreteDynamicsAndCarriesSurroundingTe
 
     EXPECT_EQ(result.type, ExpressionType::Dynamic);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryConfirmed);
-    const auto dynamicIt = std::find_if(result.runs.begin(), result.runs.end(), [](const ExpressionRun& run) {
-        return run.as<DynamicMark>() != nullptr;
+    const auto dynamicIt = std::find_if(result.runs.begin(), result.runs.end(), [](const expression::ExpressionRun& run) {
+        return run.as<dynamics::DynamicMark>() != nullptr;
     });
     ASSERT_NE(dynamicIt, result.runs.end());
-    EXPECT_EQ(dynamicIt->as<DynamicMark>()->dynamic, Dynamic::pp);
+    EXPECT_EQ(dynamicIt->as<dynamics::DynamicMark>()->dynamic, dynamics::Dynamic::pp);
     ASSERT_EQ(result.runs.size(), 3u);
-    ASSERT_NE(result.runs[0].as<GenericText>(), nullptr);
+    ASSERT_NE(result.runs[0].as<expression::GenericText>(), nullptr);
     EXPECT_EQ(result.runs[0].chunk.text, "sub. ");
-    ASSERT_NE(result.runs[2].as<GenericText>(), nullptr);
+    ASSERT_NE(result.runs[2].as<expression::GenericText>(), nullptr);
     EXPECT_EQ(result.runs[2].chunk.text, " possibile");
 }
 
@@ -254,8 +254,8 @@ TEST(ExpressionClassification, ClassifiesTextExpressionFermataAndBreathMarkSymbo
     const auto fermata = classifyExpression(fermataContext.def);
     EXPECT_EQ(fermata.type, ExpressionType::Fermata);
     EXPECT_EQ(fermata.basis, ClassificationBasis::Heuristic);
-    EXPECT_EQ(fermata.fermata().fermata.shape, Fermata::Shape::Normal);
-    EXPECT_EQ(fermata.fermata().fermata.duration, Fermata::Duration::Auto);
+    EXPECT_EQ(fermata.fermata().fermata.shape, articulation::Fermata::Shape::Normal);
+    EXPECT_EQ(fermata.fermata().fermata.duration, articulation::Fermata::Duration::Auto);
     ASSERT_TRUE(fermata.fermata().glyphName.has_value());
     EXPECT_EQ(*fermata.fermata().glyphName, "fermataAbove");
 
@@ -263,7 +263,7 @@ TEST(ExpressionClassification, ClassifiesTextExpressionFermataAndBreathMarkSymbo
     const auto breath = classifyExpression(breathContext.def);
     EXPECT_EQ(breath.type, ExpressionType::BreathMark);
     EXPECT_EQ(breath.basis, ClassificationBasis::Heuristic);
-    EXPECT_EQ(breath.breathMark().breathMark.type, BreathMark::Type::Comma);
+    EXPECT_EQ(breath.breathMark().breathMark.type, articulation::BreathMark::Type::Comma);
     ASSERT_TRUE(breath.breathMark().glyphName.has_value());
     EXPECT_EQ(*breath.breathMark().glyphName, "breathMarkComma");
 }
@@ -280,13 +280,13 @@ TEST(ExpressionClassification, ClassifiesHarpPedalDiagramGlyphSequence)
 
     ASSERT_EQ(result.type, ExpressionType::HarpDiagram);
     EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
-    EXPECT_EQ(result.harpDiagram().d, HarpDiagram::PedalPosition::Flat);
-    EXPECT_EQ(result.harpDiagram().c, HarpDiagram::PedalPosition::Natural);
-    EXPECT_EQ(result.harpDiagram().b, HarpDiagram::PedalPosition::Sharp);
-    EXPECT_EQ(result.harpDiagram().e, HarpDiagram::PedalPosition::Sharp);
-    EXPECT_EQ(result.harpDiagram().f, HarpDiagram::PedalPosition::Natural);
-    EXPECT_EQ(result.harpDiagram().g, HarpDiagram::PedalPosition::Flat);
-    EXPECT_EQ(result.harpDiagram().a, HarpDiagram::PedalPosition::Sharp);
+    EXPECT_EQ(result.harpDiagram().d, expression::HarpDiagram::PedalPosition::Flat);
+    EXPECT_EQ(result.harpDiagram().c, expression::HarpDiagram::PedalPosition::Natural);
+    EXPECT_EQ(result.harpDiagram().b, expression::HarpDiagram::PedalPosition::Sharp);
+    EXPECT_EQ(result.harpDiagram().e, expression::HarpDiagram::PedalPosition::Sharp);
+    EXPECT_EQ(result.harpDiagram().f, expression::HarpDiagram::PedalPosition::Natural);
+    EXPECT_EQ(result.harpDiagram().g, expression::HarpDiagram::PedalPosition::Flat);
+    EXPECT_EQ(result.harpDiagram().a, expression::HarpDiagram::PedalPosition::Sharp);
 }
 
 TEST(ExpressionClassification, RejectsIncompleteHarpPedalDiagramGlyphSequence)
@@ -315,21 +315,21 @@ TEST(ExpressionClassification, ClassifiesRelativeDynamicQualifiers)
     const auto increase = classifyTextExpression("piu mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(increase.type, ExpressionType::Dynamic);
-    EXPECT_EQ(firstDynamicMark(increase).dynamic, Dynamic::mf);
-    EXPECT_EQ(firstDynamicQualifier(increase).change, DynamicChange::RelativeIncrease);
+    EXPECT_EQ(firstDynamicMark(increase).dynamic, dynamics::Dynamic::mf);
+    EXPECT_EQ(firstDynamicQualifier(increase).change, dynamics::DynamicChange::RelativeIncrease);
 
     const auto decrease = classifyTextExpression("menos mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(decrease.type, ExpressionType::Dynamic);
-    EXPECT_EQ(firstDynamicMark(decrease).dynamic, Dynamic::mf);
-    EXPECT_EQ(firstDynamicQualifier(decrease).change, DynamicChange::RelativeDecrease);
+    EXPECT_EQ(firstDynamicMark(decrease).dynamic, dynamics::Dynamic::mf);
+    EXPECT_EQ(firstDynamicQualifier(decrease).change, dynamics::DynamicChange::RelativeDecrease);
 
     const auto gradual = classifyTextExpression("cresc. mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(gradual.type, ExpressionType::Dynamic);
-    EXPECT_EQ(firstDynamicMark(gradual).dynamic, Dynamic::mf);
-    EXPECT_EQ(std::none_of(gradual.runs.begin(), gradual.runs.end(), [](const ExpressionRun& run) {
-        return run.as<DynamicQualifier>() != nullptr;
+    EXPECT_EQ(firstDynamicMark(gradual).dynamic, dynamics::Dynamic::mf);
+    EXPECT_EQ(std::none_of(gradual.runs.begin(), gradual.runs.end(), [](const expression::ExpressionRun& run) {
+        return run.as<expression::DynamicQualifier>() != nullptr;
     }), true);
 }
 
@@ -339,7 +339,7 @@ TEST(ExpressionClassification, ClassifiesDynamicCategoryTextAsDynamicOther)
 
     EXPECT_EQ(result.type, ExpressionType::Dynamic);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategory);
-    EXPECT_EQ(firstDynamicMark(result).dynamic, Dynamic::Other);
+    EXPECT_EQ(firstDynamicMark(result).dynamic, dynamics::Dynamic::Other);
 }
 
 TEST(ExpressionClassification, UsesCategoryForTempoTechniqueAndRehearsalText)
@@ -357,7 +357,7 @@ TEST(ExpressionClassification, UsesCategoryForTempoTechniqueAndRehearsalText)
     const auto technique = classifyTextExpression("sul pont.", ExpressionCategoryType::TechniqueText);
     EXPECT_EQ(technique.type, ExpressionType::TechniqueText);
     EXPECT_EQ(technique.basis, ClassificationBasis::FinaleCategoryConfirmed);
-    EXPECT_EQ(technique.techniqueText().type, TechniqueText::Type::SulPonticello);
+    EXPECT_EQ(technique.techniqueText().type, expression::TechniqueText::Type::SulPonticello);
     EXPECT_EQ(technique.techniqueText().text, "sul pont.");
 
     const auto rehearsal = classifyTextExpression("A", ExpressionCategoryType::RehearsalMarks);
@@ -375,7 +375,7 @@ TEST(ExpressionClassification, StrongCategoriesOverrideTextHeuristics)
     const auto dynamic = classifyTextExpression("Allegro", ExpressionCategoryType::Dynamics);
     EXPECT_EQ(dynamic.type, ExpressionType::Dynamic);
     EXPECT_EQ(dynamic.basis, ClassificationBasis::FinaleCategory);
-    EXPECT_EQ(firstDynamicMark(dynamic).dynamic, Dynamic::Other);
+    EXPECT_EQ(firstDynamicMark(dynamic).dynamic, dynamics::Dynamic::Other);
 
     const auto tempoMark = classifyTextExpression("rit.", ExpressionCategoryType::TempoMarks);
     EXPECT_EQ(tempoMark.type, ExpressionType::TempoAlteration);
@@ -391,7 +391,7 @@ TEST(ExpressionClassification, CorrectsWeakCategoriesWithHeuristics)
     const auto technique = classifyTextExpression("Pizz.", ExpressionCategoryType::ExpressiveText);
     EXPECT_EQ(technique.type, ExpressionType::TechniqueText);
     EXPECT_EQ(technique.basis, ClassificationBasis::FinaleCategoryCorrected);
-    EXPECT_EQ(technique.techniqueText().type, TechniqueText::Type::Pizzicato);
+    EXPECT_EQ(technique.techniqueText().type, expression::TechniqueText::Type::Pizzicato);
     EXPECT_EQ(technique.techniqueText().text, "Pizz.");
 
     const auto tempoAlteration = classifyTextExpression("Rit.", ExpressionCategoryType::Invalid);
@@ -410,48 +410,48 @@ TEST(ExpressionClassification, ClassifiesStringTechniqueTokens)
     struct ExpectedTechnique
     {
         const char* text{};
-        TechniqueText::Type type{};
+        expression::TechniqueText::Type type{};
     };
 
     const std::vector<ExpectedTechnique> expected = {
-        { "arco", TechniqueText::Type::Arco },
-        { "pizz", TechniqueText::Type::Pizzicato },
-        { "pizz.", TechniqueText::Type::Pizzicato },
-        { "col legno", TechniqueText::Type::ColLegno },
-        { "col legno.", TechniqueText::Type::ColLegno },
-        { "c. legno.", TechniqueText::Type::ColLegno },
-        { "col legno batt.", TechniqueText::Type::ColLegnoBattuto },
-        { "c. legno battuto", TechniqueText::Type::ColLegnoBattuto },
-        { "col legno tratt.", TechniqueText::Type::ColLegnoTratto },
-        { "c. legno tratto", TechniqueText::Type::ColLegnoTratto },
-        { "sul pont.", TechniqueText::Type::SulPonticello },
-        { "s. pont", TechniqueText::Type::SulPonticello },
-        { "sul tasto", TechniqueText::Type::SulTasto },
-        { "s. tasto.", TechniqueText::Type::SulTasto },
-        { "flaut", TechniqueText::Type::Flautando },
-        { "flaut.", TechniqueText::Type::Flautando },
-        { "flautando", TechniqueText::Type::Flautando },
-        { "ordinario", TechniqueText::Type::Ordinario },
-        { "ord", TechniqueText::Type::Ordinario },
-        { "ord.", TechniqueText::Type::Ordinario },
-        { "straight mute", TechniqueText::Type::StraightMute },
-        { "straight", TechniqueText::Type::StraightMute },
-        { "metal mute", TechniqueText::Type::StraightMute },
-        { "wood mute", TechniqueText::Type::StraightMute },
-        { "fiber mute", TechniqueText::Type::StraightMute },
-        { "fibre mute", TechniqueText::Type::StraightMute },
-        { "cup mute", TechniqueText::Type::CupMute },
-        { "cup", TechniqueText::Type::CupMute },
-        { "harmon mute", TechniqueText::Type::HarmonMute },
-        { "wah-wah", TechniqueText::Type::HarmonMute },
-        { "plunger mute", TechniqueText::Type::PlungerMute },
-        { "bucket mute", TechniqueText::Type::BucketMute },
-        { "solotone mute", TechniqueText::Type::SolotoneMute },
-        { "stop mute", TechniqueText::Type::StopMute },
-        { "brass mute", TechniqueText::Type::StopMute },
-        { "stopped", TechniqueText::Type::Stopped },
-        { "stop", TechniqueText::Type::Stopped },
-        { "con sord.", TechniqueText::Type::Mute }
+        { "arco", expression::TechniqueText::Type::Arco },
+        { "pizz", expression::TechniqueText::Type::Pizzicato },
+        { "pizz.", expression::TechniqueText::Type::Pizzicato },
+        { "col legno", expression::TechniqueText::Type::ColLegno },
+        { "col legno.", expression::TechniqueText::Type::ColLegno },
+        { "c. legno.", expression::TechniqueText::Type::ColLegno },
+        { "col legno batt.", expression::TechniqueText::Type::ColLegnoBattuto },
+        { "c. legno battuto", expression::TechniqueText::Type::ColLegnoBattuto },
+        { "col legno tratt.", expression::TechniqueText::Type::ColLegnoTratto },
+        { "c. legno tratto", expression::TechniqueText::Type::ColLegnoTratto },
+        { "sul pont.", expression::TechniqueText::Type::SulPonticello },
+        { "s. pont", expression::TechniqueText::Type::SulPonticello },
+        { "sul tasto", expression::TechniqueText::Type::SulTasto },
+        { "s. tasto.", expression::TechniqueText::Type::SulTasto },
+        { "flaut", expression::TechniqueText::Type::Flautando },
+        { "flaut.", expression::TechniqueText::Type::Flautando },
+        { "flautando", expression::TechniqueText::Type::Flautando },
+        { "ordinario", expression::TechniqueText::Type::Ordinario },
+        { "ord", expression::TechniqueText::Type::Ordinario },
+        { "ord.", expression::TechniqueText::Type::Ordinario },
+        { "straight mute", expression::TechniqueText::Type::StraightMute },
+        { "straight", expression::TechniqueText::Type::StraightMute },
+        { "metal mute", expression::TechniqueText::Type::StraightMute },
+        { "wood mute", expression::TechniqueText::Type::StraightMute },
+        { "fiber mute", expression::TechniqueText::Type::StraightMute },
+        { "fibre mute", expression::TechniqueText::Type::StraightMute },
+        { "cup mute", expression::TechniqueText::Type::CupMute },
+        { "cup", expression::TechniqueText::Type::CupMute },
+        { "harmon mute", expression::TechniqueText::Type::HarmonMute },
+        { "wah-wah", expression::TechniqueText::Type::HarmonMute },
+        { "plunger mute", expression::TechniqueText::Type::PlungerMute },
+        { "bucket mute", expression::TechniqueText::Type::BucketMute },
+        { "solotone mute", expression::TechniqueText::Type::SolotoneMute },
+        { "stop mute", expression::TechniqueText::Type::StopMute },
+        { "brass mute", expression::TechniqueText::Type::StopMute },
+        { "stopped", expression::TechniqueText::Type::Stopped },
+        { "stop", expression::TechniqueText::Type::Stopped },
+        { "con sord.", expression::TechniqueText::Type::Mute }
     };
 
     for (const auto& item : expected) {
@@ -503,7 +503,7 @@ TEST(ExpressionClassification, TopStaffAssignmentForcesSystemTextClassification)
     const auto dynamic = classifyExpression(dynamicContext.assignment);
     EXPECT_EQ(dynamic.type, ExpressionType::Dynamic);
     EXPECT_EQ(dynamic.basis, ClassificationBasis::Heuristic);
-    EXPECT_EQ(firstDynamicMark(dynamic).dynamic, Dynamic::mf);
+    EXPECT_EQ(firstDynamicMark(dynamic).dynamic, dynamics::Dynamic::mf);
 
     const auto rehearsalContext = makeTextExpressionContext("AA", ExpressionCategoryType::Misc, {}, true);
     const auto rehearsal = classifyExpression(rehearsalContext.assignment);

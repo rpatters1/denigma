@@ -39,6 +39,9 @@
 
 namespace denigma::classify {
 
+using namespace dynamics;
+using namespace expression;
+
 namespace {
 
 using CategoryType = ExpressionCategoryType;
@@ -233,13 +236,13 @@ static std::optional<ExpressionClassification> makeDynamicExpression(
     CategoryType categoryType)
 {
     const auto dynamicIt = std::find_if(runs.begin(), runs.end(), [](const ExpressionRun& run) {
-        return std::holds_alternative<DynamicMark>(run.value);
+        return std::holds_alternative<dynamics::DynamicMark>(run.value);
     });
     if (dynamicIt == runs.end()) {
         return std::nullopt;
     }
 
-    const auto& dynamicMark = std::get<DynamicMark>(dynamicIt->value);
+    const auto& dynamicMark = std::get<dynamics::DynamicMark>(dynamicIt->value);
 
     ExpressionClassification result;
     result.type = ExpressionType::Dynamic;
@@ -614,19 +617,19 @@ static std::optional<ExpressionClassification> classifySymbolExpression(const Re
     }
 
     const auto classification = classifyArticulationSymbol(resolved.rawTextCtx.parseFirstFontInfo(), *symbol);
-    if (const auto* fermata = classification.as<classify::Fermata>()) {
+    if (const auto* fermata = classification.as<articulation::Fermata>()) {
         ExpressionClassification result;
         result.type = ExpressionType::Fermata;
         result.basis = basisForSymbolRecognition(resolved.categoryType);
-        result.value = ExpressionFermata{ *fermata, classification.glyphName, fermata->glyphStyle,
+        result.value = Fermata{ *fermata, classification.glyphName, fermata->glyphStyle,
             resolved.expressionDef->horzMeasExprAlign == musx::dom::others::HorizontalMeasExprAlign::RightBarline };
         return result;
     }
-    if (const auto* breathMark = classification.as<classify::BreathMark>()) {
+    if (const auto* breathMark = classification.as<articulation::BreathMark>()) {
         ExpressionClassification result;
         result.type = ExpressionType::BreathMark;
         result.basis = basisForSymbolRecognition(resolved.categoryType);
-        result.value = ExpressionBreathMark{ *breathMark, classification.glyphName };
+        result.value = BreathMark{ *breathMark, classification.glyphName };
         return result;
     }
     return std::nullopt;

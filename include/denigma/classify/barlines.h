@@ -26,6 +26,8 @@
 namespace denigma {
 namespace classify {
 
+namespace barline {
+
 /// Barline types recognized by Denigma's classifier.
 enum class BarlineType
 {
@@ -39,12 +41,14 @@ enum class BarlineType
     Tick
 };
 
+} // namespace barline
+
 /// @struct BarlineClassification
 /// @brief Result returned by barline classification.
 struct BarlineClassification
 {
     /// Classified barline type.
-    BarlineType type{ BarlineType::Unsupported };
+    barline::BarlineType type{ barline::BarlineType::Unsupported };
     /// True when the source barline is a short barline.
     bool isShort{};
 };

@@ -113,51 +113,51 @@ static BarlineContext makeBarlineContext(
 TEST(BarlineClassification, ClassifiesSupportedMeasureTypes)
 {
     const auto regular = makeBarlineContext("      <barline>normal</barline>");
-    EXPECT_EQ(classifyBarline(regular.staff, regular.measure, false, regular.options).type, BarlineType::Regular);
+    EXPECT_EQ(classifyBarline(regular.staff, regular.measure, false, regular.options).type, barline::BarlineType::Regular);
 
     const auto doubleBar = makeBarlineContext("      <barline>double</barline>");
-    EXPECT_EQ(classifyBarline(doubleBar.staff, doubleBar.measure, false, doubleBar.options).type, BarlineType::Double);
+    EXPECT_EQ(classifyBarline(doubleBar.staff, doubleBar.measure, false, doubleBar.options).type, barline::BarlineType::Double);
 
     const auto finalBar = makeBarlineContext("      <barline>final</barline>");
-    EXPECT_EQ(classifyBarline(finalBar.staff, finalBar.measure, false, finalBar.options).type, BarlineType::Final);
+    EXPECT_EQ(classifyBarline(finalBar.staff, finalBar.measure, false, finalBar.options).type, barline::BarlineType::Final);
 
     const auto heavy = makeBarlineContext("      <barline>solid</barline>");
-    EXPECT_EQ(classifyBarline(heavy.staff, heavy.measure, false, heavy.options).type, BarlineType::Heavy);
+    EXPECT_EQ(classifyBarline(heavy.staff, heavy.measure, false, heavy.options).type, barline::BarlineType::Heavy);
 
     const auto dashed = makeBarlineContext("      <barline>dash</barline>");
-    EXPECT_EQ(classifyBarline(dashed.staff, dashed.measure, false, dashed.options).type, BarlineType::Dashed);
+    EXPECT_EQ(classifyBarline(dashed.staff, dashed.measure, false, dashed.options).type, barline::BarlineType::Dashed);
 
     const auto tick = makeBarlineContext("      <barline>partial</barline>");
-    EXPECT_EQ(classifyBarline(tick.staff, tick.measure, false, tick.options).type, BarlineType::Tick);
+    EXPECT_EQ(classifyBarline(tick.staff, tick.measure, false, tick.options).type, barline::BarlineType::Tick);
 }
 
 TEST(BarlineClassification, DefaultConstructsToUnsupported)
 {
     const BarlineClassification classification;
 
-    EXPECT_EQ(classification.type, BarlineType::Unsupported);
+    EXPECT_EQ(classification.type, barline::BarlineType::Unsupported);
     EXPECT_FALSE(classification.isShort);
 }
 
 TEST(BarlineClassification, ClassifiesHiddenBarlinesAsNoBarline)
 {
     const auto optionsHidden = makeBarlineContext("      <barline>normal</barline>", {}, false);
-    EXPECT_EQ(classifyBarline(optionsHidden.staff, optionsHidden.measure, false, optionsHidden.options).type, BarlineType::NoBarline);
+    EXPECT_EQ(classifyBarline(optionsHidden.staff, optionsHidden.measure, false, optionsHidden.options).type, barline::BarlineType::NoBarline);
 
     const auto staffHidden = makeBarlineContext("      <barline>normal</barline>", {}, true, true, false, true);
-    EXPECT_EQ(classifyBarline(staffHidden.staff, staffHidden.measure, false, staffHidden.options).type, BarlineType::NoBarline);
+    EXPECT_EQ(classifyBarline(staffHidden.staff, staffHidden.measure, false, staffHidden.options).type, barline::BarlineType::NoBarline);
 }
 
 TEST(BarlineClassification, UnsupportedTypesReturnUnsupported)
 {
     const auto custom = makeBarlineContext("      <barline>custom</barline>");
-    EXPECT_EQ(classifyBarline(custom.staff, custom.measure, false, custom.options).type, BarlineType::Unsupported);
+    EXPECT_EQ(classifyBarline(custom.staff, custom.measure, false, custom.options).type, barline::BarlineType::Unsupported);
 }
 
 TEST(BarlineClassification, ForcesRegularWhenFinalBarlineOptionIsDisabled)
 {
     const auto context = makeBarlineContext("      <barline>normal</barline>", {}, true, false);
-    EXPECT_EQ(classifyBarline(context.staff, context.measure, true, context.options).type, BarlineType::Regular);
+    EXPECT_EQ(classifyBarline(context.staff, context.measure, true, context.options).type, barline::BarlineType::Regular);
 }
 
 TEST(BarlineClassification, UsesDoubleBarlineBeforeKeyChanges)
@@ -175,7 +175,7 @@ TEST(BarlineClassification, UsesDoubleBarlineBeforeKeyChanges)
         true,
         true);
 
-    EXPECT_EQ(classifyBarline(context.staff, context.measure, false, context.options).type, BarlineType::Double);
+    EXPECT_EQ(classifyBarline(context.staff, context.measure, false, context.options).type, barline::BarlineType::Double);
 }
 
 TEST(BarlineClassification, ReportsShortFlag)
@@ -191,7 +191,7 @@ TEST(BarlineClassification, ClassifiesSymmetricShortBarlineAtMinimumExtension)
     const auto context = makeBarlineContext("      <barline>normal</barline>", {}, true, true, false, false, 5, -36, 36);
     const auto classification = classifyBarline(context.staff, context.measure, false, context.options);
 
-    EXPECT_EQ(classification.type, BarlineType::Regular);
+    EXPECT_EQ(classification.type, barline::BarlineType::Regular);
     EXPECT_TRUE(classification.isShort);
 }
 
@@ -200,7 +200,7 @@ TEST(BarlineClassification, ClassifiesSymmetricShortBarlineAtMaximumExtension)
     const auto context = makeBarlineContext("      <barline>normal</barline>", {}, true, true, false, false, 5, -12, 12);
     const auto classification = classifyBarline(context.staff, context.measure, false, context.options);
 
-    EXPECT_EQ(classification.type, BarlineType::Regular);
+    EXPECT_EQ(classification.type, barline::BarlineType::Regular);
     EXPECT_TRUE(classification.isShort);
 }
 
@@ -225,6 +225,6 @@ TEST(BarlineClassification, ClassifiesOneLineShortBarlineWithOutwardOffsets)
     const auto context = makeBarlineContext("      <barline>normal</barline>", {}, true, true, false, false, 1, 36, -36);
     const auto classification = classifyBarline(context.staff, context.measure, false, context.options);
 
-    EXPECT_EQ(classification.type, BarlineType::Regular);
+    EXPECT_EQ(classification.type, barline::BarlineType::Regular);
     EXPECT_TRUE(classification.isShort);
 }

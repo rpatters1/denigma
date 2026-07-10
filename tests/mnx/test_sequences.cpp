@@ -55,10 +55,10 @@ TEST(MnxSequences, CalcPointing)
 {
     using formats::mnx::detail::calcPointing;
 
-    EXPECT_EQ(calcPointing(classify::GlyphStyle{ VerticalPlacement::Above }), mnxdom::MarkingUpDownAuto::Up);
-    EXPECT_EQ(calcPointing(classify::GlyphStyle{ VerticalPlacement::Below }), mnxdom::MarkingUpDownAuto::Down);
-    EXPECT_EQ(calcPointing(classify::GlyphStyle{ VerticalPlacement::Float }), mnxdom::MarkingUpDownAuto::Auto);
-    EXPECT_EQ(calcPointing(classify::GlyphStyle{}), mnxdom::MarkingUpDownAuto::Auto);
+    EXPECT_EQ(calcPointing(classify::glyph::GlyphStyle{ VerticalPlacement::Above }), mnxdom::MarkingUpDownAuto::Up);
+    EXPECT_EQ(calcPointing(classify::glyph::GlyphStyle{ VerticalPlacement::Below }), mnxdom::MarkingUpDownAuto::Down);
+    EXPECT_EQ(calcPointing(classify::glyph::GlyphStyle{ VerticalPlacement::Float }), mnxdom::MarkingUpDownAuto::Auto);
+    EXPECT_EQ(calcPointing(classify::glyph::GlyphStyle{}), mnxdom::MarkingUpDownAuto::Auto);
 }
 
 TEST(MnxSequences, Voice2TripletAtEnd)

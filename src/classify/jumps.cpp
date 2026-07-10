@@ -31,6 +31,8 @@
 
 namespace denigma::classify {
 
+using namespace jump;
+
 namespace {
 
 static Jump classifyJumpTextAndGlyph(std::string_view text, std::optional<std::string_view> glyphName)

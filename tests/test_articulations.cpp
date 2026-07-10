@@ -71,11 +71,11 @@ static FontContext makeFontContext(const std::string& fontName = "Maestro", int 
 static void expectSingleArticulationMark(
     const musx::dom::MusxInstance<FontInfo>& fontInfo,
     char32_t symbol,
-    ArticulationMark::Type expectedType,
+    articulation::ArticulationMark::Type expectedType,
     const std::string& expectedGlyphName)
 {
     const auto classification = classifyArticulationSymbol(fontInfo, symbol);
-    const auto* articulation = classification.as<ArticulationMarks>();
+    const auto* articulation = classification.as<articulation::ArticulationMarks>();
     ASSERT_NE(articulation, nullptr);
     ASSERT_EQ(articulation->marks.size(), 1u);
     EXPECT_EQ(articulation->marks.front().type, expectedType);
@@ -86,11 +86,11 @@ static void expectSingleArticulationMark(
 static void expectSingleTechniqueMark(
     const musx::dom::MusxInstance<FontInfo>& fontInfo,
     char32_t symbol,
-    TechniqueMark::Type expectedType,
+    articulation::TechniqueMark::Type expectedType,
     const std::string& expectedGlyphName)
 {
     const auto classification = classifyArticulationSymbol(fontInfo, symbol);
-    const auto* technique = classification.as<TechniqueMark>();
+    const auto* technique = classification.as<articulation::TechniqueMark>();
     ASSERT_NE(technique, nullptr);
     EXPECT_EQ(technique->type, expectedType);
     ASSERT_TRUE(classification.glyphName);
@@ -100,11 +100,11 @@ static void expectSingleTechniqueMark(
 static void expectHarmonMute(
     const musx::dom::MusxInstance<FontInfo>& fontInfo,
     char32_t symbol,
-    HarmonMute::Qualifier expectedQualifier,
+    articulation::HarmonMute::Qualifier expectedQualifier,
     const std::string& expectedGlyphName)
 {
     const auto classification = classifyArticulationSymbol(fontInfo, symbol);
-    const auto* harmonMute = classification.as<HarmonMute>();
+    const auto* harmonMute = classification.as<articulation::HarmonMute>();
     ASSERT_NE(harmonMute, nullptr);
     EXPECT_EQ(harmonMute->qualifier, expectedQualifier);
     ASSERT_TRUE(classification.glyphName);
@@ -118,10 +118,10 @@ TEST(ArticulationClassification, ClassifiesUnicodeArticulationMarks)
     const auto fontContext = makeFontContext("Times New Roman", 0);
     const auto classification = classifyArticulationSymbol(fontContext.fontInfo, 0x1D17B);
 
-    const auto* articulation = classification.as<ArticulationMarks>();
+    const auto* articulation = classification.as<articulation::ArticulationMarks>();
     ASSERT_NE(articulation, nullptr);
     ASSERT_EQ(articulation->marks.size(), 1u);
-    EXPECT_EQ(articulation->marks.front().type, ArticulationMark::Type::Accent);
+    EXPECT_EQ(articulation->marks.front().type, articulation::ArticulationMark::Type::Accent);
     EXPECT_FALSE(classification.glyphName);
     EXPECT_EQ(articulation->marks.front().glyphStyle.placement, musx::dom::VerticalPlacement::NotApplicable);
 }
@@ -131,10 +131,10 @@ TEST(ArticulationClassification, ClassifiesLegacyGlyphArticulationMarks)
     const auto fontContext = makeFontContext();
     const auto classification = classifyArticulationSymbol(fontContext.fontInfo, 62);
 
-    const auto* articulation = classification.as<ArticulationMarks>();
+    const auto* articulation = classification.as<articulation::ArticulationMarks>();
     ASSERT_NE(articulation, nullptr);
     ASSERT_EQ(articulation->marks.size(), 1u);
-    EXPECT_EQ(articulation->marks.front().type, ArticulationMark::Type::Accent);
+    EXPECT_EQ(articulation->marks.front().type, articulation::ArticulationMark::Type::Accent);
     ASSERT_TRUE(classification.glyphName);
     EXPECT_EQ(classification.glyphName.value(), "articAccentAbove");
     EXPECT_EQ(articulation->marks.front().glyphStyle.placement, musx::dom::VerticalPlacement::Above);
@@ -145,123 +145,123 @@ TEST(ArticulationClassification, AssignsGlyphStyleToEachComboArticulationMark)
     const auto fontContext = makeFontContext();
     const auto classification = classifyArticulationSymbol(fontContext.fontInfo, 223);
 
-    const auto* articulation = classification.as<ArticulationMarks>();
+    const auto* articulation = classification.as<articulation::ArticulationMarks>();
     ASSERT_NE(articulation, nullptr);
     ASSERT_EQ(articulation->marks.size(), 2u);
-    EXPECT_EQ(articulation->marks[0].type, ArticulationMark::Type::Accent);
+    EXPECT_EQ(articulation->marks[0].type, articulation::ArticulationMark::Type::Accent);
     EXPECT_EQ(articulation->marks[0].glyphStyle.placement, musx::dom::VerticalPlacement::Below);
-    EXPECT_EQ(articulation->marks[1].type, ArticulationMark::Type::Staccato);
+    EXPECT_EQ(articulation->marks[1].type, articulation::ArticulationMark::Type::Staccato);
     EXPECT_EQ(articulation->marks[1].glyphStyle.placement, musx::dom::VerticalPlacement::Below);
 }
 
 TEST(ArticulationClassification, ClassifiesTechniqueGlyphs)
 {
     const auto fontContext = makeFontContext("Finale Maestro");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xE632, TechniqueMark::Type::BuzzPizzicato, "pluckedBuzzPizzicato");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xE631, TechniqueMark::Type::SnapPizzicato, "pluckedSnapPizzicatoAbove");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xF432, TechniqueMark::Type::SnapPizzicato, "pluckedSnapPizzicatoBelowGerman");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xE636, TechniqueMark::Type::Fingernails, "pluckedWithFingernails");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xE5E1, TechniqueMark::Type::BrassFlip, "brassFlip");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xE5E6, TechniqueMark::Type::BrassHalfMuted, "brassMuteHalfClosed");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xE5E2, TechniqueMark::Type::BrassSmear, "brassSmear");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xE5E3, TechniqueMark::Type::BrassBend, "brassBend");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xF767, TechniqueMark::Type::BrassLift, "brassLiftSlight");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xE624, TechniqueMark::Type::ThumbPosition, "stringsThumbPosition");
-    expectSingleTechniqueMark(fontContext.fontInfo, 0xE625, TechniqueMark::Type::ThumbPosition, "stringsThumbPositionTurned");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xE632, articulation::TechniqueMark::Type::BuzzPizzicato, "pluckedBuzzPizzicato");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xE631, articulation::TechniqueMark::Type::SnapPizzicato, "pluckedSnapPizzicatoAbove");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xF432, articulation::TechniqueMark::Type::SnapPizzicato, "pluckedSnapPizzicatoBelowGerman");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xE636, articulation::TechniqueMark::Type::Fingernails, "pluckedWithFingernails");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xE5E1, articulation::TechniqueMark::Type::BrassFlip, "brassFlip");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xE5E6, articulation::TechniqueMark::Type::BrassHalfMuted, "brassMuteHalfClosed");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xE5E2, articulation::TechniqueMark::Type::BrassSmear, "brassSmear");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xE5E3, articulation::TechniqueMark::Type::BrassBend, "brassBend");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xF767, articulation::TechniqueMark::Type::BrassLift, "brassLiftSlight");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xE624, articulation::TechniqueMark::Type::ThumbPosition, "stringsThumbPosition");
+    expectSingleTechniqueMark(fontContext.fontInfo, 0xE625, articulation::TechniqueMark::Type::ThumbPosition, "stringsThumbPositionTurned");
 }
 
 TEST(ArticulationClassification, ClassifiesHarmonMuteGlyphs)
 {
     const auto fontContext = makeFontContext("Finale Maestro");
-    expectHarmonMute(fontContext.fontInfo, 0xE5E8, HarmonMute::Qualifier::Closed, "brassHarmonMuteClosed");
-    expectHarmonMute(fontContext.fontInfo, 0xE5E9, HarmonMute::Qualifier::HalfLeft, "brassHarmonMuteStemHalfLeft");
-    expectHarmonMute(fontContext.fontInfo, 0xE5EA, HarmonMute::Qualifier::HalfRight, "brassHarmonMuteStemHalfRight");
-    expectHarmonMute(fontContext.fontInfo, 0xE5EB, HarmonMute::Qualifier::Open, "brassHarmonMuteStemOpen");
+    expectHarmonMute(fontContext.fontInfo, 0xE5E8, articulation::HarmonMute::Qualifier::Closed, "brassHarmonMuteClosed");
+    expectHarmonMute(fontContext.fontInfo, 0xE5E9, articulation::HarmonMute::Qualifier::HalfLeft, "brassHarmonMuteStemHalfLeft");
+    expectHarmonMute(fontContext.fontInfo, 0xE5EA, articulation::HarmonMute::Qualifier::HalfRight, "brassHarmonMuteStemHalfRight");
+    expectHarmonMute(fontContext.fontInfo, 0xE5EB, articulation::HarmonMute::Qualifier::Open, "brassHarmonMuteStemOpen");
 }
 
 TEST(ArticulationClassification, ClassifiesBrassArticulationGlyphs)
 {
     const auto fontContext = makeFontContext("Finale Maestro");
-    expectSingleArticulationMark(fontContext.fontInfo, 0xE5D0, ArticulationMark::Type::BrassScoop, "brassScoop");
-    expectSingleArticulationMark(fontContext.fontInfo, 0xE5D4, ArticulationMark::Type::BrassDoit, "brassDoitShort");
-    expectSingleArticulationMark(fontContext.fontInfo, 0xE5D7, ArticulationMark::Type::BrassFalloff, "brassFallLipShort");
-    expectSingleArticulationMark(fontContext.fontInfo, 0xE5E0, ArticulationMark::Type::BrassPlop, "brassPlop");
-    expectSingleArticulationMark(fontContext.fontInfo, 0xF768, ArticulationMark::Type::BrassFalloff, "brassFallSlight");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5D0, articulation::ArticulationMark::Type::BrassScoop, "brassScoop");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5D4, articulation::ArticulationMark::Type::BrassDoit, "brassDoitShort");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5D7, articulation::ArticulationMark::Type::BrassFalloff, "brassFallLipShort");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xE5E0, articulation::ArticulationMark::Type::BrassPlop, "brassPlop");
+    expectSingleArticulationMark(fontContext.fontInfo, 0xF768, articulation::ArticulationMark::Type::BrassFalloff, "brassFallSlight");
 }
 
 TEST(ArticulationClassification, ClassifiesFermatasBreathMarksAndArpeggios)
 {
     const auto fontContext = makeFontContext();
     const auto fermataClassification = classifyArticulationSymbol(fontContext.fontInfo, 85);
-    const auto* fermata = fermataClassification.as<Fermata>();
+    const auto* fermata = fermataClassification.as<articulation::Fermata>();
     ASSERT_NE(fermata, nullptr);
-    EXPECT_EQ(fermata->shape, Fermata::Shape::Normal);
-    EXPECT_EQ(fermata->duration, Fermata::Duration::Auto);
+    EXPECT_EQ(fermata->shape, articulation::Fermata::Shape::Normal);
+    EXPECT_EQ(fermata->duration, articulation::Fermata::Duration::Auto);
 
     const auto breathClassification = classifyArticulationSymbol(fontContext.fontInfo, 44);
-    const auto* breath = breathClassification.as<BreathMark>();
+    const auto* breath = breathClassification.as<articulation::BreathMark>();
     ASSERT_NE(breath, nullptr);
-    EXPECT_EQ(breath->type, BreathMark::Type::Comma);
+    EXPECT_EQ(breath->type, articulation::BreathMark::Type::Comma);
 
     const auto arpeggioClassification = classifyArticulationSymbol(fontContext.fontInfo, 103);
-    const auto* arpeggio = arpeggioClassification.as<Arpeggio>();
+    const auto* arpeggio = arpeggioClassification.as<articulation::Arpeggio>();
     ASSERT_NE(arpeggio, nullptr);
-    EXPECT_EQ(arpeggio->type, Arpeggio::Type::VerticalSegment);
+    EXPECT_EQ(arpeggio->type, articulation::Arpeggio::Type::VerticalSegment);
 }
 
 TEST(ArticulationClassification, ClassifiesCaesuras)
 {
     const auto fontContext = makeFontContext();
     const auto normalClassification = classifyArticulationSymbol(fontContext.fontInfo, 34);
-    const auto* normal = normalClassification.as<Caesura>();
+    const auto* normal = normalClassification.as<articulation::Caesura>();
     ASSERT_NE(normal, nullptr);
-    EXPECT_EQ(normal->type, Caesura::Type::Normal);
+    EXPECT_EQ(normal->type, articulation::Caesura::Type::Normal);
 
     const auto chantContext = makeFontContext("Finale Maestro");
     const auto chantClassification = classifyArticulationSymbol(chantContext.fontInfo, 0xE8F8);
-    const auto* chant = chantClassification.as<Caesura>();
+    const auto* chant = chantClassification.as<articulation::Caesura>();
     ASSERT_NE(chant, nullptr);
-    EXPECT_EQ(chant->type, Caesura::Type::Chant);
+    EXPECT_EQ(chant->type, articulation::Caesura::Type::Chant);
 }
 
 TEST(ArticulationClassification, ClassifiesOrnaments)
 {
     const auto fontContext = makeFontContext();
     const auto trillClassification = classifyArticulationSymbol(fontContext.fontInfo, 217);
-    const auto* trill = trillClassification.as<Ornament>();
+    const auto* trill = trillClassification.as<articulation::Ornament>();
     ASSERT_NE(trill, nullptr);
-    EXPECT_EQ(trill->type, Ornament::Type::Trill);
+    EXPECT_EQ(trill->type, articulation::Ornament::Type::Trill);
     EXPECT_TRUE(trill->accidentals.empty());
 
     const auto mordentClassification = classifyArticulationSymbol(fontContext.fontInfo, 77);
-    const auto* mordent = mordentClassification.as<Ornament>();
+    const auto* mordent = mordentClassification.as<articulation::Ornament>();
     ASSERT_NE(mordent, nullptr);
-    EXPECT_EQ(mordent->type, Ornament::Type::Mordent);
+    EXPECT_EQ(mordent->type, articulation::Ornament::Type::Mordent);
 
     const auto invertedTurnContext = makeFontContext("Kousaku");
     const auto invertedTurnClassification = classifyArticulationSymbol(invertedTurnContext.fontInfo, 255);
-    const auto* invertedTurn = invertedTurnClassification.as<Ornament>();
+    const auto* invertedTurn = invertedTurnClassification.as<articulation::Ornament>();
     ASSERT_NE(invertedTurn, nullptr);
-    EXPECT_EQ(invertedTurn->type, Ornament::Type::InvertedTurn);
+    EXPECT_EQ(invertedTurn->type, articulation::Ornament::Type::InvertedTurn);
 
     const auto trillFlatContext = makeFontContext("Finale Maestro");
     const auto trillFlatClassification = classifyArticulationSymbol(trillFlatContext.fontInfo, 0xF5B2);
-    const auto* trillFlat = trillFlatClassification.as<Ornament>();
+    const auto* trillFlat = trillFlatClassification.as<articulation::Ornament>();
     ASSERT_NE(trillFlat, nullptr);
-    EXPECT_EQ(trillFlat->type, Ornament::Type::Trill);
+    EXPECT_EQ(trillFlat->type, articulation::Ornament::Type::Trill);
     ASSERT_EQ(trillFlat->accidentals.size(), 1u);
-    EXPECT_EQ(trillFlat->accidentals.front().accidental, Ornament::Accidental::Flat);
+    EXPECT_EQ(trillFlat->accidentals.front().accidental, articulation::Ornament::Accidental::Flat);
     EXPECT_EQ(trillFlat->accidentals.front().placement, musx::dom::VerticalPlacement::Above);
 
     const auto turnFlatSharpContext = makeFontContext("Finale Maestro");
     const auto turnFlatSharpClassification = classifyArticulationSymbol(turnFlatSharpContext.fontInfo, 0xF5B6);
-    const auto* turnFlatSharp = turnFlatSharpClassification.as<Ornament>();
+    const auto* turnFlatSharp = turnFlatSharpClassification.as<articulation::Ornament>();
     ASSERT_NE(turnFlatSharp, nullptr);
-    EXPECT_EQ(turnFlatSharp->type, Ornament::Type::Turn);
+    EXPECT_EQ(turnFlatSharp->type, articulation::Ornament::Type::Turn);
     ASSERT_EQ(turnFlatSharp->accidentals.size(), 2u);
-    EXPECT_EQ(turnFlatSharp->accidentals[0].accidental, Ornament::Accidental::Flat);
+    EXPECT_EQ(turnFlatSharp->accidentals[0].accidental, articulation::Ornament::Accidental::Flat);
     EXPECT_EQ(turnFlatSharp->accidentals[0].placement, musx::dom::VerticalPlacement::Above);
-    EXPECT_EQ(turnFlatSharp->accidentals[1].accidental, Ornament::Accidental::Sharp);
+    EXPECT_EQ(turnFlatSharp->accidentals[1].accidental, articulation::Ornament::Accidental::Sharp);
     EXPECT_EQ(turnFlatSharp->accidentals[1].placement, musx::dom::VerticalPlacement::Below);
 }
 
@@ -270,9 +270,9 @@ TEST(ArticulationClassification, ClassifiesTremoloMarks)
     const auto fontContext = makeFontContext();
     const auto classification = classifyArticulationSymbol(fontContext.fontInfo, 190);
 
-    const auto* tremolo = classification.as<Tremolo>();
+    const auto* tremolo = classification.as<articulation::Tremolo>();
     ASSERT_NE(tremolo, nullptr);
-    EXPECT_EQ(tremolo->style, Tremolo::Style::Measured);
+    EXPECT_EQ(tremolo->style, articulation::Tremolo::Style::Measured);
     EXPECT_EQ(tremolo->marks, 3);
 }
 
@@ -288,6 +288,6 @@ TEST(ArticulationClassification, ClassifiesVerticalEntryBracketShapes)
     auto assign = document->getDetails()->get<details::ArticulationAssign>(SCORE_PARTID, 131, Inci{0});
     ASSERT_TRUE(assign);
     const auto classification = classifyArticulation(assign, sourceEntry);
-    EXPECT_TRUE(classification.is<VerticalEntryBracket>());
+    EXPECT_TRUE(classification.is<articulation::VerticalEntryBracket>());
     EXPECT_NE(classification.placement, musx::dom::VerticalPlacement::NotApplicable);
 }
