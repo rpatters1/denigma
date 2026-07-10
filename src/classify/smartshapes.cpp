@@ -21,6 +21,8 @@
  */
 #include "denigma/classify/smartshapes.h"
 
+#include <stdexcept>
+
 namespace denigma {
 namespace classify {
 
@@ -81,7 +83,10 @@ SmartShapeClassification classifySmartShape(
     }
 
     if (const auto tiedTo = shape->calcArpeggiatedTieToNote(startEntry)) {
-        result.value = ArpeggiatedTie{ tiedTo, contour };
+        MUSX_ASSERT_IF(startEntry->getEntry()->notes.size() != 1) {
+            throw std::logic_error("musxdom classified an arpeggiated tie on an entry with note count other than 1.");
+        }
+        result.value = ArpeggiatedTie{ musx::dom::NoteInfoPtr(startEntry, 0), tiedTo, contour };
         return result;
     }
 

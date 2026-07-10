@@ -53,6 +53,7 @@ struct Slur
 
 struct ArpeggiatedTie
 {
+    musx::dom::NoteInfoPtr tiedFrom;
     musx::dom::NoteInfoPtr tiedTo;
     musx::dom::CurveContourDirection contour{ musx::dom::CurveContourDirection::Unspecified };
 };
@@ -65,6 +66,9 @@ struct PseudoTie
         TieEnd
     };
 
+    // This payload exists to distinguish pseudo-tie smart shapes from true slurs.
+    // It is not intended to replace NoteInfoPtr pseudo-tie orchestration, which
+    // must still resolve all pseudo-tie sources at the note level.
     Type type{};
     musx::dom::CurveContourDirection contour{ musx::dom::CurveContourDirection::Unspecified };
 };
