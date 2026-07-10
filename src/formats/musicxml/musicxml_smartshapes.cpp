@@ -363,18 +363,14 @@ bool processSlur(
 
 void processArpeggiatedTie(
     MusicXmlMusxMapping& context,
-    const MusxInstance<others::SmartShape>& shape,
     const classify::smartshape::ArpeggiatedTie& arpeggiatedTie)
 {
-    const auto startEntry = shape->startTermSeg->endPoint->calcAssociatedEntry(true);
-    ASSERT_IF(!startEntry || startEntry->getEntry()->notes.size() != 1) {
-        return;
-    }
-    ASSERT_IF(!arpeggiatedTie.tiedTo) {
+    ASSERT_IF(!arpeggiatedTie.tiedFrom || !arpeggiatedTie.tiedTo) {
         return;
     }
 
-    const auto startLocation = findEntryNoteLocation(context, startEntry, 0);
+    const auto startLocation = findEntryNoteLocation(
+        context, arpeggiatedTie.tiedFrom.getEntryInfo(), arpeggiatedTie.tiedFrom->getNoteId());
     const auto endLocation = findEntryNoteLocation(
         context, arpeggiatedTie.tiedTo.getEntryInfo(), arpeggiatedTie.tiedTo->getNoteId());
     if (!startLocation || !endLocation) {
@@ -528,7 +524,7 @@ void processSmartShapesForStaff(
         } else if (classification.as<classify::smartshape::Ottava>()) {
             appendOttava(context, staff, staffId, staffIndex, shape, numberLevels);
         } else if (const auto* arpeggiatedTie = classification.as<classify::smartshape::ArpeggiatedTie>()) {
-            processArpeggiatedTie(context, shape, *arpeggiatedTie);
+            processArpeggiatedTie(context, *arpeggiatedTie);
         }
     }
 }

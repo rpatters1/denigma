@@ -47,14 +47,14 @@ constexpr int MAX_SUPPORTED_TREMOLO_MARKS = 5;
 
 mx::api::MarkType musicXmlArticulationType(const classify::articulation::ArticulationMark& mark)
 {
+    using Placement = classify::glyph::GlyphStyle::Placement;
     if (mark.type == classify::articulation::ArticulationMark::Type::StrongAccent) {
         switch (mark.glyphStyle.placement) {
-        case VerticalPlacement::Above:
+        case Placement::Above:
             return mx::api::MarkType::strongAccentUp;
-        case VerticalPlacement::Below:
+        case Placement::Below:
             return mx::api::MarkType::strongAccentDown;
-        case VerticalPlacement::Float:
-        case VerticalPlacement::NotApplicable:
+        case Placement::Automatic:
             break;
         }
     }
@@ -116,8 +116,9 @@ mx::api::MarkType musicXmlTremoloType(int marks)
 
 mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fermata)
 {
+    using Placement = classify::glyph::GlyphStyle::Placement;
     switch (fermata.glyphStyle.placement) {
-    case VerticalPlacement::Above:
+    case Placement::Above:
         switch (fermata.shape) {
         case classify::articulation::Fermata::Shape::Normal: return mx::api::MarkType::fermataNormalUpright;
         case classify::articulation::Fermata::Shape::Angled: return mx::api::MarkType::fermataAngledUpright;
@@ -130,7 +131,7 @@ mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fer
             break;
         }
         break;
-    case VerticalPlacement::Below:
+    case Placement::Below:
         switch (fermata.shape) {
         case classify::articulation::Fermata::Shape::Normal: return mx::api::MarkType::fermataNormalInverted;
         case classify::articulation::Fermata::Shape::Angled: return mx::api::MarkType::fermataAngledInverted;
@@ -143,8 +144,7 @@ mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fer
             break;
         }
         break;
-    case VerticalPlacement::Float:
-    case VerticalPlacement::NotApplicable:
+    case Placement::Automatic:
         break;
     }
     return enumConvert<mx::api::MarkType>(fermata.shape);
