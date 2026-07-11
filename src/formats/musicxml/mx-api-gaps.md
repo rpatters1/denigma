@@ -94,32 +94,6 @@ MusicXML's `<technical><harmonic>` element can specify `natural` or `artificial`
 
 Needed API shape: natural/artificial and base-pitch/touching-pitch/sounding-pitch fields on `MarkData`, meaningful only for `MarkType::harmonic`, written through to `core::Harmonic::setChoice`/`setChoice2`.
 
-## Time Signatures
-
-### Per-staff time signatures
-
-MusicXML allows multiple `<time>` elements in `<attributes>`, and the `number` attribute can identify the staff that a time signature applies to.
-
-`mx::api::MeasureData` currently has a single `TimeSignatureData timeSignature` with no staff index and no vector. Denigma can emit one part-wide time signature per measure, but cannot express Finale files where different staves within a part have independent time signatures.
-
-Needed API shape: either a vector of `TimeSignatureData` values on `MeasureData`, or a per-staff time signature collection, with an optional staff index matching MusicXML's `number` attribute.
-
-### Mid-measure time signatures
-
-MusicXML allows `<attributes>` mid-measure, so time signatures can theoretically change mid-measure in score order.
-
-`mx::api::TimeSignatureData` has no `tickTimePosition`. Denigma can currently only express time signatures at the measure-start attributes position.
-
-Needed API shape: positionable time signature data, likely with `tickTimePosition`.
-
-### Composite and complex time signatures
-
-MusicXML supports richer time signatures than a single `beats` / `beat-type` pair, including multiple beat groups and interchangeable or compound forms.
-
-`mx::api::TimeSignatureData` currently models one `beats` string and one `beatType` string plus a small symbol enum. Denigma can use text such as `3+2` in `beats`, but cannot model the full MusicXML time-signature structure when multiple `<beats>` / `<beat-type>` groups or other complex forms are needed.
-
-Needed API shape: a richer time signature representation that can preserve the MusicXML structure beyond the common single-pair case.
-
 ## Measures
 
 ### Measure numbering text and attributes

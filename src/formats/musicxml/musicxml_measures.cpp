@@ -20,6 +20,7 @@
 #include "musicxml.h"
 #include "musicxml_formatted_text.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <iomanip>
 #include <optional>
@@ -202,18 +203,18 @@ mx::api::KeyMode musicXmlKeyModeFromMusxKeySignature(const MusxInstance<KeySigna
     return mx::api::KeyMode::unspecified;
 }
 
-mx::api::TimeSignatureSymbol musicXmlTimeSignatureSymbol(const MusxInstance<TimeSignature>& timeSignature)
+mx::api::ComplexTimeSymbol musicXmlTimeSignatureSymbol(const MusxInstance<TimeSignature>& timeSignature)
 {
     if (!timeSignature->getAbbreviatedSymbol()) {
-        return mx::api::TimeSignatureSymbol::unspecified;
+        return mx::api::ComplexTimeSymbol::unspecified;
     }
     if (timeSignature->isCommonTime()) {
-        return mx::api::TimeSignatureSymbol::common;
+        return mx::api::ComplexTimeSymbol::common;
     }
     if (timeSignature->isCutTime()) {
-        return mx::api::TimeSignatureSymbol::cut;
+        return mx::api::ComplexTimeSymbol::cut;
     }
-    return mx::api::TimeSignatureSymbol::unspecified;
+    return mx::api::ComplexTimeSymbol::unspecified;
 }
 
 std::string musicXmlDecimalText(const Fraction& value)
@@ -236,8 +237,7 @@ std::string musicXmlDecimalText(const Fraction& value)
     return result;
 }
 
-std::optional<std::pair<std::string, std::string>> musicXmlTimeSignatureComponentText(
-    const TimeSignature::TimeSigComponent& componentIn)
+std::optional<mx::api::TimeFraction> musicXmlTimeFraction(const TimeSignature::TimeSigComponent& componentIn)
 {
     if (componentIn.counts.empty() || componentIn.units.empty()) {
         return std::nullopt;
@@ -258,8 +258,8 @@ std::optional<std::pair<std::string, std::string>> musicXmlTimeSignatureComponen
     const auto counts = componentNormalized.counts;
     const auto units = componentNormalized.units;
 
-    const auto beats = join(counts, [](const Fraction& count) { return musicXmlDecimalText(count); });
-    const auto beatType = join(units, [](Edu unit) {
+    auto beats = join(counts, [](const Fraction& count) { return musicXmlDecimalText(count); });
+    auto beatType = join(units, [](Edu unit) {
         if (!unit) {
             return std::string{};
         }
@@ -268,7 +268,7 @@ std::optional<std::pair<std::string, std::string>> musicXmlTimeSignatureComponen
     if (beatType.empty()) {
         return std::nullopt;
     }
-    return std::pair{beats, beatType};
+    return mx::api::TimeFraction{std::move(beats), std::move(beatType)};
 }
 
 void processTempoChanges(
@@ -308,7 +308,7 @@ void processTempoChanges(
     }
 }
 
-std::pair<std::string, std::string> musicXmlCumulativeTimeSignatureText(const MusxInstance<TimeSignature>& timeSignature)
+mx::api::TimeFraction musicXmlCumulativeTimeFraction(const MusxInstance<TimeSignature>& timeSignature)
 {
     auto [count, noteType] = timeSignature->calcSimplified();
     if (count.remainder()) {
@@ -320,20 +320,23 @@ std::pair<std::string, std::string> musicXmlCumulativeTimeSignatureText(const Mu
     return {std::to_string(count.quotient()), std::to_string(EDU_PER_WHOLE_NOTE / Edu(noteType))};
 }
 
-mx::api::TimeSignatureData createTimeSignatureData(const MusxInstance<TimeSignature>& timeSignature)
+mx::api::TimeChoice createTimeChoice(const MusxInstance<TimeSignature>& timeSignature)
 {
-    auto result = mx::api::TimeSignatureData{};
-    const auto [beats, beatType] = [&]() {
-        if (timeSignature->components.size() == 1) {
-            if (auto componentText = musicXmlTimeSignatureComponentText(timeSignature->components.front())) {
-                return *componentText;
-            }
+    auto metered = mx::api::MeteredTimeSignature{};
+    metered.fractions.clear();
+    for (const auto& component : timeSignature->components) {
+        auto fraction = musicXmlTimeFraction(component);
+        if (!fraction) {
+            metered.fractions.clear();
+            break;
         }
-        return musicXmlCumulativeTimeSignatureText(timeSignature);
-    }();
-    result.beats = beats;
-    result.beatType = beatType;
-    result.symbol = musicXmlTimeSignatureSymbol(timeSignature);
+        metered.fractions.emplace_back(std::move(*fraction));
+    }
+    if (metered.fractions.empty()) {
+        metered.fractions.emplace_back(musicXmlCumulativeTimeFraction(timeSignature));
+    }
+    metered.symbol = musicXmlTimeSignatureSymbol(timeSignature);
+    auto result = mx::api::TimeChoice{mx::api::ComplexTimeSignature{std::move(metered)}};
     result.isImplicit = false;
     return result;
 }
@@ -505,21 +508,81 @@ mx::api::ClefData musicXmlClefFromMusxClef(
 }
 
 void assignTimeSignature(
+    const MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,
     const MusxInstance<others::Measure>& musxMeasure,
     const std::vector<StaffCmper>& staves,
-    MusxInstance<TimeSignature>& prevTimeSig)
+    std::vector<std::optional<mx::api::TimeChoice>>& prevTimeSigs)
 {
     ASSERT_IF(staves.empty()) {
         return;
     }
-    auto timeSig = musxMeasure->createDisplayTimeSignature(staves.front());
-    if (prevTimeSig && timeSig->isSame(*prevTimeSig.get())) {
-        return;
+
+    // Staff-level hiding trumps the measure's show mode: a staff that hides time signatures
+    // never shows one, even for ShowTimeSigMode::Always.
+    const auto staffHidesTimeSignature = [&](StaffCmper staffId) {
+        const auto staff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId,
+            musxMeasure->getCmper(), 0);
+        if (!staff) {
+            return false;
+        }
+        return context.forPartId == SCORE_PARTID ? staff->hideTimeSigs : staff->hideTimeSigsInParts;
+    };
+    const bool measureNeverShows = musxMeasure->showTime == others::Measure::ShowTimeSigMode::Never;
+    const bool measureAlwaysShows = musxMeasure->showTime == others::Measure::ShowTimeSigMode::Always;
+
+    // The base choices carry only staff-level visibility and drive the measure-to-measure
+    // carry-forward comparison. Measure-scoped visibility (Never/Always) is applied only to
+    // the emitted copies, so it cannot trigger spurious restatements on following measures.
+    std::vector<mx::api::TimeChoice> baseTimeSigs;
+    std::vector<mx::api::TimeChoice> emitTimeSigs;
+    std::vector<bool> staffForced(staves.size());
+    baseTimeSigs.reserve(staves.size());
+    emitTimeSigs.reserve(staves.size());
+    for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
+        auto baseTimeSig = createTimeChoice(musxMeasure->createDisplayTimeSignature(staves[staffIndex]));
+        const bool staffHides = staffHidesTimeSignature(staves[staffIndex]);
+        if (staffHides) {
+            baseTimeSig.display = mx::api::Bool::no;
+        }
+        auto emitTimeSig = baseTimeSig;
+        if (measureNeverShows) {
+            emitTimeSig.display = mx::api::Bool::no;
+        } else if (measureAlwaysShows && !staffHides) {
+            emitTimeSig.display = mx::api::Bool::yes;
+            staffForced[staffIndex] = true;
+        }
+        baseTimeSigs.emplace_back(std::move(baseTimeSig));
+        emitTimeSigs.emplace_back(std::move(emitTimeSig));
     }
 
-    measure.timeSignature = createTimeSignatureData(timeSig);
-    prevTimeSig = timeSig;
+    const bool allStavesSame = std::all_of(emitTimeSigs.begin(), emitTimeSigs.end(),
+        [&](const auto& emitTimeSig) { return emitTimeSig == emitTimeSigs.front(); });
+    const auto staffEmits = [&](size_t staffIndex) {
+        return staffForced[staffIndex] || prevTimeSigs[staffIndex] != baseTimeSigs[staffIndex];
+    };
+
+    if (allStavesSame) {
+        // An unnumbered <time> applies to (and resets) every staff, so emit one part-wide
+        // time signature as soon as any staff's effective signature changed (or is forced).
+        bool anyStaffEmits = false;
+        for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
+            anyStaffEmits = anyStaffEmits || staffEmits(staffIndex);
+        }
+        if (anyStaffEmits) {
+            measure.timeSignature = emitTimeSigs.front();
+        }
+    } else {
+        for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
+            if (staffEmits(staffIndex)) {
+                measure.staffTimeSignatures[static_cast<int>(staffIndex)] = emitTimeSigs[staffIndex];
+            }
+        }
+    }
+
+    for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
+        prevTimeSigs[staffIndex] = std::move(baseTimeSigs[staffIndex]);
+    }
 }
 
 void assignClefs(
@@ -820,7 +883,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
     part.measures.reserve(musxMeasures.size());
     std::vector<std::optional<mx::api::KeyData>> prevKeyData(stavesIt->second.size());
     std::vector<std::optional<ClefIndex>> prevClefIndices(stavesIt->second.size());
-    MusxInstance<TimeSignature> prevTimeSig;
+    std::vector<std::optional<mx::api::TimeChoice>> prevTimeSigs(stavesIt->second.size());
     const auto pitchContext = pitchContextForPart(context, part.uniqueId);
     for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
         const auto& musxMeasure = musxMeasures[measureIndex];
@@ -828,7 +891,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
         addMeasureNumber(context, measure, musxMeasure);
         assignKeySignatures(context, measure, musxMeasure, stavesIt->second, pitchContext, prevKeyData);
-        assignTimeSignature(measure, musxMeasure, stavesIt->second, prevTimeSig);
+        assignTimeSignature(context, measure, musxMeasure, stavesIt->second, prevTimeSigs);
         if (const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId); partSymbolIt != context.partIdToPartSymbol.end()) {
             measure.partSymbol = partSymbolIt->second;
         }

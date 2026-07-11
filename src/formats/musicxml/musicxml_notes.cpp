@@ -475,11 +475,22 @@ void appendEntryNotes(
     }
 
     const auto entryNoteheads = classify::classifyEntryNoteheads(entryInfo);
+    // The document is created with PartVoicingPolicy::Apply, so a voiced linked part may
+    // include only a subset of a chord's notes. (calcDisplaysAsRest above covers the case
+    // where voicing excludes every note.)
+    std::vector<size_t> includedNoteIndices;
+    includedNoteIndices.reserve(entry->notes.size());
     for (size_t noteIndex = 0; noteIndex < entry->notes.size(); ++noteIndex) {
+        if (NoteInfoPtr(entryInfo, noteIndex).calcIsIncludedInVoicing()) {
+            includedNoteIndices.push_back(noteIndex);
+        }
+    }
+    for (size_t includedPosition = 0; includedPosition < includedNoteIndices.size(); ++includedPosition) {
+        const size_t noteIndex = includedNoteIndices[includedPosition];
         NoteInfoPtr noteInfo(entryInfo, noteIndex);
         auto note = mx::api::NoteData{};
         // MX uses this as "is in a chord group"; it suppresses <chord/> on the first note internally.
-        note.isChord = entry->notes.size() > 1;
+        note.isChord = includedNoteIndices.size() > 1;
         note.isGrace = entry->graceNote;
         if (note.isGrace) {
             note.graceSlash = entryInfo.calcGraceNoteSlash(context.finaleOptions.graceOptions)
@@ -508,7 +519,7 @@ void appendEntryNotes(
         }
         applyAccidentalData(note, noteInfo);
         applyNoteheadData(note, noteInfo, entryNoteheads);
-        if (noteIndex == 0) {
+        if (includedPosition == 0) {
             note.beams = createBeamData(context, entryInfo);
             applyTupletData(note, entryInfo);
             applyLyrics(context, note, entryInfo);
@@ -527,7 +538,7 @@ void appendEntryNotes(
         if (entryIt.getEffectiveHidden()) {
             note.printData.printObject = mx::api::Bool::no;
         }
-        if (noteIndex == 0) {
+        if (includedPosition == 0) {
             rememberFirstNote(voice.notes.size());
         }
         rememberExactNote(noteInfo, voice.notes.size());

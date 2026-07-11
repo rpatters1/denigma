@@ -19,11 +19,15 @@
 
 #include <algorithm>
 #include <array>
+#include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "core/denigma.h"
 #include "mx/api/ScoreData.h"
 #include "musicxml_test.h"
 #include "test_utils.h"
@@ -106,10 +110,10 @@ mx::api::BarlineType effectiveRightBarlineType(const mx::api::MeasureData& measu
 
 struct ComparableTimeSignature
 {
-    std::string beats;
-    std::string beatType;
-    mx::api::TimeSignatureSymbol symbol{};
+    std::vector<std::pair<std::string, std::string>> fractions;
+    mx::api::ComplexTimeSymbol symbol{};
     bool isImplicit{};
+    mx::api::Bool display{};
 
     auto operator<=>(const ComparableTimeSignature&) const = default;
 };
@@ -134,14 +138,83 @@ struct ComparableTranspositionEvent
     auto operator<=>(const ComparableTranspositionEvent&) const = default;
 };
 
-ComparableTimeSignature createComparableTimeSignature(const mx::api::TimeSignatureData& timeSignature)
+mx::api::ComplexTimeSymbol complexSymbolFromSimple(mx::api::TimeSignatureSymbol symbol)
 {
-    return {
-        timeSignature.beats,
-        timeSignature.beatType,
-        timeSignature.symbol,
-        timeSignature.isImplicit
-    };
+    switch (symbol) {
+    case mx::api::TimeSignatureSymbol::common: return mx::api::ComplexTimeSymbol::common;
+    case mx::api::TimeSignatureSymbol::cut: return mx::api::ComplexTimeSymbol::cut;
+    case mx::api::TimeSignatureSymbol::unspecified: break;
+    }
+    return mx::api::ComplexTimeSymbol::unspecified;
+}
+
+ComparableTimeSignature createComparableTimeSignature(const mx::api::TimeChoice& timeChoice)
+{
+    ComparableTimeSignature result;
+    result.isImplicit = timeChoice.isImplicit;
+    result.display = timeChoice.display;
+    if (timeChoice.isSimple()) {
+        const auto simple = timeChoice.simple();
+        result.fractions.emplace_back(simple.fraction.beats, simple.fraction.beatType);
+        result.symbol = complexSymbolFromSimple(simple.symbol);
+    } else {
+        const auto complex = timeChoice.complex();
+        if (complex.isMetered()) {
+            const auto metered = complex.metered();
+            for (const auto& fraction : metered.fractions) {
+                result.fractions.emplace_back(fraction.beats, fraction.beatType);
+            }
+            result.symbol = metered.symbol;
+        }
+    }
+    return result;
+}
+
+ComparableTimeSignature simpleTime(std::string beats, std::string beatType,
+    mx::api::ComplexTimeSymbol symbol = mx::api::ComplexTimeSymbol::unspecified,
+    mx::api::Bool display = mx::api::Bool::unspecified)
+{
+    ComparableTimeSignature result;
+    result.fractions.emplace_back(std::move(beats), std::move(beatType));
+    result.symbol = symbol;
+    result.isImplicit = false;
+    result.display = display;
+    return result;
+}
+
+using PerStaff = std::map<int, ComparableTimeSignature>;
+
+struct ExpectedTimeSignatureMeasure
+{
+    std::optional<ComparableTimeSignature> partWide;
+    PerStaff perStaff;
+};
+
+void checkTimeSignatureExpectations(const std::vector<mx::api::MeasureData>& measures,
+    const std::map<size_t, ExpectedTimeSignatureMeasure>& expectedByMeasure, const char* partLabel)
+{
+    SCOPED_TRACE(partLabel);
+    for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
+        SCOPED_TRACE("measure " + std::to_string(measureIndex + 1));
+        const auto& measure = measures[measureIndex];
+        const auto expectedIt = expectedByMeasure.find(measureIndex);
+        const auto* expected = expectedIt != expectedByMeasure.end() ? &expectedIt->second : nullptr;
+
+        if (expected && expected->partWide) {
+            EXPECT_EQ(createComparableTimeSignature(measure.timeSignature), *expected->partWide);
+        } else {
+            EXPECT_TRUE(measure.timeSignature.isImplicit) << "unexpected part-wide time signature";
+        }
+
+        PerStaff actualPerStaff;
+        for (const auto& [staffIndex, staffTime] : measure.staffTimeSignatures) {
+            if (!staffTime.isImplicit) { // the mx reader carries implicit per-staff entries forward
+                actualPerStaff.emplace(staffIndex, createComparableTimeSignature(staffTime));
+            }
+        }
+        const PerStaff expectedPerStaff = expected ? expected->perStaff : PerStaff{};
+        EXPECT_EQ(actualPerStaff, expectedPerStaff);
+    }
 }
 
 ComparableKeySignature createComparableKeySignature(const mx::api::KeyData& key)
@@ -217,36 +290,23 @@ void compareTimeSignatures(const mx::api::ScoreData& actual, const mx::api::Scor
         const auto& expectedMeasures = expected.parts.at(partIndex).measures;
         ASSERT_EQ(actualMeasures.size(), expectedMeasures.size()) << "measure count";
         for (size_t measureIndex = 0; measureIndex < expectedMeasures.size(); ++measureIndex) {
-            const auto& actualTime = actualMeasures.at(measureIndex).timeSignature;
-            const auto& expectedTime = expectedMeasures.at(measureIndex).timeSignature;
-            EXPECT_EQ(createComparableTimeSignature(actualTime), createComparableTimeSignature(expectedTime))
-                << "measure " << (measureIndex + 1);
-        }
-    }
-}
+            SCOPED_TRACE("measure " + std::to_string(measureIndex + 1));
+            const auto& actualMeasure = actualMeasures.at(measureIndex);
+            const auto& expectedMeasure = expectedMeasures.at(measureIndex);
+            EXPECT_EQ(createComparableTimeSignature(actualMeasure.timeSignature),
+                createComparableTimeSignature(expectedMeasure.timeSignature)) << "part-wide time signature";
 
-void compareCompositeTimeSignatures(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
-{
-    ASSERT_EQ(actual.parts.size(), expected.parts.size()) << "part count";
-    bool replacedFirstExplicitTimeSignature = false;
-    for (size_t partIndex = 0; partIndex < expected.parts.size(); ++partIndex) {
-        SCOPED_TRACE("part " + std::to_string(partIndex + 1));
-        const auto& actualMeasures = actual.parts.at(partIndex).measures;
-        const auto& expectedMeasures = expected.parts.at(partIndex).measures;
-        ASSERT_EQ(actualMeasures.size(), expectedMeasures.size()) << "measure count";
-        for (size_t measureIndex = 0; measureIndex < expectedMeasures.size(); ++measureIndex) {
-            auto expectedTime = createComparableTimeSignature(expectedMeasures.at(measureIndex).timeSignature);
-            if (!replacedFirstExplicitTimeSignature && !expectedTime.isImplicit) {
-                expectedTime.beats = "133";
-                expectedTime.beatType = "32";
-                expectedTime.symbol = mx::api::TimeSignatureSymbol::unspecified;
-                replacedFirstExplicitTimeSignature = true;
+            ASSERT_EQ(actualMeasure.staffTimeSignatures.size(), expectedMeasure.staffTimeSignatures.size())
+                << "per-staff time signature count";
+            for (const auto& [staffIndex, expectedStaffTime] : expectedMeasure.staffTimeSignatures) {
+                const auto actualStaffTimeIt = actualMeasure.staffTimeSignatures.find(staffIndex);
+                ASSERT_NE(actualStaffTimeIt, actualMeasure.staffTimeSignatures.end())
+                    << "missing time signature for staff index " << staffIndex;
+                EXPECT_EQ(createComparableTimeSignature(actualStaffTimeIt->second),
+                    createComparableTimeSignature(expectedStaffTime)) << "staff index " << staffIndex;
             }
-            EXPECT_EQ(createComparableTimeSignature(actualMeasures.at(measureIndex).timeSignature), expectedTime)
-                << "measure " << (measureIndex + 1);
         }
     }
-    EXPECT_TRUE(replacedFirstExplicitTimeSignature);
 }
 
 void compareKeySignatures(const mx::api::ScoreData& actual, const mx::api::ScoreData& expected)
@@ -509,7 +569,7 @@ TEST(MusicXmlParts, ChangingTimeSignaturesMatchFinale)
     compareTimeSignatures(*actualScore, *expectedScore);
 }
 
-TEST(MusicXmlParts, CompositeTimeSignaturesMatchFinaleExceptMultiComponent)
+TEST(MusicXmlParts, CompositeTimeSignaturesMatchFinale)
 {
     setupTestDataPaths();
 
@@ -519,10 +579,177 @@ TEST(MusicXmlParts, CompositeTimeSignaturesMatchFinaleExceptMultiComponent)
     ASSERT_TRUE(actualScore);
     ASSERT_TRUE(expectedScore);
 
-    compareCompositeTimeSignatures(*actualScore, *expectedScore);
+    compareTimeSignatures(*actualScore, *expectedScore);
 }
 
-TEST(MusicXmlParts, IndependentTimeSignaturesExportSmoke)
+TEST(MusicXmlParts, PerStaffTimeSignaturesAndVisibility)
+{
+    setupTestDataPaths();
+
+    // Finale's own export of this fixture splits the independent-time staves into separate
+    // parts (it cannot write <time number=>) and drops hidden meter changes entirely, so the
+    // -ref file is not directly comparable. The expectations here assert Denigma's per-staff
+    // and visibility semantics explicitly.
+    const auto outputPath = exportMusicXmlFixture("timesigs_independent.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_EQ(actualScore->parts.size(), 2u);
+
+    constexpr auto common = mx::api::ComplexTimeSymbol::common;
+    constexpr auto cut = mx::api::ComplexTimeSymbol::cut;
+    constexpr auto hidden = mx::api::Bool::no;
+    constexpr auto forcedShown = mx::api::Bool::yes;
+
+    const auto& fluteMeasures = actualScore->parts.at(0).measures;
+    const auto& pianoMeasures = actualScore->parts.at(1).measures;
+    ASSERT_GE(fluteMeasures.size(), 13u);
+    ASSERT_GE(pianoMeasures.size(), 13u);
+
+    // Flute: staff-level "Display Time Signatures in Score" is off, so every emitted time
+    // signature is print-object="no", and the measure-13 "always show" does not override it.
+    const std::map<size_t, ExpectedTimeSignatureMeasure> expectedFlute = {
+        { 0, { simpleTime("4", "4", {}, hidden), {} } },
+        { 2, { simpleTime("3", "4", {}, hidden), {} } },
+        { 5, { simpleTime("4", "4", common, hidden), {} } },
+        { 6, { simpleTime("2", "2", cut, hidden), {} } },
+        { 7, { simpleTime("2", "4", {}, hidden), {} } },
+        { 8, { simpleTime("5", "8", {}, hidden), {} } },
+        { 10, { simpleTime("3", "4", {}, hidden), {} } },
+    };
+    checkTimeSignatureExpectations(fluteMeasures, expectedFlute, "flute");
+
+    // Piano: staff 2 has an independent time signature. Polymeter at measure 3 goes per-staff,
+    // convergence at measure 5 resets with one unnumbered signature, the measure-9 meter change
+    // is set to never show, measure 10 changes only the independent staff while a staff style
+    // hides it, and measure 13 forces a restatement of the unchanged meter.
+    const std::map<size_t, ExpectedTimeSignatureMeasure> expectedPiano = {
+        { 0, { simpleTime("4", "4"), {} } },
+        { 2, { std::nullopt, PerStaff{
+            { 0, simpleTime("3", "4") },
+            { 1, simpleTime("6", "8") } } } },
+        { 4, { simpleTime("3", "4"), {} } },
+        { 5, { simpleTime("4", "4", common), {} } },
+        { 6, { simpleTime("2", "2", cut), {} } },
+        { 7, { simpleTime("2", "4"), {} } },
+        { 8, { simpleTime("5", "8", {}, hidden), {} } },
+        { 9, { std::nullopt, PerStaff{ { 1, simpleTime("7", "8", {}, hidden) } } } },
+        { 10, { simpleTime("3", "4"), {} } },
+        { 12, { simpleTime("3", "4", {}, forcedShown), {} } },
+    };
+    checkTimeSignatureExpectations(pianoMeasures, expectedPiano, "piano");
+}
+
+TEST(MusicXmlParts, TimeSignaturesVisibleInLinkedPart)
+{
+    setupTestDataPaths();
+
+    // The flute staff hides time signatures in the score but not in parts, so the linked part
+    // must show them. The measure-9 "never show" still hides, and the measure-13 "always show"
+    // now restates, because staff-level hiding no longer suppresses it in the part.
+    std::filesystem::path inputPath;
+    copyInputToOutput("timesigs_independent.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml", "--part", "Flute", "--force" };
+    checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export flute part: " << pathString(inputPath);
+    });
+
+    const auto outputPath = inputPath.parent_path() / "timesigs_independent.Flute.musicxml";
+    ASSERT_TRUE(std::filesystem::exists(outputPath)) << "Missing MusicXML output " << pathString(outputPath);
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_EQ(actualScore->parts.size(), 1u);
+
+    const auto& fluteMeasures = actualScore->parts.at(0).measures;
+    ASSERT_GE(fluteMeasures.size(), 13u);
+
+    const std::map<size_t, ExpectedTimeSignatureMeasure> expectedFlute = {
+        { 0, { simpleTime("4", "4"), {} } },
+        { 2, { simpleTime("3", "4"), {} } },
+        { 5, { simpleTime("4", "4", mx::api::ComplexTimeSymbol::common), {} } },
+        { 6, { simpleTime("2", "2", mx::api::ComplexTimeSymbol::cut), {} } },
+        { 7, { simpleTime("2", "4"), {} } },
+        { 8, { simpleTime("5", "8", {}, mx::api::Bool::no), {} } },
+        { 10, { simpleTime("3", "4"), {} } },
+        { 12, { simpleTime("3", "4", {}, mx::api::Bool::yes), {} } },
+    };
+    checkTimeSignatureExpectations(fluteMeasures, expectedFlute, "flute part");
+}
+
+TEST(MusicXmlParts, VoicedPartsApplyVoicingToLinkedParts)
+{
+    setupTestDataPaths();
+
+    std::filesystem::path inputPath;
+    copyInputToOutput("voiced_parts.musx", inputPath);
+
+    // Per measure: the sounding note groups (chords or single notes) after part voicing is
+    // applied; rests are skipped, so an empty measure means voicing excluded every entry.
+    // The expected values mirror musxdom's PartVoicing.EntryDetection ground truth.
+    struct VoicedPartExpectation
+    {
+        std::string partName;
+        std::vector<std::vector<std::vector<std::string>>> measures;
+    };
+    const std::vector<VoicedPartExpectation> expectations = {
+        { "Layer 1", { {{"C5"}}, {{"C5"}}, {{"C5"}}, {{"A4", "C5"}}, {{"A4"}, {"C5"}} } },
+        { "Layer 2", { {{"F4"}}, {{"F4"}}, {{"F4"}}, {{"F4"}}, {{"A4"}} } },
+        { "Layer 3", { {{"A4"}}, {{"A4"}}, {{"A4"}}, {}, {{"A4"}, {"A4"}} } },
+        { "Layer 2 Only", { {{"F4"}}, {{"F4", "A4", "C5"}}, {}, {{"F4"}}, {} } },
+    };
+
+    const auto pitchName = [](const mx::api::PitchData& pitch) {
+        constexpr std::array<char, 7> stepLetters = { 'C', 'D', 'E', 'F', 'G', 'A', 'B' };
+        std::string result(1, stepLetters.at(static_cast<size_t>(pitch.step)));
+        if (pitch.alter > 0) {
+            result += std::string(static_cast<size_t>(pitch.alter), '#');
+        } else if (pitch.alter < 0) {
+            result += std::string(static_cast<size_t>(-pitch.alter), 'b');
+        }
+        result += std::to_string(pitch.octave);
+        return result;
+    };
+
+    for (const auto& expectation : expectations) {
+        SCOPED_TRACE(expectation.partName);
+        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml", "--part", expectation.partName, "--force" };
+        checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export part " << expectation.partName;
+        });
+
+        const auto outputPath = inputPath.parent_path() / ("voiced_parts." + expectation.partName + ".musicxml");
+        ASSERT_TRUE(std::filesystem::exists(outputPath)) << "Missing MusicXML output " << pathString(outputPath);
+        const auto actualScore = loadScoreData(outputPath);
+        ASSERT_TRUE(actualScore);
+        ASSERT_EQ(actualScore->parts.size(), 1u);
+
+        const auto& measures = actualScore->parts.at(0).measures;
+        ASSERT_EQ(measures.size(), expectation.measures.size());
+        for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
+            SCOPED_TRACE("measure " + std::to_string(measureIndex + 1));
+            std::vector<std::vector<std::string>> actualGroups;
+            for (const auto& staff : measures[measureIndex].staves) {
+                for (const auto& voice : staff.voices) {
+                    std::optional<int> lastGroupTick;
+                    for (const auto& note : voice.second.notes) {
+                        if (note.isRest) {
+                            lastGroupTick = std::nullopt;
+                            continue;
+                        }
+                        if (note.isChord && lastGroupTick == note.tickTimePosition && !actualGroups.empty()) {
+                            actualGroups.back().emplace_back(pitchName(note.pitchData));
+                        } else {
+                            actualGroups.emplace_back(std::vector<std::string>{ pitchName(note.pitchData) });
+                            lastGroupTick = note.tickTimePosition;
+                        }
+                    }
+                }
+            }
+            EXPECT_EQ(actualGroups, expectation.measures[measureIndex]);
+        }
+    }
+}
+
+TEST(MusicXmlParts, IndependentTimeSignaturesMatchFinale)
 {
     setupTestDataPaths();
 
