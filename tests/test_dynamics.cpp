@@ -97,7 +97,7 @@ static std::vector<musx::util::EnigmaTextChunk> collectChunks(const TextExpressi
     return chunks;
 }
 
-static std::optional<dynamics::DynamicMark> classifyTestDynamic(const std::string& text, bool forceOther = false)
+static std::optional<dynamics::Mark> classifyTestDynamic(const std::string& text, bool forceOther = false)
 {
     const auto context = makeTextExpressionContext(text);
     const auto chunks = collectChunks(context);

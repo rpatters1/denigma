@@ -123,7 +123,7 @@ TEST(ArticulationClassification, ClassifiesUnicodeArticulationMarks)
     ASSERT_EQ(articulation->marks.size(), 1u);
     EXPECT_EQ(articulation->marks.front().type, articulation::ArticulationMark::Type::Accent);
     EXPECT_FALSE(classification.glyphName);
-    EXPECT_EQ(articulation->marks.front().glyphStyle.placement, glyph::GlyphStyle::Placement::Automatic);
+    EXPECT_EQ(articulation->marks.front().glyphStyle.placement, GlyphStyle::Placement::Automatic);
 }
 
 TEST(ArticulationClassification, ClassifiesLegacyGlyphArticulationMarks)
@@ -137,7 +137,7 @@ TEST(ArticulationClassification, ClassifiesLegacyGlyphArticulationMarks)
     EXPECT_EQ(articulation->marks.front().type, articulation::ArticulationMark::Type::Accent);
     ASSERT_TRUE(classification.glyphName);
     EXPECT_EQ(classification.glyphName.value(), "articAccentAbove");
-    EXPECT_EQ(articulation->marks.front().glyphStyle.placement, glyph::GlyphStyle::Placement::Above);
+    EXPECT_EQ(articulation->marks.front().glyphStyle.placement, GlyphStyle::Placement::Above);
 }
 
 TEST(ArticulationClassification, AssignsGlyphStyleToEachComboArticulationMark)
@@ -149,9 +149,9 @@ TEST(ArticulationClassification, AssignsGlyphStyleToEachComboArticulationMark)
     ASSERT_NE(articulation, nullptr);
     ASSERT_EQ(articulation->marks.size(), 2u);
     EXPECT_EQ(articulation->marks[0].type, articulation::ArticulationMark::Type::Accent);
-    EXPECT_EQ(articulation->marks[0].glyphStyle.placement, glyph::GlyphStyle::Placement::Below);
+    EXPECT_EQ(articulation->marks[0].glyphStyle.placement, GlyphStyle::Placement::Below);
     EXPECT_EQ(articulation->marks[1].type, articulation::ArticulationMark::Type::Staccato);
-    EXPECT_EQ(articulation->marks[1].glyphStyle.placement, glyph::GlyphStyle::Placement::Below);
+    EXPECT_EQ(articulation->marks[1].glyphStyle.placement, GlyphStyle::Placement::Below);
 }
 
 TEST(ArticulationClassification, ClassifiesTechniqueGlyphs)

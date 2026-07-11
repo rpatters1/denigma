@@ -33,7 +33,7 @@ namespace detail {
 
 std::optional<mnxdom::Fermata> makeFermata(
     const classify::articulation::Fermata& fermata,
-    const classify::glyph::GlyphStyle& glyphStyle,
+    const classify::GlyphStyle& glyphStyle,
     VerticalPlacement placement)
 {
     if (placement == VerticalPlacement::NotApplicable) {

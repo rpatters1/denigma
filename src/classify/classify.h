@@ -52,7 +52,7 @@ namespace detail {
 struct DynamicSpan
 {
     std::span<const char> sourceText;
-    dynamics::DynamicMark mark;
+    dynamics::Mark mark;
 };
 
 std::vector<DynamicSpan> findDynamicSpans(const musx::util::EnigmaTextChunk& chunk);

@@ -44,6 +44,9 @@ NoteheadClassification makeNotehead(Shape shape, Fill fill, std::optional<std::s
 NoteheadClassification classifyGlyphName(std::string glyphName)
 {
     static const std::unordered_map<std::string_view, std::pair<Shape, Fill>> glyphTable = {
+        // Null
+        { "noteheadNull", { Shape::Null, Fill::Unspecified } },
+
         // Regular
         { "noteheadBlack", { Shape::Regular, Fill::Filled } },
         { "noteheadHalfFilled", { Shape::Regular, Fill::Filled } },
@@ -87,15 +90,15 @@ NoteheadClassification classifyGlyphName(std::string glyphName)
         { "noteheadSlashWhiteHalf", { Shape::LargeSlash, Fill::Unfilled } },
         { "noteheadSlashWhiteDoubleWhole", { Shape::LargeSlash, Fill::Unfilled } },
 
-        // Circle
-        { "noteheadCircledBlack", { Shape::Circle, Fill::Filled } },
-        { "noteheadCircledBlackLarge", { Shape::Circle, Fill::Filled } },
-        { "noteheadCircledHalf", { Shape::Circle, Fill::Unfilled } },
-        { "noteheadCircledHalfLarge", { Shape::Circle, Fill::Unfilled } },
-        { "noteheadCircledWhole", { Shape::Circle, Fill::Unfilled } },
-        { "noteheadCircledWholeLarge", { Shape::Circle, Fill::Unfilled } },
-        { "noteheadCircledDoubleWhole", { Shape::Circle, Fill::Unfilled } },
-        { "noteheadCircledDoubleWholeLarge", { Shape::Circle, Fill::Unfilled } },
+        // Circled
+        { "noteheadCircledBlack", { Shape::Circled, Fill::Filled } },
+        { "noteheadCircledBlackLarge", { Shape::Circled, Fill::Filled } },
+        { "noteheadCircledHalf", { Shape::Circled, Fill::Unfilled } },
+        { "noteheadCircledHalfLarge", { Shape::Circled, Fill::Unfilled } },
+        { "noteheadCircledWhole", { Shape::Circled, Fill::Unfilled } },
+        { "noteheadCircledWholeLarge", { Shape::Circled, Fill::Unfilled } },
+        { "noteheadCircledDoubleWhole", { Shape::Circled, Fill::Unfilled } },
+        { "noteheadCircledDoubleWholeLarge", { Shape::Circled, Fill::Unfilled } },
     };
 
     const std::string_view glyph = glyphName;
@@ -131,7 +134,9 @@ NoteheadClassification classifyNoteheadSymbol(
     const musx::dom::MusxInstance<musx::dom::FontInfo>& fontInfo, char32_t symbol)
 {
     NoteheadClassification result;
-    if (auto asciiClassification = classifyAsciiX(fontInfo, symbol)) {
+    if (symbol == U' ') {
+        result = makeNotehead(Shape::Null, Fill::Unspecified, std::nullopt);
+    } else if (auto asciiClassification = classifyAsciiX(fontInfo, symbol)) {
         result = std::move(asciiClassification);
     } else if (fontInfo) {
         if (const auto* glyphName = smufl_mapping::getGlyphNameForFont(

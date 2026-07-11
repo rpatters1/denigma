@@ -78,22 +78,22 @@ struct NonArpeggio
     musx::util::ArpeggioSpanCandidate candidate;
 };
 
+} // namespace smartshape
+
 using SmartShapeValue = std::variant<
     std::monostate,
-    Ottava,
-    Crescendo,
-    Decrescendo,
-    Slur,
-    ArpeggiatedTie,
-    PseudoTie,
-    NonArpeggio>;
-
-} // namespace smartshape
+    smartshape::Ottava,
+    smartshape::Crescendo,
+    smartshape::Decrescendo,
+    smartshape::Slur,
+    smartshape::ArpeggiatedTie,
+    smartshape::PseudoTie,
+    smartshape::NonArpeggio>;
 
 struct SmartShapeClassification
 {
     musx::dom::others::SmartShape::ShapeType shapeType{};
-    smartshape::SmartShapeValue value{};
+    SmartShapeValue value{};
 
     template <typename T>
     const T* as() const noexcept

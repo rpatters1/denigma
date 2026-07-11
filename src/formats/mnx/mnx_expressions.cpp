@@ -57,7 +57,7 @@ struct MnxDynamicProjection
     std::string prefixText;
     std::string suffixText;
     std::vector<std::string> glyphs;
-    classify::dynamics::DynamicChange change{ classify::dynamics::DynamicChange::Absolute };
+    classify::dynamics::Change change{ classify::dynamics::Change::Absolute };
 
     [[nodiscard]] bool containsText() const noexcept
     { return !prefixText.empty() || !glyphs.empty() || !suffixText.empty(); }
@@ -65,14 +65,14 @@ struct MnxDynamicProjection
 
 std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::ExpressionClassification& classification)
 {
-    auto appendText = [](std::string& dest, const classify::expression::ExpressionRun& run) {
+    auto appendText = [](std::string& dest, const classify::expression::RunClassification& run) {
         dest += run.chunk.text;
     };
-    auto mergeQualifier = [](classify::dynamics::DynamicChange& current, classify::dynamics::DynamicChange next) {
-        if (next == classify::dynamics::DynamicChange::Absolute) {
+    auto mergeQualifier = [](classify::dynamics::Change& current, classify::dynamics::Change next) {
+        if (next == classify::dynamics::Change::Absolute) {
             return true;
         }
-        if (current == classify::dynamics::DynamicChange::Absolute) {
+        if (current == classify::dynamics::Change::Absolute) {
             current = next;
             return true;
         }
@@ -83,7 +83,7 @@ std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::
     bool sawDynamic = false;
     bool afterDynamic = false;
     for (const auto& run : classification.runs) {
-        if (const auto* dynamicMark = run.as<classify::dynamics::DynamicMark>()) {
+        if (const auto* dynamicMark = run.as<classify::dynamics::Mark>()) {
             if (sawDynamic) {
                 return std::nullopt;
             }
@@ -125,8 +125,8 @@ std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::
     result.prefixText = utils::trimAscii(result.prefixText);
     result.suffixText = utils::trimAscii(result.suffixText);
     if (result.dynamic == classify::dynamics::Dynamic::Other && result.glyphs.empty() && result.prefixText.empty() && result.suffixText.empty()) {
-        const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const classify::expression::ExpressionRun& run) {
-            return std::holds_alternative<classify::dynamics::DynamicMark>(run.value);
+        const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const classify::expression::RunClassification& run) {
+            return std::holds_alternative<classify::dynamics::Mark>(run.value);
         });
         if (dynamicIt != classification.runs.end()) {
             result.prefixText = utils::trimAscii(dynamicIt->chunk.text);
@@ -248,7 +248,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
     bool isAccent{};
     bool copyGlyphs{};
     const auto [dynValue, attackValue] = calcDynamicType(dynamicClass->dynamic, copyGlyphs, isAccent);
-    if (!dynValue && (dynamicClass->change == classify::dynamics::DynamicChange::Absolute || !dynamicClass->containsText())) {
+    if (!dynValue && (dynamicClass->change == classify::dynamics::Change::Absolute || !dynamicClass->containsText())) {
         return;
     }
 
@@ -258,7 +258,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
     }
 
     auto mnxDynamic = [&]() -> mnxdom::part::DynamicGroupBase {
-        using DynRelType = classify::dynamics::DynamicChange;
+        using DynRelType = classify::dynamics::Change;
         if (dynamicClass->change != DynRelType::Absolute) {
             auto relValue = dynamicClass->change == DynRelType::RelativeIncrease
                 ? mnxdom::DynamicRelativeValue::Louder

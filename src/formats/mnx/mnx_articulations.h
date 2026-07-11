@@ -34,14 +34,12 @@ using namespace musx::util;
 namespace denigma {
 
 namespace classify {
+struct GlyphStyle;
 namespace articulation {
 struct Arpeggio;
 struct BreathMark;
 struct Fermata;
 } // namespace articulation
-namespace glyph {
-struct GlyphStyle;
-} // namespace glyph
 }
 
 namespace formats {
@@ -50,7 +48,7 @@ namespace detail {
 
 std::optional<mnxdom::Fermata> makeFermata(
     const classify::articulation::Fermata& fermata,
-    const classify::glyph::GlyphStyle& glyphStyle,
+    const classify::GlyphStyle& glyphStyle,
     VerticalPlacement placement);
 
 std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::articulation::BreathMark& breathMark, VerticalPlacement placement);

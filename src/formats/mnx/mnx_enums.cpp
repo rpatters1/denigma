@@ -26,7 +26,7 @@
 
 #include "mnx.h"
 #include "denigma/classify/barlines.h"
-#include "denigma/classify/glyphs.h"
+#include "denigma/classify/classifier_common.h"
 #include "formats/enum_conversion_macros.h"
 
 namespace denigma {
@@ -54,21 +54,21 @@ BEGIN_ENUM_CONVERSION(BarlineType, mnxdom::BarlineType)
     default: break; // causes a throw
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(classify::barline::BarlineType, mnxdom::BarlineType)
-    case classify::barline::BarlineType::NoBarline: return mnxdom::BarlineType::NoBarline;
-    case classify::barline::BarlineType::Regular: return mnxdom::BarlineType::Regular;
-    case classify::barline::BarlineType::Double: return mnxdom::BarlineType::Double;
-    case classify::barline::BarlineType::Final: return mnxdom::BarlineType::Final;
-    case classify::barline::BarlineType::Heavy: return mnxdom::BarlineType::Heavy;
-    case classify::barline::BarlineType::Dashed: return mnxdom::BarlineType::Dashed;
-    case classify::barline::BarlineType::Tick: return mnxdom::BarlineType::Tick;
+BEGIN_ENUM_CONVERSION(classify::barline::Type, mnxdom::BarlineType)
+    case classify::barline::Type::NoBarline: return mnxdom::BarlineType::NoBarline;
+    case classify::barline::Type::Regular: return mnxdom::BarlineType::Regular;
+    case classify::barline::Type::Double: return mnxdom::BarlineType::Double;
+    case classify::barline::Type::Final: return mnxdom::BarlineType::Final;
+    case classify::barline::Type::Heavy: return mnxdom::BarlineType::Heavy;
+    case classify::barline::Type::Dashed: return mnxdom::BarlineType::Dashed;
+    case classify::barline::Type::Tick: return mnxdom::BarlineType::Tick;
     default: break; // causes a throw
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(classify::glyph::GlyphStyle::Placement, mnxdom::MarkingUpDownAuto)
-    case classify::glyph::GlyphStyle::Placement::Automatic: return mnxdom::MarkingUpDownAuto::Auto;
-    case classify::glyph::GlyphStyle::Placement::Above: return mnxdom::MarkingUpDownAuto::Up;
-    case classify::glyph::GlyphStyle::Placement::Below: return mnxdom::MarkingUpDownAuto::Down;
+BEGIN_ENUM_CONVERSION(classify::GlyphStyle::Placement, mnxdom::MarkingUpDownAuto)
+    case classify::GlyphStyle::Placement::Automatic: return mnxdom::MarkingUpDownAuto::Auto;
+    case classify::GlyphStyle::Placement::Above: return mnxdom::MarkingUpDownAuto::Up;
+    case classify::GlyphStyle::Placement::Below: return mnxdom::MarkingUpDownAuto::Down;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(music_theory::NoteName, mnxdom::NoteStep)

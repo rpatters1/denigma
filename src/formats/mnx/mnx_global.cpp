@@ -67,25 +67,25 @@ static void assignBarline(
         musxStaff, musxMeasure, isForFinalMeasure, musxBarlineOptions);
     
     switch (classification.type) {
-    case classify::barline::BarlineType::Unsupported:
+    case classify::barline::Type::Unsupported:
         break;
-    case classify::barline::BarlineType::Regular:
+    case classify::barline::Type::Regular:
         if (classification.isShort) {
             mnxMeasure.ensure_barline(mnxdom::BarlineType::Short);
         } else if (isForFinalMeasure) {
             mnxMeasure.ensure_barline(mnxdom::BarlineType::Regular);
         }
         break;
-    case classify::barline::BarlineType::Final:
+    case classify::barline::Type::Final:
         if (!isForFinalMeasure) {
             mnxMeasure.ensure_barline(mnxdom::BarlineType::Final);
         }
         break;
-    case classify::barline::BarlineType::Dashed:
-    case classify::barline::BarlineType::Double:
-    case classify::barline::BarlineType::Heavy:
-    case classify::barline::BarlineType::NoBarline:
-    case classify::barline::BarlineType::Tick:
+    case classify::barline::Type::Dashed:
+    case classify::barline::Type::Double:
+    case classify::barline::Type::Heavy:
+    case classify::barline::Type::NoBarline:
+    case classify::barline::Type::Tick:
         mnxMeasure.ensure_barline(enumConvert<mnxdom::BarlineType>(classification.type));
         break;
     }

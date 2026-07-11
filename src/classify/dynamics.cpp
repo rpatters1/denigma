@@ -355,7 +355,7 @@ static std::span<const char> sourceSpanForMatch(const musx::util::EnigmaTextChun
 
 } // namespace
 
-std::optional<DynamicMark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk, bool forceOther)
+std::optional<Mark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk, bool forceOther)
 {
     if (!chunk.styles.font || chunk.styles.font->hidden) {
         return std::nullopt;
@@ -368,10 +368,10 @@ std::optional<DynamicMark> classifyDynamicRun(const musx::util::EnigmaTextChunk&
 
     if (const Dynamic exact = classifyExactDynamicToken(normalizedText.text); exact != Dynamic::None) {
         DynamicTokenMatch match{ exact, 0, normalizedText.text.size() };
-        return DynamicMark{ exact, matchedGlyphNames(normalizedText, match) };
+        return Mark{ exact, matchedGlyphNames(normalizedText, match) };
     }
     if (isDynamicLikeText(normalizedText.text) || forceOther) {
-        return DynamicMark{ Dynamic::Other, knownGlyphNames(normalizedText) };
+        return Mark{ Dynamic::Other, knownGlyphNames(normalizedText) };
     }
     return std::nullopt;
 }
@@ -389,7 +389,7 @@ std::vector<DynamicSpan> findDynamicSpans(const musx::util::EnigmaTextChunk& chu
     for (const auto& match : findDynamicTokens(normalizedText)) {
         result.push_back({
             sourceSpanForMatch(chunk, normalizedText, match),
-            DynamicMark{ match.dynamic, matchedGlyphNames(normalizedText, match) }
+            Mark{ match.dynamic, matchedGlyphNames(normalizedText, match) }
         });
     }
     return result;

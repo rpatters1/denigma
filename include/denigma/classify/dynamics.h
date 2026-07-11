@@ -69,18 +69,18 @@ enum class Dynamic
     n
 };
 
-/// @enum DynamicChange
+/// @enum Change
 /// @brief Whether a classified dynamic is absolute or indicates relative motion.
-enum class DynamicChange
+enum class Change
 {
     Absolute,
     RelativeIncrease,
     RelativeDecrease
 };
 
-/// @struct DynamicMark
+/// @struct Mark
 /// @brief Dynamic metadata attached to a source text run.
-struct DynamicMark
+struct Mark
 {
     /// Classified dynamic.
     Dynamic dynamic{};
@@ -92,7 +92,7 @@ struct DynamicMark
 } // namespace dynamics
 
 /// Classifies a source text chunk as a single plain dynamic mark.
-std::optional<dynamics::DynamicMark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk, bool forceOther = false);
+std::optional<dynamics::Mark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk, bool forceOther = false);
 /// Returns the canonical text spelling for a dynamic.
 std::string dynamicCanonicalText(dynamics::Dynamic dynamic);
 /// Returns canonical SMuFL glyph names for a dynamic.

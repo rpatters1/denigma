@@ -84,6 +84,26 @@ TEST(NoteheadClassification, ClassifiesRegularNoteheadsBySmuflName)
     EXPECT_EQ(unfilled.fill, notehead::Fill::Unfilled);
 }
 
+TEST(NoteheadClassification, ClassifiesNullNoteheads)
+{
+    const auto smuflContext = makeFontContext("Finale Maestro");
+    auto smuflNull = classifyNoteheadSymbol(smuflContext.fontInfo, 0xE0A5); // noteheadNull
+    EXPECT_EQ(smuflNull.shape, notehead::Shape::Null);
+    EXPECT_EQ(smuflNull.fill, notehead::Fill::Unspecified);
+    ASSERT_TRUE(smuflNull.glyphName);
+    EXPECT_EQ(smuflNull.glyphName.value(), "noteheadNull");
+    EXPECT_EQ(smuflNull.noteheadInfo.font, smuflContext.fontInfo);
+    EXPECT_EQ(smuflNull.noteheadInfo.character, char32_t(0xE0A5));
+
+    const auto textContext = makeFontContext("Times New Roman", /*charsetVal*/ 0);
+    auto space = classifyNoteheadSymbol(textContext.fontInfo, U' ');
+    EXPECT_EQ(space.shape, notehead::Shape::Null);
+    EXPECT_EQ(space.fill, notehead::Fill::Unspecified);
+    EXPECT_FALSE(space.glyphName);
+    EXPECT_EQ(space.noteheadInfo.font, textContext.fontInfo);
+    EXPECT_EQ(space.noteheadInfo.character, U' ');
+}
+
 TEST(NoteheadClassification, ClassifiesDiamondNoteheadsBySmuflName)
 {
     const auto fontContext = makeFontContext("Finale Maestro");
@@ -127,16 +147,16 @@ TEST(NoteheadClassification, ClassifiesSlashNoteheadsBySmuflName)
     EXPECT_EQ(largeUnfilled.fill, notehead::Fill::Unfilled);
 }
 
-TEST(NoteheadClassification, ClassifiesCircleNoteheadsBySmuflName)
+TEST(NoteheadClassification, ClassifiesCircledNoteheadsBySmuflName)
 {
     const auto fontContext = makeFontContext("Finale Maestro");
 
     auto filled = classifyNoteheadSymbol(fontContext.fontInfo, 0xE0E4); // noteheadCircledBlack
-    EXPECT_EQ(filled.shape, notehead::Shape::Circle);
+    EXPECT_EQ(filled.shape, notehead::Shape::Circled);
     EXPECT_EQ(filled.fill, notehead::Fill::Filled);
 
     auto unfilled = classifyNoteheadSymbol(fontContext.fontInfo, 0xE0E6); // noteheadCircledWhole
-    EXPECT_EQ(unfilled.shape, notehead::Shape::Circle);
+    EXPECT_EQ(unfilled.shape, notehead::Shape::Circled);
     EXPECT_EQ(unfilled.fill, notehead::Fill::Unfilled);
 }
 

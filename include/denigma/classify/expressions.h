@@ -31,7 +31,7 @@
 
 #include "denigma/classify/articulations.h"
 #include "denigma/classify/dynamics.h"
-#include "denigma/classify/glyphs.h"
+#include "denigma/classify/classifier_common.h"
 #include "musx/musx.h"
 
 namespace denigma {
@@ -48,6 +48,7 @@ enum class ExpressionType
     Fermata,
     BreathMark,
     HarpDiagram,
+    KeyboardPedal,
     PseudoTie,
     NonArpeggio,
     TempoMark,
@@ -125,7 +126,7 @@ struct Fermata
 {
     articulation::Fermata fermata{};
     std::optional<std::string> glyphName;
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
     bool isRightBarline{};
 };
 
@@ -153,19 +154,33 @@ struct HarpDiagram
     PedalPosition a{};
 };
 
-enum class PseudoTieType
+/// @enum KeyboardPedal
+/// @brief Keyboard pedal changes recognized in Finale expressions.
+enum class KeyboardPedal
 {
-    LaissezVibrer,
-    TieEnd
+    /// Sustain pedal (pedal 1), normally the rightmost pedal.
+    PedalOne,
+    /// Sostenuto pedal (pedal 2), normally the middle pedal.
+    PedalTwo,
+    /// Una corda or soft pedal (pedal 3), normally the leftmost pedal.
+    PedalThree,
+    /// Release the currently engaged keyboard pedal.
+    PedalUp
 };
 
-struct ExpressionPseudoTie
+struct PseudoTie
 {
-    PseudoTieType type{ PseudoTieType::LaissezVibrer };
+    enum class Type
+    {
+        LaissezVibrer,
+        TieEnd
+    };
+
+    Type type{ Type::LaissezVibrer };
     musx::dom::CurveContourDirection direction{ musx::dom::CurveContourDirection::Unspecified };
 };
 
-struct ExpressionNonArpeggio
+struct NonArpeggio
 {
     musx::util::ArpeggioSpanCandidate candidate;
 };
@@ -182,11 +197,11 @@ struct GenericText
 
 struct DynamicQualifier
 {
-    dynamics::DynamicChange change{ dynamics::DynamicChange::Absolute };
+    dynamics::Change change{ dynamics::Change::Absolute };
     std::string text;
 };
 
-struct ExpressionError
+struct Error
 {
     std::string message;
 };
@@ -195,14 +210,15 @@ struct Suppress
 {
 };
 
-using ExpressionRunValue = std::variant<std::monostate, dynamics::DynamicMark, DynamicQualifier, Fermata, BreathMark, TempoText, TempoAlteration, TechniqueText, RehearsalMark, GenericText, ExpressionError, Suppress>;
-using ExpressionValue = std::variant<std::monostate, dynamics::DynamicMark, Fermata, BreathMark, HarpDiagram, ExpressionPseudoTie, ExpressionNonArpeggio, TempoText, TempoAlteration, TechniqueText, RehearsalMark, GenericText, ExpressionError, Suppress>;
+using RunValue = std::variant<
+    std::monostate, dynamics::Mark, DynamicQualifier, Fermata, BreathMark, TempoText,
+    TempoAlteration, TechniqueText, RehearsalMark, GenericText, Error, Suppress>;
 
-struct ExpressionRun
+struct RunClassification
 {
     musx::util::EnigmaTextChunk chunk;
     ClassificationBasis basis{ ClassificationBasis::FallbackToGenericText };
-    ExpressionRunValue value{};
+    RunValue value{};
 
     template <typename T>
     const T* as() const noexcept
@@ -211,13 +227,19 @@ struct ExpressionRun
 
 } // namespace expression
 
+using ExpressionValue = std::variant<
+    std::monostate, dynamics::Mark, expression::Fermata, expression::BreathMark,
+    expression::HarpDiagram, expression::KeyboardPedal, expression::PseudoTie, expression::NonArpeggio,
+    expression::TempoText, expression::TempoAlteration, expression::TechniqueText, expression::RehearsalMark,
+    expression::GenericText, expression::Error, expression::Suppress>;
+
 struct ExpressionClassification
 {
     ExpressionType type{ ExpressionType::GenericText };
     ClassificationBasis basis{ ClassificationBasis::FallbackToGenericText };
     std::optional<musx::util::EnigmaParsingContext> enigmaCtx;
-    expression::ExpressionValue value{};
-    std::vector<expression::ExpressionRun> runs;
+    ExpressionValue value{};
+    std::vector<expression::RunClassification> runs;
 
     template <typename T>
     const T* as() const noexcept
@@ -236,8 +258,8 @@ private:
 
 public:
 
-    const dynamics::DynamicMark& dynamic() const
-    { return checkedPayload<dynamics::DynamicMark, ExpressionType::Dynamic>("Dynamic"); }
+    const dynamics::Mark& dynamic() const
+    { return checkedPayload<dynamics::Mark, ExpressionType::Dynamic>("Dynamic"); }
 
     const expression::Fermata& fermata() const
     { return checkedPayload<expression::Fermata, ExpressionType::Fermata>("Fermata"); }
@@ -248,11 +270,14 @@ public:
     const expression::HarpDiagram& harpDiagram() const
     { return checkedPayload<expression::HarpDiagram, ExpressionType::HarpDiagram>("HarpDiagram"); }
 
-    const expression::ExpressionPseudoTie& pseudoTie() const
-    { return checkedPayload<expression::ExpressionPseudoTie, ExpressionType::PseudoTie>("PseudoTie"); }
+    expression::KeyboardPedal keyboardPedal() const
+    { return checkedPayload<expression::KeyboardPedal, ExpressionType::KeyboardPedal>("KeyboardPedal"); }
 
-    const expression::ExpressionNonArpeggio& nonArpeggio() const
-    { return checkedPayload<expression::ExpressionNonArpeggio, ExpressionType::NonArpeggio>("NonArpeggio"); }
+    const expression::PseudoTie& pseudoTie() const
+    { return checkedPayload<expression::PseudoTie, ExpressionType::PseudoTie>("PseudoTie"); }
+
+    const expression::NonArpeggio& nonArpeggio() const
+    { return checkedPayload<expression::NonArpeggio, ExpressionType::NonArpeggio>("NonArpeggio"); }
 
     const expression::TempoText& tempoText() const
     { return checkedPayload<expression::TempoText, ExpressionType::TempoMark>("TempoText"); }
@@ -269,8 +294,8 @@ public:
     const expression::GenericText& genericText() const
     { return checkedPayload<expression::GenericText, ExpressionType::GenericText>("GenericText"); }
 
-    const expression::ExpressionError& error() const
-    { return checkedPayload<expression::ExpressionError, ExpressionType::Error>("Error"); }
+    const expression::Error& error() const
+    { return checkedPayload<expression::Error, ExpressionType::Error>("Error"); }
 };
 
 struct ExpressionAssignmentClassification

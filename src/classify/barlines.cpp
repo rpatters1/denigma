@@ -43,29 +43,29 @@ static bool classifyIsShortBarline(const musx::dom::MusxInstance<musx::dom::othe
         && topFromCenter <= maxExtension;
 }
 
-static BarlineType classifyMeasureBarlineType(MusxBarlineType type)
+static Type classifyMeasureBarlineType(MusxBarlineType type)
 {
     switch (type) {
     case MusxBarlineType::None:
-        return BarlineType::NoBarline;
+        return Type::NoBarline;
     case MusxBarlineType::Normal:
-        return BarlineType::Regular;
+        return Type::Regular;
     case MusxBarlineType::Double:
-        return BarlineType::Double;
+        return Type::Double;
     case MusxBarlineType::Final:
-        return BarlineType::Final;
+        return Type::Final;
     case MusxBarlineType::Solid:
-        return BarlineType::Heavy;
+        return Type::Heavy;
     case MusxBarlineType::Dashed:
-        return BarlineType::Dashed;
+        return Type::Dashed;
     case MusxBarlineType::Tick:
-        return BarlineType::Tick;
+        return Type::Tick;
     case MusxBarlineType::OptionsDefault:
     case MusxBarlineType::Custom:
-        return BarlineType::Unsupported;
+        return Type::Unsupported;
     }
 
-    return BarlineType::Unsupported;
+    return Type::Unsupported;
 }
 
 } // namespace
@@ -81,21 +81,21 @@ BarlineClassification classifyBarline(
     }
 
     if ((barlineOptions && !barlineOptions->drawBarlines) || (staff && staff->hideBarlines)) {
-        return { BarlineType::NoBarline, false };
+        return { Type::NoBarline, false };
     }
 
     const bool isShort = classifyIsShortBarline(staff);
     const auto type = measure->barlineType;
     if (type == MusxBarlineType::Normal) {
         if (isFinalMeasure && barlineOptions && !barlineOptions->drawFinalBarlineOnLastMeas) {
-            return { BarlineType::Regular, isShort };
+            return { Type::Regular, isShort };
         }
 
         if (!isFinalMeasure && barlineOptions && barlineOptions->drawDoubleBarlineBeforeKeyChanges) {
             if (const auto& nextMeasure = measure->getDocument()->getOthers()->get<musx::dom::others::Measure>(
                     musx::dom::SCORE_PARTID, static_cast<musx::dom::Cmper>(measure->getCmper() + 1))) {
                 if (!measure->createKeySignature()->isSame(*nextMeasure->createKeySignature().get())) {
-                    return { BarlineType::Double, isShort };
+                    return { Type::Double, isShort };
                 }
             }
         }

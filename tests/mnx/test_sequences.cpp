@@ -55,11 +55,11 @@ TEST(MnxSequences, CalcPointing)
 {
     using formats::mnx::detail::enumConvert;
 
-    using Placement = classify::glyph::GlyphStyle::Placement;
+    using Placement = classify::GlyphStyle::Placement;
     EXPECT_EQ(enumConvert<mnxdom::MarkingUpDownAuto>(Placement::Above), mnxdom::MarkingUpDownAuto::Up);
     EXPECT_EQ(enumConvert<mnxdom::MarkingUpDownAuto>(Placement::Below), mnxdom::MarkingUpDownAuto::Down);
     EXPECT_EQ(enumConvert<mnxdom::MarkingUpDownAuto>(Placement::Automatic), mnxdom::MarkingUpDownAuto::Auto);
-    EXPECT_EQ(enumConvert<mnxdom::MarkingUpDownAuto>(classify::glyph::GlyphStyle{}.placement), mnxdom::MarkingUpDownAuto::Auto);
+    EXPECT_EQ(enumConvert<mnxdom::MarkingUpDownAuto>(classify::GlyphStyle{}.placement), mnxdom::MarkingUpDownAuto::Auto);
 }
 
 TEST(MnxSequences, Voice2TripletAtEnd)

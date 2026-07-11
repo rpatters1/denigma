@@ -26,7 +26,7 @@
 #include <variant>
 #include <vector>
 
-#include "denigma/classify/glyphs.h"
+#include "denigma/classify/classifier_common.h"
 #include "musx/musx.h"
 
 namespace denigma {
@@ -63,7 +63,7 @@ struct ArticulationMark
     /// Articulation mark type.
     Type type{};
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct ArticulationMarks
@@ -102,7 +102,7 @@ struct TechniqueMark
     /// Technique mark type.
     Type type{};
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct HarmonMute
@@ -122,7 +122,7 @@ struct HarmonMute
     /// Harmon mute qualifier encoded by the source glyph.
     Qualifier qualifier{};
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct Tremolo
@@ -142,7 +142,7 @@ struct Tremolo
     /// Number of tremolo strokes.
     int marks{};
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct Fermata
@@ -179,7 +179,7 @@ struct Fermata
     /// Playback-duration class.
     Duration duration{};
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct BreathMark
@@ -199,7 +199,7 @@ struct BreathMark
     /// Classified breath mark type.
     Type type{};
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct Caesura
@@ -221,7 +221,7 @@ struct Caesura
     /// Classified caesura type.
     Type type{};
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct Arpeggio
@@ -241,7 +241,7 @@ struct Arpeggio
     /// Classified arpeggio type.
     Type type{};
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct Ornament
@@ -283,7 +283,7 @@ struct Ornament
     /// Classified ornament type.
     Type type{};
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
     /// Accidentals attached to the ornament sign.
     std::vector<AccidentalMark> accidentals;
 };
@@ -293,7 +293,7 @@ struct Ornament
 struct VerticalEntryBracket
 {
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct Parenthesis
@@ -313,7 +313,7 @@ struct Parenthesis
     /// The note this parenthesis is associated with, per ArticulationAssign::calcAssociatedNote. Falsy if unresolved.
     musx::dom::NoteInfoPtr note;
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
 /// @struct OtherMark
@@ -331,21 +331,24 @@ struct OtherMark
     /// Broad notation category for the mark.
     Category category{};
     /// Visual style encoded by the source glyph variant.
-    glyph::GlyphStyle glyphStyle{};
+    GlyphStyle glyphStyle{};
 };
 
-/// Variant payload for articulation classification.
-using ArticulationValue = std::variant<std::monostate, ArticulationMarks, TechniqueMark, HarmonMute, Tremolo, Fermata, BreathMark,
-    Caesura, Arpeggio, Ornament, VerticalEntryBracket, Parenthesis, OtherMark>;
-
 } // namespace articulation
+
+/// Variant payload for articulation classification.
+using ArticulationValue = std::variant<
+    std::monostate, articulation::ArticulationMarks, articulation::TechniqueMark, articulation::HarmonMute,
+    articulation::Tremolo, articulation::Fermata, articulation::BreathMark, articulation::Caesura,
+    articulation::Arpeggio, articulation::Ornament, articulation::VerticalEntryBracket,
+    articulation::Parenthesis, articulation::OtherMark>;
 
 /// @struct ArticulationClassification
 /// @brief Result returned by articulation classification.
 struct ArticulationClassification
 {
     /// Classified articulation payload, or std::monostate when no articulation was recognized.
-    articulation::ArticulationValue value{};
+    ArticulationValue value{};
     /// Resolved placement of the assigned articulation, when classified from an assignment.
     musx::dom::VerticalPlacement placement{ musx::dom::VerticalPlacement::NotApplicable };
     /// SMuFL glyph name associated with the recognized symbol, when available.

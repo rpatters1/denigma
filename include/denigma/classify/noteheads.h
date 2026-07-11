@@ -39,12 +39,13 @@ enum class Shape
     /// A real alternate-notehead glyph was found (the source definitely specifies a non-default
     /// notehead), but it does not belong to one of the specifically recognized shape families below.
     Other,
+    Null,
     Regular,
     X,
     Diamond,
     SmallSlash,
     LargeSlash,
-    Circle
+    Circled
 };
 
 /// @enum Fill

@@ -129,7 +129,7 @@ static musx::util::EnigmaTextChunk sliceChunk(const musx::util::EnigmaTextChunk&
     return sliceChunk(chunk, start, sourceText.size());
 }
 
-static DynamicChange qualifierChangeForText(std::string_view text)
+static Change qualifierChangeForText(std::string_view text)
 {
     bool sawIncrease = false;
     bool sawDecrease = false;
@@ -157,9 +157,9 @@ static DynamicChange qualifierChangeForText(std::string_view text)
     }
 
     if (sawIncrease == sawDecrease) {
-        return DynamicChange::Absolute;
+        return Change::Absolute;
     }
-    return sawIncrease ? DynamicChange::RelativeIncrease : DynamicChange::RelativeDecrease;
+    return sawIncrease ? Change::RelativeIncrease : Change::RelativeDecrease;
 }
 
 static std::vector<musx::util::EnigmaTextChunk> collectVisibleExpressionChunks(
@@ -177,12 +177,12 @@ static std::vector<musx::util::EnigmaTextChunk> collectVisibleExpressionChunks(
     return result;
 }
 
-static void appendGenericRun(std::vector<ExpressionRun>& runs, const musx::util::EnigmaTextChunk& chunk)
+static void appendGenericRun(std::vector<RunClassification>& runs, const musx::util::EnigmaTextChunk& chunk)
 {
     if (!chunk.text.empty()) {
         const std::string normalizedText = normalizeExpressionText(chunk.text);
-        const DynamicChange change = qualifierChangeForText(normalizedText);
-        if (change != DynamicChange::Absolute) {
+        const Change change = qualifierChangeForText(normalizedText);
+        if (change != Change::Absolute) {
             runs.push_back({ chunk, ClassificationBasis::Heuristic, DynamicQualifier{ change, chunk.text } });
         } else {
             runs.push_back({ chunk, ClassificationBasis::FallbackToGenericText, GenericText{ chunk.text } });
@@ -190,13 +190,13 @@ static void appendGenericRun(std::vector<ExpressionRun>& runs, const musx::util:
     }
 }
 
-static std::vector<ExpressionRun> classifyExpressionRuns(const ResolvedTextExpression& resolved)
+static std::vector<RunClassification> classifyExpressionRuns(const ResolvedTextExpression& resolved)
 {
     if (!resolved.rawTextCtx) {
         return {};
     }
 
-    std::vector<ExpressionRun> result;
+    std::vector<RunClassification> result;
     const bool forceDynamicOther = resolved.categoryType == CategoryType::Dynamics;
     for (const auto& chunk : collectVisibleExpressionChunks(resolved.rawTextCtx)) {
         const auto dynamicSpans = detail::findDynamicSpans(chunk);
@@ -232,17 +232,17 @@ static std::vector<ExpressionRun> classifyExpressionRuns(const ResolvedTextExpre
 }
 
 static std::optional<ExpressionClassification> makeDynamicExpression(
-    std::vector<ExpressionRun> runs,
+    std::vector<RunClassification> runs,
     CategoryType categoryType)
 {
-    const auto dynamicIt = std::find_if(runs.begin(), runs.end(), [](const ExpressionRun& run) {
-        return std::holds_alternative<dynamics::DynamicMark>(run.value);
+    const auto dynamicIt = std::find_if(runs.begin(), runs.end(), [](const RunClassification& run) {
+        return std::holds_alternative<dynamics::Mark>(run.value);
     });
     if (dynamicIt == runs.end()) {
         return std::nullopt;
     }
 
-    const auto& dynamicMark = std::get<dynamics::DynamicMark>(dynamicIt->value);
+    const auto& dynamicMark = std::get<dynamics::Mark>(dynamicIt->value);
 
     ExpressionClassification result;
     result.type = ExpressionType::Dynamic;
@@ -601,7 +601,7 @@ static std::optional<ExpressionClassification> classifyTextExpressionError(const
     ExpressionClassification result;
     result.type = ExpressionType::Error;
     result.basis = ClassificationBasis::FallbackToGenericText;
-    result.value = ExpressionError{ resolved.errorMessage };
+    result.value = Error{ resolved.errorMessage };
     return result;
 }
 
@@ -733,6 +733,171 @@ static std::optional<ExpressionClassification> classifyHarpDiagramExpression(con
     return result;
 }
 
+static std::string normalizeKeyboardPedalText(std::string_view text)
+{
+    std::string result;
+    result.reserve(text.size());
+    bool pendingSpace = false;
+    for (const char ch : text) {
+        const unsigned char uch = static_cast<unsigned char>(ch);
+        if (ch != '*' && (utils::isSpace(uch) || utils::isPunctuation(uch))) {
+            pendingSpace = !result.empty();
+            continue;
+        }
+        if (pendingSpace) {
+            result.push_back(' ');
+            pendingSpace = false;
+        }
+        result.push_back(utils::toLowerCase(ch));
+    }
+    return result;
+}
+
+static std::optional<KeyboardPedal> keyboardPedalFromText(std::string_view text)
+{
+    const std::string normalizedStorage = normalizeExpressionText(text);
+    if (normalizedStorage == "*") {
+        return KeyboardPedal::PedalUp;
+    }
+
+    const std::string comparableStorage = normalizeKeyboardPedalText(text);
+    std::string_view normalizedText = comparableStorage;
+    constexpr std::array trailingQualifiers = {
+        std::string_view{ " sempre" }, std::string_view{ " simile" }, std::string_view{ " ad lib" }
+    };
+    for (bool removed = true; removed;) {
+        removed = false;
+        for (const auto qualifier : trailingQualifiers) {
+            if (normalizedText.ends_with(qualifier)) {
+                normalizedText.remove_suffix(qualifier.size());
+                removed = true;
+                break;
+            }
+        }
+    }
+    constexpr std::array leadingQualifiers = { std::string_view{ "sempre " }, std::string_view{ "con " } };
+    for (const auto qualifier : leadingQualifiers) {
+        if (normalizedText.starts_with(qualifier)) {
+            normalizedText.remove_prefix(qualifier.size());
+            break;
+        }
+    }
+
+    if (normalizedText == "*") {
+        return KeyboardPedal::PedalUp;
+    }
+    if (matchesAny(normalizedText, { "senza ped" })) {
+        return KeyboardPedal::PedalUp;
+    }
+    if (matchesAny(normalizedText, { "sost", "sost ped" })) {
+        return KeyboardPedal::PedalTwo;
+    }
+    if (matchesAny(normalizedText, { "una corda" })) {
+        return KeyboardPedal::PedalThree;
+    }
+    if (!normalizedText.starts_with("ped")) {
+        return std::nullopt;
+    }
+
+    normalizedText.remove_prefix(3);
+    while (!normalizedText.empty() && normalizedText.front() == ' ') {
+        normalizedText.remove_prefix(1);
+    }
+    while (!normalizedText.empty() && normalizedText.back() == ' ') {
+        normalizedText.remove_suffix(1);
+    }
+
+    if (normalizedText.empty() || normalizedText == "i" || normalizedText == "1") {
+        return KeyboardPedal::PedalOne;
+    }
+    if (normalizedText == "ii" || normalizedText == "2") {
+        return KeyboardPedal::PedalTwo;
+    }
+    if (normalizedText == "iii" || normalizedText == "3") {
+        return KeyboardPedal::PedalThree;
+    }
+    return std::nullopt;
+}
+
+static std::optional<ExpressionClassification> classifyKeyboardPedalExpression(const ResolvedTextExpression& resolved)
+{
+    auto pedal = keyboardPedalFromText(resolved.normalizedText);
+    bool recognizedSymbol = false;
+
+    if (!pedal) {
+        std::string symbolicText;
+        bool sawPedalUp = false;
+        for (const auto& chunk : collectVisibleExpressionChunks(resolved.rawTextCtx)) {
+            if (!chunk.styles.font) {
+                return std::nullopt;
+            }
+            const bool fontIsSmufl = chunk.styles.font->calcIsSMuFL();
+            for (utils::Utf8Iterator iter(chunk.text); !iter.atEnd(); iter.next()) {
+                if (!iter.valid()) {
+                    return std::nullopt;
+                }
+                const auto glyphName = [&]() -> std::optional<std::string> {
+                    if (fontIsSmufl) {
+                        if (const auto* name = smufl_mapping::getGlyphName(iter->codepoint)) {
+                            return std::string(*name);
+                        }
+                        return std::nullopt;
+                    }
+                    return utils::smuflGlyphNameForFont(chunk.styles.font, iter->codepoint);
+                }();
+
+                if (glyphName == "keyboardPedalUp") {
+                    sawPedalUp = true;
+                    recognizedSymbol = true;
+                } else if (glyphName == "keyboardPedalPed") {
+                    symbolicText += "ped";
+                    recognizedSymbol = true;
+                } else if (glyphName == "keyboardPedalP") {
+                    symbolicText += 'p';
+                    recognizedSymbol = true;
+                } else if (glyphName == "keyboardPedalE") {
+                    symbolicText += 'e';
+                    recognizedSymbol = true;
+                } else if (glyphName == "keyboardPedalD") {
+                    symbolicText += 'd';
+                    recognizedSymbol = true;
+                } else if (glyphName == "keyboardPedalDot") {
+                    symbolicText += '.';
+                    recognizedSymbol = true;
+                } else if (glyphName == "keyboardPedalSost" || glyphName == "keyboardPedalS") {
+                    symbolicText += "sost";
+                    recognizedSymbol = true;
+                } else if (iter->codepoint <= 0x7F) {
+                    symbolicText.push_back(static_cast<char>(iter->codepoint));
+                } else {
+                    return std::nullopt;
+                }
+            }
+        }
+
+        const std::string normalizedSymbolicText = normalizeExpressionText(symbolicText);
+        if (sawPedalUp) {
+            if (!normalizedSymbolicText.empty() && !matchesAny(normalizedSymbolicText, { "sempre" })) {
+                return std::nullopt;
+            }
+            pedal = KeyboardPedal::PedalUp;
+        } else if (recognizedSymbol) {
+            pedal = keyboardPedalFromText(normalizedSymbolicText);
+        }
+    }
+
+    if (!pedal) {
+        return std::nullopt;
+    }
+    ExpressionClassification result;
+    result.type = ExpressionType::KeyboardPedal;
+    result.basis = recognizedSymbol
+        ? basisForSymbolRecognition(resolved.categoryType)
+        : basisForRecognition(resolved.categoryType, CategoryType::TechniqueText);
+    result.value = *pedal;
+    return result;
+}
+
 static ExpressionClassification withEnigmaCtx(ExpressionClassification result, const ResolvedTextExpression& resolved)
 {
     if (resolved.rawTextCtx) {
@@ -751,6 +916,9 @@ static std::optional<ExpressionClassification> classifyResolvedTextExpressionBef
     }
     if (const auto harpDiagram = classifyHarpDiagramExpression(resolved)) {
         return withEnigmaCtx(*harpDiagram, resolved);
+    }
+    if (const auto pedal = classifyKeyboardPedalExpression(resolved)) {
+        return withEnigmaCtx(*pedal, resolved);
     }
     if (const auto symbol = classifySymbolExpression(resolved)) {
         return withEnigmaCtx(*symbol, resolved);
@@ -844,19 +1012,19 @@ static std::optional<ExpressionClassification> classifyPseudoTieExpression(
         return std::nullopt;
     }
 
-    auto makeResult = [&](PseudoTieType type) {
+    auto makeResult = [&](PseudoTie::Type type) {
         ExpressionClassification result;
         result.type = ExpressionType::PseudoTie;
         result.basis = ClassificationBasis::Heuristic;
-        result.value = ExpressionPseudoTie{ type, calcShapeExpressionContour(shape) };
+        result.value = PseudoTie{ type, calcShapeExpressionContour(shape) };
         return result;
     };
 
     if (assignment->calcIsPseudoTie(musx::utils::PseudoTieMode::LaissezVibrer, entryInfo)) {
-        return makeResult(PseudoTieType::LaissezVibrer);
+        return makeResult(PseudoTie::Type::LaissezVibrer);
     }
     if (assignment->calcIsPseudoTie(musx::utils::PseudoTieMode::TieEnd, entryInfo)) {
-        return makeResult(PseudoTieType::TieEnd);
+        return makeResult(PseudoTie::Type::TieEnd);
     }
     return std::nullopt;
 }
@@ -881,7 +1049,7 @@ static ExpressionClassification classifyAssignedShapeExpression(
             ExpressionClassification result;
             result.type = ExpressionType::NonArpeggio;
             result.basis = ClassificationBasis::FinaleCategory;
-            result.value = ExpressionNonArpeggio{ nonArpeggio.value() };
+            result.value = NonArpeggio{ nonArpeggio.value() };
             return result;
         }
         break;

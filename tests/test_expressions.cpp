@@ -50,18 +50,18 @@ struct ShapeExpressionContext
     MusxInstance<others::MeasureExprAssign> assignment;
 };
 
-static const dynamics::DynamicMark& firstDynamicMark(const ExpressionClassification& classification)
+static const dynamics::Mark& firstDynamicMark(const ExpressionClassification& classification)
 {
-    const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::ExpressionRun& run) {
-        return run.as<dynamics::DynamicMark>() != nullptr;
+    const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::RunClassification& run) {
+        return run.as<dynamics::Mark>() != nullptr;
     });
     EXPECT_NE(dynamicIt, classification.runs.end());
-    return *dynamicIt->as<dynamics::DynamicMark>();
+    return *dynamicIt->as<dynamics::Mark>();
 }
 
 static const expression::DynamicQualifier& firstDynamicQualifier(const ExpressionClassification& classification)
 {
-    const auto qualifierIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::ExpressionRun& run) {
+    const auto qualifierIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::RunClassification& run) {
         return run.as<expression::DynamicQualifier>() != nullptr;
     });
     EXPECT_NE(qualifierIt, classification.runs.end());
@@ -236,11 +236,11 @@ TEST(ExpressionClassification, ClassifiesConcreteDynamicsAndCarriesSurroundingTe
 
     EXPECT_EQ(result.type, ExpressionType::Dynamic);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryConfirmed);
-    const auto dynamicIt = std::find_if(result.runs.begin(), result.runs.end(), [](const expression::ExpressionRun& run) {
-        return run.as<dynamics::DynamicMark>() != nullptr;
+    const auto dynamicIt = std::find_if(result.runs.begin(), result.runs.end(), [](const expression::RunClassification& run) {
+        return run.as<dynamics::Mark>() != nullptr;
     });
     ASSERT_NE(dynamicIt, result.runs.end());
-    EXPECT_EQ(dynamicIt->as<dynamics::DynamicMark>()->dynamic, dynamics::Dynamic::pp);
+    EXPECT_EQ(dynamicIt->as<dynamics::Mark>()->dynamic, dynamics::Dynamic::pp);
     ASSERT_EQ(result.runs.size(), 3u);
     ASSERT_NE(result.runs[0].as<expression::GenericText>(), nullptr);
     EXPECT_EQ(result.runs[0].chunk.text, "sub. ");
@@ -302,6 +302,76 @@ TEST(ExpressionClassification, RejectsIncompleteHarpPedalDiagramGlyphSequence)
     EXPECT_EQ(result.type, ExpressionType::GenericText);
 }
 
+TEST(ExpressionClassification, ClassifiesKeyboardPedalText)
+{
+    const std::vector<std::pair<std::string, expression::KeyboardPedal>> cases = {
+        { "ped.", expression::KeyboardPedal::PedalOne },
+        { "Ped. I", expression::KeyboardPedal::PedalOne },
+        { "Ped. 1", expression::KeyboardPedal::PedalOne },
+        { "sost", expression::KeyboardPedal::PedalTwo },
+        { "Ped. II", expression::KeyboardPedal::PedalTwo },
+        { "Ped. 2", expression::KeyboardPedal::PedalTwo },
+        { "una corda", expression::KeyboardPedal::PedalThree },
+        { "Ped. III", expression::KeyboardPedal::PedalThree },
+        { "Ped. 3", expression::KeyboardPedal::PedalThree },
+        { "*", expression::KeyboardPedal::PedalUp },
+        { "sempre Ped.", expression::KeyboardPedal::PedalOne },
+        { "Sost. Ped.", expression::KeyboardPedal::PedalTwo },
+        { "con Ped.", expression::KeyboardPedal::PedalOne },
+        { "senza Ped.", expression::KeyboardPedal::PedalUp },
+        { "Ped. simile", expression::KeyboardPedal::PedalOne },
+        { "Ped. ad lib.", expression::KeyboardPedal::PedalOne },
+        { "PED: II", expression::KeyboardPedal::PedalTwo },
+        { "Sost.-Ped.", expression::KeyboardPedal::PedalTwo },
+        { "Ped., sempre", expression::KeyboardPedal::PedalOne },
+    };
+
+    for (const auto& [text, expected] : cases) {
+        const auto result = classifyTextExpression(text);
+        ASSERT_EQ(result.type, ExpressionType::KeyboardPedal) << text;
+        EXPECT_EQ(result.keyboardPedal(), expected) << text;
+
+        const auto sempreResult = classifyTextExpression(text + " sempre");
+        ASSERT_EQ(sempreResult.type, ExpressionType::KeyboardPedal) << text << " sempre";
+        EXPECT_EQ(sempreResult.keyboardPedal(), expected) << text << " sempre";
+    }
+}
+
+TEST(ExpressionClassification, ClassifiesKeyboardPedalGlyphs)
+{
+    const auto classifyGlyphs = [](std::u8string_view glyphs) {
+        return classifyExpression(makeTextExpressionContext(
+            "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(glyphs),
+            ExpressionCategoryType::Misc, {}, false, "Bravura").def);
+    };
+    const auto expectPedal = [&](std::u8string_view glyphs, expression::KeyboardPedal expected) {
+        const auto result = classifyGlyphs(glyphs);
+        ASSERT_EQ(result.type, ExpressionType::KeyboardPedal);
+        EXPECT_EQ(result.keyboardPedal(), expected);
+    };
+
+    expectPedal(u8"\uE650", expression::KeyboardPedal::PedalOne); // keyboardPedalPed
+    expectPedal(u8"\uE651\uE652\uE653\uE654", expression::KeyboardPedal::PedalOne);
+    expectPedal(u8"\uE650 I", expression::KeyboardPedal::PedalOne);
+    expectPedal(u8"\uE651\uE652\uE653\uE654 1", expression::KeyboardPedal::PedalOne);
+    expectPedal(u8"\uE650 sempre", expression::KeyboardPedal::PedalOne);
+    expectPedal(u8"\uE650 II", expression::KeyboardPedal::PedalTwo);
+    expectPedal(u8"\uE659", expression::KeyboardPedal::PedalTwo); // keyboardPedalSost
+    expectPedal(u8"\uE65A", expression::KeyboardPedal::PedalTwo); // keyboardPedalS
+    expectPedal(u8"\uE659 sempre", expression::KeyboardPedal::PedalTwo);
+    expectPedal(u8"\uE650 3", expression::KeyboardPedal::PedalThree);
+    expectPedal(u8"\uE655", expression::KeyboardPedal::PedalUp); // keyboardPedalUp
+    expectPedal(u8"\uE655 sempre", expression::KeyboardPedal::PedalUp);
+}
+
+TEST(ExpressionClassification, DoesNotClassifyKeyboardPedalPictograms)
+{
+    const auto result = classifyExpression(makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(u8"\uE660"),
+        ExpressionCategoryType::Misc, {}, false, "Bravura").def);
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
 TEST(ExpressionClassification, RequiresSingleCodepointForTextExpressionSymbolClassification)
 {
     const auto fermataContext = makeTextExpressionContext("^fontid(0)^size(24)^nfx(0)UU", ExpressionCategoryType::Misc, {}, false, "Maestro", 4095);
@@ -316,19 +386,19 @@ TEST(ExpressionClassification, ClassifiesRelativeDynamicQualifiers)
 
     EXPECT_EQ(increase.type, ExpressionType::Dynamic);
     EXPECT_EQ(firstDynamicMark(increase).dynamic, dynamics::Dynamic::mf);
-    EXPECT_EQ(firstDynamicQualifier(increase).change, dynamics::DynamicChange::RelativeIncrease);
+    EXPECT_EQ(firstDynamicQualifier(increase).change, dynamics::Change::RelativeIncrease);
 
     const auto decrease = classifyTextExpression("menos mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(decrease.type, ExpressionType::Dynamic);
     EXPECT_EQ(firstDynamicMark(decrease).dynamic, dynamics::Dynamic::mf);
-    EXPECT_EQ(firstDynamicQualifier(decrease).change, dynamics::DynamicChange::RelativeDecrease);
+    EXPECT_EQ(firstDynamicQualifier(decrease).change, dynamics::Change::RelativeDecrease);
 
     const auto gradual = classifyTextExpression("cresc. mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(gradual.type, ExpressionType::Dynamic);
     EXPECT_EQ(firstDynamicMark(gradual).dynamic, dynamics::Dynamic::mf);
-    EXPECT_EQ(std::none_of(gradual.runs.begin(), gradual.runs.end(), [](const expression::ExpressionRun& run) {
+    EXPECT_EQ(std::none_of(gradual.runs.begin(), gradual.runs.end(), [](const expression::RunClassification& run) {
         return run.as<expression::DynamicQualifier>() != nullptr;
     }), true);
 }

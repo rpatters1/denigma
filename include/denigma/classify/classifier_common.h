@@ -25,7 +25,6 @@
 
 namespace denigma {
 namespace classify {
-namespace glyph {
 
 /// @struct GlyphStyle
 /// @brief Visual style encoded by the source glyph variant.
@@ -44,6 +43,5 @@ struct GlyphStyle
     Placement placement{ Placement::Automatic };
 };
 
-} // namespace glyph
 } // namespace classify
 } // namespace denigma

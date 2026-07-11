@@ -70,7 +70,7 @@ struct ArtificialHarmonics
 };
 
 /// Variant payload for chord-level notehead-pattern classification.
-using EntryNoteheadValue = std::variant<std::monostate, ArtificialHarmonics>;
+using NoteheadValue = std::variant<std::monostate, ArtificialHarmonics>;
 
 } // namespace entry
 
@@ -79,7 +79,7 @@ using EntryNoteheadValue = std::variant<std::monostate, ArtificialHarmonics>;
 struct EntryNoteheadClassification
 {
     /// Classified payload, or std::monostate when no chord-level notehead pattern was recognized.
-    entry::EntryNoteheadValue value{};
+    entry::NoteheadValue value{};
 
     /// Returns true when a chord-level notehead pattern was recognized.
     explicit operator bool() const noexcept

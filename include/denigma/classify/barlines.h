@@ -29,7 +29,7 @@ namespace classify {
 namespace barline {
 
 /// Barline types recognized by Denigma's classifier.
-enum class BarlineType
+enum class Type
 {
     Unsupported,
     NoBarline,
@@ -48,7 +48,7 @@ enum class BarlineType
 struct BarlineClassification
 {
     /// Classified barline type.
-    barline::BarlineType type{ barline::BarlineType::Unsupported };
+    barline::Type type{ barline::Type::Unsupported };
     /// True when the source barline is a short barline.
     bool isShort{};
 };
