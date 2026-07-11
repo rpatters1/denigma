@@ -76,22 +76,22 @@ BarlineClassification classifyBarline(
     bool isFinalMeasure,
     const musx::dom::MusxInstance<musx::dom::options::BarlineOptions>& barlineOptions)
 {
-    if (!measure) {
+    MUSX_ASSERT_IF(!measure || !barlineOptions || !staff) {
         return {};
     }
 
-    if ((barlineOptions && !barlineOptions->drawBarlines) || (staff && staff->hideBarlines)) {
+    if (!barlineOptions->drawBarlines || staff->hideBarlines) {
         return { Type::NoBarline, false };
     }
 
     const bool isShort = classifyIsShortBarline(staff);
     const auto type = measure->barlineType;
     if (type == MusxBarlineType::Normal) {
-        if (isFinalMeasure && barlineOptions && !barlineOptions->drawFinalBarlineOnLastMeas) {
-            return { Type::Regular, isShort };
+        if (isFinalMeasure && barlineOptions->drawFinalBarlineOnLastMeas) {
+            return { Type::Final, isShort };
         }
 
-        if (!isFinalMeasure && barlineOptions && barlineOptions->drawDoubleBarlineBeforeKeyChanges) {
+        if (!isFinalMeasure && barlineOptions->drawDoubleBarlineBeforeKeyChanges) {
             if (const auto& nextMeasure = measure->getDocument()->getOthers()->get<musx::dom::others::Measure>(
                     musx::dom::SCORE_PARTID, static_cast<musx::dom::Cmper>(measure->getCmper() + 1))) {
                 if (!measure->createKeySignature()->isSame(*nextMeasure->createKeySignature().get())) {
