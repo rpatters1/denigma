@@ -167,22 +167,36 @@ void exportMusicXmlWithAdapter(const std::filesystem::path& outputPath,
         return;
     }
 #endif
-    if (!denigmaContext.validatePathsAndOptions(outputPath)) return;
 
     ConverterRegistry registry;
     formats::musicxml::registerConverters(registry);
-    const auto* converter = registry.find(FormatId::EnigmaXml, FormatId::MusicXml);
+    const auto* converter = registry.findMultiOutput(FormatId::EnigmaXml, FormatId::MusicXml);
     if (!converter) {
         throw std::logic_error("MusicXML converter is not registered.");
     }
 
-    std::ofstream output;
-    output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
-    output.open(outputPath, std::ios::out | std::ios::binary);
-
+    size_t generatedCount = 0;
     const auto options = makeMusicXmlOptions(denigmaContext);
-    converter->convert(enigmaXmlBytes(inputData), output, ConversionRequest{ &options });
-    output.close();
+    converter->convert(enigmaXmlBytes(inputData), [&](std::string_view suggestedName, std::span<const std::byte> musicXmlData) {
+        std::filesystem::path qualifiedOutputPath = outputPath;
+        if (!suggestedName.empty()) {
+            auto currExtension = qualifiedOutputPath.extension();
+            qualifiedOutputPath.replace_extension(utils::stringToUtf8(suggestedName) + currExtension.u8string());
+        }
+        if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) {
+            return;
+        }
+        std::ofstream output;
+        output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+        output.open(qualifiedOutputPath, std::ios::out | std::ios::binary);
+        output.write(reinterpret_cast<const char*>(musicXmlData.data()), static_cast<std::streamsize>(musicXmlData.size()));
+        output.close();
+        ++generatedCount;
+    }, ConversionRequest{ &options });
+
+    if (generatedCount == 0) {
+        denigmaContext.logMessage(LogMsg() << "No MusicXML files were written.", MessageSeverity::Warning);
+    }
 }
 
 void exportMssWithAdapter(const std::filesystem::path& outputPath,
