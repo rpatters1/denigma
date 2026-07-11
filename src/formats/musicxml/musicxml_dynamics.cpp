@@ -57,7 +57,7 @@ mx::api::DirectionData createDynamicDirection(
     return direction;
 }
 
-std::optional<mx::api::MarkData> createDynamicMark(const classify::dynamics::DynamicMark& dynamic, mx::api::Placement placement)
+std::optional<mx::api::MarkData> createDynamicMark(const classify::dynamics::Mark& dynamic, mx::api::Placement placement)
 {
     const auto markType = enumConvert<mx::api::MarkType>(dynamic.dynamic);
     if (markType == mx::api::MarkType::unspecified) {
@@ -103,7 +103,7 @@ std::vector<mx::api::DirectionData> createDynamicExpressionDirections(
 
     mx::api::DirectionData* currentDynamicDirection = nullptr;
     for (const auto& run : classification.runs) {
-        if (const auto* dynamic = run.as<classify::dynamics::DynamicMark>()) {
+        if (const auto* dynamic = run.as<classify::dynamics::Mark>()) {
             auto mark = createDynamicMark(*dynamic, enumConvert<mx::api::Placement>(placement));
             if (!mark) {
                 continue;

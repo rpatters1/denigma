@@ -62,15 +62,15 @@ BEGIN_ENUM_CONVERSION(BarlineType, mx::api::BarlineType)
     case BarlineType::Custom: return mx::api::BarlineType::unsupported;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(classify::barline::BarlineType, mx::api::BarlineType)
-    case classify::barline::BarlineType::Unsupported: return mx::api::BarlineType::unsupported;
-    case classify::barline::BarlineType::NoBarline: return mx::api::BarlineType::none;
-    case classify::barline::BarlineType::Regular: return mx::api::BarlineType::normal;
-    case classify::barline::BarlineType::Double: return mx::api::BarlineType::lightLight;
-    case classify::barline::BarlineType::Final: return mx::api::BarlineType::lightHeavy;
-    case classify::barline::BarlineType::Heavy: return mx::api::BarlineType::heavy;
-    case classify::barline::BarlineType::Dashed: return mx::api::BarlineType::dashed;
-    case classify::barline::BarlineType::Tick: return mx::api::BarlineType::tick;
+BEGIN_ENUM_CONVERSION(classify::barline::Type, mx::api::BarlineType)
+    case classify::barline::Type::Unsupported: return mx::api::BarlineType::unsupported;
+    case classify::barline::Type::NoBarline: return mx::api::BarlineType::none;
+    case classify::barline::Type::Regular: return mx::api::BarlineType::normal;
+    case classify::barline::Type::Double: return mx::api::BarlineType::lightLight;
+    case classify::barline::Type::Final: return mx::api::BarlineType::lightHeavy;
+    case classify::barline::Type::Heavy: return mx::api::BarlineType::heavy;
+    case classify::barline::Type::Dashed: return mx::api::BarlineType::dashed;
+    case classify::barline::Type::Tick: return mx::api::BarlineType::tick;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(details::Bracket::BracketStyle, mx::api::BracketType)
@@ -206,7 +206,8 @@ BEGIN_ENUM_CONVERSION(classify::notehead::Shape, mx::api::Notehead)
     case classify::notehead::Shape::Diamond: return mx::api::Notehead::diamond;
     case classify::notehead::Shape::SmallSlash: return mx::api::Notehead::slash;
     case classify::notehead::Shape::LargeSlash: return mx::api::Notehead::slash;
-    case classify::notehead::Shape::Circle: return mx::api::Notehead::circled;
+    case classify::notehead::Shape::Null: return mx::api::Notehead::none;
+    case classify::notehead::Shape::Circled: return mx::api::Notehead::circled;
     case classify::notehead::Shape::Other: return mx::api::Notehead::other;
     case classify::notehead::Shape::Unclassified: break; // causes a throw; callers must not convert an unclassified shape
 END_ENUM_CONVERSION

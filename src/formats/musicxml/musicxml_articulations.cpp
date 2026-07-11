@@ -47,7 +47,7 @@ constexpr int MAX_SUPPORTED_TREMOLO_MARKS = 5;
 
 mx::api::MarkType musicXmlArticulationType(const classify::articulation::ArticulationMark& mark)
 {
-    using Placement = classify::glyph::GlyphStyle::Placement;
+    using Placement = classify::GlyphStyle::Placement;
     if (mark.type == classify::articulation::ArticulationMark::Type::StrongAccent) {
         switch (mark.glyphStyle.placement) {
         case Placement::Above:
@@ -116,7 +116,7 @@ mx::api::MarkType musicXmlTremoloType(int marks)
 
 mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fermata)
 {
-    using Placement = classify::glyph::GlyphStyle::Placement;
+    using Placement = classify::GlyphStyle::Placement;
     switch (fermata.glyphStyle.placement) {
     case Placement::Above:
         switch (fermata.shape) {
