@@ -51,6 +51,7 @@ endfunction()
         mnx/test_scores.cpp
         mnx/test_sequences.cpp
         musicxml/musicxml_test.cpp
+        musicxml/test_converter.cpp
         musicxml/test_defaults.cpp
         musicxml/test_expressions.cpp
         musicxml/test_notes.cpp

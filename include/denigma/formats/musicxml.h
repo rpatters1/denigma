@@ -18,6 +18,9 @@
  */
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include "denigma/conversion.h"
 
 namespace denigma {
@@ -34,24 +37,47 @@ struct Options final : public IOptions
     /// Options common to all converters.
     CommonOptions common;
     bool includeTempoTool{ false };
+    /// Emit the score plus all linked parts for multi-output conversion.
+    bool allPartsAndScore{ false };
+    /// Optional part-name prefix for multi-output conversion.
+    std::optional<std::string> partName;
 };
 
-/// @class EnigmaXmlToMusicXmlConverter
-/// @brief Converter adapter for Enigma XML input to MusicXML output.
-class EnigmaXmlToMusicXmlConverter final : public IConverter
+/// @class EnigmaXmlToMusicXmlMultiOutputConverter
+/// @brief Converter adapter for Enigma XML input to one or more MusicXML outputs (score and/or parts).
+class EnigmaXmlToMusicXmlMultiOutputConverter final : public IMultiOutputConverter
 {
 public:
     [[nodiscard]] FormatId sourceFormat() const override { return FormatId::EnigmaXml; }
     [[nodiscard]] FormatId targetFormat() const override { return FormatId::MusicXml; }
 
-    /// Converts Enigma XML from memory and writes MusicXML to the provided stream.
+    /// Converts Enigma XML from memory and invokes outputCallback for each MusicXML document.
     ConversionResult convert(std::span<const std::byte> input,
-                             std::ostream& output,
+                             const MultiOutputCallback& outputCallback,
                              const Options& options = {}) const;
 
     /// Converts Enigma XML using type-erased registry options.
     ConversionResult convert(std::span<const std::byte> input,
-                             std::ostream& output,
+                             const MultiOutputCallback& outputCallback,
+                             const ConversionRequest& request = {}) const override;
+};
+
+/// @class MusxToMusicXmlMultiOutputConverter
+/// @brief Converter adapter for MUSX archive input to one or more MusicXML outputs (score and/or parts).
+class MusxToMusicXmlMultiOutputConverter final : public IReaderMultiOutputConverter
+{
+public:
+    [[nodiscard]] FormatId sourceFormat() const override { return FormatId::Musx; }
+    [[nodiscard]] FormatId targetFormat() const override { return FormatId::MusicXml; }
+
+    /// Extracts a MUSX archive and invokes outputCallback for each MusicXML document.
+    ConversionResult convert(const IRandomAccessReader& input,
+                             const MultiOutputCallback& outputCallback,
+                             const Options& options = {}) const;
+
+    /// Extracts a MUSX archive using type-erased registry options.
+    ConversionResult convert(const IRandomAccessReader& input,
+                             const MultiOutputCallback& outputCallback,
                              const ConversionRequest& request = {}) const override;
 };
 

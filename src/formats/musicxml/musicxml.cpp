@@ -20,7 +20,8 @@
  * THE SOFTWARE.
  */
 
-#include <ostream>
+#include <span>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -68,10 +69,14 @@ void createTiming(const MusicXmlMusxMapping& context, MusicXmlTimingPlan& timing
     timing.divisions = baseDivisions;
 }
 
-mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+namespace {
+
+mx::api::ScoreData createMusicXmlDocumentFromDocument(
+    const musx::dom::DocumentPtr& document,
+    const DenigmaContext& denigmaContext,
+    const MusxInstance<others::PartDefinition>& part)
 {
-    auto document = denigma::createMusxDocument<MusxReader>(inputData, denigmaContext);
-    auto context = MusicXmlMusxMapping(denigmaContext, document, SCORE_PARTID);
+    auto context = MusicXmlMusxMapping(denigmaContext, document, part ? part->getCmper() : SCORE_PARTID);
     context.musicXmlScore = std::make_unique<mx::api::ScoreData>();
 
     createTiming(context, context.timing);
@@ -84,21 +89,89 @@ mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, con
     return *context.musicXmlScore;
 }
 
-void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+std::string partOutputName(const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part)
 {
-    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
+    if (!part) {
+        return {};
+    }
+    auto partName = part->getName(); // Unicode-encoded partname can contain non-ASCII characters
+    if (partName.empty()) {
+        partName = "Part" + std::to_string(part->getCmper());
+        denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension");
+    }
+    return partName;
+}
+
+void writeMusicXmlToCallback(
+    const mx::api::ScoreData& score,
+    const std::string& suggestedName,
+    const MultiOutputCallback& outputCallback)
+{
     auto& documentManager = mx::api::DocumentManager::getInstance();
 
-    const auto idResult = documentManager.createFromScore(createMusicXmlDocument(inputData, denigmaContext));
+    const auto idResult = documentManager.createFromScore(score);
     if (!idResult.ok()) {
         throw std::runtime_error(mxResultMessage("createFromScore", idResult.error()));
     }
 
     const int documentId = idResult.value();
+    std::ostringstream output;
     const auto writeResult = documentManager.writeToStream(documentId, output);
     documentManager.destroyDocument(documentId);
     if (!writeResult.ok()) {
         throw std::runtime_error(mxResultMessage("writeToStream", writeResult.error()));
+    }
+
+    const auto data = output.str();
+    outputCallback(suggestedName, std::as_bytes(std::span<const char>(data.data(), data.size())));
+}
+
+} // namespace
+
+mx::api::ScoreData createMusicXmlDocument(
+    const CommandInputData& inputData,
+    const DenigmaContext& denigmaContext,
+    const MusxInstance<others::PartDefinition>& part)
+{
+    auto document = denigma::createMusxDocument<MusxReader>(inputData, denigmaContext, musx::dom::PartVoicingPolicy::Apply);
+    return createMusicXmlDocumentFromDocument(document, denigmaContext, part);
+}
+
+void convert(
+    const CommandInputData& inputData,
+    const DenigmaContext& denigmaContext,
+    const MultiOutputCallback& outputCallback)
+{
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
+    auto document = denigma::createMusxDocument<MusxReader>(inputData, denigmaContext, musx::dom::PartVoicingPolicy::Apply);
+
+    if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
+        const auto score = createMusicXmlDocumentFromDocument(document, denigmaContext, nullptr);
+        writeMusicXmlToCallback(score, partOutputName(denigmaContext, nullptr), outputCallback);
+    }
+    bool foundPart = false;
+    if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
+        auto parts = document->getOthers()->getArray<others::PartDefinition>(SCORE_PARTID);
+        for (const auto& part : parts) {
+            if (part->getCmper() != SCORE_PARTID) {
+                if (denigmaContext.allPartsAndScore) {
+                    const auto partScore = createMusicXmlDocumentFromDocument(document, denigmaContext, part);
+                    writeMusicXmlToCallback(partScore, partOutputName(denigmaContext, part), outputCallback);
+                } else if (denigmaContext.partName->empty() || part->getName().rfind(denigmaContext.partName.value(), 0) == 0) {
+                    const auto partScore = createMusicXmlDocumentFromDocument(document, denigmaContext, part);
+                    writeMusicXmlToCallback(partScore, partOutputName(denigmaContext, part), outputCallback);
+                    foundPart = true;
+                    break;
+                }
+            }
+        }
+    }
+    if (!foundPart && denigmaContext.partName.has_value() && !denigmaContext.allPartsAndScore) {
+        if (denigmaContext.partName->empty()) {
+            denigmaContext.logMessage(LogMsg() << "No parts were found in document", MessageSeverity::Warning);
+        } else {
+            denigmaContext.logMessage(LogMsg() << "No part name starting with \"" << denigmaContext.partName.value() << "\" was found", MessageSeverity::Warning);
+        }
     }
 }
 

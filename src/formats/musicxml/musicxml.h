@@ -19,7 +19,6 @@
 #pragma once
 
 #include <cstddef>
-#include <ostream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -62,7 +61,10 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
 mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacement placement);
 mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fermata);
 double musicXmlQuarterNotesPerMinute(const classify::expression::TempoInfo& tempo);
-mx::api::ScoreData createMusicXmlDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+mx::api::ScoreData createMusicXmlDocument(
+    const CommandInputData& inputData,
+    const DenigmaContext& denigmaContext,
+    const musx::dom::MusxInstance<musx::dom::others::PartDefinition>& part = nullptr);
 
 void createDefaults(const MusicXmlMusxMapping& context);
 void createMeasures(MusicXmlMusxMapping& context);
@@ -106,7 +108,14 @@ void processSmartShapes(
     const musx::dom::MusxInstanceList<musx::dom::others::Measure>& musxMeasures,
     const std::vector<musx::dom::StaffCmper>& staves);
 
-void exportMusicXml(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
+/// Converts to MusicXML and invokes outputCallback once per generated document: the score
+/// (when denigmaContext.allPartsAndScore is true or denigmaContext.partName is unset), and/or
+/// one document per matching linked part (when denigmaContext.allPartsAndScore or
+/// denigmaContext.partName is set).
+void convert(
+    const CommandInputData& inputData,
+    const DenigmaContext& denigmaContext,
+    const MultiOutputCallback& outputCallback);
 
 } // namespace detail
 } // namespace musicxml
