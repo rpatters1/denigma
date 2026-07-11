@@ -2,7 +2,8 @@ include(FetchContent)
 
 # Define a cache variable for the local mx MusicXML DOM path relative to the source directory.
 set(MX_LOCAL_PATH "" CACHE STRING "Path to local mx MusicXML DOM checkout relative to the source directory (if provided)")
-set(_denigma_mx_git_repository "git@github.com:webern/mx.git")
+# set(_denigma_mx_git_repository "git@github.com:webern/mx.git")
+set(_denigma_mx_git_repository "git@github.com:rpatters1/mx.git")
 
 if(MX_LOCAL_PATH)
     # Combine the source directory with the relative path to get an absolute path.
