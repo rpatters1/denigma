@@ -32,6 +32,7 @@
 #include "mx/api/CurveData.h"
 #include "mx/api/DirectionData.h"
 #include "mx/api/LineData.h"
+#include "mx/api/MarkData.h"
 #include "mx/api/OttavaData.h"
 #include "mx/api/WedgeData.h"
 
@@ -481,6 +482,83 @@ void appendOttava(
     }
 }
 
+bool hasUnsupportedPedalIdentity(const classify::smartshape::KeyboardPedal& pedal)
+{
+    const auto isUnsupported = [](const std::optional<classify::KeyboardPedalClassification>& marking) {
+        if (!marking) {
+            return false;
+        }
+        using Type = classify::keyboardpedal::Type;
+        return marking->type == Type::PedalTwo || marking->type == Type::PedalThree;
+    };
+    return isUnsupported(pedal.startText) || isUnsupported(pedal.continuationText) || isUnsupported(pedal.endText);
+}
+
+mx::api::LineType pedalLineType(const classify::smartshape::KeyboardPedal& pedal)
+{
+    using LineStyle = others::SmartShapeCustomLine::LineStyle;
+    switch (pedal.lineStyle) {
+    case LineStyle::Solid: return mx::api::LineType::solid;
+    case LineStyle::Dashed: return mx::api::LineType::dashed;
+    case LineStyle::Char: return mx::api::LineType::wavy;
+    }
+    return mx::api::LineType::unspecified;
+}
+
+void appendKeyboardPedal(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    StaffCmper staffId,
+    size_t staffIndex,
+    const MusxInstance<others::SmartShape>& shape,
+    const classify::smartshape::KeyboardPedal& pedal,
+    const SmartShapeNumberLevels& numberLevels)
+{
+    const auto startPoint = shape->startTermSeg->endPoint;
+    const auto endPoint = shape->endTermSeg->endPoint;
+    if (!startPoint->calcIsAssigned() || !endPoint->calcIsAssigned() || startPoint->staffId != staffId) {
+        return;
+    }
+    if (hasUnsupportedPedalIdentity(pedal)) {
+        /// @todo Export sostenuto and una-corda pedal spanners when mx::api exposes the
+        /// corresponding MusicXML pedal event types. Do not misrepresent them as damper pedal.
+        return;
+    }
+
+    const auto placement = shape->calcVerticalPlacementForBeatAttached();
+    auto startDirection = createSmartShapeDirection(context, startPoint, staffId, staffIndex, placement);
+    auto* stopStaff = staffDataForEndpoint(context, endPoint);
+    if (!stopStaff) {
+        return;
+    }
+    auto stopDirection = createSmartShapeDirection(context, endPoint, endPoint->staffId, staffIndex, placement);
+
+    if (!pedal.lineVisible) {
+        // mx::api's pedal marks are the only way to request sign="yes" with line="no".
+        startDirection.marks.emplace_back(enumConvert<mx::api::Placement>(placement), mx::api::MarkType::pedal);
+        stopDirection.marks.emplace_back(enumConvert<mx::api::Placement>(placement), mx::api::MarkType::damp);
+    } else {
+        auto start = mx::api::SpannerStart{};
+        auto stop = mx::api::SpannerStop{};
+        start.tickTimePosition = startDirection.tickTimePosition;
+        stop.tickTimePosition = stopDirection.tickTimePosition;
+        if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
+            start.numberLevel = *numberLevel;
+            stop.numberLevel = *numberLevel;
+        }
+        start.lineData.lineType = pedalLineType(pedal);
+        stop.lineData.lineType = pedalLineType(pedal);
+        /// @todo Preserve Finale pedal text/sign choices, ordinary hooks, custom cap geometry,
+        /// dashed/character lines, and pump changes when mx::api exposes them. Its current pedal
+        /// writer forces line="yes" sign="yes", ignores LineData, and supports only start/stop.
+        startDirection.pedalStarts.emplace_back(std::move(start));
+        stopDirection.pedalStops.emplace_back(std::move(stop));
+    }
+
+    staff.directions.emplace_back(std::move(startDirection));
+    stopStaff->directions.emplace_back(std::move(stopDirection));
+}
+
 void processSmartShapesForStaff(
     MusicXmlMusxMapping& context,
     mx::api::StaffData& staff,
@@ -523,6 +601,8 @@ void processSmartShapesForStaff(
             appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::diminuendo, numberLevels);
         } else if (classification.as<classify::smartshape::Ottava>()) {
             appendOttava(context, staff, staffId, staffIndex, shape, numberLevels);
+        } else if (const auto* pedal = classification.as<classify::smartshape::KeyboardPedal>()) {
+            appendKeyboardPedal(context, staff, staffId, staffIndex, shape, *pedal, numberLevels);
         } else if (const auto* arpeggiatedTie = classification.as<classify::smartshape::ArpeggiatedTie>()) {
             processArpeggiatedTie(context, *arpeggiatedTie);
         }

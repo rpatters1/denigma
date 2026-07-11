@@ -156,6 +156,25 @@ Needed API shape: ending data with a string/list representation for the MusicXML
 
 ## Directions and Expressions
 
+### Keyboard pedal events and spanners
+
+Finale custom-line smart shapes can represent damper, sostenuto, and una-corda pedals using independent start,
+continuation, and end text; visible or blank lines; ordinary hooks; and four custom pedal-cap shapes. The two
+compound custom caps represent a pedal pump: release followed immediately by re-engagement. MusicXML can model
+damper and sostenuto events, including `start`, `stop`, `sostenuto`, `change`, `continue`, `discontinue`, and
+`resume`, together with independent `line`, `sign`, and `abbreviated` attributes.
+
+`mx::api::DirectionData` currently exposes sign-only damper start/stop marks and line-based damper start/stop
+spanners. The writer forces spanners to `line="yes" sign="yes"`, ignores their `LineData`, and cannot emit the
+other MusicXML pedal event types or sign controls. Denigma therefore exports blank-line Ped/* custom lines as
+sign-only damper marks and visible damper lines as start/stop spanners. It leaves pedal expressions as formatted
+words, omits sostenuto and una-corda spanners rather than misrepresenting them, and cannot preserve pump changes,
+half-pedal and special-release glyphs, custom hook geometry, continuation text, or dashed/character pedal lines.
+
+Needed API shape: a general pedal-event object exposing every MusicXML pedal type plus `line`, `sign`,
+`abbreviated`, `number`, positioning, and line-style data, with matching reader/writer support. This should replace
+the current semantic split between pedal marks and pedal start/stop spanner vectors.
+
 ### Harp pedal diagrams
 
 MusicXML `<harp-pedals>` is a direction-type used for harp pedal diagrams, with ordered pedal-tuning children and print / position attributes.

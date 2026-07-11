@@ -355,6 +355,11 @@ void processExpressions(
                 context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
             break;
         }
+        case classify::ExpressionType::KeyboardPedal:
+            /// @todo Emit semantic pedal directions when mx::api can represent the complete
+            /// keyboard-pedal vocabulary. Its current mark model would lose pedal 2, pedal 3,
+            /// half-pedal, special release, hook, and hyphen distinctions.
+            [[fallthrough]];
         case classify::ExpressionType::TempoAlteration:
         case classify::ExpressionType::GenericText: {
             emitGroupedDirection(createWordsExpressionDirection(

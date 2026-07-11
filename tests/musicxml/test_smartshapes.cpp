@@ -315,3 +315,28 @@ TEST(MusicXmlSmartShapes, OttavasEdgeMatchesExpectedOttavas)
     expectOttava(part, 4, 0, mx::api::OttavaType::o8va, mx::api::Placement::above, 4, 3, 8);
     expectOttava(part, 5, 1, mx::api::OttavaType::o15mb, mx::api::Placement::below, 5, 4, 15);
 }
+
+TEST(MusicXmlSmartShapes, BlankLinePedalExportsAsSignOnlyMarks)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("pedal_custom_lines.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+
+    bool foundPedalStart = false;
+    bool foundPedalStop = false;
+    for (const auto& part : score->parts) {
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& direction : staff.directions) {
+                    for (const auto& mark : direction.marks) {
+                        foundPedalStart = foundPedalStart || mark.markType == mx::api::MarkType::pedal;
+                        foundPedalStop = foundPedalStop || mark.markType == mx::api::MarkType::damp;
+                    }
+                }
+            }
+        }
+    }
+    EXPECT_TRUE(foundPedalStart);
+    EXPECT_TRUE(foundPedalStop);
+}
