@@ -23,7 +23,6 @@
 
 #include <filesystem>
 #include <optional>
-#include <ostream>
 
 #include "denigma/conversion.h"
 #include "core/denigma.h"
@@ -35,7 +34,6 @@ namespace formats {
 namespace mss {
 namespace detail {
 
-void convert(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 void convert(const CommandInputData& inputData,
              const DenigmaContext& denigmaContext,
              const MultiOutputCallback& outputCallback);

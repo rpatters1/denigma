@@ -290,7 +290,10 @@ bool isFontSMuFL(const std::shared_ptr<musx::dom::FontInfo>& font);
 
 // createMusxDocument is implemented as a template to avoid promoting pugixml to being a core dependency
 template <typename Reader>
-musx::dom::DocumentPtr createMusxDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
+musx::dom::DocumentPtr createMusxDocument(
+    const CommandInputData& inputData,
+    const DenigmaContext& denigmaContext,
+    musx::dom::PartVoicingPolicy partVoicingPolicy = musx::dom::PartVoicingPolicy::Ignore)
 {
     musx::factory::DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
     embeddedGraphicFiles.reserve(inputData.embeddedGraphics.size());
@@ -304,7 +307,8 @@ musx::dom::DocumentPtr createMusxDocument(const CommandInputData& inputData, con
     musx::factory::DocumentFactory::CreateOptions createOptions(
         denigmaContext.inputFilePath,
         inputData.notationMetadata.value_or(Buffer{}),
-        std::move(embeddedGraphicFiles));
+        std::move(embeddedGraphicFiles),
+        partVoicingPolicy);
 
     return musx::factory::DocumentFactory::create<Reader>(inputData.primaryBuffer, std::move(createOptions));
 }

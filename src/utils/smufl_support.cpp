@@ -161,6 +161,13 @@ std::optional<std::string> smuflGlyphNameForFont(const MusxInstance<FontInfo>& f
 
 std::optional<EvpuFloat> smuflGlyphWidthForFont(const std::string& fontName, const std::string& glyphName)
 {
+#if defined(MUSX_RUNNING_ON_WASM)
+    // No local SMuFL font metadata is available in a wasm sandbox, so there is no
+    // bbox/advance-width data to look up. Skip the lookup explicitly rather than relying
+    // on FontInfo::calcSMuFLMetaDataPath transitively returning nullopt.
+    (void)fontName;
+    (void)glyphName;
+#else
     if (auto metaDataPath = FontInfo::calcSMuFLMetaDataPath(fontName)) {
         if (const auto* metadata = metadataForFont(metaDataPath.value())) {
             auto bboxIt = metadata->glyphBBoxes.find(glyphName);
@@ -174,6 +181,7 @@ std::optional<EvpuFloat> smuflGlyphWidthForFont(const std::string& fontName, con
             }
         }
     }
+#endif
     return std::nullopt;
 }
 

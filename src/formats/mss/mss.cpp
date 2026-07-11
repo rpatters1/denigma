@@ -278,7 +278,25 @@ static std::optional<EvpuFloat> calcAugmentationDotWidth(const MssPreferencesPtr
 static std::optional<EvpuFloat> calcRepeatDotWidth(const MssPreferencesPtr& prefs)
 {
     if (!prefs->musicFontName.empty()) {
-        return utils::smuflGlyphWidthForFont(prefs->musicFontName, "repeatDot");
+        if (auto musicFontWidth = utils::smuflGlyphWidthForFont(prefs->musicFontName, "repeatDot")) {
+            return musicFontWidth.value();
+        }
+    }
+    if (!prefs->musicSymbolOptions || prefs->musicSymbolOptions->forwardRepeatDot == 0) {
+        return std::nullopt;
+    }
+
+    const auto reptDotFontInfo = prefs->fontOptions->getFontInfo(options::FontOptions::FontType::ReptDots);
+    if (!reptDotFontInfo) {
+        return std::nullopt;
+    }
+    const double scaledPointSize = double(reptDotFontInfo->fontSize)
+                                 * (reptDotFontInfo->absolute ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL);
+    if (auto measured = textmetrics::measureGlyphWidthEvpu(*reptDotFontInfo,
+                                                           prefs->musicSymbolOptions->forwardRepeatDot,
+                                                           scaledPointSize,
+                                                           *prefs->denigmaContext)) {
+        return measured.value();
     }
     return std::nullopt;
 }
@@ -1051,19 +1069,6 @@ static void processPart(const DocumentPtr& document,
     mssDoc.save(output, "    ");
     const auto data = output.str();
     outputCallback(partOutputName(denigmaContext, part), std::as_bytes(std::span<const char>(data.data(), data.size())));
-}
-
-void convert(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
-{
-    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
-    if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Converting MSS data");
-        return;
-    }
-
-    auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
-    auto mssDoc = createMssDocument(document, denigmaContext);
-    mssDoc.save(output, "    ");
 }
 
 void convert(const CommandInputData& inputData,
