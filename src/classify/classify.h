@@ -24,7 +24,10 @@
 #include "denigma/classify/dynamics.h"
 #include "musx/musx.h"
 
+#include <memory>
+#include <optional>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace denigma::classify {
@@ -56,6 +59,12 @@ struct DynamicSpan
 };
 
 std::vector<DynamicSpan> findDynamicSpans(const musx::util::EnigmaTextChunk& chunk);
+
+/// Returns the SMuFL glyph name for a codepoint in the given font, when resolvable.
+/// SMuFL fonts resolve through the SMuFL glyph tables; legacy fonts resolve through
+/// their font-specific mappings.
+std::optional<std::string> glyphNameForFont(
+    const std::shared_ptr<musx::dom::FontInfo>& font, char32_t codepoint);
 
 } // namespace detail
 

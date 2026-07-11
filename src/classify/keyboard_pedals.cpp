@@ -24,8 +24,7 @@
 #include <array>
 #include <string>
 
-#include "smufl_mapping.h"
-#include "utils/smufl_support.h"
+#include "classify.h"
 #include "utils/stringutils.h"
 #include "utils/utf8_iterator.h"
 
@@ -114,19 +113,6 @@ std::optional<keyboardpedal::Type> classifyNormalizedPedalText(std::string_view 
     return std::nullopt;
 }
 
-std::optional<std::string> glyphNameFor(
-    const std::shared_ptr<musx::dom::FontInfo>& font,
-    char32_t codepoint)
-{
-    if (font->calcIsSMuFL()) {
-        if (const auto* name = smufl_mapping::getGlyphName(codepoint)) {
-            return std::string(*name);
-        }
-        return std::nullopt;
-    }
-    return utils::smuflGlyphNameForFont(font, codepoint);
-}
-
 std::optional<keyboardpedal::Type> standaloneGlyphType(std::string_view glyphName)
 {
     using Type = keyboardpedal::Type;
@@ -181,7 +167,7 @@ std::optional<KeyboardPedalClassification> classifyKeyboardPedal(
             if (!iter.valid()) {
                 return std::nullopt;
             }
-            const auto glyphName = glyphNameFor(chunk.styles.font, iter->codepoint);
+            const auto glyphName = detail::glyphNameForFont(chunk.styles.font, iter->codepoint);
             if (glyphName) {
                 if (const auto type = standaloneGlyphType(*glyphName)) {
                     if (standaloneType && *standaloneType != *type) {

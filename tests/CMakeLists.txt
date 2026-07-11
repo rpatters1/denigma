@@ -26,7 +26,9 @@ endfunction()
         test_expressions.cpp
         test_export.cpp
         test_font_names.cpp
+        test_general_lines.cpp
         test_noteheads.cpp
+        test_octave_lines.cpp
         test_dynamics.cpp
         test_conversion_result.cpp
         test_logging.cpp

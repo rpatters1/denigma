@@ -118,7 +118,7 @@ TEST(SmartShapeClassification, ClassifiesPedalTextAtEachCustomLinePosition)
     EXPECT_EQ(pedal->continuationText->type, keyboardpedal::Type::HalfPedal);
     ASSERT_TRUE(pedal->endText);
     EXPECT_EQ(pedal->endText->type, keyboardpedal::Type::PedalUp);
-    EXPECT_FALSE(pedal->lineVisible);
+    EXPECT_FALSE(pedal->line.lineVisible);
 }
 
 TEST(SmartShapeClassification, ClassifiesAsciiPedalTextWithOrdinaryHooks)
@@ -135,9 +135,9 @@ TEST(SmartShapeClassification, ClassifiesAsciiPedalTextWithOrdinaryHooks)
     ASSERT_NE(pedal, nullptr);
     ASSERT_TRUE(pedal->startText);
     EXPECT_EQ(pedal->startText->type, keyboardpedal::Type::PedalTwo);
-    EXPECT_EQ(pedal->startCap.type, classifiedshape::KeyboardPedal::Cap::Type::Hook);
-    EXPECT_EQ(pedal->endCap.type, classifiedshape::KeyboardPedal::Cap::Type::Hook);
-    EXPECT_TRUE(pedal->lineVisible);
+    EXPECT_EQ(pedal->startCap, classifiedshape::KeyboardPedal::CapType::Hook);
+    EXPECT_EQ(pedal->endCap, classifiedshape::KeyboardPedal::CapType::Hook);
+    EXPECT_TRUE(pedal->line.lineVisible);
 }
 
 TEST(SmartShapeClassification, DoesNotClassifyOrdinaryHooksWithoutPedalEvidence)
@@ -165,7 +165,7 @@ TEST(SmartShapeClassification, ClassifiesPedalReleaseAtRightEnd)
     ASSERT_NE(pedal, nullptr);
     ASSERT_TRUE(pedal->endText);
     EXPECT_EQ(pedal->endText->type, keyboardpedal::Type::PedalUp);
-    EXPECT_EQ(pedal->lineStyle, others::SmartShapeCustomLine::LineStyle::Dashed);
+    EXPECT_EQ(pedal->line.lineStyle, others::SmartShapeCustomLine::LineStyle::Dashed);
 }
 
 TEST(SmartShapeClassification, ClassifiesPedalPumpCustomCaps)
@@ -180,8 +180,8 @@ TEST(SmartShapeClassification, ClassifiesPedalPumpCustomCaps)
     const auto startPumpLine = document->getOthers()->get<others::SmartShapeCustomLine>(SCORE_PARTID, 17);
     const auto startPump = classifyKeyboardPedalCustomLine(startPumpLine);
     ASSERT_TRUE(startPump);
-    EXPECT_EQ(startPump->startCap.type, classifiedshape::KeyboardPedal::Cap::Type::PedalChange);
-    EXPECT_EQ(startPump->startCap.customShapeType, KnownShapeDefType::PedalArrowheadLongUpDownShortUp);
+    EXPECT_EQ(startPump->startCap, classifiedshape::KeyboardPedal::CapType::PedalChange);
+    EXPECT_EQ(startPump->line.startCap.customArrowheadType, KnownShapeDefType::PedalArrowheadLongUpDownShortUp);
 
     const auto classifyStartArrow = [&](Cmper shapeId) {
         auto mutableLine = std::make_shared<others::SmartShapeCustomLine>(
@@ -192,17 +192,17 @@ TEST(SmartShapeClassification, ClassifiesPedalPumpCustomCaps)
     };
     const auto pedalDown = classifyStartArrow(91);
     ASSERT_TRUE(pedalDown);
-    EXPECT_EQ(pedalDown->startCap.type, classifiedshape::KeyboardPedal::Cap::Type::PedalDown);
-    EXPECT_EQ(pedalDown->startCap.customShapeType, KnownShapeDefType::PedalArrowheadDown);
+    EXPECT_EQ(pedalDown->startCap, classifiedshape::KeyboardPedal::CapType::PedalDown);
+    EXPECT_EQ(pedalDown->line.startCap.customArrowheadType, KnownShapeDefType::PedalArrowheadDown);
 
     const auto pedalUp = classifyStartArrow(92);
     ASSERT_TRUE(pedalUp);
-    EXPECT_EQ(pedalUp->startCap.type, classifiedshape::KeyboardPedal::Cap::Type::PedalUp);
-    EXPECT_EQ(pedalUp->startCap.customShapeType, KnownShapeDefType::PedalArrowheadUp);
+    EXPECT_EQ(pedalUp->startCap, classifiedshape::KeyboardPedal::CapType::PedalUp);
+    EXPECT_EQ(pedalUp->line.startCap.customArrowheadType, KnownShapeDefType::PedalArrowheadUp);
 
     const auto endPumpLine = document->getOthers()->get<others::SmartShapeCustomLine>(SCORE_PARTID, 19);
     const auto endPump = classifyKeyboardPedalCustomLine(endPumpLine);
     ASSERT_TRUE(endPump);
-    EXPECT_EQ(endPump->endCap.type, classifiedshape::KeyboardPedal::Cap::Type::PedalChange);
-    EXPECT_EQ(endPump->endCap.customShapeType, KnownShapeDefType::PedalArrowheadShortUpDownLongUp);
+    EXPECT_EQ(endPump->endCap, classifiedshape::KeyboardPedal::CapType::PedalChange);
+    EXPECT_EQ(endPump->line.endCap.customArrowheadType, KnownShapeDefType::PedalArrowheadShortUpDownLongUp);
 }

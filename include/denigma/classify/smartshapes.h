@@ -24,6 +24,7 @@
 #include <optional>
 #include <variant>
 
+#include "denigma/classify/general_lines.h"
 #include "denigma/classify/keyboard_pedals.h"
 #include "musx/musx.h"
 #include "musx/util/Arpeggio.h"
@@ -36,6 +37,24 @@ namespace smartshape {
 struct Ottava
 {
     int octaveShift{};
+
+    /// When this shape is a custom line whose octave semantics are carried by a hidden
+    /// built-in ottava covering the same music, the counterpart. Consumers should treat
+    /// this shape as appearance-only when set.
+    musx::dom::MusxInstance<musx::dom::others::SmartShape> hiddenCounterpart;
+
+    /// True when this shape is a hidden built-in ottava that is rendered by a visible
+    /// custom line. Consumers should process it despite the shape's hidden flag.
+    bool hasVisualProxy{};
+
+    /// Appearance, when this shape is a custom line. (Empty for built-in ottavas.)
+    std::optional<GeneralLine> line;
+
+    /// True when this shape carries the octave-displacement semantics. Exactly the
+    /// carriers participate in pitch mapping; paired visual custom lines return false.
+    [[nodiscard]]
+    bool calcIsSemanticCarrier() const noexcept
+    { return !hiddenCounterpart; }
 };
 
 struct Crescendo
@@ -82,29 +101,34 @@ struct NonArpeggio
 
 struct KeyboardPedal
 {
-    struct Cap
+    /// @enum CapType
+    /// @brief The pedal semantic of a line cap. (Appearance details are in #line.)
+    enum class CapType
     {
-        enum class Type
-        {
-            None,
-            Hook,
-            PedalDown,
-            PedalUp,
-            PedalChange
-        };
-
-        Type type{};
-        musx::dom::KnownShapeDefType customShapeType{ musx::dom::KnownShapeDefType::Unrecognized };
+        None,
+        Hook,
+        PedalDown,
+        PedalUp,
+        PedalChange
     };
 
-    musx::dom::MusxInstance<musx::dom::others::SmartShapeCustomLine> customLine;
+    GeneralLine line;                                       ///< Appearance of the pedal line.
     std::optional<KeyboardPedalClassification> startText;
     std::optional<KeyboardPedalClassification> continuationText;
     std::optional<KeyboardPedalClassification> endText;
-    Cap startCap;
-    Cap endCap;
-    musx::dom::others::SmartShapeCustomLine::LineStyle lineStyle{};
-    bool lineVisible{};
+    CapType startCap{};
+    CapType endCap{};
+};
+
+struct TrillLine
+{
+    bool includesTrSymbol{};        ///< True when the marking includes the trill symbol at the start.
+    std::optional<GeneralLine> line; ///< Appearance, when the source is a custom line. (Empty for built-in trills.)
+};
+
+struct VibratoLine
+{
+    GeneralLine line;               ///< Appearance of the vibrato line. (Always a custom line.)
 };
 
 } // namespace smartshape
@@ -118,7 +142,10 @@ using SmartShapeValue = std::variant<
     smartshape::ArpeggiatedTie,
     smartshape::PseudoTie,
     smartshape::NonArpeggio,
-    smartshape::KeyboardPedal>;
+    smartshape::KeyboardPedal,
+    smartshape::TrillLine,
+    smartshape::VibratoLine,
+    smartshape::GeneralLine>;
 
 struct SmartShapeClassification
 {
