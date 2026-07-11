@@ -21,8 +21,10 @@
  */
 #pragma once
 
+#include <optional>
 #include <variant>
 
+#include "denigma/classify/keyboard_pedals.h"
 #include "musx/musx.h"
 #include "musx/util/Arpeggio.h"
 
@@ -78,6 +80,33 @@ struct NonArpeggio
     musx::util::ArpeggioSpanCandidate candidate;
 };
 
+struct KeyboardPedal
+{
+    struct Cap
+    {
+        enum class Type
+        {
+            None,
+            Hook,
+            PedalDown,
+            PedalUp,
+            PedalChange
+        };
+
+        Type type{};
+        musx::dom::KnownShapeDefType customShapeType{ musx::dom::KnownShapeDefType::Unrecognized };
+    };
+
+    musx::dom::MusxInstance<musx::dom::others::SmartShapeCustomLine> customLine;
+    std::optional<KeyboardPedalClassification> startText;
+    std::optional<KeyboardPedalClassification> continuationText;
+    std::optional<KeyboardPedalClassification> endText;
+    Cap startCap;
+    Cap endCap;
+    musx::dom::others::SmartShapeCustomLine::LineStyle lineStyle{};
+    bool lineVisible{};
+};
+
 } // namespace smartshape
 
 using SmartShapeValue = std::variant<
@@ -88,7 +117,8 @@ using SmartShapeValue = std::variant<
     smartshape::Slur,
     smartshape::ArpeggiatedTie,
     smartshape::PseudoTie,
-    smartshape::NonArpeggio>;
+    smartshape::NonArpeggio,
+    smartshape::KeyboardPedal>;
 
 struct SmartShapeClassification
 {
@@ -103,6 +133,10 @@ struct SmartShapeClassification
 [[nodiscard]]
 SmartShapeClassification classifySmartShape(
     const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape);
+
+[[nodiscard]]
+std::optional<smartshape::KeyboardPedal> classifyKeyboardPedalCustomLine(
+    const musx::dom::MusxInstance<musx::dom::others::SmartShapeCustomLine>& customLine);
 
 } // namespace classify
 } // namespace denigma

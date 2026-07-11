@@ -6,6 +6,7 @@ set(DENIGMA_CLASSIFY_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/entries.cpp
     ${CMAKE_CURRENT_LIST_DIR}/expressions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/jumps.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/keyboard_pedals.cpp
     ${CMAKE_CURRENT_LIST_DIR}/noteheads.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smartshapes.cpp
 )

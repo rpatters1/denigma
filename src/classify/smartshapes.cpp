@@ -28,6 +28,76 @@ namespace classify {
 
 using namespace smartshape;
 
+namespace {
+
+KeyboardPedal::Cap classifyPedalCap(
+    const musx::dom::MusxInstance<musx::dom::others::SmartShapeCustomLine>& customLine,
+    bool atStart)
+{
+    using CustomLine = musx::dom::others::SmartShapeCustomLine;
+    const auto capType = atStart ? customLine->lineCapStartType : customLine->lineCapEndType;
+    if (capType == CustomLine::LineCapType::Hook) {
+        return { KeyboardPedal::Cap::Type::Hook };
+    }
+    if (capType != CustomLine::LineCapType::ArrowheadCustom) {
+        return {};
+    }
+
+    const auto arrowId = atStart ? customLine->lineCapStartArrowId : customLine->lineCapEndArrowId;
+    const auto shapeDef = customLine->getDocument()->getOthers()->get<musx::dom::others::ShapeDef>(
+        customLine->getRequestedPartId(), arrowId);
+    if (!shapeDef) {
+        return {};
+    }
+
+    const auto recognized = shapeDef->recognize();
+    using KnownType = musx::dom::KnownShapeDefType;
+    switch (recognized) {
+    case KnownType::PedalArrowheadDown:
+        return { KeyboardPedal::Cap::Type::PedalDown, recognized };
+    case KnownType::PedalArrowheadUp:
+        return { KeyboardPedal::Cap::Type::PedalUp, recognized };
+    case KnownType::PedalArrowheadShortUpDownLongUp:
+    case KnownType::PedalArrowheadLongUpDownShortUp:
+        return { KeyboardPedal::Cap::Type::PedalChange, recognized };
+    default:
+        return { KeyboardPedal::Cap::Type::None, recognized };
+    }
+}
+
+} // namespace
+
+std::optional<KeyboardPedal> classifyKeyboardPedalCustomLine(
+    const musx::dom::MusxInstance<musx::dom::others::SmartShapeCustomLine>& customLine)
+{
+    using CustomLine = musx::dom::others::SmartShapeCustomLine;
+    if (!customLine) {
+        return std::nullopt;
+    }
+
+    KeyboardPedal result;
+    result.customLine = customLine;
+    result.startText = classifyKeyboardPedal(customLine->getLeftStartRawTextCtx(customLine->getRequestedPartId()));
+    result.continuationText = classifyKeyboardPedal(customLine->getLeftContRawTextCtx(customLine->getRequestedPartId()));
+    result.endText = classifyKeyboardPedal(customLine->getRightEndRawTextCtx(customLine->getRequestedPartId()));
+    result.startCap = classifyPedalCap(customLine, true);
+    result.endCap = classifyPedalCap(customLine, false);
+    result.lineStyle = customLine->lineStyle;
+    result.lineVisible = customLine->lineStyle != CustomLine::LineStyle::Char
+        || (customLine->charParams && customLine->charParams->lineChar != U' ');
+
+    const bool hasPedalCap = result.startCap.type == KeyboardPedal::Cap::Type::PedalDown
+        || result.startCap.type == KeyboardPedal::Cap::Type::PedalUp
+        || result.startCap.type == KeyboardPedal::Cap::Type::PedalChange
+        || result.endCap.type == KeyboardPedal::Cap::Type::PedalDown
+        || result.endCap.type == KeyboardPedal::Cap::Type::PedalUp
+        || result.endCap.type == KeyboardPedal::Cap::Type::PedalChange;
+    if (!result.startText && !result.continuationText && !result.endText && !hasPedalCap) {
+        return std::nullopt;
+    }
+    return result;
+}
+
 SmartShapeClassification classifySmartShape(
     const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape)
 {
@@ -60,6 +130,12 @@ SmartShapeClassification classifySmartShape(
     case ShapeType::CustomLine:
         if (const auto candidate = musx::util::calcNonArpeggioSpanForSmartShape(shape)) {
             result.value = NonArpeggio{ *candidate };
+        } else if (shape->lineStyleId != 0) {
+            const auto customLine = shape->getDocument()->getOthers()->get<musx::dom::others::SmartShapeCustomLine>(
+                shape->getRequestedPartId(), shape->lineStyleId);
+            if (auto keyboardPedal = classifyKeyboardPedalCustomLine(customLine)) {
+                result.value = std::move(*keyboardPedal);
+            }
         }
         return result;
     default:

@@ -32,6 +32,7 @@
 #include "denigma/classify/articulations.h"
 #include "denigma/classify/dynamics.h"
 #include "denigma/classify/classifier_common.h"
+#include "denigma/classify/keyboard_pedals.h"
 #include "musx/musx.h"
 
 namespace denigma {
@@ -154,20 +155,6 @@ struct HarpDiagram
     PedalPosition a{};
 };
 
-/// @enum KeyboardPedal
-/// @brief Keyboard pedal changes recognized in Finale expressions.
-enum class KeyboardPedal
-{
-    /// Sustain pedal (pedal 1), normally the rightmost pedal.
-    PedalOne,
-    /// Sostenuto pedal (pedal 2), normally the middle pedal.
-    PedalTwo,
-    /// Una corda or soft pedal (pedal 3), normally the leftmost pedal.
-    PedalThree,
-    /// Release the currently engaged keyboard pedal.
-    PedalUp
-};
-
 struct PseudoTie
 {
     enum class Type
@@ -229,7 +216,7 @@ struct RunClassification
 
 using ExpressionValue = std::variant<
     std::monostate, dynamics::Mark, expression::Fermata, expression::BreathMark,
-    expression::HarpDiagram, expression::KeyboardPedal, expression::PseudoTie, expression::NonArpeggio,
+    expression::HarpDiagram, keyboardpedal::Type, expression::PseudoTie, expression::NonArpeggio,
     expression::TempoText, expression::TempoAlteration, expression::TechniqueText, expression::RehearsalMark,
     expression::GenericText, expression::Error, expression::Suppress>;
 
@@ -270,8 +257,8 @@ public:
     const expression::HarpDiagram& harpDiagram() const
     { return checkedPayload<expression::HarpDiagram, ExpressionType::HarpDiagram>("HarpDiagram"); }
 
-    expression::KeyboardPedal keyboardPedal() const
-    { return checkedPayload<expression::KeyboardPedal, ExpressionType::KeyboardPedal>("KeyboardPedal"); }
+    keyboardpedal::Type keyboardPedal() const
+    { return checkedPayload<keyboardpedal::Type, ExpressionType::KeyboardPedal>("KeyboardPedal"); }
 
     const expression::PseudoTie& pseudoTie() const
     { return checkedPayload<expression::PseudoTie, ExpressionType::PseudoTie>("PseudoTie"); }

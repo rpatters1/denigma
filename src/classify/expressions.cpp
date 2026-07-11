@@ -733,168 +733,21 @@ static std::optional<ExpressionClassification> classifyHarpDiagramExpression(con
     return result;
 }
 
-static std::string normalizeKeyboardPedalText(std::string_view text)
-{
-    std::string result;
-    result.reserve(text.size());
-    bool pendingSpace = false;
-    for (const char ch : text) {
-        const unsigned char uch = static_cast<unsigned char>(ch);
-        if (ch != '*' && (utils::isSpace(uch) || utils::isPunctuation(uch))) {
-            pendingSpace = !result.empty();
-            continue;
-        }
-        if (pendingSpace) {
-            result.push_back(' ');
-            pendingSpace = false;
-        }
-        result.push_back(utils::toLowerCase(ch));
-    }
-    return result;
-}
-
-static std::optional<KeyboardPedal> keyboardPedalFromText(std::string_view text)
-{
-    const std::string normalizedStorage = normalizeExpressionText(text);
-    if (normalizedStorage == "*") {
-        return KeyboardPedal::PedalUp;
-    }
-
-    const std::string comparableStorage = normalizeKeyboardPedalText(text);
-    std::string_view normalizedText = comparableStorage;
-    constexpr std::array trailingQualifiers = {
-        std::string_view{ " sempre" }, std::string_view{ " simile" }, std::string_view{ " ad lib" }
-    };
-    for (bool removed = true; removed;) {
-        removed = false;
-        for (const auto qualifier : trailingQualifiers) {
-            if (normalizedText.ends_with(qualifier)) {
-                normalizedText.remove_suffix(qualifier.size());
-                removed = true;
-                break;
-            }
-        }
-    }
-    constexpr std::array leadingQualifiers = { std::string_view{ "sempre " }, std::string_view{ "con " } };
-    for (const auto qualifier : leadingQualifiers) {
-        if (normalizedText.starts_with(qualifier)) {
-            normalizedText.remove_prefix(qualifier.size());
-            break;
-        }
-    }
-
-    if (normalizedText == "*") {
-        return KeyboardPedal::PedalUp;
-    }
-    if (matchesAny(normalizedText, { "senza ped" })) {
-        return KeyboardPedal::PedalUp;
-    }
-    if (matchesAny(normalizedText, { "sost", "sost ped" })) {
-        return KeyboardPedal::PedalTwo;
-    }
-    if (matchesAny(normalizedText, { "una corda" })) {
-        return KeyboardPedal::PedalThree;
-    }
-    if (!normalizedText.starts_with("ped")) {
-        return std::nullopt;
-    }
-
-    normalizedText.remove_prefix(3);
-    while (!normalizedText.empty() && normalizedText.front() == ' ') {
-        normalizedText.remove_prefix(1);
-    }
-    while (!normalizedText.empty() && normalizedText.back() == ' ') {
-        normalizedText.remove_suffix(1);
-    }
-
-    if (normalizedText.empty() || normalizedText == "i" || normalizedText == "1") {
-        return KeyboardPedal::PedalOne;
-    }
-    if (normalizedText == "ii" || normalizedText == "2") {
-        return KeyboardPedal::PedalTwo;
-    }
-    if (normalizedText == "iii" || normalizedText == "3") {
-        return KeyboardPedal::PedalThree;
-    }
-    return std::nullopt;
-}
-
 static std::optional<ExpressionClassification> classifyKeyboardPedalExpression(const ResolvedTextExpression& resolved)
 {
-    auto pedal = keyboardPedalFromText(resolved.normalizedText);
-    bool recognizedSymbol = false;
-
+    auto pedal = classifyKeyboardPedal(resolved.rawTextCtx);
     if (!pedal) {
-        std::string symbolicText;
-        bool sawPedalUp = false;
-        for (const auto& chunk : collectVisibleExpressionChunks(resolved.rawTextCtx)) {
-            if (!chunk.styles.font) {
-                return std::nullopt;
-            }
-            const bool fontIsSmufl = chunk.styles.font->calcIsSMuFL();
-            for (utils::Utf8Iterator iter(chunk.text); !iter.atEnd(); iter.next()) {
-                if (!iter.valid()) {
-                    return std::nullopt;
-                }
-                const auto glyphName = [&]() -> std::optional<std::string> {
-                    if (fontIsSmufl) {
-                        if (const auto* name = smufl_mapping::getGlyphName(iter->codepoint)) {
-                            return std::string(*name);
-                        }
-                        return std::nullopt;
-                    }
-                    return utils::smuflGlyphNameForFont(chunk.styles.font, iter->codepoint);
-                }();
-
-                if (glyphName == "keyboardPedalUp") {
-                    sawPedalUp = true;
-                    recognizedSymbol = true;
-                } else if (glyphName == "keyboardPedalPed") {
-                    symbolicText += "ped";
-                    recognizedSymbol = true;
-                } else if (glyphName == "keyboardPedalP") {
-                    symbolicText += 'p';
-                    recognizedSymbol = true;
-                } else if (glyphName == "keyboardPedalE") {
-                    symbolicText += 'e';
-                    recognizedSymbol = true;
-                } else if (glyphName == "keyboardPedalD") {
-                    symbolicText += 'd';
-                    recognizedSymbol = true;
-                } else if (glyphName == "keyboardPedalDot") {
-                    symbolicText += '.';
-                    recognizedSymbol = true;
-                } else if (glyphName == "keyboardPedalSost" || glyphName == "keyboardPedalS") {
-                    symbolicText += "sost";
-                    recognizedSymbol = true;
-                } else if (iter->codepoint <= 0x7F) {
-                    symbolicText.push_back(static_cast<char>(iter->codepoint));
-                } else {
-                    return std::nullopt;
-                }
-            }
-        }
-
-        const std::string normalizedSymbolicText = normalizeExpressionText(symbolicText);
-        if (sawPedalUp) {
-            if (!normalizedSymbolicText.empty() && !matchesAny(normalizedSymbolicText, { "sempre" })) {
-                return std::nullopt;
-            }
-            pedal = KeyboardPedal::PedalUp;
-        } else if (recognizedSymbol) {
-            pedal = keyboardPedalFromText(normalizedSymbolicText);
-        }
+        pedal = classifyKeyboardPedal(resolved.normalizedText);
     }
-
     if (!pedal) {
         return std::nullopt;
     }
     ExpressionClassification result;
     result.type = ExpressionType::KeyboardPedal;
-    result.basis = recognizedSymbol
+    result.basis = pedal->fromGlyph
         ? basisForSymbolRecognition(resolved.categoryType)
         : basisForRecognition(resolved.categoryType, CategoryType::TechniqueText);
-    result.value = *pedal;
+    result.value = pedal->type;
     return result;
 }
 

@@ -304,26 +304,26 @@ TEST(ExpressionClassification, RejectsIncompleteHarpPedalDiagramGlyphSequence)
 
 TEST(ExpressionClassification, ClassifiesKeyboardPedalText)
 {
-    const std::vector<std::pair<std::string, expression::KeyboardPedal>> cases = {
-        { "ped.", expression::KeyboardPedal::PedalOne },
-        { "Ped. I", expression::KeyboardPedal::PedalOne },
-        { "Ped. 1", expression::KeyboardPedal::PedalOne },
-        { "sost", expression::KeyboardPedal::PedalTwo },
-        { "Ped. II", expression::KeyboardPedal::PedalTwo },
-        { "Ped. 2", expression::KeyboardPedal::PedalTwo },
-        { "una corda", expression::KeyboardPedal::PedalThree },
-        { "Ped. III", expression::KeyboardPedal::PedalThree },
-        { "Ped. 3", expression::KeyboardPedal::PedalThree },
-        { "*", expression::KeyboardPedal::PedalUp },
-        { "sempre Ped.", expression::KeyboardPedal::PedalOne },
-        { "Sost. Ped.", expression::KeyboardPedal::PedalTwo },
-        { "con Ped.", expression::KeyboardPedal::PedalOne },
-        { "senza Ped.", expression::KeyboardPedal::PedalUp },
-        { "Ped. simile", expression::KeyboardPedal::PedalOne },
-        { "Ped. ad lib.", expression::KeyboardPedal::PedalOne },
-        { "PED: II", expression::KeyboardPedal::PedalTwo },
-        { "Sost.-Ped.", expression::KeyboardPedal::PedalTwo },
-        { "Ped., sempre", expression::KeyboardPedal::PedalOne },
+    const std::vector<std::pair<std::string, keyboardpedal::Type>> cases = {
+        { "ped.", keyboardpedal::Type::PedalOne },
+        { "Ped. I", keyboardpedal::Type::PedalOne },
+        { "Ped. 1", keyboardpedal::Type::PedalOne },
+        { "sost", keyboardpedal::Type::PedalTwo },
+        { "Ped. II", keyboardpedal::Type::PedalTwo },
+        { "Ped. 2", keyboardpedal::Type::PedalTwo },
+        { "una corda", keyboardpedal::Type::PedalThree },
+        { "Ped. III", keyboardpedal::Type::PedalThree },
+        { "Ped. 3", keyboardpedal::Type::PedalThree },
+        { "*", keyboardpedal::Type::PedalUp },
+        { "sempre Ped.", keyboardpedal::Type::PedalOne },
+        { "Sost. Ped.", keyboardpedal::Type::PedalTwo },
+        { "con Ped.", keyboardpedal::Type::PedalOne },
+        { "senza Ped.", keyboardpedal::Type::PedalUp },
+        { "Ped. simile", keyboardpedal::Type::PedalOne },
+        { "Ped. ad lib.", keyboardpedal::Type::PedalOne },
+        { "PED: II", keyboardpedal::Type::PedalTwo },
+        { "Sost.-Ped.", keyboardpedal::Type::PedalTwo },
+        { "Ped., sempre", keyboardpedal::Type::PedalOne },
     };
 
     for (const auto& [text, expected] : cases) {
@@ -344,24 +344,32 @@ TEST(ExpressionClassification, ClassifiesKeyboardPedalGlyphs)
             "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(glyphs),
             ExpressionCategoryType::Misc, {}, false, "Bravura").def);
     };
-    const auto expectPedal = [&](std::u8string_view glyphs, expression::KeyboardPedal expected) {
+    const auto expectPedal = [&](std::u8string_view glyphs, keyboardpedal::Type expected) {
         const auto result = classifyGlyphs(glyphs);
         ASSERT_EQ(result.type, ExpressionType::KeyboardPedal);
         EXPECT_EQ(result.keyboardPedal(), expected);
     };
 
-    expectPedal(u8"\uE650", expression::KeyboardPedal::PedalOne); // keyboardPedalPed
-    expectPedal(u8"\uE651\uE652\uE653\uE654", expression::KeyboardPedal::PedalOne);
-    expectPedal(u8"\uE650 I", expression::KeyboardPedal::PedalOne);
-    expectPedal(u8"\uE651\uE652\uE653\uE654 1", expression::KeyboardPedal::PedalOne);
-    expectPedal(u8"\uE650 sempre", expression::KeyboardPedal::PedalOne);
-    expectPedal(u8"\uE650 II", expression::KeyboardPedal::PedalTwo);
-    expectPedal(u8"\uE659", expression::KeyboardPedal::PedalTwo); // keyboardPedalSost
-    expectPedal(u8"\uE65A", expression::KeyboardPedal::PedalTwo); // keyboardPedalS
-    expectPedal(u8"\uE659 sempre", expression::KeyboardPedal::PedalTwo);
-    expectPedal(u8"\uE650 3", expression::KeyboardPedal::PedalThree);
-    expectPedal(u8"\uE655", expression::KeyboardPedal::PedalUp); // keyboardPedalUp
-    expectPedal(u8"\uE655 sempre", expression::KeyboardPedal::PedalUp);
+    expectPedal(u8"\uE650", keyboardpedal::Type::PedalOne); // keyboardPedalPed
+    expectPedal(u8"\uE651\uE652\uE653\uE654", keyboardpedal::Type::PedalOne);
+    expectPedal(u8"\uE650 I", keyboardpedal::Type::PedalOne);
+    expectPedal(u8"\uE651\uE652\uE653\uE654 1", keyboardpedal::Type::PedalOne);
+    expectPedal(u8"\uE650 sempre", keyboardpedal::Type::PedalOne);
+    expectPedal(u8"\uE650 II", keyboardpedal::Type::PedalTwo);
+    expectPedal(u8"\uE659", keyboardpedal::Type::PedalTwo); // keyboardPedalSost
+    expectPedal(u8"\uE65A", keyboardpedal::Type::PedalTwo); // keyboardPedalS
+    expectPedal(u8"\uE659 sempre", keyboardpedal::Type::PedalTwo);
+    expectPedal(u8"\uE650 3", keyboardpedal::Type::PedalThree);
+    expectPedal(u8"\uE655", keyboardpedal::Type::PedalUp); // keyboardPedalUp
+    expectPedal(u8"\uE655 sempre", keyboardpedal::Type::PedalUp);
+    expectPedal(u8"\uE656", keyboardpedal::Type::HalfPedal);
+    expectPedal(u8"\uE65B", keyboardpedal::Type::HalfPedal);
+    expectPedal(u8"\uE65C", keyboardpedal::Type::HalfPedal);
+    expectPedal(u8"\uE657", keyboardpedal::Type::PedalUpNotch);
+    expectPedal(u8"\uE65D", keyboardpedal::Type::PedalUpSpecial);
+    expectPedal(u8"\uE672", keyboardpedal::Type::HookStart);
+    expectPedal(u8"\uE673", keyboardpedal::Type::HookEnd);
+    expectPedal(u8"\uE658", keyboardpedal::Type::Hyphen);
 }
 
 TEST(ExpressionClassification, DoesNotClassifyKeyboardPedalPictograms)

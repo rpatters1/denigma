@@ -33,6 +33,7 @@ endfunction()
         test_massage.cpp
         test_mss_converter.cpp
         test_options.cpp
+        test_smartshapes.cpp
         test_svg_converter.cpp
         test_typed_converter_options.cpp
         test_jumps.cpp
