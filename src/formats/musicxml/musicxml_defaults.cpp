@@ -211,6 +211,35 @@ void createFontData(const MusicXmlMusxMapping& context)
     }
 }
 
+void createSystemBreaks(const MusicXmlMusxMapping& context)
+{
+    const auto measures = context.document->getOthers()->getArray<others::Measure>(context.forPartId);
+    const auto setSystemBreak = [&](MeasCmper measureId) {
+        const auto it = std::find_if(measures.begin(), measures.end(), [&](const auto& measure) {
+            return measure->getCmper() == measureId;
+        });
+        if (it == measures.end()) {
+            return;
+        }
+        const auto measureIndex = static_cast<mx::api::MeasureIndex>(std::distance(measures.begin(), it));
+        if (measureIndex > 0) {
+            context.musicXmlScore->layout[measureIndex].system.newSystem = mx::api::Bool::yes;
+        }
+    };
+
+    for (const auto& measure : measures) {
+        if (measure->beginNewSystem) {
+            setSystemBreak(measure->getCmper());
+        }
+    }
+    for (const auto& lock : context.document->getOthers()->getArray<others::SystemLock>(context.forPartId)) {
+        // Both boundaries are needed when neighboring systems are unlocked.
+        // MusicXML breaks are measure-scoped, so a Finale lock ending at a split measure cannot be preserved exactly.
+        setSystemBreak(lock->getCmper());
+        setSystemBreak(lock->endMeas);
+    }
+}
+
 } // namespace
 
 void createDefaults(const MusicXmlMusxMapping& context)
@@ -226,6 +255,7 @@ void createDefaults(const MusicXmlMusxMapping& context)
 
     createPageLayoutData(context, *pagePrefs, combinedSystemScaling);
     createSystemLayoutData(context, *pagePrefs);
+    createSystemBreaks(context);
     createAppearance(context);
     createFontData(context);
 }
