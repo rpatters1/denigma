@@ -20,13 +20,11 @@
 #include "musicxml.h"
 
 #include <algorithm>
-#include <array>
 #include <cstdlib>
 #include <iterator>
 #include <memory>
 #include <optional>
-#include <unordered_map>
-#include <unordered_set>
+#include <string>
 #include <utility>
 
 #include "denigma/classify/smartshapes.h"
@@ -37,6 +35,7 @@
 #include "mx/api/MarkData.h"
 #include "mx/api/OttavaData.h"
 #include "mx/api/SpannerData.h"
+#include "mx/api/SpannerNumber.h"
 #include "mx/api/WedgeData.h"
 #include "mx/api/WordsData.h"
 
@@ -49,10 +48,6 @@ namespace musicxml {
 namespace detail {
 
 namespace {
-
-constexpr int MUSICXML_MAX_NUMBER_LEVEL = 16;
-
-using SmartShapeNumberLevels = std::unordered_map<Cmper, int>;
 
 struct MusicXmlOttavaEndpointAdjustment
 {
@@ -67,13 +62,12 @@ constexpr MusicXmlOttavaEndpointAdjustment MUSICXML_OTTAVA_ENDPOINT_ADJUSTMENT{
     .stopAfterEntriesAtEnd = true
 };
 
-struct NumberedSmartShape
+// Start/continue/stop events sharing an identity are one logical spanner; mx::api
+// assigns the MusicXML number attribute from true serialization order at write time.
+mx::api::SpannerNumber smartShapeSpannerNumber(const MusxInstance<others::SmartShape>& shape)
 {
-    Cmper shapeCmper{};
-    MusicPoint start;
-    MusicPoint end;
-    int numberLevel{};
-};
+    return mx::api::SpannerNumber{ std::to_string(shape->getCmper()) };
+}
 
 mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLocation& location)
 {
@@ -98,118 +92,6 @@ mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLo
         return nullptr;
     }
     return &voice.notes[location.noteIndex];
-}
-
-bool rangesOverlap(const NumberedSmartShape& lhs, const NumberedSmartShape& rhs)
-{
-    return lhs.start < rhs.end && rhs.start < lhs.end;
-}
-
-void normalizeRange(MusicPoint& start, MusicPoint& end)
-{
-    if (end < start) {
-        std::swap(start, end);
-    }
-}
-
-std::optional<int> findSmartShapeNumberLevel(
-    const SmartShapeNumberLevels& numberLevels,
-    const MusxInstance<others::SmartShape>& shape)
-{
-    if (!shape) {
-        return std::nullopt;
-    }
-    const auto numberIt = numberLevels.find(shape->getCmper());
-    if (numberIt == numberLevels.end()) {
-        return std::nullopt;
-    }
-    return numberIt->second;
-}
-
-SmartShapeNumberLevels assignSmartShapeNumberLevels(
-    MusicXmlMusxMapping& context,
-    const MusxInstanceList<others::Measure>& musxMeasures,
-    const std::vector<StaffCmper>& staves)
-{
-    /// @todo This musical-range heuristic cannot fully account for MusicXML serialized note order
-    /// with backup-based voices; see MusicXmlSmartShapes.DISABLED_SlursOverbarsMatchReference.
-    /// If mx::api gains writer-side spanner number assignment, remove this.
-    std::vector<NumberedSmartShape> shapes;
-    std::unordered_set<Cmper> seenShapes;
-
-    for (const auto& musxMeasure : musxMeasures) {
-        if (!musxMeasure->hasSmartShape) {
-            continue;
-        }
-
-        const auto assigns = context.document->getOthers()->getArray<others::SmartShapeMeasureAssign>(
-            musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
-        for (const auto& assign : assigns) {
-            MUSX_ASSERT_IF(!assign) {
-                context.logMessage(LogMsg() << "Skipping empty smart shape assignment for measure "
-                    << musxMeasure->getCmper() << ".", MessageSeverity::Warning);
-                continue;
-            }
-            if (assign->centerShapeNum != 0 || !seenShapes.insert(assign->shapeNum).second) {
-                continue;
-            }
-
-            const auto shape = context.document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum);
-            if (!shape || !shape->calcIsValid()) {
-                continue;
-            }
-            const auto startPoint = shape->startTermSeg->endPoint;
-            const auto endPoint = shape->endTermSeg->endPoint;
-            if (startPoint->measId != musxMeasure->getCmper()
-                || std::ranges::find(staves, startPoint->staffId) == staves.end()
-                || !startPoint->calcIsAssigned() || !endPoint->calcIsAssigned()) {
-                continue;
-            }
-
-            auto range = shape->createGlobalMusicRange();
-            normalizeRange(range.start, range.end);
-            shapes.emplace_back(NumberedSmartShape{ shape->getCmper(), range.start, range.end, 0 });
-        }
-    }
-
-    std::ranges::sort(shapes, [](const NumberedSmartShape& lhs, const NumberedSmartShape& rhs) {
-        if (lhs.start != rhs.start) {
-            return lhs.start < rhs.start;
-        }
-        if (lhs.end != rhs.end) {
-            return lhs.end < rhs.end;
-        }
-        return lhs.shapeCmper < rhs.shapeCmper;
-    });
-
-    SmartShapeNumberLevels result;
-    for (auto& shape : shapes) {
-        std::array<bool, MUSICXML_MAX_NUMBER_LEVEL + 1> usedLevels{};
-        for (const auto& previous : shapes) {
-            if (previous.shapeCmper == shape.shapeCmper) {
-                break;
-            }
-            if (previous.numberLevel > 0 && rangesOverlap(previous, shape)) {
-                usedLevels[size_t(previous.numberLevel)] = true;
-            }
-        }
-
-        for (int numberLevel = 1; numberLevel <= MUSICXML_MAX_NUMBER_LEVEL; ++numberLevel) {
-            if (!usedLevels[size_t(numberLevel)]) {
-                shape.numberLevel = numberLevel;
-                result.emplace(shape.shapeCmper, numberLevel);
-                break;
-            }
-        }
-
-        if (shape.numberLevel == 0) {
-            context.logMessage(LogMsg() << "Skipping MusicXML number for smart shape " << shape.shapeCmper
-                << " because more than " << MUSICXML_MAX_NUMBER_LEVEL
-                << " smart shapes overlap in the current part.", MessageSeverity::Warning);
-        }
-    }
-
-    return result;
 }
 
 std::optional<MusicXmlNoteLocation> findEntryNoteLocation(
@@ -329,8 +211,7 @@ mx::api::StaffData* staffDataForEndpoint(
 bool processSlur(
     MusicXmlMusxMapping& context,
     const MusxInstance<others::SmartShape>& shape,
-    const classify::SmartShapeClassification& classification,
-    const SmartShapeNumberLevels& numberLevels)
+    const classify::SmartShapeClassification& classification)
 {
     const auto* slur = classification.as<classify::smartshape::Slur>();
     if (!slur) {
@@ -350,18 +231,14 @@ bool processSlur(
     }
 
     auto start = mx::api::CurveStart{ mx::api::CurveType::slur };
-    if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
-        start.numberLevel = *numberLevel;
-    }
+    start.number = smartShapeSpannerNumber(shape);
     start.curveOrientation = enumConvert<mx::api::CurveOrientation>(slur->contour);
     if (shape->calcIsDashed()) {
         start.lineData.lineType = mx::api::LineType::dashed;
     }
     startNote->noteAttachmentData.curveStarts.emplace_back(std::move(start));
     auto stop = mx::api::CurveStop{ mx::api::CurveType::slur };
-    if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
-        stop.numberLevel = *numberLevel;
-    }
+    stop.number = smartShapeSpannerNumber(shape);
     endNote->noteAttachmentData.curveStops.emplace_back(std::move(stop));
     return true;
 }
@@ -398,8 +275,7 @@ void appendHairpin(
     StaffCmper staffId,
     size_t staffIndex,
     const MusxInstance<others::SmartShape>& shape,
-    mx::api::WedgeType wedgeType,
-    const SmartShapeNumberLevels& numberLevels)
+    mx::api::WedgeType wedgeType)
 {
     if (shape->hidden) {
         return;
@@ -416,9 +292,7 @@ void appendHairpin(
     const auto placement = shape->calcVerticalPlacementForBeatAttached();
     auto startDirection = createSmartShapeDirection(context, startPoint, staffId, staffIndex, placement);
     auto wedgeStart = mx::api::WedgeStart{};
-    if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
-        wedgeStart.numberLevel = *numberLevel;
-    }
+    wedgeStart.number = smartShapeSpannerNumber(shape);
     wedgeStart.wedgeType = wedgeType;
     wedgeStart.lineData.lineType = mx::api::LineType::solid;
     startDirection.wedgeStarts.emplace_back(std::move(wedgeStart));
@@ -426,9 +300,7 @@ void appendHairpin(
 
     auto stopDirection = createSmartShapeDirection(context, endPoint, staffId, staffIndex, placement);
     auto wedgeStop = mx::api::WedgeStop{};
-    if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
-        wedgeStop.numberLevel = *numberLevel;
-    }
+    wedgeStop.number = smartShapeSpannerNumber(shape);
     stopDirection.wedgeStops.emplace_back(std::move(wedgeStop));
     if (auto* stopStaff = staffDataForEndpoint(context, endPoint)) {
         stopStaff->directions.emplace_back(std::move(stopDirection));
@@ -452,8 +324,7 @@ void appendOttava(
     StaffCmper staffId,
     size_t staffIndex,
     const MusxInstance<others::SmartShape>& shape,
-    const classify::smartshape::Ottava& ottava,
-    const SmartShapeNumberLevels& numberLevels)
+    const classify::smartshape::Ottava& ottava)
 {
     if (!ottava.calcIsSemanticCarrier()) {
         // A paired visual custom line: its hidden counterpart carries the octave shift.
@@ -485,9 +356,7 @@ void appendOttava(
     auto ottavaStart = mx::api::OttavaStart{};
     ottavaStart.ottavaType = *ottavaType;
     ottavaStart.spannerStart.tickTimePosition = startDirection.tickTimePosition;
-    if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
-        ottavaStart.spannerStart.numberLevel = *numberLevel;
-    }
+    ottavaStart.spannerStart.number = smartShapeSpannerNumber(shape);
     startDirection.ottavaStarts.emplace_back(std::move(ottavaStart));
     staff.directions.emplace_back(std::move(startDirection));
 
@@ -496,9 +365,7 @@ void appendOttava(
             context, endPoint, staffId, staffIndex, placement, calcOttavaStopTick(context, endPoint, *stopStaff));
         auto ottavaStop = mx::api::OttavaStop{};
         ottavaStop.spannerStop.tickTimePosition = stopDirection.tickTimePosition;
-        if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
-            ottavaStop.spannerStop.numberLevel = *numberLevel;
-        }
+        ottavaStop.spannerStop.number = smartShapeSpannerNumber(shape);
         constexpr int kOttavaSize = 8;
         constexpr int k15maSize = 15;
         ottavaStop.size = std::abs(ottava.octaveShift) == 1 ? kOttavaSize : k15maSize;
@@ -536,8 +403,7 @@ void appendKeyboardPedal(
     StaffCmper staffId,
     size_t staffIndex,
     const MusxInstance<others::SmartShape>& shape,
-    const classify::smartshape::KeyboardPedal& pedal,
-    const SmartShapeNumberLevels& numberLevels)
+    const classify::smartshape::KeyboardPedal& pedal)
 {
     const auto startPoint = shape->startTermSeg->endPoint;
     const auto endPoint = shape->endTermSeg->endPoint;
@@ -567,10 +433,9 @@ void appendKeyboardPedal(
         auto stop = mx::api::SpannerStop{};
         start.tickTimePosition = startDirection.tickTimePosition;
         stop.tickTimePosition = stopDirection.tickTimePosition;
-        if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
-            start.numberLevel = *numberLevel;
-            stop.numberLevel = *numberLevel;
-        }
+        /// @todo Assign identity spanner numbers to pedals once mx::api serializes them.
+        /// MusicXML 3.1+ gives <pedal> a number attribute and core::Pedal supports it, but
+        /// mx::api's pedal writer and SpannerNumberResolver ignore it. (See mx-api-gaps.md.)
         start.lineData.lineType = pedalLineType(pedal);
         stop.lineData.lineType = pedalLineType(pedal);
         /// @todo Preserve Finale pedal text/sign choices, ordinary hooks, custom cap geometry,
@@ -642,8 +507,7 @@ void appendGeneralLine(
     StaffCmper staffId,
     size_t staffIndex,
     const MusxInstance<others::SmartShape>& shape,
-    const classify::smartshape::GeneralLine& line,
-    const SmartShapeNumberLevels& numberLevels)
+    const classify::smartshape::GeneralLine& line)
 {
     const auto startPoint = shape->startTermSeg->endPoint;
     const auto endPoint = shape->endTermSeg->endPoint;
@@ -678,10 +542,8 @@ void appendGeneralLine(
         auto stop = mx::api::SpannerStop{};
         start.tickTimePosition = startDirection.tickTimePosition;
         stop.tickTimePosition = stopDirection.tickTimePosition;
-        if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
-            start.numberLevel = *numberLevel;
-            stop.numberLevel = *numberLevel;
-        }
+        start.number = smartShapeSpannerNumber(shape);
+        stop.number = smartShapeSpannerNumber(shape);
         applyGeneralLineDashes(line, start.lineData);
         applyGeneralLineDashes(line, stop.lineData);
         if (!hasCaps && !startDirection.words.empty()) {
@@ -753,8 +615,7 @@ void processSmartShapesForStaff(
     mx::api::StaffData& staff,
     const MusxInstance<others::Measure>& musxMeasure,
     StaffCmper staffId,
-    size_t staffIndex,
-    const SmartShapeNumberLevels& numberLevels)
+    size_t staffIndex)
 {
     if (!musxMeasure->hasSmartShape) {
         return;
@@ -785,18 +646,18 @@ void processSmartShapesForStaff(
             // must be processed; all other hidden shapes are skipped.
             continue;
         }
-        if (processSlur(context, shape, classification, numberLevels)) {
+        if (processSlur(context, shape, classification)) {
             continue;
         }
 
         if (classification.as<classify::smartshape::Crescendo>()) {
-            appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::crescendo, numberLevels);
+            appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::crescendo);
         } else if (classification.as<classify::smartshape::Decrescendo>()) {
-            appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::diminuendo, numberLevels);
+            appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::diminuendo);
         } else if (ottava) {
-            appendOttava(context, staff, staffId, staffIndex, shape, *ottava, numberLevels);
+            appendOttava(context, staff, staffId, staffIndex, shape, *ottava);
         } else if (const auto* pedal = classification.as<classify::smartshape::KeyboardPedal>()) {
-            appendKeyboardPedal(context, staff, staffId, staffIndex, shape, *pedal, numberLevels);
+            appendKeyboardPedal(context, staff, staffId, staffIndex, shape, *pedal);
         } else if (const auto* trillLine = classification.as<classify::smartshape::TrillLine>()) {
             appendTrillLine(context, shape, *trillLine);
         } else if (classification.as<classify::smartshape::VibratoLine>()) {
@@ -805,7 +666,7 @@ void processSmartShapesForStaff(
             context.logMessage(LogMsg() << "Omitting vibrato line smart shape " << shape->getCmper()
                 << " because mx::api cannot pair wavy-line start/stop.", MessageSeverity::Verbose);
         } else if (const auto* generalLine = classification.as<classify::smartshape::GeneralLine>()) {
-            appendGeneralLine(context, staff, staffId, staffIndex, shape, *generalLine, numberLevels);
+            appendGeneralLine(context, staff, staffId, staffIndex, shape, *generalLine);
         } else if (const auto* arpeggiatedTie = classification.as<classify::smartshape::ArpeggiatedTie>()) {
             processArpeggiatedTie(context, *arpeggiatedTie);
         }
@@ -823,12 +684,11 @@ void processSmartShapes(
         return;
     }
 
-    const auto numberLevels = assignSmartShapeNumberLevels(context, musxMeasures, staves);
     for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
         auto& measure = context.currentPart->measures[measureIndex];
         for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
             auto& staff = measure.staves[staffIndex];
-            processSmartShapesForStaff(context, staff, musxMeasures[measureIndex], staves[staffIndex], staffIndex, numberLevels);
+            processSmartShapesForStaff(context, staff, musxMeasures[measureIndex], staves[staffIndex], staffIndex);
         }
     }
 }

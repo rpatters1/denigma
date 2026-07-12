@@ -22,6 +22,7 @@
 
 #include <filesystem>
 #include <ostream>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -29,6 +30,7 @@
 #include "mx/api/CurveData.h"
 #include "mx/api/NoteData.h"
 #include "mx/api/ScoreData.h"
+#include "pugixml.hpp"
 #include "test_utils.h"
 
 using namespace denigma::test::musicxml;
@@ -115,12 +117,12 @@ std::vector<ComparableSlurEvent> createComparableSlurEvents(const mx::api::Score
 
                         for (const auto& start : note.noteAttachmentData.curveStarts) {
                             if (start.curveType == mx::api::CurveType::slur) {
-                                appendEvent("start", start.numberLevel, start.curveOrientation, start.lineData.lineType);
+                                appendEvent("start", start.number.level(), start.curveOrientation, start.lineData.lineType);
                             }
                         }
                         for (const auto& stop : note.noteAttachmentData.curveStops) {
                             if (stop.curveType == mx::api::CurveType::slur) {
-                                appendEvent("stop", stop.numberLevel, mx::api::CurveOrientation::unspecified,
+                                appendEvent("stop", stop.number.level(), mx::api::CurveOrientation::unspecified,
                                             mx::api::LineType::unspecified);
                             }
                         }
@@ -168,7 +170,7 @@ TEST(MusicXmlSmartShapes, SlursTwoVoicesMatchReference)
     EXPECT_EQ(createComparableSlurEvents(*referenceScore), createComparableSlurEvents(*actualScore));
 }
 
-TEST(MusicXmlSmartShapes, DISABLED_SlursOverbarsMatchReference)
+TEST(MusicXmlSmartShapes, SlursOverbarsMatchReference)
 {
     setupTestDataPaths();
     const auto outputPath = exportMusicXmlFixture("slurs_overbars.musx");
@@ -179,6 +181,54 @@ TEST(MusicXmlSmartShapes, DISABLED_SlursOverbarsMatchReference)
     ASSERT_TRUE(referenceScore.has_value());
 
     EXPECT_EQ(createComparableSlurEvents(*referenceScore), createComparableSlurEvents(*actualScore));
+}
+
+/// MusicXML's number-level contract: two slurs of the same part that overlap in
+/// document order must carry distinct numbers. Readers pair slur starts and stops
+/// by number within the part, so a collision mispairs them (typically visible as
+/// slurs jumping between the staves of a multistaff instrument). See "Spanner
+/// numbers are pooled per staff instead of per part" in mx-api-gaps.md.
+/// @todo Remove the DISABLED_ prefix when mx scopes its spanner number pools per
+/// part instead of per staff. The fixture's staff-1 slur (m5-m6) is open when the
+/// staff-2 slur (m6) starts, and mx's per-staff pools hand both number 1.
+TEST(MusicXmlSmartShapes, DISABLED_OverlappingSlursAcrossStavesCarryDistinctNumbers)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("cross_staffs.musx");
+
+    pugi::xml_document document;
+    ASSERT_TRUE(document.load_file(outputPath.c_str()));
+
+    // A slur with no number attribute defaults to 1 per the MusicXML spec.
+    constexpr int kDefaultSlurNumber = 1;
+    bool sawDocumentOrderOverlap = false;
+    for (auto part = document.child("score-partwise").child("part"); part; part = part.next_sibling("part")) {
+        std::set<int> openNumbers;
+        for (auto measure = part.child("measure"); measure; measure = measure.next_sibling("measure")) {
+            for (auto note = measure.child("note"); note; note = note.next_sibling("note")) {
+                for (auto notations = note.child("notations"); notations; notations = notations.next_sibling("notations")) {
+                    for (auto slur = notations.child("slur"); slur; slur = slur.next_sibling("slur")) {
+                        const int number = slur.attribute("number").as_int(kDefaultSlurNumber);
+                        const std::string type = slur.attribute("type").as_string();
+                        if (type == "start") {
+                            if (!openNumbers.empty()) {
+                                sawDocumentOrderOverlap = true;
+                            }
+                            EXPECT_TRUE(openNumbers.insert(number).second)
+                                << "slur number " << number << " started in measure "
+                                << measure.attribute("number").as_string()
+                                << " while a slur with the same number was still open";
+                        } else if (type == "stop") {
+                            openNumbers.erase(number);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    EXPECT_TRUE(sawDocumentOrderOverlap)
+        << "fixture contains no slurs that overlap in document order, so the number-level "
+           "contract was not exercised";
 }
 
 TEST(MusicXmlSmartShapes, OverlappingOttavas)
@@ -474,16 +524,7 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaCarriers)
     }
 }
 
-/// @todo Remove the DISABLED_ prefix when the mx::api automatic numberLevel PR lands.
-/// mx::api's DirectionWriter::emitOttavaStart currently drops the start's number
-/// attribute (see "Octave-shift start drops the number attribute" in mx-api-gaps.md),
-/// so the start-side expectations below fail. The expected values reflect denigma's
-/// current number-level heuristic, which the PR replaces with writer-side assignment —
-/// so when enabling this test, the values *will* have to be re-checked against the new
-/// assigner, not assumed. (Note that under the current heuristic the suppressed visual
-/// proxy of the m26-m28 pair consumes a level, which is why that ottava expects 2; the
-/// new assigner may well number it 1.)
-TEST(MusicXmlSmartShapes, DISABLED_SmartShapeLinesOttavaNumberLevels)
+TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaNumberLevels)
 {
     setupTestDataPaths();
     const auto outputPath = exportMusicXmlFixture("smartshape_lines.musx");
@@ -495,10 +536,10 @@ TEST(MusicXmlSmartShapes, DISABLED_SmartShapeLinesOttavaNumberLevels)
                                        int expectedNumberLevel, const char* which) {
         const auto* start = firstOttavaStart(startStaff);
         ASSERT_NE(start, nullptr) << which;
-        EXPECT_EQ(start->spannerStart.numberLevel, expectedNumberLevel) << which << " start";
+        EXPECT_EQ(start->spannerStart.number.level(), expectedNumberLevel) << which << " start";
         const auto* stop = firstOttavaStop(stopStaff);
         ASSERT_NE(stop, nullptr) << which;
-        EXPECT_EQ(stop->spannerStop.numberLevel, expectedNumberLevel) << which << " stop";
+        EXPECT_EQ(stop->spannerStop.number.level(), expectedNumberLevel) << which << " stop";
     };
 
     const auto& staff1 = score->parts.at(0);
@@ -508,7 +549,9 @@ TEST(MusicXmlSmartShapes, DISABLED_SmartShapeLinesOttavaNumberLevels)
     };
     expectNumberLevels(staff1At(13), staff1At(22), 1, "hidden quindicesima m14-m23");
     expectNumberLevels(staff1At(18), staff1At(19), 2, "8vb line m19-m20");
-    expectNumberLevels(staff1At(25), staff1At(27), 2, "paired ottava m26-m28");
+    // The suppressed visual proxy of this pair emits nothing, so it holds no number
+    // and the writer-side assigner reuses 1 once the quindicesima has closed.
+    expectNumberLevels(staff1At(25), staff1At(27), 1, "paired ottava m26-m28");
 
     const auto& staff3 = score->parts.at(2);
     ASSERT_GE(staff3.measures.size(), 23u);

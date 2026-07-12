@@ -58,13 +58,13 @@ Needed API shape: the same tie-notation data model requested above should also c
 
 ## Smart Shapes And Spanners
 
-### Spanner number assignment in serialized order
+### Spanner numbers are pooled per staff instead of per part
 
-MusicXML `number` attributes for slurs, wedges, and similar spanners disambiguate simultaneously open spanners of the same element type. For slurs, "open" is effectively determined by serialized MusicXML note order, not only by musical time. When voices are written with `<backup>` elements, a slur that has musically ended may still appear open to a streaming reader until the later voice containing its stop is serialized.
+MusicXML's `number-level` type states that spanner `number` attributes distinguish "concurrent objects of the same type when the objects overlap in MusicXML document order" within "a single musical part" — the staff plays no role in that scoping. The spec's own worked example is a piano part in which a cross-staff slur "will need a separate number from the mid-measure slurs because it overlaps those slurs in MusicXML document order," even though they are on different staves. Readers accordingly pair slur starts and stops by number within the part (MuseScore, for example, keeps one open-slur slot per number per part).
 
-Denigma can identify matching MUSX smart-shape start and stop endpoints, but `mx::api` controls final note serialization order. Denigma currently uses a part-local musical-range heuristic for smart-shape number assignment, which cannot fully match serialized-order cases such as non-overlapping slurs split across voices.
+`mx::impl::SpannerNumberResolver` (added by the unified spanner numbering change) draws numbers from a pool per *staff* per spanner class (`occupied[staffIndex][number]`). Two identity slurs that overlap in document order on different staves of the same part therefore both receive number 1. Minimal repro: a two-staff part with one whole-note slur per staff spanning measures 1-2 serializes as start@staff1, start@staff2, stop@staff1, stop@staff2 — all four emitted as `number="1"`. Readers mispair or drop the second slur, which presents as slurs attached to the wrong staff on multistaff instruments; cross-staff notes increase document-order overlap between the staves' slurs and make the collisions more frequent. Denigma supplies correct identity-based `SpannerNumber` values; the collision happens at write time inside mx.
 
-Needed API shape: `mx::api` should assign or normalize spanner `number` attributes during writing, using the actual serialization order it controls and the paired start/stop data in the API model. If that becomes available, Denigma should remove its local smart-shape number heuristic.
+Needed API shape: none — this is a writer bug. The resolver's pools should be scoped per part and spanner class only (drop the staff dimension from `occupied`). The special-case logic that reserves a cross-staff spanner's number "in every staff pool it touches" then becomes unnecessary rather than needing repair.
 
 ### Octave shifts beyond two octaves
 
@@ -74,13 +74,13 @@ MusicXML `<octave-shift>` supports any shift via the `size` attribute (8, 15, 22
 
 Needed API shape: either additional `OttavaType` values for 22ma/22mb or a numeric octave-shift model (direction plus size).
 
-### Octave-shift start drops the number attribute
+### Octave-shift start drops position and print data
 
-MusicXML `<octave-shift>` carries the same `number` attribute on start and stop so overlapping shifts can be paired.
+MusicXML `<octave-shift>` accepts the position and print-object/print-style attributes on the start element.
 
-`mx::api` accepts `numberLevel` on both `OttavaStart::spannerStart` and `OttavaStop::spannerStop`, but `DirectionWriter::emitOttavaStart` never calls `setAttributesFromSpannerStart` (it applies only `LineData`), so the number — along with the start's `positionData` and `printData` — is silently dropped. `emitOttavaStop` writes its number correctly, producing stops whose `number` has no matching start.
+`mx::api::OttavaStart::spannerStart` carries `positionData` and `printData`, but `DirectionWriter::emitOttavaStart` applies only `LineData` and the spanner number (the number drop was fixed by the unified spanner numbering change), so the start's `positionData` and `printData` are still silently dropped. Denigma does not currently populate these fields on ottava starts, so this is a low-priority gap.
 
-Needed API shape: none — this is a writer bug. `emitOttavaStart` should apply `setAttributesFromSpannerStart` like the bracket, dashes, and ottava-stop writers do. The in-flight automatic numberLevel PR reworks this same code path, so re-test after it lands before filing a separate fix.
+Needed API shape: none — this is a writer bug. `emitOttavaStart` should apply position and print data like the bracket, dashes, and ottava-stop writers do.
 
 ### Paired wavy-line start/stop (trill extensions and vibrato lines)
 
@@ -97,6 +97,16 @@ Finale pedal custom lines carry text/sign choices, hook and custom cap geometry,
 `mx::api`'s pedal writer forces `line="yes" sign="yes"`, ignores `LineData`, and supports only start/stop. There is also no way to request sostenuto or una-corda pedal types, so Denigma refuses to export those rather than misrepresent them as damper pedal. Pump changes cannot be expressed as `type="change"`.
 
 Needed API shape: pedal data with the full MusicXML pedal event types and attribute control (`line`, `sign`, `abbreviated`), honoring `LineData` for dashed pedal lines.
+
+### Pedal spanner numbers
+
+MusicXML 3.1 added a `number` attribute (type `number-level`) to `<pedal>` so simultaneous pedal lines — such as a sostenuto line running under a damper line — can be paired unambiguously. The attribute is present in the 3.1, 4.0, and 4.1 schemas; only 3.0 lacks it.
+
+`mx::core::Pedal` (generated from the MusicXML 4.0 schema) supports the attribute via `setNumber`, but `mx::api` never serializes it: the pedal writer does not call `core::Pedal::setNumber`, and `SpannerNumberResolver` deliberately excludes pedals from writer-side number assignment. The resolver's comment claims the `<pedal>` element has no number attribute, which is true only of MusicXML 3.0. Denigma therefore sets no spanner number on pedal starts/stops (see the `@todo` in `appendKeyboardPedal`).
+
+This is low-priority while `mx::api` can express only damper start/stop spanners, since two overlapping damper lines on one staff are musically rare. It becomes necessary as soon as the other pedal event types land (see "Keyboard pedal events and spanners" under Directions and Expressions): sostenuto-under-damper is exactly the collision the attribute exists to resolve.
+
+Needed API shape: honor `SpannerStart::number`/`SpannerStop::number` in the pedal writer, give pedals a pool in `SpannerNumberResolver`, and correct the resolver's pedal-exclusion rationale.
 
 ### Custom line continuation and center text
 
