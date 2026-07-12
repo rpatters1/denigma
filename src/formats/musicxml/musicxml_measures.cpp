@@ -834,7 +834,9 @@ void processMeasureText(
 void addMeasureNumber(
     MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,
-    const MusxInstance<others::Measure>& musxMeasure)
+    const MusxInstance<others::Measure>& musxMeasure,
+    const std::vector<StaffCmper>& staves,
+    const std::vector<StaffCmper>& scoreStaves)
 {
     const MeasCmper measureId = musxMeasure->getCmper();
     measure.number = std::to_string(measureId);
@@ -852,19 +854,68 @@ void addMeasureNumber(
             }
         }
         if (measureId == musxMeasureNumberRegion->calcFirstDisplayedMeasureId()) {
-            /// @todo select on whether the staff shows measure numbers and whether the region
-            /// forces top/bottom.
-            if (scorePartData->showOnEvery && scorePartData->incidence == 1) {
-                measure.measureNumbering = mx::api::MeasureNumbering::measure;
-            } else if (scorePartData->showOnStart) {
-                measure.measureNumbering = mx::api::MeasureNumbering::system;
+            const bool partDisplaysMeasureNumbers = std::ranges::any_of(staves, [&](StaffCmper staffId) {
+                const auto staff = others::StaffComposite::createCurrent(
+                    context.document, context.forPartId, staffId, measureId, 0);
+                if (!staff) {
+                    context.logMessage(LogMsg() << "Cannot determine measure-number visibility for staff " << staffId
+                        << " in measure " << measureId << ".", MessageSeverity::Warning);
+                    return false;
+                }
+                return !staff->hideMeasNums;
+            });
+
+            const bool partIsTopSystemStaff = !scoreStaves.empty()
+                && std::ranges::find(staves, scoreStaves.front()) != staves.end();
+            const bool partIsBottomSystemStaff = !scoreStaves.empty()
+                && std::ranges::find(staves, scoreStaves.back()) != staves.end();
+
+            const auto systemRelation = [&]() {
+                const bool onlyTop = scorePartData->showOnTop && !scorePartData->showOnBottom;
+                const bool onlyBottom = !scorePartData->showOnTop && scorePartData->showOnBottom;
+                if (partDisplaysMeasureNumbers) {
+                    if (onlyTop) {
+                        return mx::api::SystemRelation::alsoTop;
+                    }
+                    if (onlyBottom) {
+                        return mx::api::SystemRelation::alsoBottom;
+                    }
+                    return mx::api::SystemRelation::unspecified;
+                }
+                if (onlyTop && partIsTopSystemStaff) {
+                    return mx::api::SystemRelation::onlyTop;
+                }
+                if (onlyBottom && partIsBottomSystemStaff) {
+                    return mx::api::SystemRelation::onlyBottom;
+                }
+                return mx::api::SystemRelation::unspecified;
+            }();
+
+            if (partDisplaysMeasureNumbers || systemRelation != mx::api::SystemRelation::unspecified) {
+                if (scorePartData->showOnEvery && scorePartData->incidence == 1) {
+                    measure.measureNumbering = mx::api::MeasureNumbering::measure;
+                } else if (scorePartData->showOnStart) {
+                    measure.measureNumbering = mx::api::MeasureNumbering::system;
+                }
+            } else {
+                measure.measureNumbering = mx::api::MeasureNumbering::none;
+            }
+            if (measure.measureNumbering != mx::api::MeasureNumbering::unspecified
+                && measure.measureNumbering != mx::api::MeasureNumbering::none) {
+                measure.measureNumberingMultipleRestAlways = scorePartData->showOnMmRest
+                    ? mx::api::Bool::yes
+                    : mx::api::Bool::no;
+                measure.measureNumberingMultipleRestRange = scorePartData->showMmRange
+                    ? mx::api::Bool::yes
+                    : mx::api::Bool::no;
+                measure.measureNumberingSystemRelation = systemRelation;
             }
         }
         const auto displayNum = musxMeasureNumberRegion->calcDisplayNumberTextFor(measureId);
         MUSX_ASSERT_IF(!displayNum) {
             return;
         }
-        /// @todo meausure.text = displayNum.value(); // when mx::api supports MeasureData::text and full measure-numbering attributes.
+        /// @todo Export displayNum once mx::api exposes a MeasureData field for measure-numbering element text.
     }
 }
 
@@ -880,6 +931,10 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
     }
 
     const auto musxMeasures = context.document->getOthers()->getArray<others::Measure>(context.forPartId);
+    auto scoreStaves = std::vector<StaffCmper>{};
+    for (const auto& item : context.document->getScrollViewStaves(context.forPartId)) {
+        scoreStaves.emplace_back(item->staffId);
+    }
     part.measures.reserve(musxMeasures.size());
     std::vector<std::optional<mx::api::KeyData>> prevKeyData(stavesIt->second.size());
     std::vector<std::optional<ClefIndex>> prevClefIndices(stavesIt->second.size());
@@ -889,7 +944,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         const auto& musxMeasure = musxMeasures[measureIndex];
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
-        addMeasureNumber(context, measure, musxMeasure);
+        addMeasureNumber(context, measure, musxMeasure, stavesIt->second, scoreStaves);
         assignKeySignatures(context, measure, musxMeasure, stavesIt->second, pitchContext, prevKeyData);
         assignTimeSignature(context, measure, musxMeasure, stavesIt->second, prevTimeSigs);
         if (const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId); partSymbolIt != context.partIdToPartSymbol.end()) {

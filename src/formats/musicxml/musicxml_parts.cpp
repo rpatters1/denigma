@@ -235,6 +235,7 @@ void createParts(MusicXmlMusxMapping& context)
     context.partIdToPitchContext.clear();
 
     const auto scrollView = context.document->getScrollViewStaves(context.forPartId);
+    const std::string scorePartGroup = context.forPartId == SCORE_PARTID ? "score" : "part";
     int partNumber = 0;
     for (const auto& item : scrollView) {
         const auto staff = item->getStaffInstance(1, 0);
@@ -248,6 +249,7 @@ void createParts(MusicXmlMusxMapping& context)
         const std::string id = createPartId(++partNumber);
         auto& part = parts.emplace_back(mx::api::PartData{});
         populatePartMetadata(context, part, id, staff);
+        part.groups.emplace_back(scorePartGroup);
         mapPartToInstrumentStaves(context, id, instInfo);
     }
 

@@ -580,6 +580,50 @@ TEST(MusicXmlParts, CompositeTimeSignaturesMatchFinale)
     ASSERT_TRUE(expectedScore);
 
     compareTimeSignatures(*actualScore, *expectedScore);
+
+    ASSERT_EQ(actualScore->parts.size(), 1u);
+    ASSERT_EQ(expectedScore->parts.size(), 1u);
+    EXPECT_EQ(actualScore->parts.front().groups, expectedScore->parts.front().groups);
+
+    const auto& actualFirstMeasure = actualScore->parts.front().measures.front();
+    const auto& expectedFirstMeasure = expectedScore->parts.front().measures.front();
+    EXPECT_EQ(actualFirstMeasure.measureNumbering, expectedFirstMeasure.measureNumbering);
+    EXPECT_EQ(actualFirstMeasure.measureNumberingMultipleRestAlways, expectedFirstMeasure.measureNumberingMultipleRestAlways);
+    EXPECT_EQ(actualFirstMeasure.measureNumberingMultipleRestRange, expectedFirstMeasure.measureNumberingMultipleRestRange);
+    // Finale emits only-top for this visible staff. Denigma preserves the staff's own number and
+    // adds the top-system number, which MusicXML models as also-top.
+    EXPECT_EQ(actualFirstMeasure.measureNumberingSystemRelation, mx::api::SystemRelation::alsoTop);
+}
+
+TEST(MusicXmlParts, MeasureNumberStaffOverrideUsesScrollViewPositions)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("measnums_staffoverride.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_EQ(actualScore->parts.size(), 4u);
+
+    struct Expectation
+    {
+        mx::api::MeasureNumbering numbering;
+        mx::api::SystemRelation relation;
+        mx::api::Bool multipleRestAlways;
+        mx::api::Bool multipleRestRange;
+    };
+    const std::array<Expectation, 4> expected = {{
+        { mx::api::MeasureNumbering::none, mx::api::SystemRelation::unspecified, mx::api::Bool::unspecified, mx::api::Bool::unspecified },
+        { mx::api::MeasureNumbering::measure, mx::api::SystemRelation::alsoBottom, mx::api::Bool::yes, mx::api::Bool::yes },
+        { mx::api::MeasureNumbering::none, mx::api::SystemRelation::unspecified, mx::api::Bool::unspecified, mx::api::Bool::unspecified },
+        { mx::api::MeasureNumbering::measure, mx::api::SystemRelation::alsoBottom, mx::api::Bool::yes, mx::api::Bool::yes }
+    }};
+    for (size_t partIndex = 0; partIndex < expected.size(); ++partIndex) {
+        const auto& measure = actualScore->parts[partIndex].measures.front();
+        EXPECT_EQ(measure.measureNumbering, expected[partIndex].numbering) << "part " << partIndex + 1;
+        EXPECT_EQ(measure.measureNumberingSystemRelation, expected[partIndex].relation) << "part " << partIndex + 1;
+        EXPECT_EQ(measure.measureNumberingMultipleRestAlways, expected[partIndex].multipleRestAlways) << "part " << partIndex + 1;
+        EXPECT_EQ(measure.measureNumberingMultipleRestRange, expected[partIndex].multipleRestRange) << "part " << partIndex + 1;
+    }
 }
 
 TEST(MusicXmlParts, PerStaffTimeSignaturesAndVisibility)
@@ -658,6 +702,7 @@ TEST(MusicXmlParts, TimeSignaturesVisibleInLinkedPart)
     const auto actualScore = loadScoreData(outputPath);
     ASSERT_TRUE(actualScore);
     ASSERT_EQ(actualScore->parts.size(), 1u);
+    EXPECT_EQ(actualScore->parts.front().groups, std::vector<std::string>{ "part" });
 
     const auto& fluteMeasures = actualScore->parts.at(0).measures;
     ASSERT_GE(fluteMeasures.size(), 13u);

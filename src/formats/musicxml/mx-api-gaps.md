@@ -134,13 +134,13 @@ Needed API shape: natural/artificial and base-pitch/touching-pitch/sounding-pitc
 
 ## Measures
 
-### Measure numbering text and attributes
+### Measure-numbering text and staff attribute
 
-MusicXML `<measure-numbering>` can carry display text as element content and additional attributes such as `multiple-rest-always`, `multiple-rest-range`, `staff`, and `system`. Finale uses these to distinguish cases like `measure`, `system`, and staff-specific numbering placement, including examples such as `multiple-rest-always="yes" multiple-rest-range="yes" staff="2" system="only-bottom"`.
+MusicXML `<measure-numbering>` can carry display text as element content and a `staff` attribute. The element text can differ from the measure's `number` attribute, and `staff` selects the reference staff for vertical positioning.
 
-`mx::api::MeasureData` currently exposes only the coarse `measureNumbering` enum. Denigma can choose between the basic measure/system styles, but it cannot preserve the element text or the other MusicXML measure-numbering attributes through the public API.
+`mx::api::MeasureData` now exposes the basic measure/system style, `multiple-rest-always`, `multiple-rest-range`, and the `system` relation, which Denigma exports. It does not expose the element text or `staff` attribute.
 
-Needed API shape: a measure-numbering model on `MeasureData` with element text plus optional fields for `multiple-rest-always`, `multiple-rest-range`, `staff`, and `system`.
+Needed API shape: fields on `MeasureData` for measure-numbering element text and its optional `staff` attribute.
 
 ## Transposition
 
