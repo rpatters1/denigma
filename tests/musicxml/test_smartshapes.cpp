@@ -474,6 +474,48 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaCarriers)
     }
 }
 
+/// @todo Remove the DISABLED_ prefix when the mx::api automatic numberLevel PR lands.
+/// mx::api's DirectionWriter::emitOttavaStart currently drops the start's number
+/// attribute (see "Octave-shift start drops the number attribute" in mx-api-gaps.md),
+/// so the start-side expectations below fail. The expected values reflect denigma's
+/// current number-level heuristic, which the PR replaces with writer-side assignment —
+/// so when enabling this test, the values *will* have to be re-checked against the new
+/// assigner, not assumed. (Note that under the current heuristic the suppressed visual
+/// proxy of the m26-m28 pair consumes a level, which is why that ottava expects 2; the
+/// new assigner may well number it 1.)
+TEST(MusicXmlSmartShapes, DISABLED_SmartShapeLinesOttavaNumberLevels)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("smartshape_lines.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+    ASSERT_GE(score->parts.size(), 3u);
+
+    const auto expectNumberLevels = [](const mx::api::StaffData& startStaff, const mx::api::StaffData& stopStaff,
+                                       int expectedNumberLevel, const char* which) {
+        const auto* start = firstOttavaStart(startStaff);
+        ASSERT_NE(start, nullptr) << which;
+        EXPECT_EQ(start->spannerStart.numberLevel, expectedNumberLevel) << which << " start";
+        const auto* stop = firstOttavaStop(stopStaff);
+        ASSERT_NE(stop, nullptr) << which;
+        EXPECT_EQ(stop->spannerStop.numberLevel, expectedNumberLevel) << which << " stop";
+    };
+
+    const auto& staff1 = score->parts.at(0);
+    ASSERT_GE(staff1.measures.size(), 28u);
+    const auto staff1At = [&](size_t measureIndex) -> const mx::api::StaffData& {
+        return staff1.measures.at(measureIndex).staves.at(0);
+    };
+    expectNumberLevels(staff1At(13), staff1At(22), 1, "hidden quindicesima m14-m23");
+    expectNumberLevels(staff1At(18), staff1At(19), 2, "8vb line m19-m20");
+    expectNumberLevels(staff1At(25), staff1At(27), 2, "paired ottava m26-m28");
+
+    const auto& staff3 = score->parts.at(2);
+    ASSERT_GE(staff3.measures.size(), 23u);
+    expectNumberLevels(staff3.measures.at(20).staves.at(0), staff3.measures.at(22).staves.at(0), 1,
+                       "8vb line staff 3 m21-m23");
+}
+
 TEST(MusicXmlSmartShapes, SmartShapeLinesGeneralLineBrackets)
 {
     setupTestDataPaths();
@@ -481,6 +523,12 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesGeneralLineBrackets)
     const auto score = loadScoreData(outputPath);
     ASSERT_TRUE(score.has_value());
     ASSERT_GE(score->parts.size(), 5u);
+
+    // Built-in lines take their hook length from the document's smart shape options
+    // (20 Evpu in this fixture). The comparison tolerance absorbs the decimal
+    // precision of the written XML attribute.
+    const double expectedHookTenths = 20.0 * (40.0 / 96.0);
+    constexpr double kEndLengthTolerance = 0.0001;
 
     // Built-in solidLineDown2 on staff 1, m1-m2: solid bracket with down hooks at
     // both ends.
@@ -490,9 +538,13 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesGeneralLineBrackets)
         ASSERT_NE(start, nullptr);
         EXPECT_EQ(start->lineData.lineType, mx::api::LineType::solid);
         EXPECT_EQ(start->lineData.lineHook, mx::api::LineHook::down);
+        ASSERT_TRUE(start->lineData.isStopLengthSpecified);
+        EXPECT_NEAR(start->lineData.endLength, expectedHookTenths, kEndLengthTolerance);
         const auto* stop = firstBracketStop(staff1.measures.at(1).staves.at(0));
         ASSERT_NE(stop, nullptr);
         EXPECT_EQ(stop->lineData.lineHook, mx::api::LineHook::down);
+        ASSERT_TRUE(stop->lineData.isStopLengthSpecified);
+        EXPECT_NEAR(stop->lineData.endLength, expectedHookTenths, kEndLengthTolerance);
     }
 
     // Custom line with an end hook on staff 2, m1-m2: no start hook, up hook at the
@@ -518,6 +570,8 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesGeneralLineBrackets)
         ASSERT_NE(start, nullptr);
         EXPECT_EQ(start->lineData.lineType, mx::api::LineType::dashed);
         EXPECT_EQ(start->lineData.lineHook, mx::api::LineHook::down);
+        ASSERT_TRUE(start->lineData.isStopLengthSpecified);
+        EXPECT_NEAR(start->lineData.endLength, expectedHookTenths, kEndLengthTolerance);
         ASSERT_TRUE(start->lineData.isDashLengthSpecified);
         EXPECT_DOUBLE_EQ(start->lineData.dashLength, 7.5);
     }

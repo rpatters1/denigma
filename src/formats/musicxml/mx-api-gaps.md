@@ -74,6 +74,14 @@ MusicXML `<octave-shift>` supports any shift via the `size` attribute (8, 15, 22
 
 Needed API shape: either additional `OttavaType` values for 22ma/22mb or a numeric octave-shift model (direction plus size).
 
+### Octave-shift start drops the number attribute
+
+MusicXML `<octave-shift>` carries the same `number` attribute on start and stop so overlapping shifts can be paired.
+
+`mx::api` accepts `numberLevel` on both `OttavaStart::spannerStart` and `OttavaStop::spannerStop`, but `DirectionWriter::emitOttavaStart` never calls `setAttributesFromSpannerStart` (it applies only `LineData`), so the number — along with the start's `positionData` and `printData` — is silently dropped. `emitOttavaStop` writes its number correctly, producing stops whose `number` has no matching start.
+
+Needed API shape: none — this is a writer bug. `emitOttavaStart` should apply `setAttributesFromSpannerStart` like the bracket, dashes, and ottava-stop writers do. The in-flight automatic numberLevel PR reworks this same code path, so re-test after it lands before filing a separate fix.
+
 ### Paired wavy-line start/stop (trill extensions and vibrato lines)
 
 MusicXML represents trill extensions and vibrato lines as `<ornaments><wavy-line type="start|continue|stop">` pairs attached to notes.
