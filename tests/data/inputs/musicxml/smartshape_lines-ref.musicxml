@@ -6,7 +6,7 @@
     <rights>©</rights>
     <encoding>
       <software>Finale v27.4 for Mac</software>
-      <encoding-date>2026-07-11</encoding-date>
+      <encoding-date>2026-07-12</encoding-date>
       <supports attribute="new-system" element="print" type="yes" value="yes"/>
       <supports attribute="new-page" element="print" type="yes" value="yes"/>
       <supports element="accidental" type="yes"/>
@@ -79,7 +79,10 @@
       <score-instrument id="P1-I1">
         <instrument-name>ARIA Player</instrument-name>
         <instrument-sound>wind.flutes.flute</instrument-sound>
-        <virtual-instrument/>
+        <virtual-instrument>
+          <virtual-library>Garritan Instruments for Finale</virtual-library>
+          <virtual-name>001. Woodwinds/1. Flutes/Flute Plr1</virtual-name>
+        </virtual-instrument>
       </score-instrument>
       <midi-device>ARIA Player</midi-device>
       <midi-instrument id="P1-I1">
@@ -96,7 +99,10 @@
       <score-instrument id="P2-I2">
         <instrument-name>ARIA Player</instrument-name>
         <instrument-sound>wind.reed.oboe</instrument-sound>
-        <virtual-instrument/>
+        <virtual-instrument>
+          <virtual-library>Garritan Instruments for Finale</virtual-library>
+          <virtual-name>001. Woodwinds/2. Oboes and Eng. Horn/Oboe Plr1</virtual-name>
+        </virtual-instrument>
       </score-instrument>
       <midi-device>ARIA Player</midi-device>
       <midi-instrument id="P2-I2">
@@ -122,7 +128,10 @@
       <score-instrument id="P3-I3">
         <instrument-name>ARIA Player</instrument-name>
         <instrument-sound>wind.reed.clarinet.bflat</instrument-sound>
-        <virtual-instrument/>
+        <virtual-instrument>
+          <virtual-library>Garritan Instruments for Finale</virtual-library>
+          <virtual-name>001. Woodwinds/3. Clarinets/Bb Clarinet Plr1</virtual-name>
+        </virtual-instrument>
       </score-instrument>
       <midi-device>ARIA Player</midi-device>
       <midi-instrument id="P3-I3">
@@ -139,7 +148,10 @@
       <score-instrument id="P4-I4">
         <instrument-name>ARIA Player</instrument-name>
         <instrument-sound>brass.french-horn</instrument-sound>
-        <virtual-instrument/>
+        <virtual-instrument>
+          <virtual-library>Garritan Instruments for Finale</virtual-library>
+          <virtual-name>002. Brass/1. French horns/French horn Plr1</virtual-name>
+        </virtual-instrument>
       </score-instrument>
       <midi-device>ARIA Player</midi-device>
       <midi-instrument id="P4-I4">
@@ -156,7 +168,10 @@
       <score-instrument id="P5-I5">
         <instrument-name>ARIA Player</instrument-name>
         <instrument-sound>wind.reed.bassoon</instrument-sound>
-        <virtual-instrument/>
+        <virtual-instrument>
+          <virtual-library>Garritan Instruments for Finale</virtual-library>
+          <virtual-name>001. Woodwinds/4. Bassoons/Bassoon Plr1</virtual-name>
+        </virtual-instrument>
       </score-instrument>
       <midi-device>ARIA Player</midi-device>
       <midi-instrument id="P5-I5">
