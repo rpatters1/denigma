@@ -44,13 +44,16 @@ struct OttavaScenario
 
 /// Builds a document with a dashed custom line in measure 1 and (optionally) a hidden
 /// built-in ottava. The document has no scroll-view staves, so pairing exercises the
-/// range-intersection fallback.
+/// range-intersection fallback. When endpoint adjustments are given, they apply to the
+/// visual line's endpoints (vertical Evpu relative to the top staff line).
 OttavaScenario makeOttavaScenario(
     std::string_view startText,
     std::string_view continuationText = {},
     std::string_view hiddenShapeType = {},
     int hiddenStartMeas = 1,
-    int hiddenEndMeas = 1)
+    int hiddenEndMeas = 1,
+    std::optional<int> startAdjY = std::nullopt,
+    std::optional<int> endAdjY = std::nullopt)
 {
     std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
 <finale>
@@ -65,6 +68,7 @@ OttavaScenario makeOttavaScenario(
     <measSpec cmper="1"><beats>4</beats><divbeat>1024</divbeat></measSpec>
     <measSpec cmper="2"><beats>4</beats><divbeat>1024</divbeat></measSpec>
     <measSpec cmper="3"><beats>4</beats><divbeat>1024</divbeat></measSpec>
+    <staffSpec cmper="1"><staffLines>5</staffLines><lineSpace>24</lineSpace></staffSpec>
     <ssLineStyle cmper="1">
       <lineStyle>dashed</lineStyle>
       <dashedParams><lineWidth>118</lineWidth><dashOn>1152</dashOn><dashOff>1152</dashOff></dashedParams>
@@ -73,12 +77,19 @@ OttavaScenario makeOttavaScenario(
     if (!continuationText.empty()) {
         xml += "      <leftContRawTextID>2</leftContRawTextID>\n";
     }
+    const auto adjXml = [](std::optional<int> adjY) {
+        return adjY ? "<endPtAdj><y>" + std::to_string(*adjY) + "</y><on/></endPtAdj>" : std::string();
+    };
     xml += R"xml(    </ssLineStyle>
     <smartShape cmper="1">
       <shapeType>smartLine</shapeType>
       <lineStyleID>1</lineStyleID>
-      <startTermSeg><endPt><inst>1</inst><meas>1</meas></endPt></startTermSeg>
-      <endTermSeg><endPt><inst>1</inst><meas>1</meas><edu>1024</edu></endPt></endTermSeg>
+      <startTermSeg><endPt><inst>1</inst><meas>1</meas></endPt>)xml";
+    xml += adjXml(startAdjY);
+    xml += R"xml(</startTermSeg>
+      <endTermSeg><endPt><inst>1</inst><meas>1</meas><edu>1024</edu></endPt>)xml";
+    xml += adjXml(endAdjY);
+    xml += R"xml(</endTermSeg>
     </smartShape>
 )xml";
     if (!hiddenShapeType.empty()) {
@@ -177,12 +188,60 @@ TEST(OctaveLineClassification, AsciiBassaLineClassifies)
     EXPECT_TRUE(ottava->calcIsSemanticCarrier());
 }
 
-TEST(OctaveLineClassification, BareGlyphUnpairedIsNotOttava)
+TEST(OctaveLineClassification, BareGlyphUnpairedResolvesFromAbovePlacement)
 {
+    // No endpoint adjustments means both endpoints sit at the top staff line, which
+    // musxdom reports as Above placement.
     const auto scenario = makeOttavaScenario("^fontid(0)^size(24)^nfx(0)&#xE510;");
+    const auto classification = classifySmartShape(scenario.visualShape);
+    const auto* ottava = classification.as<classifiedshape::Ottava>();
+    ASSERT_NE(ottava, nullptr);
+    EXPECT_EQ(ottava->octaveShift, 1);
+    EXPECT_TRUE(ottava->calcIsSemanticCarrier());
+}
+
+TEST(OctaveLineClassification, BareGlyphUnpairedResolvesFromBelowPlacement)
+{
+    const auto scenario = makeOttavaScenario(
+        "^fontid(0)^size(24)^nfx(0)&#xE510;", {}, {}, 1, 1, -200, -200);
+    const auto classification = classifySmartShape(scenario.visualShape);
+    const auto* ottava = classification.as<classifiedshape::Ottava>();
+    ASSERT_NE(ottava, nullptr);
+    EXPECT_EQ(ottava->octaveShift, -1);
+    EXPECT_TRUE(ottava->calcIsSemanticCarrier());
+}
+
+TEST(OctaveLineClassification, BareGlyphFloatingPlacementIsNotOttava)
+{
+    // One endpoint below the staff and one at the top line is Float placement,
+    // which cannot resolve the direction.
+    const auto scenario = makeOttavaScenario(
+        "^fontid(0)^size(24)^nfx(0)&#xE510;", {}, {}, 1, 1, -200, std::nullopt);
     const auto classification = classifySmartShape(scenario.visualShape);
     EXPECT_EQ(classification.as<classifiedshape::Ottava>(), nullptr);
     EXPECT_NE(classification.as<classifiedshape::GeneralLine>(), nullptr);
+}
+
+TEST(OctaveLineClassification, WeakAltaBelowStaffUnpairedClassifiesDown)
+{
+    // An "8va" line drawn below the staff means bassa when nothing contradicts it.
+    const auto scenario = makeOttavaScenario(
+        "^fontid(0)^size(12)^nfx(0)8va", {}, {}, 1, 1, -200, -200);
+    const auto classification = classifySmartShape(scenario.visualShape);
+    const auto* ottava = classification.as<classifiedshape::Ottava>();
+    ASSERT_NE(ottava, nullptr);
+    EXPECT_EQ(ottava->octaveShift, -1);
+    EXPECT_TRUE(ottava->calcIsSemanticCarrier());
+}
+
+TEST(OctaveLineClassification, ExplicitBassaBelowStaffStaysDown)
+{
+    const auto scenario = makeOttavaScenario(
+        "^fontid(0)^size(12)^nfx(0)8vb", {}, {}, 1, 1, -200, -200);
+    const auto classification = classifySmartShape(scenario.visualShape);
+    const auto* ottava = classification.as<classifiedshape::Ottava>();
+    ASSERT_NE(ottava, nullptr);
+    EXPECT_EQ(ottava->octaveShift, -1);
 }
 
 TEST(OctaveLineClassification, BareGlyphResolvesDirectionFromHiddenCounterpart)

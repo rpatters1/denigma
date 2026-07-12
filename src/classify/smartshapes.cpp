@@ -177,8 +177,9 @@ std::vector<musx::dom::MusxInstance<musx::dom::others::SmartShape>> collectHidde
 }
 
 /// Classifies a custom line as a visual ottava. Direction-ambiguous markings are
-/// resolved by pairing with a hidden built-in ottava; when they cannot be resolved,
-/// the line is not classified as an ottava at all.
+/// resolved by pairing with a hidden built-in ottava, then by vertical placement
+/// (engravers place alta lines above the staff and bassa lines below); when neither
+/// resolves the direction, the line is not classified as an ottava at all.
 std::optional<Ottava> classifyOttavaLine(
     const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape,
     const GeneralLine& line)
@@ -196,17 +197,20 @@ std::optional<Ottava> classifyOttavaLine(
         }
         if (marking->direction == Direction::Unknown) {
             marking->direction = contMarking->direction;
+            marking->directionIsExplicit = contMarking->directionIsExplicit;
         } else if (contMarking->direction != Direction::Unknown
             && contMarking->direction != marking->direction) {
             return std::nullopt;
         }
     }
 
+    const auto placement = shape->calcVerticalPlacementForBeatAttached();
     auto direction = marking->direction;
     // "8va"-style markings state alta, but engravers sometimes use them below the
-    // staff to mean bassa. Demote to Unknown there and let the pairing decide.
-    if (direction == Direction::Up
-        && shape->calcVerticalPlacementForBeatAttached() == musx::dom::VerticalPlacement::Below) {
+    // staff to mean bassa. Demote non-explicit alta there and let the pairing or
+    // the placement fallback decide.
+    if (direction == Direction::Up && !marking->directionIsExplicit
+        && placement == musx::dom::VerticalPlacement::Below) {
         direction = Direction::Unknown;
     }
 
@@ -227,11 +231,27 @@ std::optional<Ottava> classifyOttavaLine(
     }
 
     if (direction == Direction::Unknown) {
-        if (static_cast<bool>(counterpartUp) == static_cast<bool>(counterpartDown)) {
-            // Unresolvable (no counterpart) or ambiguous (both directions cover).
+        if (counterpartUp && counterpartDown) {
+            // Ambiguous: hidden ottavas in both directions cover the line.
             return std::nullopt;
         }
-        direction = counterpartUp ? Direction::Up : Direction::Down;
+        if (counterpartUp) {
+            direction = Direction::Up;
+        } else if (counterpartDown) {
+            direction = Direction::Down;
+        } else {
+            switch (placement) {
+            case musx::dom::VerticalPlacement::Above:
+                direction = Direction::Up;
+                break;
+            case musx::dom::VerticalPlacement::Below:
+                direction = Direction::Down;
+                break;
+            default:
+                // Floating placement cannot resolve the direction.
+                return std::nullopt;
+            }
+        }
     }
 
     Ottava result;
