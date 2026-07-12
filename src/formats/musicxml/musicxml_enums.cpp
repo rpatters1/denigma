@@ -252,6 +252,12 @@ BEGIN_ENUM_CONVERSION(others::TextBlock::TextJustify, mx::api::HorizontalAlignme
     case others::TextBlock::TextJustify::ForcedFull: return mx::api::HorizontalAlignment::unspecified;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(options::TextOptions::VerticalAlignment, mx::api::VerticalAlignment)
+    case options::TextOptions::VerticalAlignment::Top: return mx::api::VerticalAlignment::top;
+    case options::TextOptions::VerticalAlignment::Center: return mx::api::VerticalAlignment::middle;
+    case options::TextOptions::VerticalAlignment::Bottom: return mx::api::VerticalAlignment::bottom;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(VerticalPlacement, mx::api::Placement)
     case VerticalPlacement::NotApplicable: return mx::api::Placement::unspecified;
     case VerticalPlacement::Float: return mx::api::Placement::unspecified;

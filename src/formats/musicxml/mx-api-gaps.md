@@ -144,6 +144,32 @@ Denigma will probably not try to export part-name or part-group positioning over
 
 Needed API shape: position/print data for group-name-display, group-abbreviation-display, and possibly group-symbol placement.
 
+## Page Text and Credits
+
+### Mixed formatting within a credit
+
+Finale page-attached text can change font, size, and style within one text block. MusicXML can preserve this with multiple ordered `<credit-words>` elements in a single `<credit>`, each carrying its own formatting.
+
+`mx::api::PageTextData` contains one string and one `FontData`, and its writer emits exactly one `<credit-words>`. Denigma therefore concatenates all visible Enigma text chunks and applies the first visible chunk's font to the complete credit. Hidden-font chunks are omitted.
+
+Needed API shape: an ordered collection of formatted credit words/symbol chunks within one `PageTextData`, with independent font and position data for each chunk.
+
+### Page text frames and block layout
+
+Finale page text blocks may have standard or custom frames, fixed dimensions, insets, rounded corners, line spacing, and word wrapping. `mx::api::PageTextData` exposes neither MusicXML's formatted-text enclosure attribute nor a richer credit layout model. MusicXML enclosure values would cover only a subset of Finale's standard frames, and arbitrary Shape Designer frames have no direct MusicXML representation.
+
+Denigma currently exports the resolved text and its anchor but drops the frame and text-block layout properties.
+
+Needed API shape: expose the MusicXML formatted-text enclosure attributes on page text. Custom frame geometry and fixed text layout would still require an extension or an intentional downgrade policy.
+
+### Full justification
+
+Finale supports full and forced-full text justification. MusicXML's `justify` attribute only supports left, center, and right, so these values cannot be represented even though `mx::api::PageTextData::justify` exposes the complete MusicXML vocabulary. Denigma omits `justify` for full and forced-full page text.
+
+### Page-specific layout coordinates
+
+Denigma currently computes page-text anchors from the score's default odd/even page size and margins. Finale can override page layout on individual pages. `mx::api::PageData` can carry per-page layout changes, but the MusicXML exporter does not yet populate them, so credits on overridden pages may have inaccurate absolute coordinates.
+
 ## Barlines and Endings
 
 ### Repeat-ending display text and multiple numbers

@@ -69,6 +69,7 @@ mx::api::ScoreData createMusicXmlDocument(
 void createDefaults(const MusicXmlMusxMapping& context);
 void createMeasures(MusicXmlMusxMapping& context);
 void createMetaData(const MusicXmlMusxMapping& context);
+void createPageTexts(const MusicXmlMusxMapping& context);
 void createNotesForMeasureStaff(
     MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,

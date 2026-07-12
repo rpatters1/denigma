@@ -82,6 +82,7 @@ mx::api::ScoreData createMusicXmlDocumentFromDocument(
     createTiming(context, context.timing);
     createMetaData(context);
     createDefaults(context);
+    createPageTexts(context);
     createParts(context);
     createMeasures(context);
 

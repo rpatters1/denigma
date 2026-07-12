@@ -497,7 +497,7 @@ bool hasUnsupportedPedalIdentity(const classify::smartshape::KeyboardPedal& peda
 mx::api::LineType pedalLineType(const classify::smartshape::KeyboardPedal& pedal)
 {
     using LineStyle = others::SmartShapeCustomLine::LineStyle;
-    switch (pedal.lineStyle) {
+    switch (pedal.line.lineStyle) {
     case LineStyle::Solid: return mx::api::LineType::solid;
     case LineStyle::Dashed: return mx::api::LineType::dashed;
     case LineStyle::Char: return mx::api::LineType::wavy;
@@ -533,7 +533,7 @@ void appendKeyboardPedal(
     }
     auto stopDirection = createSmartShapeDirection(context, endPoint, endPoint->staffId, staffIndex, placement);
 
-    if (!pedal.lineVisible) {
+    if (!pedal.line.lineVisible) {
         // mx::api's pedal marks are the only way to request sign="yes" with line="no".
         startDirection.marks.emplace_back(enumConvert<mx::api::Placement>(placement), mx::api::MarkType::pedal);
         stopDirection.marks.emplace_back(enumConvert<mx::api::Placement>(placement), mx::api::MarkType::damp);

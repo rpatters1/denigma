@@ -19,6 +19,7 @@
 
 #include "musicxml_formatted_text.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
@@ -196,6 +197,61 @@ std::vector<mx::api::WordsData> musicXmlWordsFromEnigmaText(const MusicXmlMusxMa
         }
         return true;
     }, musx::util::EnigmaString::EnigmaParsingOptions(options.accidentalStyle));
+    return result;
+}
+
+std::optional<MusicXmlPageTextContent> musicXmlPageTextContentFromEnigmaText(const MusicXmlMusxMapping& context,
+    const musx::util::EnigmaParsingContext& text, const MusicXmlFormattedTextOptions& options)
+{
+    MusicXmlPageTextContent result;
+    bool foundVisibleFont = false;
+    const auto addCreditType = [&](std::string_view type) {
+        if (std::find(result.creditTypes.begin(), result.creditTypes.end(), type) == result.creditTypes.end()) {
+            result.creditTypes.emplace_back(type);
+        }
+    };
+    const auto creditTypeForInsert = [](std::string_view command) -> std::string_view {
+        if (command == "title") { return "title"; }
+        if (command == "subtitle") { return "subtitle"; }
+        if (command == "composer") { return "composer"; }
+        if (command == "lyricist") { return "lyricist"; }
+        if (command == "arranger") { return "arranger"; }
+        if (command == "copyright") { return "rights"; }
+        if (command == "partname") { return "part name"; }
+        if (command == "page") { return "page number"; }
+        return {};
+    };
+
+    text.parseEnigmaText([&](const std::string& chunk, const musx::util::EnigmaStyles& styles) -> bool {
+        ASSERT_IF(!styles.font) {
+            throw std::logic_error("MusicXML page text chunk has no font data.");
+        }
+        if (styles.font->hidden) {
+            return true;
+        }
+        const auto fontData = context.musicXmlFontDataFromFontInfo(*styles.font, options.fallback);
+        if (!foundVisibleFont) {
+            result.fontData = fontData;
+            foundVisibleFont = true;
+        }
+        // TODO: mx::api::PageTextData has one FontData and emits one credit-words element, so later font changes are flattened.
+        result.text += chunk;
+        if (options.onChunk) {
+            options.onChunk(fontData, chunk);
+        }
+        return true;
+    }, [&](const std::vector<std::string>& components) -> std::optional<std::string> {
+        if (!components.empty()) {
+            if (const auto type = creditTypeForInsert(components.front()); !type.empty()) {
+                addCreditType(type);
+            }
+        }
+        return std::nullopt;
+    }, musx::util::EnigmaString::EnigmaParsingOptions(options.accidentalStyle));
+
+    if (!foundVisibleFont || result.text.empty()) {
+        return std::nullopt;
+    }
     return result;
 }
 

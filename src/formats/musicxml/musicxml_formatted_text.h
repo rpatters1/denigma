@@ -26,6 +26,7 @@
 
 #include "musicxml_mapping.h"
 #include "mx/api/LyricData.h"
+#include "mx/api/PageTextData.h"
 #include "mx/api/WordsData.h"
 
 namespace denigma {
@@ -42,6 +43,13 @@ struct MusicXmlFormattedTextOptions
     MusicXmlFormattedTextChunkCallback onChunk;
 };
 
+struct MusicXmlPageTextContent
+{
+    std::string text;
+    mx::api::FontData fontData;
+    std::vector<std::string> creditTypes;
+};
+
 void parseMusicXmlFormattedText(
     const MusicXmlMusxMapping& context,
     const musx::util::EnigmaParsingContext& text,
@@ -56,6 +64,10 @@ mx::api::LyricData musicXmlLyricFromSyllable(
     size_t syllableIndex,
     const MusicXmlFormattedTextOptions& options = {});
 std::vector<mx::api::WordsData> musicXmlWordsFromEnigmaText(
+    const MusicXmlMusxMapping& context,
+    const musx::util::EnigmaParsingContext& text,
+    const MusicXmlFormattedTextOptions& options = {});
+std::optional<MusicXmlPageTextContent> musicXmlPageTextContentFromEnigmaText(
     const MusicXmlMusxMapping& context,
     const musx::util::EnigmaParsingContext& text,
     const MusicXmlFormattedTextOptions& options = {});

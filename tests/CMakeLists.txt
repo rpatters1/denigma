@@ -54,6 +54,7 @@ endfunction()
         musicxml/test_converter.cpp
         musicxml/test_defaults.cpp
         musicxml/test_expressions.cpp
+        musicxml/test_metadata.cpp
         musicxml/test_notes.cpp
         musicxml/test_parts.cpp
         musicxml/test_smartshapes.cpp
