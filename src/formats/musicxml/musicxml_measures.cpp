@@ -820,7 +820,7 @@ void processMeasureText(
                 words.positionData.isDefaultYSpecified = true;
             }
             if (horizontalAlignment != mx::api::HorizontalAlignment::unspecified) {
-                words.positionData.horizontalAlignmnet = horizontalAlignment;
+                words.positionData.horizontalAlignment = horizontalAlignment;
             }
             if (useStandardFrameEnclosure) {
                 words.enclosure = mx::api::RehearsalEnclosure::rectangle;

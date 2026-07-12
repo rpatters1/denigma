@@ -100,7 +100,7 @@ std::vector<mx::api::WordsData> createJumpWords(
     if (!words) {
         return {};
     }
-    words->positionData.horizontalAlignmnet = enumConvert<mx::api::HorizontalAlignment>(repeatDef->justification);
+    words->positionData.horizontalAlignment = enumConvert<mx::api::HorizontalAlignment>(repeatDef->justification);
     /// @todo Also set the MusicXML <words> justify attribute from TextRepeatDef::justification when mx::api::WordsData exposes it.
     return { std::move(*words) };
 }

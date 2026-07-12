@@ -40,7 +40,7 @@ TEST(MusicXmlMetadata, exportsPageTextCredits)
     ASSERT_NE(pageNumber, score->pageTextItems.end());
     EXPECT_EQ(pageNumber->text, "1");
     EXPECT_EQ(pageNumber->pageNumber, 1);
-    EXPECT_EQ(pageNumber->positionData.horizontalAlignmnet, mx::api::HorizontalAlignment::right);
+    EXPECT_EQ(pageNumber->positionData.horizontalAlignment, mx::api::HorizontalAlignment::right);
     EXPECT_EQ(pageNumber->positionData.verticalAlignment, mx::api::VerticalAlignment::top);
 
     const auto title = findCredit("title");

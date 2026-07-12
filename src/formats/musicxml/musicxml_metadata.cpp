@@ -138,7 +138,7 @@ mx::api::PositionData pageTextPosition(const MusicXmlMusxMapping& context,
     result.defaultY += context.musicXmlTenthsFromEvpu(yOffset);
     result.isDefaultXSpecified = true;
     result.isDefaultYSpecified = true;
-    result.horizontalAlignmnet = enumConvert<mx::api::HorizontalAlignment>(horizontalAlignment);
+    result.horizontalAlignment = enumConvert<mx::api::HorizontalAlignment>(horizontalAlignment);
     result.verticalAlignment = enumConvert<mx::api::VerticalAlignment>(assignment.vPos);
     return result;
 }

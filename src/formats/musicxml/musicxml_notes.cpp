@@ -340,7 +340,7 @@ void applyLyrics(MusicXmlMusxMapping& context, mx::api::NoteData& note, const En
             }
             if (const auto lyricEntryInfo = entry->getDocument()->getDetails()->get<details::LyricEntryInfo>(SCORE_PARTID, entry->getEntryNumber());
                 lyricEntryInfo && lyricEntryInfo->justify) {
-                lyric.positionData.horizontalAlignmnet = enumConvert<mx::api::HorizontalAlignment>(*lyricEntryInfo->justify);
+                lyric.positionData.horizontalAlignment = enumConvert<mx::api::HorizontalAlignment>(*lyricEntryInfo->justify);
             }
             if constexpr (requires { assignment->hide; }) {
                 lyric.printData.printObject = assignment->hide ? mx::api::Bool::no : mx::api::Bool::yes;

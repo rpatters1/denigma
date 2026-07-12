@@ -469,7 +469,7 @@ TEST(MusicXmlParts, RepeatsExportJumpSound)
     EXPECT_EQ(jumpDirectionIt->tickTimePosition, 0);
     ASSERT_FALSE(jumpDirectionIt->words.empty());
     EXPECT_EQ(jumpDirectionIt->words.front().text, "Segno");
-    EXPECT_EQ(jumpDirectionIt->words.front().positionData.horizontalAlignmnet, mx::api::HorizontalAlignment::right);
+    EXPECT_EQ(jumpDirectionIt->words.front().positionData.horizontalAlignment, mx::api::HorizontalAlignment::right);
 }
 
 TEST(MusicXmlParts, RepeatsExportEndingBrackets)
