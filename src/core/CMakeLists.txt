@@ -11,9 +11,9 @@ set(DENIGMA_CORE_SOURCES
 # every external consumer should inherit them.
 add_denigma_internal_library(denigma_core MUSX_PCH ${DENIGMA_CORE_SOURCES})
 add_dependencies(denigma_core denigma_git_commit)
-target_link_libraries(denigma_core PUBLIC musx)
+target_link_libraries(denigma_core PUBLIC musx denigma_classify)
 
 if(denigma_BUILD_TESTING)
     add_denigma_internal_test_library(denigma_core_test ${DENIGMA_CORE_SOURCES})
-    target_link_libraries(denigma_core_test PUBLIC musx)
+    target_link_libraries(denigma_core_test PUBLIC musx denigma_classify)
 endif()

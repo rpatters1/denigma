@@ -35,24 +35,14 @@ bool isOttavaShapeType(musx::dom::others::SmartShape::ShapeType shapeType)
     }
 }
 
-int ottavaOctaveAdjustment(musx::dom::others::SmartShape::ShapeType shapeType)
-{
-    using ShapeType = musx::dom::others::SmartShape::ShapeType;
-    switch (shapeType) {
-    case ShapeType::OctaveDown: return -1;
-    case ShapeType::OctaveUp: return 1;
-    case ShapeType::TwoOctaveDown: return -2;
-    case ShapeType::TwoOctaveUp: return 2;
-    default: return 0;
-    }
-}
-
 OttavaShapeMap collectOttavasForMeasureStaff(
     const musx::dom::DocumentPtr& document,
     musx::dom::Cmper partId,
     const musx::dom::MusxInstance<musx::dom::others::Measure>& measure,
     musx::dom::StaffCmper staffId)
 {
+    using ShapeType = musx::dom::others::SmartShape::ShapeType;
+
     OttavaShapeMap result;
     if (!document || !measure || !measure->hasSmartShape) {
         return result;
@@ -64,13 +54,22 @@ OttavaShapeMap collectOttavasForMeasureStaff(
             continue;
         }
         const auto shape = document->getOthers()->get<musx::dom::others::SmartShape>(assignment->getRequestedPartId(), assignment->shapeNum);
-        if (!shape || shape->hidden || !isOttavaShapeType(shape->shapeType)) {
+        if (!shape || result.contains(shape->getCmper())) {
+            continue;
+        }
+        // Cheap pre-filter: only built-in ottavas and custom lines can classify as ottavas.
+        if (!isOttavaShapeType(shape->shapeType) && shape->shapeType != ShapeType::CustomLine) {
             continue;
         }
         if (shape->startTermSeg->endPoint->staffId != staffId && shape->endTermSeg->endPoint->staffId != staffId) {
             continue;
         }
-        result.emplace(shape->getCmper(), shape);
+        const auto classification = classify::classifySmartShape(shape);
+        const auto* ottava = classification.as<classify::smartshape::Ottava>();
+        if (!ottava || !ottava->calcIsSemanticCarrier()) {
+            continue;
+        }
+        result.emplace(shape->getCmper(), OttavaInstance{ shape, *ottava });
     }
     return result;
 }
@@ -81,9 +80,9 @@ int calcOttavaOctaveAdjustment(
     const std::function<void(const musx::dom::NoteInfoPtr&)>& onTiedFromOutsideOttava)
 {
     int adjustment = 0;
-    for (const auto& [shapeId, shape] : ottavas) {
+    for (const auto& [shapeId, instance] : ottavas) {
         static_cast<void>(shapeId);
-        if (!shape || !shape->calcAppliesTo(noteInfo.getEntryInfo())) {
+        if (!instance.shape || !instance.shape->calcAppliesTo(noteInfo.getEntryInfo())) {
             continue;
         }
 
@@ -91,8 +90,8 @@ int calcOttavaOctaveAdjustment(
         while (tiedFromNoteInfo && tiedFromNoteInfo->tieEnd) {
             tiedFromNoteInfo = tiedFromNoteInfo.calcTieFrom();
         }
-        if (!tiedFromNoteInfo || shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
-            adjustment += ottavaOctaveAdjustment(shape->shapeType);
+        if (!tiedFromNoteInfo || instance.shape->calcAppliesTo(tiedFromNoteInfo.getEntryInfo())) {
+            adjustment += instance.classification.octaveShift;
         } else if (!noteInfo.isSameNote(tiedFromNoteInfo) && onTiedFromOutsideOttava) {
             onTiedFromOutsideOttava(tiedFromNoteInfo);
         }

@@ -137,10 +137,13 @@ void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::
         auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
         for (const auto& asgn : shapeAssigns) {
             if (auto shape = context->document->getOthers()->get<others::SmartShape>(asgn->getRequestedPartId(), asgn->shapeNum)) {
-                if (context->current.ottavasApplicableInMeasure.contains(shape->getCmper())) {
+                const auto it = context->current.ottavasApplicableInMeasure.find(shape->getCmper());
+                if (it != context->current.ottavasApplicableInMeasure.end()) {
                     if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
+                        // Semantic carriers are emitted even when hidden: a hidden built-in
+                        // ottava carries the octave displacement for its visual proxy.
                         auto mnxOttava = mnxMeasure.ensure_ottavas().append(
-                            enumConvert<mnxdom::OttavaAmount>(shape->shapeType),
+                            static_cast<mnxdom::OttavaAmount>(it->second.classification.octaveShift),
                             mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
                             mnxdom::MeasureRhythmicPosition::make(calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
                                                                mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint)));

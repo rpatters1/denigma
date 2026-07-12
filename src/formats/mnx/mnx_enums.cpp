@@ -111,14 +111,6 @@ BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnxdom::TimeSignatureUnit)
     default: break; // causes a throw
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(others::SmartShape::ShapeType, mnxdom::OttavaAmount)
-    case others::SmartShape::ShapeType::OctaveDown: return mnxdom::OttavaAmount::OctaveDown;
-    case others::SmartShape::ShapeType::OctaveUp: return mnxdom::OttavaAmount::OctaveUp;
-    case others::SmartShape::ShapeType::TwoOctaveDown: return mnxdom::OttavaAmount::TwoOctavesDown;
-    case others::SmartShape::ShapeType::TwoOctaveUp: return mnxdom::OttavaAmount::TwoOctavesUp;
-    default: break; // causes a throw
-END_ENUM_CONVERSION
-
 BEGIN_ENUM_CONVERSION(VerticalPlacement, mnxdom::Orientation)
     case VerticalPlacement::NotApplicable: return mnxdom::Orientation::Auto;
     case VerticalPlacement::Float: return mnxdom::Orientation::Auto;

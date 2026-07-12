@@ -21,21 +21,36 @@
 #include <functional>
 #include <unordered_map>
 
+#include "denigma/classify/smartshapes.h"
 #include "musx/musx.h"
 
 namespace denigma {
 
-using OttavaShapeMap = std::unordered_map<musx::dom::Cmper, musx::dom::MusxInstance<musx::dom::others::SmartShape>>;
+/// @struct OttavaInstance
+/// @brief A semantic-carrier ottava: the assigned smart shape together with its classification.
+///
+/// Carriers are the shapes that determine octave displacement: visible built-in ottavas,
+/// hidden built-in ottavas (whether or not a visible custom line renders them), and
+/// unpaired visual ottava custom lines. Paired visual lines are appearance-only and are
+/// never collected.
+struct OttavaInstance
+{
+    musx::dom::MusxInstance<musx::dom::others::SmartShape> shape;  ///< The assigned smart shape.
+    classify::smartshape::Ottava classification;                   ///< Its ottava classification.
+};
+
+using OttavaShapeMap = std::unordered_map<musx::dom::Cmper, OttavaInstance>;
 
 bool isOttavaShapeType(musx::dom::others::SmartShape::ShapeType shapeType);
-int ottavaOctaveAdjustment(musx::dom::others::SmartShape::ShapeType shapeType);
 
+/// @brief Collects the semantic-carrier ottavas that touch the given measure and staff.
 OttavaShapeMap collectOttavasForMeasureStaff(
     const musx::dom::DocumentPtr& document,
     musx::dom::Cmper partId,
     const musx::dom::MusxInstance<musx::dom::others::Measure>& measure,
     musx::dom::StaffCmper staffId);
 
+/// @brief Returns the octave displacement (sum of applicable carrier ottavas) for a note.
 int calcOttavaOctaveAdjustment(
     const OttavaShapeMap& ottavas,
     const musx::dom::NoteInfoPtr& noteInfo,
