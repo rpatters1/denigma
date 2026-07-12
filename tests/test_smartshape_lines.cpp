@@ -108,9 +108,9 @@ TEST(SmartShapeLinesFixture, BuiltInLinesClassify)
         { kDashLine, LineStyle::Dashed, 0, 0 },
     };
 
-    // The fixture's smart shape options: hookLength 24 Evpu, smartLineWidth 118 Efix,
+    // The fixture's smart shape options: hookLength 20 Evpu, smartLineWidth 118 Efix,
     // smartDashOn/smartDashOff 18 Evpu.
-    constexpr Efix expectedHookLength = 24 * 64;
+    constexpr Efix expectedHookLength = 20 * 64;
 
     for (const auto& expected : expectations) {
         const auto classification = classifyByCmper(document, expected.shapeCmper);
