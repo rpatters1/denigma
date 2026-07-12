@@ -66,6 +66,36 @@ Denigma can identify matching MUSX smart-shape start and stop endpoints, but `mx
 
 Needed API shape: `mx::api` should assign or normalize spanner `number` attributes during writing, using the actual serialization order it controls and the paired start/stop data in the API model. If that becomes available, Denigma should remove its local smart-shape number heuristic.
 
+### Octave shifts beyond two octaves
+
+MusicXML `<octave-shift>` supports any shift via the `size` attribute (8, 15, 22, ...). Finale has no built-in 22ma smart shape, but custom lines classified as three-octave shifts ("22ma"/"22mb") can occur.
+
+`mx::api::OttavaType` enumerates only `o8va`, `o8vb`, `o15ma`, and `o15mb`. Denigma skips three-octave shifts with a warning.
+
+Needed API shape: either additional `OttavaType` values for 22ma/22mb or a numeric octave-shift model (direction plus size).
+
+### Paired wavy-line start/stop (trill extensions and vibrato lines)
+
+MusicXML represents trill extensions and vibrato lines as `<ornaments><wavy-line type="start|continue|stop">` pairs attached to notes.
+
+`mx::api::MarkData` includes `MarkType::wavyLine`, but `NotationsWriter` never sets the required `type` attribute on the emitted `<wavy-line>`, so only an untyped (default) element can be written and start/stop cannot be paired. Denigma exports the `trill-mark` for trill lines that include the tr symbol and omits the extension; pure trill-extension lines and vibrato lines are omitted entirely.
+
+Needed API shape: wavy-line start/stop data on `MarkData` (or a dedicated paired-spanner model for note-attached wavy lines).
+
+### Keyboard pedal spanner fidelity
+
+Finale pedal custom lines carry text/sign choices, hook and custom cap geometry, dashed and character line bodies, and pump (release-and-reengage) changes. MusicXML `<pedal>` supports `type="start|stop|change|continue|sostenuto"`, `line`, `sign`, and `abbreviated` attributes.
+
+`mx::api`'s pedal writer forces `line="yes" sign="yes"`, ignores `LineData`, and supports only start/stop. There is also no way to request sostenuto or una-corda pedal types, so Denigma refuses to export those rather than misrepresent them as damper pedal. Pump changes cannot be expressed as `type="change"`.
+
+Needed API shape: pedal data with the full MusicXML pedal event types and attribute control (`line`, `sign`, `abbreviated`), honoring `LineData` for dashed pedal lines.
+
+### Custom line continuation and center text
+
+Finale custom lines can carry left-continuation text (shown after system breaks) and center full/abbreviated text (shown mid-line). MusicXML has no continuation-text concept for brackets or dashes, and center text has no home outside of `<glissando>`/`<slide>` element text.
+
+This is primarily a MusicXML specification limit rather than an `mx::api` gap, but it is recorded here because it silently drops Finale content: Denigma logs and omits continuation and center text when exporting general lines.
+
 ## Notes
 
 ### Non-arpeggiate endpoints

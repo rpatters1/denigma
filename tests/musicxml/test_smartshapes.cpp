@@ -340,3 +340,229 @@ TEST(MusicXmlSmartShapes, BlankLinePedalExportsAsSignOnlyMarks)
     EXPECT_TRUE(foundPedalStart);
     EXPECT_TRUE(foundPedalStop);
 }
+
+namespace {
+
+size_t countOttavaStarts(const mx::api::StaffData& staff)
+{
+    size_t count = 0;
+    for (const auto& direction : staff.directions) {
+        count += direction.ottavaStarts.size();
+    }
+    return count;
+}
+
+const mx::api::OttavaStart* firstOttavaStart(const mx::api::StaffData& staff)
+{
+    for (const auto& direction : staff.directions) {
+        if (!direction.ottavaStarts.empty()) {
+            return &direction.ottavaStarts.front();
+        }
+    }
+    return nullptr;
+}
+
+const mx::api::OttavaStop* firstOttavaStop(const mx::api::StaffData& staff)
+{
+    for (const auto& direction : staff.directions) {
+        if (!direction.ottavaStops.empty()) {
+            return &direction.ottavaStops.front();
+        }
+    }
+    return nullptr;
+}
+
+const mx::api::SpannerStart* firstBracketStart(const mx::api::StaffData& staff)
+{
+    for (const auto& direction : staff.directions) {
+        if (!direction.bracketStarts.empty()) {
+            return &direction.bracketStarts.front();
+        }
+    }
+    return nullptr;
+}
+
+const mx::api::SpannerStop* firstBracketStop(const mx::api::StaffData& staff)
+{
+    for (const auto& direction : staff.directions) {
+        if (!direction.bracketStops.empty()) {
+            return &direction.bracketStops.front();
+        }
+    }
+    return nullptr;
+}
+
+std::vector<int> noteOctaves(const mx::api::StaffData& staff)
+{
+    std::vector<int> result;
+    const auto voiceIt = staff.voices.find(0);
+    if (voiceIt == staff.voices.end()) {
+        return result;
+    }
+    for (const auto& note : voiceIt->second.notes) {
+        result.push_back(note.pitchData.octave);
+    }
+    return result;
+}
+
+} // namespace
+
+TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaCarriers)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("smartshape_lines.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+    ASSERT_GE(score->parts.size(), 3u);
+
+    const auto& staff1 = score->parts.at(0);
+    ASSERT_GE(staff1.measures.size(), 28u);
+
+    // The hidden quindicesima (m14-m23) is the semantic carrier; its two visual
+    // segments (m14-m15 and m16-m18) must not emit additional octave-shifts.
+    {
+        const auto& m14 = staff1.measures.at(13).staves.at(0);
+        ASSERT_EQ(countOttavaStarts(m14), 1u);
+        const auto* start = firstOttavaStart(m14);
+        ASSERT_NE(start, nullptr);
+        EXPECT_EQ(m14.directions.front().placement, mx::api::Placement::above);
+        EXPECT_EQ(start->ottavaType, mx::api::OttavaType::o15ma);
+        EXPECT_EQ(countOttavaStarts(staff1.measures.at(14).staves.at(0)), 0u);
+        EXPECT_EQ(countOttavaStarts(staff1.measures.at(15).staves.at(0)), 0u);
+        const auto* stop = firstOttavaStop(staff1.measures.at(22).staves.at(0));
+        ASSERT_NE(stop, nullptr);
+        ASSERT_TRUE(stop->size.has_value());
+        EXPECT_EQ(*stop->size, 15);
+        EXPECT_EQ(noteOctaves(m14), (std::vector<int>{ 6, 6, 6, 7 }));
+    }
+
+    // The unpaired "8vb" line inside the quindicesima is its own carrier; where the
+    // two overlap, the displacements sum.
+    {
+        const auto* start = firstOttavaStart(staff1.measures.at(18).staves.at(0));
+        ASSERT_NE(start, nullptr);
+        EXPECT_EQ(start->ottavaType, mx::api::OttavaType::o8vb);
+        EXPECT_EQ(noteOctaves(staff1.measures.at(18).staves.at(0)), (std::vector<int>{ 6, 6, 5, 6 }));
+        EXPECT_EQ(noteOctaves(staff1.measures.at(19).staves.at(0)), (std::vector<int>{ 5, 5, 5, 6 }));
+    }
+
+    // The canonical pair: the hidden octaveUp emits despite hidden; its visible
+    // custom line emits nothing.
+    {
+        const auto& m26 = staff1.measures.at(25).staves.at(0);
+        ASSERT_EQ(countOttavaStarts(m26), 1u);
+        const auto* start = firstOttavaStart(m26);
+        ASSERT_NE(start, nullptr);
+        EXPECT_EQ(start->ottavaType, mx::api::OttavaType::o8va);
+        const auto* stop = firstOttavaStop(staff1.measures.at(27).staves.at(0));
+        ASSERT_NE(stop, nullptr);
+        ASSERT_TRUE(stop->size.has_value());
+        EXPECT_EQ(*stop->size, 8);
+        EXPECT_EQ(noteOctaves(m26), (std::vector<int>{ 5, 5, 5, 6 }));
+        EXPECT_EQ(noteOctaves(staff1.measures.at(27).staves.at(0)), (std::vector<int>{ 5, 5, 4, 5 }));
+    }
+
+    // The unpaired "8vb" line on staff 3 is a carrier.
+    {
+        const auto& staff3 = score->parts.at(2);
+        ASSERT_GE(staff3.measures.size(), 23u);
+        const auto* start = firstOttavaStart(staff3.measures.at(20).staves.at(0));
+        ASSERT_NE(start, nullptr);
+        EXPECT_EQ(start->ottavaType, mx::api::OttavaType::o8vb);
+        // Staff 3 is written A4 B4 C5 D5 per measure; m22 sounds an octave lower.
+        EXPECT_EQ(noteOctaves(staff3.measures.at(21).staves.at(0)), (std::vector<int>{ 3, 3, 4, 4 }));
+    }
+}
+
+TEST(MusicXmlSmartShapes, SmartShapeLinesGeneralLineBrackets)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("smartshape_lines.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+    ASSERT_GE(score->parts.size(), 5u);
+
+    // Built-in solidLineDown2 on staff 1, m1-m2: solid bracket with down hooks at
+    // both ends.
+    {
+        const auto& staff1 = score->parts.at(0);
+        const auto* start = firstBracketStart(staff1.measures.at(0).staves.at(0));
+        ASSERT_NE(start, nullptr);
+        EXPECT_EQ(start->lineData.lineType, mx::api::LineType::solid);
+        EXPECT_EQ(start->lineData.lineHook, mx::api::LineHook::down);
+        const auto* stop = firstBracketStop(staff1.measures.at(1).staves.at(0));
+        ASSERT_NE(stop, nullptr);
+        EXPECT_EQ(stop->lineData.lineHook, mx::api::LineHook::down);
+    }
+
+    // Custom line with an end hook on staff 2, m1-m2: no start hook, up hook at the
+    // end with its length expressed in tenths (1536 Efix = 24 Evpu = 10 tenths).
+    {
+        const auto& staff2 = score->parts.at(1);
+        const auto* start = firstBracketStart(staff2.measures.at(0).staves.at(0));
+        ASSERT_NE(start, nullptr);
+        EXPECT_EQ(start->lineData.lineType, mx::api::LineType::solid);
+        EXPECT_EQ(start->lineData.lineHook, mx::api::LineHook::none);
+        const auto* stop = firstBracketStop(staff2.measures.at(1).staves.at(0));
+        ASSERT_NE(stop, nullptr);
+        EXPECT_EQ(stop->lineData.lineHook, mx::api::LineHook::up);
+        ASSERT_TRUE(stop->lineData.isStopLengthSpecified);
+        EXPECT_DOUBLE_EQ(stop->lineData.endLength, 10.0);
+    }
+
+    // Built-in dashLineDown2 on staff 4, m1-m3: dashed bracket with dash lengths from
+    // the document's smart shape options (18 Evpu = 7.5 tenths).
+    {
+        const auto& staff4 = score->parts.at(3);
+        const auto* start = firstBracketStart(staff4.measures.at(0).staves.at(0));
+        ASSERT_NE(start, nullptr);
+        EXPECT_EQ(start->lineData.lineType, mx::api::LineType::dashed);
+        EXPECT_EQ(start->lineData.lineHook, mx::api::LineHook::down);
+        ASSERT_TRUE(start->lineData.isDashLengthSpecified);
+        EXPECT_DOUBLE_EQ(start->lineData.dashLength, 7.5);
+    }
+
+    // Neutral wiggle char line on staff 5, m9-m11: wavy bracket with no hooks.
+    {
+        const auto& staff5 = score->parts.at(4);
+        const auto* start = firstBracketStart(staff5.measures.at(8).staves.at(0));
+        ASSERT_NE(start, nullptr);
+        EXPECT_EQ(start->lineData.lineType, mx::api::LineType::wavy);
+        EXPECT_EQ(start->lineData.lineHook, mx::api::LineHook::none);
+    }
+}
+
+TEST(MusicXmlSmartShapes, SmartShapeLinesTrillMark)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("smartshape_lines.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+    ASSERT_GE(score->parts.size(), 3u);
+
+    // Built-in trill on staff 3 starting at beat 2 of m11 emits a trill-mark on the
+    // associated note.
+    const auto& staff3 = score->parts.at(2);
+    ASSERT_GE(staff3.measures.size(), 11u);
+    const auto& m11 = staff3.measures.at(10).staves.at(0);
+    const auto voiceIt = m11.voices.find(0);
+    ASSERT_NE(voiceIt, m11.voices.end());
+    ASSERT_GE(voiceIt->second.notes.size(), 2u);
+    const auto& note = voiceIt->second.notes.at(1);
+    const auto trillIt = std::ranges::find_if(note.noteAttachmentData.marks, [](const mx::api::MarkData& mark) {
+        return mark.markType == mx::api::MarkType::trillMark;
+    });
+    EXPECT_NE(trillIt, note.noteAttachmentData.marks.end());
+
+    // The built-in trill extension (staff 3, m3-m6) is omitted: mx::api cannot pair
+    // wavy-line start/stop. (See mx-api-gaps.md.)
+    const auto& m3 = staff3.measures.at(2).staves.at(0);
+    const auto m3VoiceIt = m3.voices.find(0);
+    if (m3VoiceIt != m3.voices.end()) {
+        for (const auto& m3Note : m3VoiceIt->second.notes) {
+            for (const auto& mark : m3Note.noteAttachmentData.marks) {
+                EXPECT_NE(mark.markType, mx::api::MarkType::wavyLine);
+            }
+        }
+    }
+}

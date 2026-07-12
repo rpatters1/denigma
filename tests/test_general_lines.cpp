@@ -459,13 +459,4 @@ TEST(GeneralLineClassification, ClassifiesAllFixtureLineStyles)
     EXPECT_EQ(bothHooks->startCap.hookLength, 1536);
     EXPECT_EQ(bothHooks->endCap.type, classifiedshape::LineCap::Type::Hook);
     EXPECT_EQ(bothHooks->endCap.hookLength, 1536);
-
-    // Style 53: dashed custom line rendering an ottava with glyph texts.
-    const auto ottavaLine = classifyGeneralLine(
-        document->getOthers()->get<others::SmartShapeCustomLine>(SCORE_PARTID, 53));
-    ASSERT_TRUE(ottavaLine);
-    EXPECT_EQ(ottavaLine->lineStyle, others::SmartShapeCustomLine::LineStyle::Dashed);
-    EXPECT_TRUE(ottavaLine->startText);
-    EXPECT_TRUE(ottavaLine->continuationText);
-    EXPECT_TRUE(ottavaLine->endText);
 }

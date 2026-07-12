@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -29,12 +30,15 @@
 #include <utility>
 
 #include "denigma/classify/smartshapes.h"
+#include "musicxml_formatted_text.h"
 #include "mx/api/CurveData.h"
 #include "mx/api/DirectionData.h"
 #include "mx/api/LineData.h"
 #include "mx/api/MarkData.h"
 #include "mx/api/OttavaData.h"
+#include "mx/api/SpannerData.h"
 #include "mx/api/WedgeData.h"
+#include "mx/api/WordsData.h"
 
 using namespace musx::dom;
 using namespace musx::util;
@@ -431,15 +435,28 @@ void appendHairpin(
     }
 }
 
+std::optional<mx::api::OttavaType> ottavaTypeFromOctaveShift(int octaveShift)
+{
+    switch (octaveShift) {
+    case 1: return mx::api::OttavaType::o8va;
+    case -1: return mx::api::OttavaType::o8vb;
+    case 2: return mx::api::OttavaType::o15ma;
+    case -2: return mx::api::OttavaType::o15mb;
+    default: return std::nullopt; // mx::api has no 22ma/22mb OttavaType. (See mx-api-gaps.md.)
+    }
+}
+
 void appendOttava(
     MusicXmlMusxMapping& context,
     mx::api::StaffData& staff,
     StaffCmper staffId,
     size_t staffIndex,
     const MusxInstance<others::SmartShape>& shape,
+    const classify::smartshape::Ottava& ottava,
     const SmartShapeNumberLevels& numberLevels)
 {
-    if (shape->hidden) {
+    if (!ottava.calcIsSemanticCarrier()) {
+        // A paired visual custom line: its hidden counterpart carries the octave shift.
         return;
     }
     const auto startPoint = shape->startTermSeg->endPoint;
@@ -450,12 +467,23 @@ void appendOttava(
     if (startPoint->staffId != staffId) {
         return;
     }
+    const auto ottavaType = ottavaTypeFromOctaveShift(ottava.octaveShift);
+    if (!ottavaType) {
+        context.logMessage(LogMsg() << "Skipping ottava smart shape " << shape->getCmper()
+            << " with octave shift " << ottava.octaveShift
+            << " because mx::api cannot express octave shifts beyond two octaves.", MessageSeverity::Warning);
+        return;
+    }
 
-    const auto placement = shape->calcVerticalPlacementForBeatAttached();
+    // A hidden carrier has no meaningful endpoint geometry of its own; place it by
+    // its direction, which is how its (possibly text-expression) proxy reads.
+    const auto placement = shape->hidden
+        ? (ottava.octaveShift > 0 ? VerticalPlacement::Above : VerticalPlacement::Below)
+        : shape->calcVerticalPlacementForBeatAttached();
     auto startDirection = createSmartShapeDirection(
         context, startPoint, staffId, staffIndex, placement, calcOttavaStartTick(context, startPoint));
     auto ottavaStart = mx::api::OttavaStart{};
-    ottavaStart.ottavaType = enumConvert<mx::api::OttavaType>(shape->shapeType);
+    ottavaStart.ottavaType = *ottavaType;
     ottavaStart.spannerStart.tickTimePosition = startDirection.tickTimePosition;
     if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
         ottavaStart.spannerStart.numberLevel = *numberLevel;
@@ -473,10 +501,7 @@ void appendOttava(
         }
         constexpr int kOttavaSize = 8;
         constexpr int k15maSize = 15;
-        ottavaStop.size = shape->shapeType == others::SmartShape::ShapeType::OctaveDown
-            || shape->shapeType == others::SmartShape::ShapeType::OctaveUp
-            ? kOttavaSize
-            : k15maSize;
+        ottavaStop.size = std::abs(ottava.octaveShift) == 1 ? kOttavaSize : k15maSize;
         stopDirection.ottavaStops.emplace_back(std::move(ottavaStop));
         stopStaff->directions.emplace_back(std::move(stopDirection));
     }
@@ -559,6 +584,170 @@ void appendKeyboardPedal(
     stopStaff->directions.emplace_back(std::move(stopDirection));
 }
 
+double tenthsFromEfix(Efix value)
+{
+    return (static_cast<double>(value) / EFIX_PER_EVPU)
+        * (MUSICXML_DEFAULT_TENTHS_PER_STAFF / EVPU_PER_STANDARD_STAFF);
+}
+
+mx::api::LineHook lineHookFromCap(const classify::smartshape::LineCap& cap)
+{
+    using CapType = classify::smartshape::LineCap::Type;
+    switch (cap.type) {
+    case CapType::Hook:
+        if (cap.hookLength == 0) {
+            return mx::api::LineHook::none;
+        }
+        return cap.hookLength > 0 ? mx::api::LineHook::up : mx::api::LineHook::down;
+    case CapType::ArrowheadPreset:
+    case CapType::ArrowheadCustom:
+        // Arrowhead geometry is unrepresentable in MusicXML; line-end="arrow" is the
+        // closest expressible form.
+        return mx::api::LineHook::arrow;
+    case CapType::None:
+        break;
+    }
+    return mx::api::LineHook::none;
+}
+
+mx::api::LineType lineTypeFromGeneralLine(const classify::smartshape::GeneralLine& line)
+{
+    using LineStyle = others::SmartShapeCustomLine::LineStyle;
+    switch (line.lineStyle) {
+    case LineStyle::Solid: return mx::api::LineType::solid;
+    case LineStyle::Dashed: return mx::api::LineType::dashed;
+    case LineStyle::Char: return mx::api::LineType::wavy;
+    }
+    return mx::api::LineType::unspecified;
+}
+
+void applyGeneralLineDashes(const classify::smartshape::GeneralLine& line, mx::api::LineData& lineData)
+{
+    if (line.lineStyle != others::SmartShapeCustomLine::LineStyle::Dashed) {
+        return;
+    }
+    if (line.dashOn != 0) {
+        lineData.isDashLengthSpecified = true;
+        lineData.dashLength = tenthsFromEfix(line.dashOn);
+    }
+    if (line.dashOff != 0) {
+        lineData.isSpaceLengthSpecified = true;
+        lineData.spaceLength = tenthsFromEfix(line.dashOff);
+    }
+}
+
+void appendGeneralLine(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    StaffCmper staffId,
+    size_t staffIndex,
+    const MusxInstance<others::SmartShape>& shape,
+    const classify::smartshape::GeneralLine& line,
+    const SmartShapeNumberLevels& numberLevels)
+{
+    const auto startPoint = shape->startTermSeg->endPoint;
+    const auto endPoint = shape->endTermSeg->endPoint;
+    if (!startPoint->calcIsAssigned() || !endPoint->calcIsAssigned() || startPoint->staffId != staffId) {
+        return;
+    }
+    auto* stopStaff = staffDataForEndpoint(context, endPoint);
+    if (!stopStaff) {
+        return;
+    }
+
+    if (line.continuationText) {
+        context.logMessage(LogMsg() << "Omitting continuation text of custom line smart shape "
+            << shape->getCmper() << ": MusicXML has no continuation-text concept.", MessageSeverity::Verbose);
+    }
+    if (line.centerFullText || line.centerAbbrText) {
+        context.logMessage(LogMsg() << "Omitting center text of custom line smart shape "
+            << shape->getCmper() << ": MusicXML has no equivalent outside of glissando text.",
+            MessageSeverity::Verbose);
+    }
+
+    const auto placement = shape->calcVerticalPlacementForBeatAttached();
+    auto startDirection = createSmartShapeDirection(context, startPoint, staffId, staffIndex, placement);
+    auto stopDirection = createSmartShapeDirection(context, endPoint, endPoint->staffId, staffIndex, placement);
+    startDirection.words = musicXmlWordsFromEnigmaText(context, line.startText);
+    stopDirection.words = musicXmlWordsFromEnigmaText(context, line.endText);
+
+    if (line.lineVisible) {
+        const bool hasCaps = line.startCap.type != classify::smartshape::LineCap::Type::None
+            || line.endCap.type != classify::smartshape::LineCap::Type::None;
+        auto start = mx::api::SpannerStart{};
+        auto stop = mx::api::SpannerStop{};
+        start.tickTimePosition = startDirection.tickTimePosition;
+        stop.tickTimePosition = stopDirection.tickTimePosition;
+        if (const auto numberLevel = findSmartShapeNumberLevel(numberLevels, shape)) {
+            start.numberLevel = *numberLevel;
+            stop.numberLevel = *numberLevel;
+        }
+        applyGeneralLineDashes(line, start.lineData);
+        applyGeneralLineDashes(line, stop.lineData);
+        if (!hasCaps && !startDirection.words.empty()) {
+            // The MusicXML idiom for a hookless text line is words followed by dashes.
+            startDirection.dashesStarts.emplace_back(std::move(start));
+            stopDirection.dashesStops.emplace_back(std::move(stop));
+        } else {
+            start.lineData.lineType = lineTypeFromGeneralLine(line);
+            stop.lineData.lineType = start.lineData.lineType;
+            start.lineData.lineHook = lineHookFromCap(line.startCap);
+            stop.lineData.lineHook = lineHookFromCap(line.endCap);
+            if (start.lineData.lineHook == mx::api::LineHook::up || start.lineData.lineHook == mx::api::LineHook::down) {
+                start.lineData.isStopLengthSpecified = true;
+                start.lineData.endLength = tenthsFromEfix(std::abs(line.startCap.hookLength));
+            }
+            if (stop.lineData.lineHook == mx::api::LineHook::up || stop.lineData.lineHook == mx::api::LineHook::down) {
+                stop.lineData.isStopLengthSpecified = true;
+                stop.lineData.endLength = tenthsFromEfix(std::abs(line.endCap.hookLength));
+            }
+            startDirection.bracketStarts.emplace_back(std::move(start));
+            stopDirection.bracketStops.emplace_back(std::move(stop));
+        }
+    }
+
+    const bool startHasContent = !startDirection.words.empty()
+        || !startDirection.bracketStarts.empty() || !startDirection.dashesStarts.empty();
+    const bool stopHasContent = !stopDirection.words.empty()
+        || !stopDirection.bracketStops.empty() || !stopDirection.dashesStops.empty();
+    if (!startHasContent && !stopHasContent) {
+        context.logMessage(LogMsg() << "Omitting custom line smart shape " << shape->getCmper()
+            << " with no expressible MusicXML content.", MessageSeverity::Verbose);
+        return;
+    }
+    if (startHasContent) {
+        staff.directions.emplace_back(std::move(startDirection));
+    }
+    if (stopHasContent) {
+        stopStaff->directions.emplace_back(std::move(stopDirection));
+    }
+}
+
+void appendTrillLine(
+    MusicXmlMusxMapping& context,
+    const MusxInstance<others::SmartShape>& shape,
+    const classify::smartshape::TrillLine& trillLine)
+{
+    /// @todo Emit the wavy-line extension when mx::api can pair wavy-line start/stop.
+    /// (See mx-api-gaps.md.)
+    if (!trillLine.includesTrSymbol) {
+        context.logMessage(LogMsg() << "Omitting trill extension smart shape " << shape->getCmper()
+            << " because mx::api cannot pair wavy-line start/stop.", MessageSeverity::Verbose);
+        return;
+    }
+    const auto startEntry = shape->startTermSeg->endPoint->calcAssociatedEntry(true);
+    const auto location = findEntryNoteLocation(context, startEntry, shape->startNoteId);
+    auto* note = location ? noteDataAt(context, *location) : nullptr;
+    if (!note) {
+        context.logMessage(LogMsg() << "Omitting trill smart shape " << shape->getCmper()
+            << " because no note is associated with its start point.", MessageSeverity::Verbose);
+        return;
+    }
+    auto mark = musicXmlMark(mx::api::MarkType::trillMark, shape->calcVerticalPlacementForBeatAttached());
+    mark.tickTimePosition = note->tickTimePosition;
+    note->noteAttachmentData.marks.emplace_back(std::move(mark));
+}
+
 void processSmartShapesForStaff(
     MusicXmlMusxMapping& context,
     mx::api::StaffData& staff,
@@ -585,12 +774,17 @@ void processSmartShapesForStaff(
             continue;
         }
         if (shape->startTermSeg->endPoint->staffId != staffId
-            || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()
-            || shape->hidden) {
+            || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()) {
             continue;
         }
 
         const auto classification = classify::classifySmartShape(shape);
+        const auto* ottava = classification.as<classify::smartshape::Ottava>();
+        if (shape->hidden && !ottava) {
+            // Hidden ottavas can be semantic carriers for visible custom lines and
+            // must be processed; all other hidden shapes are skipped.
+            continue;
+        }
         if (processSlur(context, shape, classification, numberLevels)) {
             continue;
         }
@@ -599,10 +793,19 @@ void processSmartShapesForStaff(
             appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::crescendo, numberLevels);
         } else if (classification.as<classify::smartshape::Decrescendo>()) {
             appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::diminuendo, numberLevels);
-        } else if (classification.as<classify::smartshape::Ottava>()) {
-            appendOttava(context, staff, staffId, staffIndex, shape, numberLevels);
+        } else if (ottava) {
+            appendOttava(context, staff, staffId, staffIndex, shape, *ottava, numberLevels);
         } else if (const auto* pedal = classification.as<classify::smartshape::KeyboardPedal>()) {
             appendKeyboardPedal(context, staff, staffId, staffIndex, shape, *pedal, numberLevels);
+        } else if (const auto* trillLine = classification.as<classify::smartshape::TrillLine>()) {
+            appendTrillLine(context, shape, *trillLine);
+        } else if (classification.as<classify::smartshape::VibratoLine>()) {
+            /// @todo Emit vibrato lines as paired wavy-line ornaments when mx::api
+            /// supports them. (See mx-api-gaps.md.)
+            context.logMessage(LogMsg() << "Omitting vibrato line smart shape " << shape->getCmper()
+                << " because mx::api cannot pair wavy-line start/stop.", MessageSeverity::Verbose);
+        } else if (const auto* generalLine = classification.as<classify::smartshape::GeneralLine>()) {
+            appendGeneralLine(context, staff, staffId, staffIndex, shape, *generalLine, numberLevels);
         } else if (const auto* arpeggiatedTie = classification.as<classify::smartshape::ArpeggiatedTie>()) {
             processArpeggiatedTie(context, *arpeggiatedTie);
         }
