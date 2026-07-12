@@ -220,7 +220,7 @@ void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note,
                     << " cannot be exported through mx::api yet. Emitting a 3-slash single-note tremolo.", MessageSeverity::Info);
                 marks = fallbackUnmeasuredTremoloMarks;
             } else {
-                marks = marks = std::clamp(marks, MIN_SUPPORTED_TREMOLO_MARKS, MAX_SUPPORTED_TREMOLO_MARKS);
+                marks = std::clamp(marks, MIN_SUPPORTED_TREMOLO_MARKS, MAX_SUPPORTED_TREMOLO_MARKS);
                 if (marks != tremolo->marks) {
                     context.logMessage(LogMsg() << "Measured single-note tremolo at entry " << entry->getEntryNumber()
                     << " has " << tremolo->marks << " marks. Clamping to mx::api's supported 1..5 range.", MessageSeverity::Info);

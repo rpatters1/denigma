@@ -30,6 +30,7 @@
 #include "core/cue_layers.h"
 #include "musicxml_formatted_text.h"
 #include "mx/api/DurationData.h"
+#include "mx/api/MarkData.h"
 #include "mx/api/NoteData.h"
 #include "mx/api/PitchData.h"
 #include "mx/api/PrintData.h"
@@ -55,11 +56,7 @@ mx::api::DurationData createDurationData(
         for (size_t tupletIndex : entryInfo.findTupletInfo()) {
             const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
             if (tupletInfo.calcIsTremolo()) {
-                const auto entryCount = tupletInfo.numEntries();
-                ASSERT_IF(entryCount == 0) {
-                    throw std::logic_error("Tremolo tuplet contains no entries.");
-                }
-                return calcDurationInfoFromEdu((tupletInfo.tuplet->calcReferenceDuration() / entryCount).calcEduDuration());
+                return calcDurationInfoFromEdu(tupletInfo.tuplet->calcReferenceDuration().calcEduDuration());
             }
         }
         return entryInfo->getEntry()->calcDurationInfo();
@@ -67,6 +64,16 @@ mx::api::DurationData createDurationData(
     duration.durationName = enumConvert<mx::api::DurationName>(durationName);
     duration.durationDots = int(dots);
     duration.durationTimeTicks = context.timing.calcMusicXmlDivisions(actualDuration);
+    for (size_t tupletIndex : entryInfo.findTupletInfo()) {
+        const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
+        if (tupletInfo.calcIsTremolo()) {
+            constexpr int tremoloActualNotes = 2;
+            constexpr int tremoloNormalNotes = 1;
+            duration.timeModificationActualNotes = tremoloActualNotes;
+            duration.timeModificationNormalNotes = tremoloNormalNotes;
+            break;
+        }
+    }
     return duration;
 }
 
@@ -77,10 +84,40 @@ bool shouldExportAsTuplet(const EntryFrame::TupletInfo& tupletInfo)
         return false;
     }
     if (tupletInfo.calcIsTremolo()) {
-        /// @todo Export MusicXML double-note tremolos when mx::api can model <tremolo type="start|stop">.
         return false;
     }
     return true;
+}
+
+int calcTremoloMarks(const EntryInfoPtr& entryInfo, const EntryFrame::TupletInfo& tupletInfo)
+{
+    constexpr unsigned maxMusicXmlTremoloMarks = 8;
+    const unsigned numBeams = entryInfo.calcNumberOfBeams();
+    const unsigned numReferenceBeams = calcNumberOfBeamsInEdu(tupletInfo.tuplet->calcReferenceDuration().calcEduDuration());
+    const unsigned marks = numBeams > numReferenceBeams ? numBeams - numReferenceBeams : 0;
+    return static_cast<int>((std::min)(marks, maxMusicXmlTremoloMarks));
+}
+
+void applyTremoloData(mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
+{
+    for (size_t tupletIndex : entryInfo.findTupletInfo()) {
+        const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
+        if (!tupletInfo.calcIsTremolo()) {
+            continue;
+        }
+
+        const auto entryIndex = entryInfo.getIndexInFrame();
+        const auto markType = entryIndex == tupletInfo.startIndex
+            ? mx::api::MarkType::tremoloStart
+            : entryIndex == tupletInfo.endIndex ? mx::api::MarkType::tremoloStop : mx::api::MarkType::unspecified;
+        if (markType == mx::api::MarkType::unspecified) {
+            continue;
+        }
+
+        auto mark = mx::api::MarkData(markType);
+        mark.choice = mx::api::TremoloMarkData{ .tremoloMarks = calcTremoloMarks(entryInfo, tupletInfo) };
+        note.noteAttachmentData.marks.emplace_back(std::move(mark));
+    }
 }
 
 mx::api::TupletStart createTupletStart(const EntryFrame::TupletInfo& tupletInfo, int numberLevel)
@@ -460,13 +497,6 @@ void appendEntryNotes(
                 .noteIndex = noteIndex
             });
     };
-    for (size_t tupletIndex : entryInfo.findTupletInfo()) {
-        const auto& tupletInfo = entryInfo.getFrame()->tupletInfo[tupletIndex];
-        if (tupletInfo.startIndex == entryInfo.getIndexInFrame() && tupletInfo.calcIsTremolo()) {
-            context.logMessage(LogMsg() << "Double-note tremolo starting at entry " << entry->getEntryNumber()
-                << " cannot be exported through mx::api yet. Emitting represented note duration without tremolo ornament.");
-        }
-    }
     if (entryInfo.calcIsFullMeasureRest() || entryInfo.calcDisplaysAsRest()) {
         auto rest = createRestData(context, entryIt, musxMeasure, nullptr, userVoiceNumber);
         rememberFirstNote(voice.notes.size());
@@ -524,6 +554,7 @@ void appendEntryNotes(
             applyTupletData(note, entryInfo);
             applyLyrics(context, note, entryInfo);
             processArticulations(context, note, entryInfo);
+            applyTremoloData(note, entryInfo);
         }
         if (entry->hasStem()) {
             const auto [freezeStem, upStem] = entryInfo.calcEntryStemSettings();

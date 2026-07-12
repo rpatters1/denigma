@@ -127,6 +127,18 @@ struct ComparableGraceGroup
     bool operator==(const ComparableGraceGroup&) const = default;
 };
 
+struct ComparableTremoloEvent
+{
+    mx::api::MarkType type{};
+    int marks{};
+    mx::api::DurationName durationName{};
+    int durationDots{};
+    int timeModificationActualNotes{};
+    int timeModificationNormalNotes{};
+
+    bool operator==(const ComparableTremoloEvent&) const = default;
+};
+
 mx::api::Step parseStep(const std::string& step)
 {
     if (step == "A") return mx::api::Step::a;
@@ -153,6 +165,36 @@ std::filesystem::path exportMnxFixture(const std::string& musxFile)
     outputPath.replace_extension(".mnx");
     EXPECT_TRUE(std::filesystem::exists(outputPath)) << "Missing MNX output " << pathString(outputPath);
     return outputPath;
+}
+
+std::vector<ComparableTremoloEvent> createComparableTremoloEvents(const mx::api::ScoreData& score)
+{
+    std::vector<ComparableTremoloEvent> result;
+    for (const auto& part : score.parts) {
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    (void)voiceIndex;
+                    for (const auto& note : voice.notes) {
+                        for (const auto& mark : note.noteAttachmentData.marks) {
+                            if (mark.markType != mx::api::MarkType::tremoloStart && mark.markType != mx::api::MarkType::tremoloStop) {
+                                continue;
+                            }
+                            result.emplace_back(ComparableTremoloEvent{
+                                .type = mark.markType,
+                                .marks = mark.choice.tremolo().tremoloMarks.value_or(0),
+                                .durationName = note.durationData.durationName,
+                                .durationDots = note.durationData.durationDots,
+                                .timeModificationActualNotes = note.durationData.timeModificationActualNotes,
+                                .timeModificationNormalNotes = note.durationData.timeModificationNormalNotes
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
 }
 
 std::vector<ComparableNoteEvent> createComparableNoteEvents(const mx::api::ScoreData& score)
@@ -915,4 +957,53 @@ TEST(MusicXmlNotes, ShapeNoteNoteheadsExportSmoke)
         }
     }
     EXPECT_GT(otherNoteheadCount, 0u) << "expected at least one shape-note notehead to export as mx::api::Notehead::other";
+}
+
+TEST(MusicXmlNotes, MeasuredTremolosExportStartStopMarks)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("tremolos.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+
+    std::vector<std::pair<mx::api::MarkType, int>> tremoloMarks;
+    for (const auto& part : actualScore->parts) {
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    (void)voiceIndex;
+                    for (const auto& note : voice.notes) {
+                        for (const auto& mark : note.noteAttachmentData.marks) {
+                            if (mark.markType != mx::api::MarkType::tremoloStart && mark.markType != mx::api::MarkType::tremoloStop) {
+                                continue;
+                            }
+                            ASSERT_TRUE(mark.choice.isTremolo());
+                            ASSERT_TRUE(mark.choice.tremolo().tremoloMarks);
+                            tremoloMarks.emplace_back(mark.markType, *mark.choice.tremolo().tremoloMarks);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    EXPECT_EQ(tremoloMarks, (std::vector<std::pair<mx::api::MarkType, int>>{
+                                { mx::api::MarkType::tremoloStart, 3 },
+                                { mx::api::MarkType::tremoloStop, 3 },
+                                { mx::api::MarkType::tremoloStart, 2 },
+                                { mx::api::MarkType::tremoloStop, 2 } }));
+}
+
+TEST(MusicXmlNotes, TwoNoteTremolosMatchFinaleReference)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("termolos_twonotes.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto referenceScore = loadScoreData(getInputPath() / "musicxml/termolos_twonotes-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(referenceScore);
+
+    EXPECT_EQ(createComparableTremoloEvents(*actualScore), createComparableTremoloEvents(*referenceScore));
 }
