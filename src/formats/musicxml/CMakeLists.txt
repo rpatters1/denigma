@@ -46,6 +46,15 @@ if(TARGET mx)
     set_target_properties(mx PROPERTIES UNITY_BUILD ON)
 endif()
 
+if(MSVC)
+    foreach(_denigma_mx_product_target IN ITEMS mx_core mx)
+        if(TARGET ${_denigma_mx_product_target})
+            target_compile_options(${_denigma_mx_product_target} PRIVATE /W3 /WX-)
+        endif()
+    endforeach()
+    unset(_denigma_mx_product_target)
+endif()
+
 foreach(_denigma_mx_non_product_target IN ITEMS
         mxtest-core
         mxtest-core-dev
