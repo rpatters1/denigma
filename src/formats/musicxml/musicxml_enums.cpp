@@ -62,6 +62,15 @@ BEGIN_ENUM_CONVERSION(BarlineType, mx::api::BarlineType)
     case BarlineType::Custom: return mx::api::BarlineType::unsupported;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(classify::articulation::Caesura::Type, mx::api::MarkType)
+    case classify::articulation::Caesura::Type::Normal: return mx::api::MarkType::caesura;
+    case classify::articulation::Caesura::Type::Curved: return mx::api::MarkType::caesuraCurved;
+    case classify::articulation::Caesura::Type::Short: return mx::api::MarkType::caesuraShort;
+    case classify::articulation::Caesura::Type::Thick: return mx::api::MarkType::caesuraThick;
+    case classify::articulation::Caesura::Type::Chant: return mx::api::MarkType::caesura;
+    case classify::articulation::Caesura::Type::SingleStroke: return mx::api::MarkType::caesuraSingle;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(classify::barline::Type, mx::api::BarlineType)
     case classify::barline::Type::Unsupported: return mx::api::BarlineType::unsupported;
     case classify::barline::Type::NoBarline: return mx::api::BarlineType::none;

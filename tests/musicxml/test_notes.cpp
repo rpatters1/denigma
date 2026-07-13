@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "denigma/classify/articulations.h"
 #include "formats/musicxml/musicxml.h"
 #include "musx/util/Fraction.h"
 #include "mx/api/ScoreData.h"
@@ -899,6 +900,21 @@ TEST(MusicXmlNotes, NonArpeggioMarksUseTopAndBottomEndpoints)
     ASSERT_FALSE(placements.empty());
     EXPECT_EQ(std::count(placements.begin(), placements.end(), mx::api::NonArpeggiatePlacement::top),
         std::count(placements.begin(), placements.end(), mx::api::NonArpeggiatePlacement::bottom));
+}
+
+TEST(MusicXmlNotes, CaesuraVariantsMapToMusicXml)
+{
+    using CaesuraType = classify::articulation::Caesura::Type;
+    const auto convert = [](CaesuraType type) {
+        return formats::musicxml::detail::enumConvert<mx::api::MarkType>(type);
+    };
+
+    EXPECT_EQ(convert(CaesuraType::Normal), mx::api::MarkType::caesura);
+    EXPECT_EQ(convert(CaesuraType::Curved), mx::api::MarkType::caesuraCurved);
+    EXPECT_EQ(convert(CaesuraType::Short), mx::api::MarkType::caesuraShort);
+    EXPECT_EQ(convert(CaesuraType::Thick), mx::api::MarkType::caesuraThick);
+    EXPECT_EQ(convert(CaesuraType::SingleStroke), mx::api::MarkType::caesuraSingle);
+    EXPECT_EQ(convert(CaesuraType::Chant), mx::api::MarkType::caesura);
 }
 
 TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)

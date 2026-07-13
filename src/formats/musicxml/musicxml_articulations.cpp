@@ -205,8 +205,8 @@ void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note,
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(musicXmlFermataType(*fermata), classification.placement));
         } else if (classification.is<classify::articulation::BreathMark>()) {
             note.noteAttachmentData.marks.emplace_back(musicXmlMark(mx::api::MarkType::breathMark, classification.placement));
-        } else if (classification.is<classify::articulation::Caesura>()) {
-            note.noteAttachmentData.marks.emplace_back(musicXmlMark(mx::api::MarkType::caesura, classification.placement));
+        } else if (const auto* caesura = classification.as<classify::articulation::Caesura>()) {
+            note.noteAttachmentData.marks.emplace_back(musicXmlMark(enumConvert<mx::api::MarkType>(caesura->type), classification.placement));
         } else if (classification.is<classify::articulation::VerticalEntryBracket>()) {
             if (const auto candidate = musx::util::calcNonArpeggioSpanForAssignment(entryInfo, asgn)) {
                 appendArpeggioCandidate(context, candidate.value());
