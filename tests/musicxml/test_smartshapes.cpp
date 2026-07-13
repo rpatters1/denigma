@@ -186,12 +186,11 @@ TEST(MusicXmlSmartShapes, SlursOverbarsMatchReference)
 /// MusicXML's number-level contract: two slurs of the same part that overlap in
 /// document order must carry distinct numbers. Readers pair slur starts and stops
 /// by number within the part, so a collision mispairs them (typically visible as
-/// slurs jumping between the staves of a multistaff instrument). See "Spanner
-/// numbers are pooled per staff instead of per part" in mx-api-gaps.md.
-/// @todo Remove the DISABLED_ prefix when mx scopes its spanner number pools per
-/// part instead of per staff. The fixture's staff-1 slur (m5-m6) is open when the
-/// staff-2 slur (m6) starts, and mx's per-staff pools hand both number 1.
-TEST(MusicXmlSmartShapes, DISABLED_OverlappingSlursAcrossStavesCarryDistinctNumbers)
+/// slurs jumping between the staves of a multistaff instrument). The fixture's
+/// staff-1 slur (m5-m6) is open when the staff-2 slur (m6) starts, so they must
+/// take different numbers. Requires mx's part-scoped spanner number pools
+/// (mx PR for issue #350; see mx-api-gaps.md).
+TEST(MusicXmlSmartShapes, OverlappingSlursAcrossStavesCarryDistinctNumbers)
 {
     setupTestDataPaths();
     const auto outputPath = exportMusicXmlFixture("cross_staffs.musx");

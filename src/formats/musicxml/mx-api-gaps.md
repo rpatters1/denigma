@@ -66,6 +66,8 @@ MusicXML's `number-level` type states that spanner `number` attributes distingui
 
 Needed API shape: none — this is a writer bug. The resolver's pools should be scoped per part and spanner class only (drop the staff dimension from `occupied`). The special-case logic that reserves a cross-staff spanner's number "in every staff pool it touches" then becomes unnecessary rather than needing repair.
 
+Status: filed as mx issue #350 with a PR; the fix is already applied on the rpatters1/mx fork that Denigma builds against, and `MusicXmlSmartShapes.OverlappingSlursAcrossStavesCarryDistinctNumbers` pins it. Remove this entry when the PR merges upstream.
+
 ### Octave shifts beyond two octaves
 
 MusicXML `<octave-shift>` supports any shift via the `size` attribute (8, 15, 22, ...). Finale has no built-in 22ma smart shape, but custom lines classified as three-octave shifts ("22ma"/"22mb") can occur.
