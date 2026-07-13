@@ -88,7 +88,7 @@ static TextRepeatContext makeTextRepeatContext(
     std::vector<char> buffer(xml.begin(), xml.end());
     auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     return { document, document->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, 1),
-        document->getOthers()->get<others::TextRepeatAssign>(SCORE_PARTID, 1, 0) };
+        document->getOthers()->get<others::TextRepeatAssign>(SCORE_PARTID, Cmper(1), Inci(0)) };
 }
 
 static TextRepeatContext makeJumpToMarkContext()
@@ -134,7 +134,7 @@ static TextRepeatContext makeJumpToMarkContext()
     std::vector<char> buffer(xml.begin(), xml.end());
     auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     return { document, document->getOthers()->get<others::TextRepeatDef>(SCORE_PARTID, 1),
-        document->getOthers()->get<others::TextRepeatAssign>(SCORE_PARTID, 1, 0) };
+        document->getOthers()->get<others::TextRepeatAssign>(SCORE_PARTID, Cmper(1), Inci(0)) };
 }
 
 static jump::Jump classifyTestJump(const std::string& text)
