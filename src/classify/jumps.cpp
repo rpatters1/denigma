@@ -31,6 +31,8 @@
 
 namespace denigma::classify {
 
+using namespace jump;
+
 namespace {
 
 static Jump classifyJumpTextAndGlyph(std::string_view text, std::optional<std::string_view> glyphName)
@@ -73,6 +75,9 @@ static Jump classifyJumpTextAndGlyph(std::string_view text, std::optional<std::s
     if (lowerText == "fine") {
         return Jump::Fine;
     }
+    if (lowerText == "segno") {
+        return Jump::Segno;
+    }
     if (lowerText == "§" || lowerText == "𝄋") {
         return Jump::Segno;
     }
@@ -83,16 +88,7 @@ static Jump classifyJumpTextAndGlyph(std::string_view text, std::optional<std::s
     return Jump::None;
 }
 
-} // namespace
-
-/**
- * @brief Provides a default classification from a Finale text repeat definition.
- *
- * This function only maps strings from the Finale 27 Maestro Default file plus
- * a few other obvious symbols (standard Unicode and SMuFL symbols). Anything
- * else returns Jump::None. Text comparison is case-insensitive for ASCII text.
- */
-Jump classifyJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatDef>& def)
+Jump classifyVisualJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatDef>& def)
 {
     if (!def) {
         return Jump::None;
@@ -108,7 +104,7 @@ Jump classifyJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatDef
         if (const auto codepoint = utils::utf8ToCodepoint(repeatText->text)) {
             if (const auto* glyphName = smufl_mapping::getGlyphNameForFont(
                     def->font->getName(),
-                    *codepoint,
+                    codepoint.value(),
                     def->font->calcIsSMuFL(),
                     smufl_mapping::SmuflGlyphSource::Finale)) {
                 glyphNameView = *glyphName;
@@ -116,6 +112,126 @@ Jump classifyJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatDef
         }
     }
     return classifyJumpTextAndGlyph(repeatText->text, glyphNameView);
+}
+
+bool isJumpCommand(Jump jump)
+{
+    switch (jump) {
+    case Jump::ToCoda:
+    case Jump::DaCapo:
+    case Jump::DCAlFine:
+    case Jump::DCAlCoda:
+    case Jump::DalSegno:
+    case Jump::DsAlFine:
+    case Jump::DsAlCoda:
+        return true;
+    case Jump::None:
+    case Jump::Segno:
+    case Jump::Coda:
+    case Jump::Fine:
+        return false;
+    }
+    return false;
+}
+
+Jump playbackJumpToMarker(Jump marker)
+{
+    switch (marker) {
+    case Jump::Segno:
+        return Jump::DalSegno;
+    case Jump::Coda:
+        return Jump::ToCoda;
+    case Jump::None:
+    case Jump::ToCoda:
+    case Jump::Fine:
+    case Jump::DaCapo:
+    case Jump::DCAlFine:
+    case Jump::DCAlCoda:
+    case Jump::DalSegno:
+    case Jump::DsAlFine:
+    case Jump::DsAlCoda:
+        return marker;
+    }
+    return marker;
+}
+
+Jump classifyVisualJumpForTextRepeatId(const musx::dom::MusxInstance<musx::dom::others::TextRepeatAssign>& assignment, musx::dom::Cmper textRepeatId)
+{
+    const auto def = assignment->getDocument()->getOthers()->get<musx::dom::others::TextRepeatDef>(assignment->getRequestedPartId(), textRepeatId);
+    return classifyVisualJump(def);
+}
+
+Jump classifyTargetMarker(const musx::dom::MusxInstance<musx::dom::others::TextRepeatAssign>& assignment)
+{
+    if (const auto targetMeasure = assignment->calcTargetMeasure()) {
+        const auto targetAssigns = assignment->getDocument()->getOthers()->getArray<musx::dom::others::TextRepeatAssign>(
+            assignment->getRequestedPartId(), *targetMeasure);
+        for (const auto& targetAssign : targetAssigns) {
+            if (targetAssign && targetAssign->jumpAction == musx::dom::others::RepeatActionType::NoJump) {
+                const auto targetVisual = classifyVisualJumpForTextRepeatId(assignment, targetAssign->textRepeatId);
+                if (targetVisual == Jump::Segno || targetVisual == Jump::Coda) {
+                    return targetVisual;
+                }
+            }
+        }
+    }
+    return Jump::None;
+}
+
+Jump classifyPlaybackJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatAssign>& assignment, Jump visual)
+{
+    if (!assignment) {
+        return Jump::None;
+    }
+
+    using RepeatActionType = musx::dom::others::RepeatActionType;
+    switch (assignment->jumpAction) {
+    case RepeatActionType::NoJump:
+        return (visual == Jump::Segno || visual == Jump::Coda) ? visual : Jump::None;
+    case RepeatActionType::Stop:
+        return Jump::Fine;
+    case RepeatActionType::JumpToMark:
+        if (isJumpCommand(visual)) {
+            return visual;
+        }
+        return playbackJumpToMarker(classifyVisualJumpForTextRepeatId(assignment, musx::dom::Cmper(assignment->targetValue)));
+    case RepeatActionType::JumpAbsolute:
+    case RepeatActionType::JumpRelative:
+        if (isJumpCommand(visual)) {
+            return visual;
+        }
+        if (const auto targetMarker = classifyTargetMarker(assignment); targetMarker != Jump::None) {
+            return playbackJumpToMarker(targetMarker);
+        }
+        return playbackJumpToMarker(visual);
+    case RepeatActionType::JumpAuto:
+        return visual;
+    }
+    return Jump::None;
+}
+
+} // namespace
+
+/**
+ * @brief Provides a default classification from a Finale text repeat definition.
+ *
+ * This function only maps strings from the Finale 27 Maestro Default file plus
+ * a few other obvious symbols (standard Unicode and SMuFL symbols). Anything
+ * else returns Jump::None. Text comparison is case-insensitive for ASCII text.
+ */
+JumpClassification classifyJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatDef>& def)
+{
+    const auto visual = classifyVisualJump(def);
+    return JumpClassification{ visual, visual };
+}
+
+JumpClassification classifyJump(const musx::dom::MusxInstance<musx::dom::others::TextRepeatAssign>& assignment)
+{
+    if (!assignment) {
+        return {};
+    }
+    const auto visual = classifyVisualJumpForTextRepeatId(assignment, assignment->textRepeatId);
+    return JumpClassification{ visual, classifyPlaybackJump(assignment, visual) };
 }
 
 } // namespace denigma::classify

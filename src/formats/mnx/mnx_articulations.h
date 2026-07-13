@@ -27,29 +27,40 @@
 
 #include "mnx_fwd.h"
 #include "utils/smufl_support.h"
-#include "denigma/classify/articulations.h"
 
 using namespace musx::dom;
 using namespace musx::util;
 
 namespace denigma {
+
+namespace classify {
+struct GlyphStyle;
+namespace articulation {
+struct Arpeggio;
+struct BreathMark;
+struct Fermata;
+} // namespace articulation
+}
+
 namespace formats {
 namespace mnx {
 namespace detail {
 
-mnxdom::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement);
-mnxdom::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement);
+std::optional<mnxdom::Fermata> makeFermata(
+    const classify::articulation::Fermata& fermata,
+    const classify::GlyphStyle& glyphStyle,
+    VerticalPlacement placement);
 
-std::optional<mnxdom::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement);
-
-std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement);
+std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::articulation::BreathMark& breathMark, VerticalPlacement placement);
 
 std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
     const EntryInfoPtr& sourceEntry,
     const MusxInstance<details::ArticulationAssign>& assign,
-    const classify::Arpeggio& arpeggio);
+    const classify::articulation::Arpeggio& arpeggio);
 void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
 void finalizeArpeggios(const MnxMusxMappingPtr& context);
+void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo);
+void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::FullMeasureRest& mnxFullMeasureRest, const EntryInfoPtr& musxEntryInfo);
 
 } // namespace detail
 } // namespace mnx

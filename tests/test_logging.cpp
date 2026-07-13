@@ -153,7 +153,7 @@ TEST(Logging, AutoGlobSimulation)
 TEST(Logging, ConversionResultCollectsWarningAndErrorDiagnostics)
 {
     denigma::ConversionResult result;
-    denigma::DenigmaContext context("denigma");
+    denigma::DenigmaContext context(DENIGMA_NAME);
     context.conversionResult = &result;
     context.logCallback = [](denigma::MessageSeverity, std::string_view) {};
 

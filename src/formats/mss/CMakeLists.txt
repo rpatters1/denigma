@@ -13,6 +13,7 @@ target_link_libraries(denigma_mss
         denigma_core
     PRIVATE
         denigma_format_enigmaxml
+        denigma_font_names
         denigma_textmetrics
         denigma_utils
         pugixml

@@ -5,6 +5,10 @@ add_denigma_internal_library(denigma_utf8
     ${CMAKE_CURRENT_LIST_DIR}/utf8_iterator.cpp
 )
 
+add_denigma_internal_library(denigma_font_names
+    ${CMAKE_CURRENT_LIST_DIR}/font_names.cpp
+)
+
 add_denigma_internal_library(denigma_smufl_support MUSX_PCH
     ${CMAKE_CURRENT_LIST_DIR}/smufl_support.cpp
 )
@@ -29,6 +33,7 @@ target_link_libraries(denigma_textmetrics
         denigma_core
         musx
     PRIVATE
+        denigma_font_names
         denigma_smufl_support
         ${_denigma_textmetrics_libs}
 )
@@ -56,6 +61,7 @@ add_library(denigma_utils INTERFACE)
 # denigma_utils. Prefer linking the narrow util library at the call site.
 target_link_libraries(denigma_utils
     INTERFACE
+        denigma_font_names
         denigma_smufl_support
         denigma_utf8
         denigma_zip

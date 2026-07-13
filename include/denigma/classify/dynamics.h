@@ -21,13 +21,17 @@
  */
 #pragma once
 
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "musx/musx.h"
 
 namespace denigma {
 namespace classify {
+
+namespace dynamics {
 
 /// @enum Dynamic
 /// @brief Dynamic marking classes recognized by the classifier.
@@ -65,56 +69,40 @@ enum class Dynamic
     n
 };
 
-/// @enum DynamicChange
+/// @enum Change
 /// @brief Whether a classified dynamic is absolute or indicates relative motion.
-enum class DynamicChange
+enum class Change
 {
     Absolute,
     RelativeIncrease,
     RelativeDecrease
 };
 
-/// @struct DynamicClassification
-/// @brief Result returned by dynamic classification.
-struct DynamicClassification
+/// @struct Mark
+/// @brief Dynamic metadata attached to a source text run.
+struct Mark
 {
     /// Classified dynamic.
     Dynamic dynamic{};
-    /// True when the source expression includes extra non-dynamic text.
-    bool hasAdditionalText{};
-    /// Plain text before the classified dynamic, normalized and edge-trimmed.
-    std::string prefixText;
-    /// Plain text after the classified dynamic, normalized and edge-trimmed.
-    std::string suffixText;
     /// Glyph names that participated in the matched dynamic, in source order.
     /// Empty when any matched character does not resolve to a glyph name.
     std::vector<std::string> glyphs;
-    /// Relative direction inferred from unambiguous prefix or suffix qualifiers.
-    DynamicChange change{ DynamicChange::Absolute };
-
-    /// Returns true when the source was recognized as a dynamic.
-    [[nodiscard]] bool isDynamic() const noexcept
-    { return dynamic != Dynamic::None; }
-
-    /// Returns true when at least one of the dynamic text elements contains text
-    [[nodiscard]] bool containsText() const noexcept
-    { return !prefixText.empty() || !glyphs.empty() || !suffixText.empty(); }
-
-    /// Returns true when the source was recognized as a dynamic.
-    explicit operator bool() const noexcept
-    { return isDynamic(); }
 };
 
-/// Classifies a Finale text expression definition as a dynamic marking.
-DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def);
-/// Classifies an already-resolved Enigma text context as a dynamic marking.
-DynamicClassification classifyDynamic(const musx::util::EnigmaParsingContext& rawTextCtx, bool isDynamicsCategory = false);
+} // namespace dynamics
+
+/// Classifies a source text chunk as a single plain dynamic mark.
+std::optional<dynamics::Mark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk, bool forceOther = false);
 /// Returns the canonical text spelling for a dynamic.
-std::string dynamicCanonicalText(Dynamic dynamic);
+std::string dynamicCanonicalText(dynamics::Dynamic dynamic);
 /// Returns canonical SMuFL glyph names for a dynamic.
-std::vector<std::string> dynamicCanonicalGlyphs(Dynamic dynamic);
+std::vector<std::string> dynamicCanonicalGlyphs(dynamics::Dynamic dynamic);
 /// Returns canonical per-letter SMuFL glyph names for a dynamic.
-std::vector<std::string> dynamicCanonicalLetterGlyphs(Dynamic dynamic);
+std::vector<std::string> dynamicCanonicalLetterGlyphs(dynamics::Dynamic dynamic);
+/// Returns per-letter SMuFL glyph names for recognized dynamic letters, omitting other characters.
+std::vector<std::string> dynamicLettersToLetterGlyphs(std::string_view letters);
+/// Returns the dynamic letters represented by known dynamic glyph names.
+std::string dynamicGlyphsToLetters(const std::vector<std::string>& glyphs);
 
 } // namespace classify
 } // namespace denigma

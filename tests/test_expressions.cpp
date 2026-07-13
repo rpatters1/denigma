@@ -19,6 +19,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <algorithm>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -27,6 +29,7 @@
 #include "core/musx_reader.h"
 #include "denigma/classify/expressions.h"
 #include "musx/musx.h"
+#include "utils/stringutils.h"
 
 using namespace denigma::classify;
 using namespace musx::dom;
@@ -46,6 +49,24 @@ struct ShapeExpressionContext
     MusxInstance<others::ShapeExpressionDef> def;
     MusxInstance<others::MeasureExprAssign> assignment;
 };
+
+static const dynamics::Mark& firstDynamicMark(const ExpressionClassification& classification)
+{
+    const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::RunClassification& run) {
+        return run.as<dynamics::Mark>() != nullptr;
+    });
+    EXPECT_NE(dynamicIt, classification.runs.end());
+    return *dynamicIt->as<dynamics::Mark>();
+}
+
+static const expression::DynamicQualifier& firstDynamicQualifier(const ExpressionClassification& classification)
+{
+    const auto qualifierIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::RunClassification& run) {
+        return run.as<expression::DynamicQualifier>() != nullptr;
+    });
+    EXPECT_NE(qualifierIt, classification.runs.end());
+    return *qualifierIt->as<expression::DynamicQualifier>();
+}
 
 static std::string categoryXmlName(ExpressionCategoryType categoryType)
 {
@@ -79,7 +100,8 @@ static TextExpressionContext makeTextExpressionContext(
     const std::string& playbackXml = {},
     bool assignmentTopStaff = false,
     const std::string& fontName = "Times New Roman",
-    int charsetVal = 0)
+    int charsetVal = 0,
+    const std::string& expressionXml = {})
 {
     std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
 <finale>
@@ -108,6 +130,7 @@ static TextExpressionContext makeTextExpressionContext(
         xml += "      <categoryID>" + std::to_string(static_cast<int>(categoryType)) + "</categoryID>\n";
     }
     xml += playbackXml;
+    xml += expressionXml;
     xml += R"xml(    </textExprDef>
 )xml";
     xml += R"xml(  </others>
@@ -198,6 +221,13 @@ static MusxInstance<others::MeasureExprAssign> makeStaffTextAssignment(
     return assignment;
 }
 
+static std::string makeHarpPedalDiagramText(std::u8string_view glyphs)
+{
+    std::string result;
+    utils::appendUtf8(result, glyphs);
+    return result;
+}
+
 } // namespace
 
 TEST(ExpressionClassification, ClassifiesConcreteDynamicsAndCarriesSurroundingText)
@@ -206,10 +236,16 @@ TEST(ExpressionClassification, ClassifiesConcreteDynamicsAndCarriesSurroundingTe
 
     EXPECT_EQ(result.type, ExpressionType::Dynamic);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryConfirmed);
-    EXPECT_EQ(result.dynamic().dynamic, Dynamic::pp);
-    EXPECT_EQ(result.dynamic().prefixText, "sub.");
-    EXPECT_EQ(result.dynamic().suffixText, "possibile");
-    EXPECT_EQ(result.dynamic().change, DynamicChange::Absolute);
+    const auto dynamicIt = std::find_if(result.runs.begin(), result.runs.end(), [](const expression::RunClassification& run) {
+        return run.as<dynamics::Mark>() != nullptr;
+    });
+    ASSERT_NE(dynamicIt, result.runs.end());
+    EXPECT_EQ(dynamicIt->as<dynamics::Mark>()->dynamic, dynamics::Dynamic::pp);
+    ASSERT_EQ(result.runs.size(), 3u);
+    ASSERT_NE(result.runs[0].as<expression::GenericText>(), nullptr);
+    EXPECT_EQ(result.runs[0].chunk.text, "sub. ");
+    ASSERT_NE(result.runs[2].as<expression::GenericText>(), nullptr);
+    EXPECT_EQ(result.runs[2].chunk.text, " possibile");
 }
 
 TEST(ExpressionClassification, ClassifiesTextExpressionFermataAndBreathMarkSymbols)
@@ -218,8 +254,8 @@ TEST(ExpressionClassification, ClassifiesTextExpressionFermataAndBreathMarkSymbo
     const auto fermata = classifyExpression(fermataContext.def);
     EXPECT_EQ(fermata.type, ExpressionType::Fermata);
     EXPECT_EQ(fermata.basis, ClassificationBasis::Heuristic);
-    EXPECT_EQ(fermata.fermata().fermata.shape, Fermata::Shape::Normal);
-    EXPECT_EQ(fermata.fermata().fermata.duration, Fermata::Duration::Auto);
+    EXPECT_EQ(fermata.fermata().fermata.shape, articulation::Fermata::Shape::Normal);
+    EXPECT_EQ(fermata.fermata().fermata.duration, articulation::Fermata::Duration::Auto);
     ASSERT_TRUE(fermata.fermata().glyphName.has_value());
     EXPECT_EQ(*fermata.fermata().glyphName, "fermataAbove");
 
@@ -227,9 +263,121 @@ TEST(ExpressionClassification, ClassifiesTextExpressionFermataAndBreathMarkSymbo
     const auto breath = classifyExpression(breathContext.def);
     EXPECT_EQ(breath.type, ExpressionType::BreathMark);
     EXPECT_EQ(breath.basis, ClassificationBasis::Heuristic);
-    EXPECT_EQ(breath.breathMark().breathMark.type, BreathMark::Type::Comma);
+    EXPECT_EQ(breath.breathMark().breathMark.type, articulation::BreathMark::Type::Comma);
     ASSERT_TRUE(breath.breathMark().glyphName.has_value());
     EXPECT_EQ(*breath.breathMark().glyphName, "breathMarkComma");
+}
+
+TEST(ExpressionClassification, ClassifiesHarpPedalDiagramGlyphSequence)
+{
+    const auto context = makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(u8"\uE680\uE681\uE682\uE683\uE682\uE681\uE680\uE682"),
+        ExpressionCategoryType::Misc,
+        {},
+        false,
+        "Bravura");
+    const auto result = classifyExpression(context.def);
+
+    ASSERT_EQ(result.type, ExpressionType::HarpDiagram);
+    EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(result.harpDiagram().d, expression::HarpDiagram::PedalPosition::Flat);
+    EXPECT_EQ(result.harpDiagram().c, expression::HarpDiagram::PedalPosition::Natural);
+    EXPECT_EQ(result.harpDiagram().b, expression::HarpDiagram::PedalPosition::Sharp);
+    EXPECT_EQ(result.harpDiagram().e, expression::HarpDiagram::PedalPosition::Sharp);
+    EXPECT_EQ(result.harpDiagram().f, expression::HarpDiagram::PedalPosition::Natural);
+    EXPECT_EQ(result.harpDiagram().g, expression::HarpDiagram::PedalPosition::Flat);
+    EXPECT_EQ(result.harpDiagram().a, expression::HarpDiagram::PedalPosition::Sharp);
+}
+
+TEST(ExpressionClassification, RejectsIncompleteHarpPedalDiagramGlyphSequence)
+{
+    const auto context = makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(u8"\uE680\uE681\uE682\uE683\uE682\uE681\uE680"),
+        ExpressionCategoryType::Misc,
+        {},
+        false,
+        "Bravura");
+    const auto result = classifyExpression(context.def);
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, ClassifiesKeyboardPedalText)
+{
+    const std::vector<std::pair<std::string, keyboardpedal::Type>> cases = {
+        { "ped.", keyboardpedal::Type::PedalOne },
+        { "Ped. I", keyboardpedal::Type::PedalOne },
+        { "Ped. 1", keyboardpedal::Type::PedalOne },
+        { "sost", keyboardpedal::Type::PedalTwo },
+        { "Ped. II", keyboardpedal::Type::PedalTwo },
+        { "Ped. 2", keyboardpedal::Type::PedalTwo },
+        { "una corda", keyboardpedal::Type::PedalThree },
+        { "Ped. III", keyboardpedal::Type::PedalThree },
+        { "Ped. 3", keyboardpedal::Type::PedalThree },
+        { "*", keyboardpedal::Type::PedalUp },
+        { "sempre Ped.", keyboardpedal::Type::PedalOne },
+        { "Sost. Ped.", keyboardpedal::Type::PedalTwo },
+        { "con Ped.", keyboardpedal::Type::PedalOne },
+        { "senza Ped.", keyboardpedal::Type::PedalUp },
+        { "Ped. simile", keyboardpedal::Type::PedalOne },
+        { "Ped. ad lib.", keyboardpedal::Type::PedalOne },
+        { "PED: II", keyboardpedal::Type::PedalTwo },
+        { "Sost.-Ped.", keyboardpedal::Type::PedalTwo },
+        { "Ped., sempre", keyboardpedal::Type::PedalOne },
+    };
+
+    for (const auto& [text, expected] : cases) {
+        const auto result = classifyTextExpression(text);
+        ASSERT_EQ(result.type, ExpressionType::KeyboardPedal) << text;
+        EXPECT_EQ(result.keyboardPedal(), expected) << text;
+
+        const auto sempreResult = classifyTextExpression(text + " sempre");
+        ASSERT_EQ(sempreResult.type, ExpressionType::KeyboardPedal) << text << " sempre";
+        EXPECT_EQ(sempreResult.keyboardPedal(), expected) << text << " sempre";
+    }
+}
+
+TEST(ExpressionClassification, ClassifiesKeyboardPedalGlyphs)
+{
+    const auto classifyGlyphs = [](std::u8string_view glyphs) {
+        return classifyExpression(makeTextExpressionContext(
+            "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(glyphs),
+            ExpressionCategoryType::Misc, {}, false, "Bravura").def);
+    };
+    const auto expectPedal = [&](std::u8string_view glyphs, keyboardpedal::Type expected) {
+        const auto result = classifyGlyphs(glyphs);
+        ASSERT_EQ(result.type, ExpressionType::KeyboardPedal);
+        EXPECT_EQ(result.keyboardPedal(), expected);
+    };
+
+    expectPedal(u8"\uE650", keyboardpedal::Type::PedalOne); // keyboardPedalPed
+    expectPedal(u8"\uE651\uE652\uE653\uE654", keyboardpedal::Type::PedalOne);
+    expectPedal(u8"\uE650 I", keyboardpedal::Type::PedalOne);
+    expectPedal(u8"\uE651\uE652\uE653\uE654 1", keyboardpedal::Type::PedalOne);
+    expectPedal(u8"\uE650 sempre", keyboardpedal::Type::PedalOne);
+    expectPedal(u8"\uE650 II", keyboardpedal::Type::PedalTwo);
+    expectPedal(u8"\uE659", keyboardpedal::Type::PedalTwo); // keyboardPedalSost
+    expectPedal(u8"\uE65A", keyboardpedal::Type::PedalTwo); // keyboardPedalS
+    expectPedal(u8"\uE659 sempre", keyboardpedal::Type::PedalTwo);
+    expectPedal(u8"\uE650 3", keyboardpedal::Type::PedalThree);
+    expectPedal(u8"\uE655", keyboardpedal::Type::PedalUp); // keyboardPedalUp
+    expectPedal(u8"\uE655 sempre", keyboardpedal::Type::PedalUp);
+    expectPedal(u8"\uE656", keyboardpedal::Type::HalfPedal);
+    expectPedal(u8"\uE65B", keyboardpedal::Type::HalfPedal);
+    expectPedal(u8"\uE65C", keyboardpedal::Type::HalfPedal);
+    expectPedal(u8"\uE657", keyboardpedal::Type::PedalUpNotch);
+    expectPedal(u8"\uE65D", keyboardpedal::Type::PedalUpSpecial);
+    expectPedal(u8"\uE672", keyboardpedal::Type::HookStart);
+    expectPedal(u8"\uE673", keyboardpedal::Type::HookEnd);
+    expectPedal(u8"\uE658", keyboardpedal::Type::Hyphen);
+}
+
+TEST(ExpressionClassification, DoesNotClassifyKeyboardPedalPictograms)
+{
+    const auto result = classifyExpression(makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(u8"\uE660"),
+        ExpressionCategoryType::Misc, {}, false, "Bravura").def);
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
 }
 
 TEST(ExpressionClassification, RequiresSingleCodepointForTextExpressionSymbolClassification)
@@ -245,20 +393,22 @@ TEST(ExpressionClassification, ClassifiesRelativeDynamicQualifiers)
     const auto increase = classifyTextExpression("piu mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(increase.type, ExpressionType::Dynamic);
-    EXPECT_EQ(increase.dynamic().dynamic, Dynamic::mf);
-    EXPECT_EQ(increase.dynamic().change, DynamicChange::RelativeIncrease);
+    EXPECT_EQ(firstDynamicMark(increase).dynamic, dynamics::Dynamic::mf);
+    EXPECT_EQ(firstDynamicQualifier(increase).change, dynamics::Change::RelativeIncrease);
 
     const auto decrease = classifyTextExpression("menos mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(decrease.type, ExpressionType::Dynamic);
-    EXPECT_EQ(decrease.dynamic().dynamic, Dynamic::mf);
-    EXPECT_EQ(decrease.dynamic().change, DynamicChange::RelativeDecrease);
+    EXPECT_EQ(firstDynamicMark(decrease).dynamic, dynamics::Dynamic::mf);
+    EXPECT_EQ(firstDynamicQualifier(decrease).change, dynamics::Change::RelativeDecrease);
 
     const auto gradual = classifyTextExpression("cresc. mf", ExpressionCategoryType::Dynamics);
 
     EXPECT_EQ(gradual.type, ExpressionType::Dynamic);
-    EXPECT_EQ(gradual.dynamic().dynamic, Dynamic::mf);
-    EXPECT_EQ(gradual.dynamic().change, DynamicChange::Absolute);
+    EXPECT_EQ(firstDynamicMark(gradual).dynamic, dynamics::Dynamic::mf);
+    EXPECT_EQ(std::none_of(gradual.runs.begin(), gradual.runs.end(), [](const expression::RunClassification& run) {
+        return run.as<expression::DynamicQualifier>() != nullptr;
+    }), true);
 }
 
 TEST(ExpressionClassification, ClassifiesDynamicCategoryTextAsDynamicOther)
@@ -267,7 +417,7 @@ TEST(ExpressionClassification, ClassifiesDynamicCategoryTextAsDynamicOther)
 
     EXPECT_EQ(result.type, ExpressionType::Dynamic);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategory);
-    EXPECT_EQ(result.dynamic().dynamic, Dynamic::Other);
+    EXPECT_EQ(firstDynamicMark(result).dynamic, dynamics::Dynamic::Other);
 }
 
 TEST(ExpressionClassification, UsesCategoryForTempoTechniqueAndRehearsalText)
@@ -275,19 +425,23 @@ TEST(ExpressionClassification, UsesCategoryForTempoTechniqueAndRehearsalText)
     const auto tempo = classifyTextExpression("Allegro", ExpressionCategoryType::TempoMarks);
     EXPECT_EQ(tempo.type, ExpressionType::TempoMark);
     EXPECT_EQ(tempo.basis, ClassificationBasis::FinaleCategoryConfirmed);
+    EXPECT_EQ(tempo.tempoText().tempo.text, "Allegro");
 
     const auto tempoAlteration = classifyTextExpression("poco rit.", ExpressionCategoryType::TempoAlterations);
     EXPECT_EQ(tempoAlteration.type, ExpressionType::TempoAlteration);
     EXPECT_EQ(tempoAlteration.basis, ClassificationBasis::FinaleCategory);
+    EXPECT_EQ(tempoAlteration.tempoAlteration().tempo.text, "poco rit.");
 
     const auto technique = classifyTextExpression("sul pont.", ExpressionCategoryType::TechniqueText);
     EXPECT_EQ(technique.type, ExpressionType::TechniqueText);
     EXPECT_EQ(technique.basis, ClassificationBasis::FinaleCategoryConfirmed);
-    EXPECT_EQ(technique.technique().type, TechniqueType::SulPonticello);
+    EXPECT_EQ(technique.techniqueText().type, expression::TechniqueText::Type::SulPonticello);
+    EXPECT_EQ(technique.techniqueText().text, "sul pont.");
 
     const auto rehearsal = classifyTextExpression("A", ExpressionCategoryType::RehearsalMarks);
     EXPECT_EQ(rehearsal.type, ExpressionType::RehearsalMark);
     EXPECT_EQ(rehearsal.basis, ClassificationBasis::FinaleCategory);
+    EXPECT_EQ(rehearsal.rehearsalMark().text, "A");
 }
 
 TEST(ExpressionClassification, StrongCategoriesOverrideTextHeuristics)
@@ -299,7 +453,7 @@ TEST(ExpressionClassification, StrongCategoriesOverrideTextHeuristics)
     const auto dynamic = classifyTextExpression("Allegro", ExpressionCategoryType::Dynamics);
     EXPECT_EQ(dynamic.type, ExpressionType::Dynamic);
     EXPECT_EQ(dynamic.basis, ClassificationBasis::FinaleCategory);
-    EXPECT_EQ(dynamic.dynamic().dynamic, Dynamic::Other);
+    EXPECT_EQ(firstDynamicMark(dynamic).dynamic, dynamics::Dynamic::Other);
 
     const auto tempoMark = classifyTextExpression("rit.", ExpressionCategoryType::TempoMarks);
     EXPECT_EQ(tempoMark.type, ExpressionType::TempoAlteration);
@@ -312,18 +466,21 @@ TEST(ExpressionClassification, StrongCategoriesOverrideTextHeuristics)
 
 TEST(ExpressionClassification, CorrectsWeakCategoriesWithHeuristics)
 {
-    const auto technique = classifyTextExpression("pizz.", ExpressionCategoryType::ExpressiveText);
+    const auto technique = classifyTextExpression("Pizz.", ExpressionCategoryType::ExpressiveText);
     EXPECT_EQ(technique.type, ExpressionType::TechniqueText);
     EXPECT_EQ(technique.basis, ClassificationBasis::FinaleCategoryCorrected);
-    EXPECT_EQ(technique.technique().type, TechniqueType::Pizzicato);
+    EXPECT_EQ(technique.techniqueText().type, expression::TechniqueText::Type::Pizzicato);
+    EXPECT_EQ(technique.techniqueText().text, "Pizz.");
 
-    const auto tempoAlteration = classifyTextExpression("rit.", ExpressionCategoryType::Invalid);
+    const auto tempoAlteration = classifyTextExpression("Rit.", ExpressionCategoryType::Invalid);
     EXPECT_EQ(tempoAlteration.type, ExpressionType::GenericText);
     EXPECT_EQ(tempoAlteration.basis, ClassificationBasis::FallbackToGenericText);
+    EXPECT_EQ(tempoAlteration.genericText().text, "Rit.");
 
     const auto tempoMark = classifyTextExpression("Allegro", ExpressionCategoryType::Invalid);
     EXPECT_EQ(tempoMark.type, ExpressionType::GenericText);
     EXPECT_EQ(tempoMark.basis, ClassificationBasis::FallbackToGenericText);
+    EXPECT_EQ(tempoMark.genericText().text, "Allegro");
 }
 
 TEST(ExpressionClassification, ClassifiesStringTechniqueTokens)
@@ -331,56 +488,65 @@ TEST(ExpressionClassification, ClassifiesStringTechniqueTokens)
     struct ExpectedTechnique
     {
         const char* text{};
-        TechniqueType type{};
+        expression::TechniqueText::Type type{};
     };
 
     const std::vector<ExpectedTechnique> expected = {
-        { "arco", TechniqueType::Arco },
-        { "pizz", TechniqueType::Pizzicato },
-        { "pizz.", TechniqueType::Pizzicato },
-        { "col legno", TechniqueType::ColLegno },
-        { "col legno.", TechniqueType::ColLegno },
-        { "c. legno.", TechniqueType::ColLegno },
-        { "col legno batt.", TechniqueType::ColLegnoBattuto },
-        { "c. legno battuto", TechniqueType::ColLegnoBattuto },
-        { "col legno tratt.", TechniqueType::ColLegnoTratto },
-        { "c. legno tratto", TechniqueType::ColLegnoTratto },
-        { "sul pont.", TechniqueType::SulPonticello },
-        { "s. pont", TechniqueType::SulPonticello },
-        { "sul tasto", TechniqueType::SulTasto },
-        { "s. tasto.", TechniqueType::SulTasto },
-        { "flaut", TechniqueType::Flautando },
-        { "flaut.", TechniqueType::Flautando },
-        { "flautando", TechniqueType::Flautando },
-        { "ordinario", TechniqueType::Ordinario },
-        { "ord", TechniqueType::Ordinario },
-        { "ord.", TechniqueType::Ordinario },
-        { "straight mute", TechniqueType::StraightMute },
-        { "straight", TechniqueType::StraightMute },
-        { "metal mute", TechniqueType::StraightMute },
-        { "wood mute", TechniqueType::StraightMute },
-        { "fiber mute", TechniqueType::StraightMute },
-        { "fibre mute", TechniqueType::StraightMute },
-        { "cup mute", TechniqueType::CupMute },
-        { "cup", TechniqueType::CupMute },
-        { "harmon mute", TechniqueType::HarmonMute },
-        { "wah-wah", TechniqueType::HarmonMute },
-        { "plunger mute", TechniqueType::PlungerMute },
-        { "bucket mute", TechniqueType::BucketMute },
-        { "solotone mute", TechniqueType::SolotoneMute },
-        { "stop mute", TechniqueType::StopMute },
-        { "brass mute", TechniqueType::StopMute },
-        { "stopped", TechniqueType::Stopped },
-        { "stop", TechniqueType::Stopped },
-        { "con sord.", TechniqueType::Mute }
+        { "arco", expression::TechniqueText::Type::Arco },
+        { "pizz", expression::TechniqueText::Type::Pizzicato },
+        { "pizz.", expression::TechniqueText::Type::Pizzicato },
+        { "col legno", expression::TechniqueText::Type::ColLegno },
+        { "col legno.", expression::TechniqueText::Type::ColLegno },
+        { "c. legno.", expression::TechniqueText::Type::ColLegno },
+        { "col legno batt.", expression::TechniqueText::Type::ColLegnoBattuto },
+        { "c. legno battuto", expression::TechniqueText::Type::ColLegnoBattuto },
+        { "col legno tratt.", expression::TechniqueText::Type::ColLegnoTratto },
+        { "c. legno tratto", expression::TechniqueText::Type::ColLegnoTratto },
+        { "sul pont.", expression::TechniqueText::Type::SulPonticello },
+        { "s. pont", expression::TechniqueText::Type::SulPonticello },
+        { "sul tasto", expression::TechniqueText::Type::SulTasto },
+        { "s. tasto.", expression::TechniqueText::Type::SulTasto },
+        { "flaut", expression::TechniqueText::Type::Flautando },
+        { "flaut.", expression::TechniqueText::Type::Flautando },
+        { "flautando", expression::TechniqueText::Type::Flautando },
+        { "ordinario", expression::TechniqueText::Type::Ordinario },
+        { "ord", expression::TechniqueText::Type::Ordinario },
+        { "ord.", expression::TechniqueText::Type::Ordinario },
+        { "straight mute", expression::TechniqueText::Type::StraightMute },
+        { "straight", expression::TechniqueText::Type::StraightMute },
+        { "metal mute", expression::TechniqueText::Type::StraightMute },
+        { "wood mute", expression::TechniqueText::Type::StraightMute },
+        { "fiber mute", expression::TechniqueText::Type::StraightMute },
+        { "fibre mute", expression::TechniqueText::Type::StraightMute },
+        { "cup mute", expression::TechniqueText::Type::CupMute },
+        { "cup", expression::TechniqueText::Type::CupMute },
+        { "harmon mute", expression::TechniqueText::Type::HarmonMute },
+        { "wah-wah", expression::TechniqueText::Type::HarmonMute },
+        { "plunger mute", expression::TechniqueText::Type::PlungerMute },
+        { "bucket mute", expression::TechniqueText::Type::BucketMute },
+        { "solotone mute", expression::TechniqueText::Type::SolotoneMute },
+        { "stop mute", expression::TechniqueText::Type::StopMute },
+        { "brass mute", expression::TechniqueText::Type::StopMute },
+        { "stopped", expression::TechniqueText::Type::Stopped },
+        { "stop", expression::TechniqueText::Type::Stopped },
+        { "con sord.", expression::TechniqueText::Type::Mute }
     };
 
     for (const auto& item : expected) {
         const auto result = classifyTextExpression(item.text, ExpressionCategoryType::ExpressiveText);
         EXPECT_EQ(result.type, ExpressionType::TechniqueText) << item.text;
         EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryCorrected) << item.text;
-        EXPECT_EQ(result.technique().type, item.type) << item.text;
+        EXPECT_EQ(result.techniqueText().type, item.type) << item.text;
+        EXPECT_EQ(result.techniqueText().text, item.text) << item.text;
     }
+}
+
+TEST(ExpressionClassification, DoesNotClassifyTremoloTextAsTechnique)
+{
+    const auto result = classifyTextExpression("tremolo", ExpressionCategoryType::ExpressiveText);
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+    EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategory);
+    EXPECT_EQ(result.genericText().text, "tremolo");
 }
 
 TEST(ExpressionClassification, ClassifiesTempoPrimoAsTempoAlteration)
@@ -403,17 +569,19 @@ TEST(ExpressionClassification, TopStaffAssignmentForcesSystemTextClassification)
     const auto tempoMark = classifyExpression(tempoMarkContext.assignment);
     EXPECT_EQ(tempoMark.type, ExpressionType::TempoMark);
     EXPECT_EQ(tempoMark.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(tempoMark.tempoText().tempo.text, "Andante");
 
     const auto tempoAlterationContext = makeTextExpressionContext("rit.", ExpressionCategoryType::Misc, {}, true);
     const auto tempoAlteration = classifyExpression(tempoAlterationContext.assignment);
     EXPECT_EQ(tempoAlteration.type, ExpressionType::TempoAlteration);
     EXPECT_EQ(tempoAlteration.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(tempoAlteration.tempoAlteration().tempo.text, "rit.");
 
     const auto dynamicContext = makeTextExpressionContext("mf", ExpressionCategoryType::Misc, {}, true);
     const auto dynamic = classifyExpression(dynamicContext.assignment);
     EXPECT_EQ(dynamic.type, ExpressionType::Dynamic);
     EXPECT_EQ(dynamic.basis, ClassificationBasis::Heuristic);
-    EXPECT_EQ(dynamic.dynamic().dynamic, Dynamic::mf);
+    EXPECT_EQ(firstDynamicMark(dynamic).dynamic, dynamics::Dynamic::mf);
 
     const auto rehearsalContext = makeTextExpressionContext("AA", ExpressionCategoryType::Misc, {}, true);
     const auto rehearsal = classifyExpression(rehearsalContext.assignment);
@@ -429,6 +597,7 @@ TEST(ExpressionClassification, TopStaffAssignmentForcesSystemTextClassification)
     const auto fallback = classifyExpression(fallbackContext.assignment);
     EXPECT_EQ(fallback.type, ExpressionType::TempoMark);
     EXPECT_EQ(fallback.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(fallback.tempoText().tempo.text, "cantabile");
 }
 
 TEST(ExpressionClassification, NumericTextWithoutTopStaffRemainsGeneric)
@@ -436,6 +605,7 @@ TEST(ExpressionClassification, NumericTextWithoutTopStaffRemainsGeneric)
     const auto result = classifyTextExpression("27", ExpressionCategoryType::Misc);
     EXPECT_EQ(result.type, ExpressionType::GenericText);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategory);
+    EXPECT_EQ(result.genericText().text, "27");
 }
 
 TEST(ExpressionClassification, BatchClassificationPropagatesTopStaffSystemTextByDefinition)
@@ -470,6 +640,23 @@ TEST(ExpressionClassification, BatchClassificationPropagatesTopStaffSystemTextBy
     EXPECT_EQ(rehearsalResults[1].classification.basis, ClassificationBasis::Heuristic);
 }
 
+TEST(ExpressionClassification, ClassifiesSystemExpressionWithRehearsalMarkStyleAsRehearsalMark)
+{
+    const auto rehearsalContext = makeTextExpressionContext(
+        "Dolce",
+        ExpressionCategoryType::Misc,
+        {},
+        true,
+        "Times New Roman",
+        0,
+        "      <rehearsalMarkStyle>letters</rehearsalMarkStyle>\n");
+    const auto rehearsal = classifyExpression(rehearsalContext.assignment);
+
+    EXPECT_EQ(rehearsal.type, ExpressionType::RehearsalMark);
+    EXPECT_EQ(rehearsal.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(rehearsal.rehearsalMark().text, "Dolce");
+}
+
 TEST(ExpressionClassification, ExtractsTextExpressionTempoPlayback)
 {
     const auto context = makeTextExpressionContext(
@@ -480,9 +667,9 @@ TEST(ExpressionClassification, ExtractsTextExpressionTempoPlayback)
 
     EXPECT_EQ(result.type, ExpressionType::TempoMark);
     EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
-    EXPECT_EQ(result.tempoMark().tempo.text, "allegro");
-    EXPECT_EQ(result.tempoMark().tempo.beatsPerMinute, 132);
-    EXPECT_EQ(result.tempoMark().tempo.beatUnitEdu, 1024);
+    EXPECT_EQ(result.tempoText().tempo.text, "Allegro");
+    EXPECT_EQ(result.tempoText().tempo.beatsPerMinute, 132);
+    EXPECT_EQ(result.tempoText().tempo.beatUnitEdu, 1024);
 }
 
 TEST(ExpressionClassification, TempoPlaybackOverridesTextExpressionCategory)
@@ -495,9 +682,9 @@ TEST(ExpressionClassification, TempoPlaybackOverridesTextExpressionCategory)
 
     EXPECT_EQ(result.type, ExpressionType::TempoMark);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryCorrected);
-    EXPECT_EQ(result.tempoMark().tempo.text, "dolce");
-    EXPECT_EQ(result.tempoMark().tempo.beatsPerMinute, 88);
-    EXPECT_EQ(result.tempoMark().tempo.beatUnitEdu, 1024);
+    EXPECT_EQ(result.tempoText().tempo.text, "dolce");
+    EXPECT_EQ(result.tempoText().tempo.beatsPerMinute, 88);
+    EXPECT_EQ(result.tempoText().tempo.beatUnitEdu, 1024);
 }
 
 TEST(ExpressionClassification, ClassifiesShapeExpressionTempoPlayback)
@@ -509,8 +696,8 @@ TEST(ExpressionClassification, ClassifiesShapeExpressionTempoPlayback)
 
     EXPECT_EQ(result.type, ExpressionType::TempoMark);
     EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryConfirmed);
-    EXPECT_EQ(result.tempoMark().tempo.beatsPerMinute, 96);
-    EXPECT_EQ(result.tempoMark().tempo.beatUnitEdu, 512);
+    EXPECT_EQ(result.tempoText().tempo.beatsPerMinute, 96);
+    EXPECT_EQ(result.tempoText().tempo.beatUnitEdu, 512);
 }
 
 TEST(ExpressionClassification, SuppressesUnrecognizedShapeExpression)

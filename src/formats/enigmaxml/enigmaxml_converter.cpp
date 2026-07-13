@@ -33,7 +33,7 @@ ConversionResult MusxToEnigmaXmlConverter::convert(const IRandomAccessReader& in
                                                    const Options& options) const
 {
     ConversionResult result;
-    DenigmaContext context("denigma");
+    DenigmaContext context(DENIGMA_NAME);
     context.inputFilePath = options.common.sourceName.empty()
         ? std::filesystem::path("input.musx")
         : utils::utf8ToPath(options.common.sourceName);

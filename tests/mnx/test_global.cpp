@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  */
 #include <string>
+#include <array>
 #include <filesystem>
 #include <iterator>
 #include <fstream>
@@ -139,4 +140,67 @@ TEST(MnxGlobal, CompositeTime)
     ASSERT_TRUE(time);
     EXPECT_EQ(time.value().count(), 133);
     EXPECT_EQ(time.value().unit(), mnxdom::TimeSignatureUnit::Value32nd);
+}
+
+TEST(MnxGlobal, BarlineTypes)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("barline_types.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    auto doc = mnxdom::Document::create(inputPath.parent_path() / "barline_types.mnx");
+    auto measures = doc.global().measures();
+    ASSERT_GE(measures.size(), 10) << "should be at least ten measures";
+
+    constexpr std::array<mnxdom::BarlineType, 10> expected = {
+        mnxdom::BarlineType::Double,
+        mnxdom::BarlineType::Regular,
+        mnxdom::BarlineType::Final,
+        mnxdom::BarlineType::Heavy,
+        mnxdom::BarlineType::Dashed,
+        mnxdom::BarlineType::Dashed,
+        mnxdom::BarlineType::NoBarline,
+        mnxdom::BarlineType::Short,
+        mnxdom::BarlineType::Tick,
+        mnxdom::BarlineType::Double
+    };
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        const auto barline = measures[i].barline();
+        if (i == 1 && !barline) {
+            continue;
+        }
+        ASSERT_TRUE(barline) << "measure " << (i + 1) << " should have a barline";
+        EXPECT_EQ(barline->type(), expected[i]) << "measure " << (i + 1);
+    }
+}
+
+TEST(MnxGlobal, FinalMeasureWithNormalBarlineUsesImplicitFinal)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("barline_short_normal.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    auto doc = mnxdom::Document::create(inputPath.parent_path() / "barline_short_normal.mnx");
+    auto measures = doc.global().measures();
+    ASSERT_GE(measures.size(), 3) << "should be at least three measures";
+
+    for (size_t i = 0; i + 1 < measures.size(); ++i) {
+        const auto barline = measures[i].barline();
+        ASSERT_TRUE(barline) << "measure " << (i + 1) << " should have a barline";
+        EXPECT_EQ(barline->type(), mnxdom::BarlineType::Short) << "measure " << (i + 1);
+    }
+
+    // The final measure has a normal barline in the musx document, but Finale's
+    // drawFinalBarlineOnLastMeas option promotes it to a final barline, which is
+    // the MNX default for the last measure and therefore must not be emitted explicitly.
+    EXPECT_FALSE(measures[measures.size() - 1].barline()) << "final measure should rely on the implicit final barline";
 }

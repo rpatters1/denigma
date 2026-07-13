@@ -20,80 +20,47 @@
  * THE SOFTWARE.
  */
 #include <string>
-#include <string_view>
 #include <stdexcept>
+#include <type_traits>
 
 #include "denigma/classify/articulations.h"
 #include "mnx.h"
 #include "mnx_mapping.h"
-#include "utils/smufl_support.h"
-#include "utils/utf8_iterator.h"
 
 namespace denigma {
 namespace formats {
 namespace mnx {
 namespace detail {
 
-mnxdom::MarkingUpDownAuto calcPointing(const std::string_view glyphName, VerticalPlacement placement)
-{
-    const auto endsWith = [&](const std::string_view suffix) {
-        return glyphName.size() >= suffix.size()
-            && glyphName.compare(glyphName.size() - suffix.size(), suffix.size(), suffix) == 0;
-    };
-    const bool glyphIsAbove = endsWith("Above") || endsWith("AboveLegacy");
-    const bool glyphIsBelow = endsWith("Below") || endsWith("BelowLegacy");
-    switch (placement) {
-    case VerticalPlacement::Above:
-        if (glyphIsBelow) {
-            return mnxdom::MarkingUpDownAuto::Down;
-        }
-        break;
-    case VerticalPlacement::Below:
-        if (glyphIsAbove) {
-            return mnxdom::MarkingUpDownAuto::Up;
-        }
-        break;
-    case VerticalPlacement::Float:
-    case VerticalPlacement::NotApplicable:
-        break;
-    }
-    return mnxdom::MarkingUpDownAuto::Auto;
-}
-
-mnxdom::MarkingUpDownAuto calcPointing(const MusxInstance<FontInfo>& fontInfo, char32_t sym, VerticalPlacement placement)
-{
-    if (const auto glyphName = utils::smuflGlyphNameForFont(fontInfo, sym)) {
-        return calcPointing(glyphName.value(), placement);
-    }
-    return mnxdom::MarkingUpDownAuto::Auto;
-}
-
-std::optional<mnxdom::Fermata> makeFermata(const classify::Fermata& fermata, const std::optional<std::string>& glyphName, VerticalPlacement placement)
+std::optional<mnxdom::Fermata> makeFermata(
+    const classify::articulation::Fermata& fermata,
+    const classify::GlyphStyle& glyphStyle,
+    VerticalPlacement placement)
 {
     if (placement == VerticalPlacement::NotApplicable) {
         return std::nullopt;
     }
 
-    auto convertSymbol = [](classify::Fermata::Shape shape) {
+    auto convertSymbol = [](classify::articulation::Fermata::Shape shape) {
         switch (shape) {
-        case classify::Fermata::Shape::Normal: return mnxdom::FermataSymbol::Normal;
-        case classify::Fermata::Shape::Angled: return mnxdom::FermataSymbol::Angled;
-        case classify::Fermata::Shape::DoubleAngled: return mnxdom::FermataSymbol::DoubleAngled;
-        case classify::Fermata::Shape::Square: return mnxdom::FermataSymbol::Square;
-        case classify::Fermata::Shape::DoubleSquare: return mnxdom::FermataSymbol::DoubleSquare;
-        case classify::Fermata::Shape::HalfCurve: return mnxdom::FermataSymbol::HalfCurve;
-        case classify::Fermata::Shape::DoubleDot: return mnxdom::FermataSymbol::DoubleDot;
-        case classify::Fermata::Shape::Curlew: return mnxdom::FermataSymbol::Curlew;
+        case classify::articulation::Fermata::Shape::Normal: return mnxdom::FermataSymbol::Normal;
+        case classify::articulation::Fermata::Shape::Angled: return mnxdom::FermataSymbol::Angled;
+        case classify::articulation::Fermata::Shape::DoubleAngled: return mnxdom::FermataSymbol::DoubleAngled;
+        case classify::articulation::Fermata::Shape::Square: return mnxdom::FermataSymbol::Square;
+        case classify::articulation::Fermata::Shape::DoubleSquare: return mnxdom::FermataSymbol::DoubleSquare;
+        case classify::articulation::Fermata::Shape::HalfCurve: return mnxdom::FermataSymbol::HalfCurve;
+        case classify::articulation::Fermata::Shape::DoubleDot: return mnxdom::FermataSymbol::DoubleDot;
+        case classify::articulation::Fermata::Shape::Curlew: return mnxdom::FermataSymbol::Curlew;
         }
         throw std::logic_error("Unhandled fermata shape.");
     };
-    auto convertDuration = [](classify::Fermata::Duration duration) {
+    auto convertDuration = [](classify::articulation::Fermata::Duration duration) {
         switch (duration) {
-        case classify::Fermata::Duration::Auto: return mnxdom::FermataDuration::Auto;
-        case classify::Fermata::Duration::VeryShort: return mnxdom::FermataDuration::VeryShort;
-        case classify::Fermata::Duration::Short: return mnxdom::FermataDuration::Short;
-        case classify::Fermata::Duration::Long: return mnxdom::FermataDuration::Long;
-        case classify::Fermata::Duration::VeryLong: return mnxdom::FermataDuration::VeryLong;
+        case classify::articulation::Fermata::Duration::Auto: return mnxdom::FermataDuration::Auto;
+        case classify::articulation::Fermata::Duration::VeryShort: return mnxdom::FermataDuration::VeryShort;
+        case classify::articulation::Fermata::Duration::Short: return mnxdom::FermataDuration::Short;
+        case classify::articulation::Fermata::Duration::Long: return mnxdom::FermataDuration::Long;
+        case classify::articulation::Fermata::Duration::VeryLong: return mnxdom::FermataDuration::VeryLong;
         }
         throw std::logic_error("Unhandled fermata duration.");
     };
@@ -102,34 +69,25 @@ std::optional<mnxdom::Fermata> makeFermata(const classify::Fermata& fermata, con
     result.set_or_clear_symbol(convertSymbol(fermata.shape));
     result.set_or_clear_duration(convertDuration(fermata.duration));
     result.set_or_clear_orient(enumConvert<mnxdom::Orientation>(placement));
-    if (glyphName) {
-        result.set_or_clear_pointing(calcPointing(glyphName.value(), placement));
-    }
+    result.set_or_clear_pointing(enumConvert<mnxdom::MarkingUpDownAuto>(glyphStyle.placement));
     return result;
 }
 
-std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::BreathMark& breathMark, VerticalPlacement placement)
+std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::articulation::BreathMark& breathMark, VerticalPlacement placement)
 {
     std::optional<mnxdom::BreathMarkSymbol> symbol;
     switch (breathMark.type) {
-    case classify::BreathMark::Type::Comma:
+    case classify::articulation::BreathMark::Type::Comma:
         symbol = mnxdom::BreathMarkSymbol::Comma;
         break;
-    case classify::BreathMark::Type::Tick:
+    case classify::articulation::BreathMark::Type::Tick:
         symbol = mnxdom::BreathMarkSymbol::Tick;
         break;
-    case classify::BreathMark::Type::Upbow:
+    case classify::articulation::BreathMark::Type::Upbow:
         symbol = mnxdom::BreathMarkSymbol::Upbow;
         break;
-    case classify::BreathMark::Type::Salzedo:
+    case classify::articulation::BreathMark::Type::Salzedo:
         symbol = mnxdom::BreathMarkSymbol::Salzedo;
-        break;
-    case classify::BreathMark::Type::Caesura:
-    case classify::BreathMark::Type::CaesuraCurved:
-    case classify::BreathMark::Type::CaesuraShort:
-    case classify::BreathMark::Type::CaesuraThick:
-    case classify::BreathMark::Type::ChantCaesura:
-    case classify::BreathMark::Type::CaesuraSingleStroke:
         break;
     }
     if (!symbol) {
@@ -144,7 +102,7 @@ std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::Breat
 std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
     const EntryInfoPtr& sourceEntry,
     const MusxInstance<details::ArticulationAssign>& assign,
-    const classify::Arpeggio& arpeggio)
+    const classify::articulation::Arpeggio& arpeggio)
 {
     std::optional<musx::util::ArpeggioSpanCandidate> result;
     auto makeArpeggioCandidate = [&](musx::util::ArpeggioDirection direction, musx::util::ArpeggioArrow arrow) {
@@ -157,20 +115,20 @@ std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
     };
 
     switch (arpeggio.type) {
-    case classify::Arpeggio::Type::VerticalSegment:
+    case classify::articulation::Arpeggio::Type::VerticalSegment:
         return musx::util::calcArpeggioSpanForAssignment(
             sourceEntry, assign, {}, [](const details::ArticulationAssign::SelectedSymbolContext&) {
                 // The selected symbol was already classified as a vertical arpeggio segment;
                 // this callback bypasses musx's raw-SMuFL-codepoint fallback for legacy fonts.
                 return true;
             });
-    case classify::Arpeggio::Type::Normal:
+    case classify::articulation::Arpeggio::Type::Normal:
         makeArpeggioCandidate(musx::util::ArpeggioDirection::Auto, musx::util::ArpeggioArrow::None);
         break;
-    case classify::Arpeggio::Type::Up:
+    case classify::articulation::Arpeggio::Type::Up:
         makeArpeggioCandidate(musx::util::ArpeggioDirection::Up, musx::util::ArpeggioArrow::Up);
         break;
-    case classify::Arpeggio::Type::Down:
+    case classify::articulation::Arpeggio::Type::Down:
         makeArpeggioCandidate(musx::util::ArpeggioDirection::Down, musx::util::ArpeggioArrow::Down);
         break;
     }
@@ -455,6 +413,129 @@ void finalizeArpeggios(const MnxMusxMappingPtr& context)
         if (!emittedAny) {
             context->logMessage(LogMsg() << "skipping arpeggio because no valid MNX part span could be resolved.",
                 MessageSeverity::Warning);
+        }
+    }
+}
+
+static std::optional<mnxdom::sequence::EventMarkingBase> createEventMarking(
+    mnxdom::sequence::EventMarkings mnxMarkings,
+    const classify::articulation::ArticulationMark& mark)
+{
+    const auto setPointing = [&](auto marking) -> mnxdom::sequence::EventMarkingBase {
+        marking.set_or_clear_pointing(enumConvert<mnxdom::MarkingUpDownAuto>(mark.glyphStyle.placement));
+        return marking;
+    };
+
+    switch (mark.type) {
+    case classify::articulation::ArticulationMark::Type::Accent:
+        return mnxMarkings.ensure_accent();
+    case classify::articulation::ArticulationMark::Type::SoftAccent:
+        return mnxMarkings.ensure_softAccent();
+    case classify::articulation::ArticulationMark::Type::Spiccato:
+        return mnxMarkings.ensure_spiccato();
+    case classify::articulation::ArticulationMark::Type::Staccatissimo:
+        return mnxMarkings.ensure_staccatissimo();
+    case classify::articulation::ArticulationMark::Type::Staccato:
+        return mnxMarkings.ensure_staccato();
+    case classify::articulation::ArticulationMark::Type::Stress:
+        return mnxMarkings.ensure_stress();
+    case classify::articulation::ArticulationMark::Type::StrongAccent:
+        return setPointing(mnxMarkings.ensure_strongAccent());
+    case classify::articulation::ArticulationMark::Type::Tenuto:
+        return mnxMarkings.ensure_tenuto();
+    case classify::articulation::ArticulationMark::Type::Unstress:
+        return mnxMarkings.ensure_unstress();
+    default:
+        break;
+    }
+    return std::nullopt;
+}
+
+static std::optional<mnxdom::sequence::EventMarkingBase> createEventMarking(
+    mnxdom::sequence::EventMarkings mnxMarkings,
+    const classify::articulation::TechniqueMark& mark)
+{
+    switch (mark.type) {
+    case classify::articulation::TechniqueMark::Type::DownBow:
+        return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Down);
+    case classify::articulation::TechniqueMark::Type::UpBow:
+        return mnxMarkings.ensure_bowDirection(mnxdom::MarkingUpDown::Up);
+    default:
+        break;
+    }
+    return std::nullopt;
+}
+
+void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
+{
+    const auto musxEntry = musxEntryInfo->getEntry();
+    auto mnxPartMeasure = mnxEvent.getEnclosingElement<mnxdom::part::Measure>();
+    ASSERT_IF(!mnxPartMeasure) {
+        context->logMessage(LogMsg() << "no part measure exists for " << mnxEvent.dump(4), MessageSeverity::Warning);
+        return;
+    }
+    auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntry->getEntryNumber());
+    for (const auto& asgn : articAssigns) {
+        if (!asgn->hide) { /// @todo eliminate this filter if MNX provides visibility options
+            if (const auto classification = classify::classifyArticulation(asgn, musxEntryInfo)) {
+                std::visit([&](const auto& value) {
+                    using Value = std::decay_t<decltype(value)>;
+                    if constexpr (std::is_same_v<Value, classify::articulation::Fermata>) {
+                        if (auto mnxFermata = makeFermata(value, value.glyphStyle, classification.placement)) {
+                            mnxEvent.set_fermata(mnxFermata.value());
+                        }
+                    } else if constexpr (std::is_same_v<Value, classify::articulation::BreathMark>) {
+                        if (auto mnxBreathMark = makeBreathMark(value, classification.placement)) {
+                            mnxEvent.ensure_markings().set_breath(mnxBreathMark.value());
+                        }
+                    } else if constexpr (std::is_same_v<Value, classify::articulation::Arpeggio>) {
+                        if (auto candidate = makeArpeggio(musxEntryInfo, asgn, value)) {
+                            appendArpeggioCandidate(context, mnxPartMeasure.value(), candidate.value());
+                        }
+                    } else if constexpr (std::is_same_v<Value, classify::articulation::VerticalEntryBracket>) {
+                        if (auto candidate = musx::util::calcNonArpeggioSpanForAssignment(musxEntryInfo, asgn)) {
+                            appendArpeggioCandidate(context, mnxPartMeasure.value(), candidate.value());
+                        }
+                    } else if constexpr (std::is_same_v<Value, classify::PseudoTie>) {
+                        // Pseudo ties are processed by createTies at the note level.
+                    } else if constexpr (std::is_same_v<Value, classify::articulation::Tremolo>) {
+                        auto mnxMarkings = mnxEvent.ensure_markings();
+                        auto mnxMarking = mnxMarkings.ensure_tremolo(value.marks);
+                        mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
+                    } else if constexpr (std::is_same_v<Value, classify::articulation::ArticulationMarks>) {
+                        for (const auto& mark : value.marks) {
+                            auto mnxMarkings = mnxEvent.ensure_markings();
+                            if (auto mnxMarking = createEventMarking(mnxMarkings, mark)) {
+                                mnxMarking->set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
+                            }
+                        }
+                    } else if constexpr (std::is_same_v<Value, classify::articulation::TechniqueMark>) {
+                        auto mnxMarkings = mnxEvent.ensure_markings();
+                        if (auto mnxMarking = createEventMarking(mnxMarkings, value)) {
+                            mnxMarking->set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
+                        }
+                    }
+                }, classification.value);
+            }
+        }
+    }
+}
+
+void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::FullMeasureRest& mnxFullMeasureRest, const EntryInfoPtr& musxEntryInfo)
+{
+    auto articAssigns = context->document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, musxEntryInfo->getEntry()->getEntryNumber());
+    for (const auto& asgn : articAssigns) {
+        if (!asgn->hide) {
+            if (const auto classification = classify::classifyArticulation(asgn, musxEntryInfo)) {
+                std::visit([&](const auto& value) {
+                    using Value = std::decay_t<decltype(value)>;
+                    if constexpr (std::is_same_v<Value, classify::articulation::Fermata>) {
+                        if (const auto mnxFermata = makeFermata(value, value.glyphStyle, classification.placement)) {
+                            mnxFullMeasureRest.set_fermata(mnxFermata.value());
+                        }
+                    }
+                }, classification.value);
+            }
         }
     }
 }

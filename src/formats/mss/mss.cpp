@@ -21,7 +21,6 @@
  */
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -32,7 +31,6 @@
 #include <span>
 #include <sstream>
 #include <string_view>
-#include <utility>
 
 #include "core/denigma.h"
 
@@ -41,6 +39,7 @@
 #include "musx/musx.h"
 #include "core/musx_reader.h"
 #include "pugixml.hpp"
+#include "utils/font_names.h"
 #include "utils/stringutils.h"
 #include "utils/smufl_support.h"
 #include "utils/textmetrics.h"
@@ -86,43 +85,6 @@ static constexpr auto dashedLinesNoHooks = std::to_array<std::string_view>({
     "tempoChange"
 });
 
-// Legacy names are normalised to lower-case with spaces removed.
-static constexpr auto finaleToSmuflFontMap = std::to_array<std::pair<std::string_view, std::string_view>>({
-    std::pair<std::string_view, std::string_view>{ "ashmusic", "Finale Ash" },
-    std::pair<std::string_view, std::string_view>{ "broadwaycopyist", "Finale Broadway" },
-    std::pair<std::string_view, std::string_view>{ "engraver", "Finale Engraver" },
-    std::pair<std::string_view, std::string_view>{ "engraverfontset", "Finale Engraver" },
-    std::pair<std::string_view, std::string_view>{ "jazz", "Finale Jazz" },
-    std::pair<std::string_view, std::string_view>{ "maestro", "Finale Maestro" },
-    std::pair<std::string_view, std::string_view>{ "petrucci", "Finale Legacy" },
-    std::pair<std::string_view, std::string_view>{ "pmusic", "Finale Maestro" },
-    std::pair<std::string_view, std::string_view>{ "sonata", "Finale Maestro" },
-});
-
-static std::string normalizedFontName(std::string_view fontName)
-{
-    std::string result;
-    result.reserve(fontName.size());
-    for (unsigned char c : fontName) {
-        if (utils::isSpace(c)) {
-            continue;
-        }
-        result.push_back(utils::toLowerCase(c));
-    }
-    return result;
-}
-
-static std::optional<std::string_view> mappedSmuflFontName(std::string_view fontName)
-{
-    const std::string normalized = normalizedFontName(fontName);
-    for (const auto& [finaleName, smuflName] : finaleToSmuflFontMap) {
-        if (finaleName == normalized || normalizedFontName(smuflName) == normalized) {
-            return smuflName;
-        }
-    }
-    return std::nullopt;
-}
-
 static bool fontIsEngravingWithMappedLegacy(const FontInfo* fontInfo)
 {
     if (!fontInfo) {
@@ -131,7 +93,7 @@ static bool fontIsEngravingWithMappedLegacy(const FontInfo* fontInfo)
     if (fontInfo->calcIsSMuFL()) {
         return true;
     }
-    return mappedSmuflFontName(fontInfo->getName()).has_value();
+    return utils::isFinaleLegacyMusicFontMappedToSmufl(fontInfo->getName());
 }
 
 // MSS preferences:
@@ -139,56 +101,35 @@ struct MssPreferences : public FinaleOptions
 {
     const DenigmaContext* denigmaContext;
     DocumentPtr document;
-    Cmper forPartId{};
+    MusxInstance<others::LayerAttributes> layerOneAttributes;
     //
     std::string musicFontName;
     double spatiumScaling{};
-    //
-    MusxInstance<options::PageFormatOptions::PageFormat> pageFormat;
-    MusxInstance<others::LayerAttributes> layerOneAttributes;
-    MusxInstance<others::MeasureNumberRegion::ScorePartData> measNumScorePart;
-    MusxInstance<others::PartGlobals> partGlobals;
 };
 using MssPreferencesPtr = std::shared_ptr<MssPreferences>;
 
-static MssPreferencesPtr getCurrentPrefs(const DocumentPtr& document, const FinaleOptions& finaleOptions, Cmper forPartId, const DenigmaContext& denigmaContext)
+static MssPreferencesPtr getCurrentPrefs(const DocumentPtr& document, Cmper forPartId, const DenigmaContext& denigmaContext)
 {
     auto retval = std::make_shared<MssPreferences>();
-    static_cast<FinaleOptions&>(*retval) = finaleOptions;
+    static_cast<FinaleOptions&>(*retval) = loadFinaleOptions(document, forPartId);
     retval->denigmaContext = &denigmaContext;
     retval->document = document;
-    retval->forPartId = forPartId;
+    retval->layerOneAttributes = document->getOthers()->get<others::LayerAttributes>(forPartId, 0);
+    if (!retval->layerOneAttributes) {
+        throw std::invalid_argument("document contains no options for Layer 1");
+    }
 
     retval->musicFontName = [&]() -> std::string {
         std::string fontName = retval->defaultMusicFont->getName();
         if (retval->defaultMusicFont->calcIsSMuFL()) {
             return fontName;
         }
-        if (const auto mapped = mappedSmuflFontName(fontName)) {
+        if (const auto mapped = utils::mappedSmuflFontForFinaleLegacyFont(fontName)) {
             return std::string(*mapped);
         }
         return {};
     }();
-    retval->pageFormat = retval->pageFormatOptions->calcPageFormatForPart(forPartId);
-    //
-    retval->layerOneAttributes = document->getOthers()->get<others::LayerAttributes>(forPartId, 0);
-    if (!retval->layerOneAttributes) {
-        throw std::invalid_argument("document contains no options for Layer 1");
-    }
-    auto measNumRegions = document->getOthers()->getArray<others::MeasureNumberRegion>(forPartId);
-    if (measNumRegions.size() > 0) {
-        retval->measNumScorePart = (forPartId && measNumRegions[0]->useScoreInfoForPart && measNumRegions[0]->partData)
-                                 ? measNumRegions[0]->partData
-                                 : measNumRegions[0]->scoreData;
-        if (!retval->measNumScorePart) {
-            throw std::invalid_argument("document contains no ScorePartData for measure number region " + std::to_string(measNumRegions[0]->getCmper()));
-        }
-    }
-    retval->partGlobals = document->getOthers()->get<others::PartGlobals>(forPartId, MUSX_GLOBALS_CMPER);
-    if (!retval->partGlobals) {
-        throw std::invalid_argument("document contains no part globals");
-    }
-    retval->spatiumScaling = retval->pageFormat->calcCombinedSystemScaling().toDouble();
+    retval->spatiumScaling = retval->effectivePageFormat->calcCombinedSystemScaling().toDouble();
 
     return retval;
 }
@@ -337,7 +278,25 @@ static std::optional<EvpuFloat> calcAugmentationDotWidth(const MssPreferencesPtr
 static std::optional<EvpuFloat> calcRepeatDotWidth(const MssPreferencesPtr& prefs)
 {
     if (!prefs->musicFontName.empty()) {
-        return utils::smuflGlyphWidthForFont(prefs->musicFontName, "repeatDot");
+        if (auto musicFontWidth = utils::smuflGlyphWidthForFont(prefs->musicFontName, "repeatDot")) {
+            return musicFontWidth.value();
+        }
+    }
+    if (!prefs->musicSymbolOptions || prefs->musicSymbolOptions->forwardRepeatDot == 0) {
+        return std::nullopt;
+    }
+
+    const auto reptDotFontInfo = prefs->fontOptions->getFontInfo(options::FontOptions::FontType::ReptDots);
+    if (!reptDotFontInfo) {
+        return std::nullopt;
+    }
+    const double scaledPointSize = double(reptDotFontInfo->fontSize)
+                                 * (reptDotFontInfo->absolute ? 1.0 : MUSE_FINALE_SCALE_DIFFERENTIAL);
+    if (auto measured = textmetrics::measureGlyphWidthEvpu(*reptDotFontInfo,
+                                                           prefs->musicSymbolOptions->forwardRepeatDot,
+                                                           scaledPointSize,
+                                                           *prefs->denigmaContext)) {
+        return measured.value();
     }
     return std::nullopt;
 }
@@ -453,7 +412,7 @@ static void writeCategoryTextFontPref(XmlElement& styleElement, const MssPrefere
 
 static void writePagePrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
-    auto pagePrefs = prefs->pageFormat;
+    auto pagePrefs = prefs->effectivePageFormat;
 
     // Set XML element values
     setElementValue(styleElement, "pageWidth", double(pagePrefs->pageWidth) / EVPU_PER_INCH);
@@ -671,8 +630,9 @@ void writeNoteRelatedPrefs(XmlElement& styleElement, const MssPreferencesPtr& pr
     }
     setElementValue(styleElement, "articulationMag", museMagVal(prefs, options::FontOptions::FontType::Articulation));
     setElementValue(styleElement, "graceNoteMag", prefs->graceOptions->gracePerc / 100.0);
-    setElementValue(styleElement, "concertPitch", !prefs->partGlobals->showTransposed);
-    setElementValue(styleElement, "multiVoiceRestTwoSpaceOffset", std::labs(prefs->layerOneAttributes->restOffset) >= 4);
+    setElementValue(styleElement, "concertPitch", !prefs->effectivePartGlobals->showTransposed);
+    setElementValue(styleElement, "multiVoiceRestTwoSpaceOffset",
+        prefs->layerOneAttributes->useRestOffset && std::labs(prefs->layerOneAttributes->restOffset) >= 4);
     setElementValue(styleElement, "mergeMatchingRests", prefs->miscOptions->consolidateRestsAcrossLayers);
     setElementValue(styleElement, "tremoloStyle", 1); // MuseScore importer writes TremoloStyle::TRADITIONAL.
 }
@@ -748,9 +708,9 @@ void writeSmartShapePrefs(XmlElement& styleElement, const MssPreferencesPtr& pre
 
 void writeMeasureNumberPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
 {
-    setElementValue(styleElement, "showMeasureNumber", bool(prefs->measNumScorePart));
-    if (prefs->measNumScorePart) {
-        const auto& scorePart = prefs->measNumScorePart;
+    setElementValue(styleElement, "showMeasureNumber", bool(prefs->effectiveMeasNumScorePart));
+    if (prefs->effectiveMeasNumScorePart) {
+        const auto& scorePart = prefs->effectiveMeasNumScorePart;
         setElementValue(styleElement, "showMeasureNumberOne", !scorePart->hideFirstMeasure);
         setElementValue(styleElement, "measureNumberInterval", scorePart->incidence);
         const bool useShowOnStart = scorePart->showOnStart && !scorePart->showOnEvery;
@@ -1048,10 +1008,10 @@ void writeMarkingPrefs(XmlElement& styleElement, const MssPreferencesPtr& prefs)
     }
 }
 
-static XmlDocument createMssDocument(const DocumentPtr& document, const FinaleOptions& finaleOptions, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part = nullptr)
+static XmlDocument createMssDocument(const DocumentPtr& document, const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part = nullptr)
 {
     const Cmper forPartId = part ? part->getCmper() : 0;
-    auto prefs = getCurrentPrefs(document, finaleOptions, forPartId, denigmaContext);
+    auto prefs = getCurrentPrefs(document, forPartId, denigmaContext);
 
     // extract document to mss
     XmlDocument mssDoc; // output
@@ -1100,30 +1060,15 @@ static std::filesystem::path resolvePartOutputPath(const std::filesystem::path& 
 }
 
 static void processPart(const DocumentPtr& document,
-                        const FinaleOptions& finaleOptions,
                         const DenigmaContext& denigmaContext,
                         const MultiOutputCallback& outputCallback,
                         const MusxInstance<others::PartDefinition>& part = nullptr)
 {
-    auto mssDoc = createMssDocument(document, finaleOptions, denigmaContext, part);
+    auto mssDoc = createMssDocument(document, denigmaContext, part);
     std::ostringstream output;
     mssDoc.save(output, "    ");
     const auto data = output.str();
     outputCallback(partOutputName(denigmaContext, part), std::as_bytes(std::span<const char>(data.data(), data.size())));
-}
-
-void convert(std::ostream& output, const CommandInputData& inputData, const DenigmaContext& denigmaContext)
-{
-    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
-    if (denigmaContext.forTestOutput()) {
-        denigmaContext.logMessage(LogMsg() << "Converting MSS data");
-        return;
-    }
-
-    auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
-    auto finaleOptions = loadFinaleOptions(document);
-    auto mssDoc = createMssDocument(document, finaleOptions, denigmaContext);
-    mssDoc.save(output, "    ");
 }
 
 void convert(const CommandInputData& inputData,
@@ -1137,9 +1082,8 @@ void convert(const CommandInputData& inputData,
     }
 
     auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
-    auto finaleOptions = loadFinaleOptions(document);
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
-        processPart(document, finaleOptions, denigmaContext, outputCallback); // process the score
+        processPart(document, denigmaContext, outputCallback); // process the score
     }
     bool foundPart = false;
     if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
@@ -1147,9 +1091,9 @@ void convert(const CommandInputData& inputData,
         for (const auto& part : parts) {
             if (part->getCmper() != SCORE_PARTID) {
                 if (denigmaContext.allPartsAndScore) {
-                    processPart(document, finaleOptions, denigmaContext, outputCallback, part);
+                    processPart(document, denigmaContext, outputCallback, part);
                 } else if (denigmaContext.partName->empty() || part->getName().rfind(denigmaContext.partName.value(), 0) == 0) {
-                    processPart(document, finaleOptions, denigmaContext, outputCallback, part);
+                    processPart(document, denigmaContext, outputCallback, part);
                     foundPart = true;
                     break;
                 }

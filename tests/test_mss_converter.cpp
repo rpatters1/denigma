@@ -18,7 +18,6 @@
  */
 #include <cstddef>
 #include <cstring>
-#include <sstream>
 #include <span>
 #include <string>
 #include <vector>
@@ -39,19 +38,19 @@ TEST(ConverterApi, EnigmaXmlToMssXmlWritesToStream)
 
     denigma::ConverterRegistry registry;
     denigma::formats::mss::registerConverters(registry);
-    const auto* converter = registry.find(denigma::FormatId::EnigmaXml, denigma::FormatId::MssXml);
+    const auto* converter = registry.findMultiOutput(denigma::FormatId::EnigmaXml, denigma::FormatId::MssXml);
     ASSERT_NE(converter, nullptr);
 
-    std::ostringstream output;
+    std::string xmlText;
     denigma::formats::mss::Options options;
     options.common.sourceName = "notAscii-其れ.enigmaxml";
     const auto result = converter->convert(std::as_bytes(std::span<const char>(input.data(), input.size())),
-                                           output,
+                                           [&](std::string_view, std::span<const std::byte> data) {
+                                               xmlText.assign(reinterpret_cast<const char*>(data.data()), data.size());
+                                           },
                                            denigma::ConversionRequest{ &options });
 
     EXPECT_TRUE(result.diagnostics().empty());
-
-    const std::string xmlText = output.str();
     ASSERT_FALSE(xmlText.empty());
 
     pugi::xml_document document;
@@ -69,18 +68,20 @@ TEST(ConverterApi, MusxToMssXmlWritesToStream)
 
     denigma::ConverterRegistry registry;
     denigma::formats::mss::registerConverters(registry);
-    const auto* converter = registry.findReader(denigma::FormatId::Musx, denigma::FormatId::MssXml);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::MssXml);
     ASSERT_NE(converter, nullptr);
 
     denigma::FileRandomAccessReader input(getInputPath() / utils::utf8ToPath("notAscii-其れ.musx"));
-    std::ostringstream output;
+    std::string xmlText;
     denigma::formats::mss::Options options;
     options.common.sourceName = "notAscii-其れ.musx";
-    const auto result = converter->convert(input, output, denigma::ConversionRequest{ &options });
+    const auto result = converter->convert(input,
+                                           [&](std::string_view, std::span<const std::byte> data) {
+                                               xmlText.assign(reinterpret_cast<const char*>(data.data()), data.size());
+                                           },
+                                           denigma::ConversionRequest{ &options });
 
     EXPECT_TRUE(result.diagnostics().empty());
-
-    const std::string xmlText = output.str();
     ASSERT_FALSE(xmlText.empty());
 
     pugi::xml_document document;

@@ -67,6 +67,13 @@ inline bool isPunctuation(T c)
 }
 
 template <typename T, detail::EnableIfEightBitCharacter<T> = 0>
+inline bool isAlphaNumeric(T c)
+{
+    const auto byte = static_cast<unsigned char>(c);
+    return byte <= 0x7f && std::isalnum(byte) != 0;
+}
+
+template <typename T, detail::EnableIfEightBitCharacter<T> = 0>
 inline T toLowerCase(T c)
 {
     const auto byte = static_cast<unsigned char>(c);

@@ -19,16 +19,24 @@ endfunction()
         denigmatests.cpp
         xml_compare.cpp
         test_articulations.cpp
+        test_barlines.cpp
         test_clefs.cpp
         test_enigmaxml_converter.cpp
+        test_entries.cpp
         test_expressions.cpp
         test_export.cpp
+        test_font_names.cpp
+        test_general_lines.cpp
+        test_noteheads.cpp
+        test_octave_lines.cpp
         test_dynamics.cpp
         test_conversion_result.cpp
         test_logging.cpp
         test_massage.cpp
         test_mss_converter.cpp
         test_options.cpp
+        test_smartshapes.cpp
+        test_smartshape_lines.cpp
         test_svg_converter.cpp
         test_typed_converter_options.cpp
         test_jumps.cpp

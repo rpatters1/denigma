@@ -20,9 +20,12 @@
  * THE SOFTWARE.
  */
 
+#include <type_traits>
+
+#include "denigma/classify/smartshapes.h"
 #include "mnx.h"
+#include "mnx_articulations.h"
 #include "mnx_smartshapes.h"
-#include "mnx_markings.h"
 
 namespace denigma {
 namespace formats {
@@ -63,23 +66,71 @@ void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 continue;
             }
             const auto shape = context->document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum);
-            if (!shape || shape->startTermSeg->endPoint->staffId != context->current.staff
-                       || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()) {
+            if (!shape || !shape->calcIsValid()) {
                 continue;
             }
-            using ST = musx::dom::others::SmartShape::ShapeType;
-            switch (shape->shapeType) {
-            case ST::Crescendo:
-                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Increasing);
-                break;
-            case ST::Decrescendo:
-                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Decreasing);
-                break;
-            default:
-                if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForSmartShape(shape)) {
-                    appendArpeggioCandidate(context, mnxMeasure, nonArpeggio.value());
+            if (shape->startTermSeg->endPoint->staffId != context->current.staff || shape->startTermSeg->endPoint->measId != musxMeasure->getCmper()) {
+                continue;
+            }
+            const auto classification = denigma::classify::classifySmartShape(shape);
+            std::visit([&](const auto& value) {
+                using Value = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<Value, denigma::classify::smartshape::Crescendo>) {
+                    appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Increasing);
+                } else if constexpr (std::is_same_v<Value, denigma::classify::smartshape::Decrescendo>) {
+                    appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Decreasing);
+                } else if constexpr (std::is_same_v<Value, denigma::classify::smartshape::NonArpeggio>) {
+                    appendArpeggioCandidate(context, mnxMeasure, value.candidate);
+                } else if constexpr (std::is_same_v<Value, denigma::classify::smartshape::Slur>
+                    || std::is_same_v<Value, denigma::classify::smartshape::Ottava>
+                    || std::is_same_v<Value, denigma::classify::PseudoTie>
+                    || std::is_same_v<Value, denigma::classify::smartshape::ArpeggiatedTie>) {
+                    // Processed by the dedicated slur, ottava, or note-level tie paths.
                 }
-                break;
+            }, classification.value);
+        }
+    }
+}
+
+void processSlurs(const MnxMusxMappingPtr&, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo)
+{
+    const auto musxEntry = musxEntryInfo->getEntry();
+    const auto currentEntryNumber = musxEntry->getEntryNumber();
+    auto createOneSlur = [&](const EntryNumber targetEntry) -> mnxdom::sequence::Slur {
+        auto mnxSlurs = mnxEvent.ensure_slurs();
+        return mnxSlurs.append(calcEventId(targetEntry));
+    };
+    if (musxEntry->smartShapeDetail) {
+        auto shapeAssigns = musxEntry->getDocument()->getDetails()->getArray<details::SmartShapeEntryAssign>(
+            SCORE_PARTID, musxEntry->getEntryNumber());
+        for (const auto& assign : shapeAssigns) {
+            if (auto shape = musxEntry->getDocument()->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum)) {
+                if (!shape->calcIsSlur()) {
+                    continue;
+                }
+                const auto classification = denigma::classify::classifySmartShape(shape);
+                const auto* slur = classification.as<denigma::classify::smartshape::Slur>();
+                if (!slur) {
+                    // pseudotie and arpeggio tie classifications are handled elsewhere
+                    continue;
+                }
+                MUSX_ASSERT_IF(!slur->startEntry || !slur->endEntry) {
+                    continue;
+                }
+                const auto startEntryNumber = slur->startEntry->getEntry()->getEntryNumber();
+                if (currentEntryNumber != startEntryNumber) {
+                    continue;
+                }
+                const auto targetEntryNumber = slur->endEntry->getEntry()->getEntryNumber();
+                if (targetEntryNumber == currentEntryNumber) {
+                    continue;
+                }
+
+                auto mnxSlur = createOneSlur(targetEntryNumber);
+                mnxSlur.set_lineType(shape->calcIsDashed() ? mnxdom::LineType::Dashed : mnxdom::LineType::Solid);
+                if (slur->contour != CurveContourDirection::Unspecified) {
+                    mnxSlur.set_side(slur->contour == CurveContourDirection::Up ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down);
+                }
             }
         }
     }
@@ -89,24 +140,19 @@ void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::
     mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber)
 {
     const StaffCmper staffCmper = context->current.staff;
-    context->current.ottavasApplicableInMeasure.clear();
+    context->current.ottavasApplicableInMeasure = collectOttavasForMeasureStaff(
+        context->document, musxMeasure->getRequestedPartId(), musxMeasure, staffCmper);
     if (musxMeasure->hasSmartShape) {
         auto shapeAssigns = context->document->getOthers()->getArray<others::SmartShapeMeasureAssign>(musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
         for (const auto& asgn : shapeAssigns) {
             if (auto shape = context->document->getOthers()->get<others::SmartShape>(asgn->getRequestedPartId(), asgn->shapeNum)) {
-                if (!shape->hidden && (shape->startTermSeg->endPoint->staffId == staffCmper || shape->endTermSeg->endPoint->staffId == staffCmper)) {
-                    switch (shape->shapeType) {
-                        default: continue;
-                        case others::SmartShape::ShapeType::OctaveDown:
-                        case others::SmartShape::ShapeType::OctaveUp:
-                        case others::SmartShape::ShapeType::TwoOctaveDown:
-                        case others::SmartShape::ShapeType::TwoOctaveUp:
-                            break;
-                    }
-                    context->current.ottavasApplicableInMeasure.emplace(shape->getCmper(), shape);
+                const auto it = context->current.ottavasApplicableInMeasure.find(shape->getCmper());
+                if (it != context->current.ottavasApplicableInMeasure.end()) {
                     if (!asgn->centerShapeNum && shape->startTermSeg->endPoint->measId == musxMeasure->getCmper()) {
+                        // Semantic carriers are emitted even when hidden: a hidden built-in
+                        // ottava carries the octave displacement for its visual proxy.
                         auto mnxOttava = mnxMeasure.ensure_ottavas().append(
-                            enumConvert<mnxdom::OttavaAmount>(shape->shapeType),
+                            static_cast<mnxdom::OttavaAmount>(it->second.classification.octaveShift),
                             mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
                             mnxdom::MeasureRhythmicPosition::make(calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
                                                                mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint)));

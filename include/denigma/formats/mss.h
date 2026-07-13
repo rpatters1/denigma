@@ -42,44 +42,6 @@ struct Options final : public IOptions
     std::optional<std::string> partName;
 };
 
-/// @class EnigmaXmlToMssXmlConverter
-/// @brief Converter adapter for Enigma XML input to MuseScore style XML output.
-class EnigmaXmlToMssXmlConverter final : public IConverter
-{
-public:
-    [[nodiscard]] FormatId sourceFormat() const override { return FormatId::EnigmaXml; }
-    [[nodiscard]] FormatId targetFormat() const override { return FormatId::MssXml; }
-
-    /// Converts Enigma XML from memory and writes MuseScore style XML to the provided stream.
-    ConversionResult convert(std::span<const std::byte> input,
-                             std::ostream& output,
-                             const Options& options = {}) const;
-
-    /// Converts Enigma XML using type-erased registry options.
-    ConversionResult convert(std::span<const std::byte> input,
-                             std::ostream& output,
-                             const ConversionRequest& request = {}) const override;
-};
-
-/// @class MusxToMssXmlConverter
-/// @brief Converter adapter for MUSX archive input to MuseScore style XML output.
-class MusxToMssXmlConverter final : public IReaderConverter
-{
-public:
-    [[nodiscard]] FormatId sourceFormat() const override { return FormatId::Musx; }
-    [[nodiscard]] FormatId targetFormat() const override { return FormatId::MssXml; }
-
-    /// Extracts a MUSX archive and writes MuseScore style XML to the provided stream.
-    ConversionResult convert(const IRandomAccessReader& input,
-                             std::ostream& output,
-                             const Options& options = {}) const;
-
-    /// Extracts a MUSX archive using type-erased registry options.
-    ConversionResult convert(const IRandomAccessReader& input,
-                             std::ostream& output,
-                             const ConversionRequest& request = {}) const override;
-};
-
 /// @class EnigmaXmlToMssXmlMultiOutputConverter
 /// @brief Converter adapter for Enigma XML input to one or more MuseScore style XML outputs.
 class EnigmaXmlToMssXmlMultiOutputConverter final : public IMultiOutputConverter

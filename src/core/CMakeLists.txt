@@ -1,15 +1,19 @@
 set(DENIGMA_CORE_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/cue_layers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/denigma.cpp
     ${CMAKE_CURRENT_LIST_DIR}/finale_options.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ottavas.cpp
+    ${DENIGMA_GIT_COMMIT_CPP}
 )
 
 # Core is the base dependency for every converter. Do not add parser backends,
 # archive readers, text metrics, json, or format-specific libraries here unless
 # every external consumer should inherit them.
 add_denigma_internal_library(denigma_core MUSX_PCH ${DENIGMA_CORE_SOURCES})
-target_link_libraries(denigma_core PUBLIC musx)
+add_dependencies(denigma_core denigma_git_commit)
+target_link_libraries(denigma_core PUBLIC musx denigma_classify)
 
 if(denigma_BUILD_TESTING)
     add_denigma_internal_test_library(denigma_core_test ${DENIGMA_CORE_SOURCES})
-    target_link_libraries(denigma_core_test PUBLIC musx)
+    target_link_libraries(denigma_core_test PUBLIC musx denigma_classify)
 endif()

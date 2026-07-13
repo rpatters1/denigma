@@ -35,7 +35,7 @@ namespace {
 
 DenigmaContext makeMssContext(const Options& options, const std::filesystem::path& defaultSourceName)
 {
-    DenigmaContext context("denigma");
+    DenigmaContext context(DENIGMA_NAME);
     context.inputFilePath = options.common.sourceName.empty()
         ? defaultSourceName
         : utils::utf8ToPath(options.common.sourceName);
@@ -58,49 +58,6 @@ Buffer copyBytes(std::span<const std::byte> input)
 }
 
 } // namespace
-
-ConversionResult EnigmaXmlToMssXmlConverter::convert(std::span<const std::byte> input,
-                                                     std::ostream& output,
-                                                     const Options& options) const
-{
-    ConversionResult result;
-    auto buffer = copyBytes(input);
-    auto context = makeMssContext(options, "input.enigmaxml");
-    context.logCallback = options.common.logCallback;
-    context.conversionResult = &result;
-    MusxLoggerScope musxLogger(makeMusxLogCallback(context));
-
-    formats::mss::detail::convert(output, CommandInputData{ std::move(buffer), std::nullopt, {} }, context);
-    return result;
-}
-
-ConversionResult EnigmaXmlToMssXmlConverter::convert(std::span<const std::byte> input,
-                                                     std::ostream& output,
-                                                     const ConversionRequest& request) const
-{
-    return convert(input, output, optionsFromRequest<Options>(request, "EnigmaXmlToMssXmlConverter"));
-}
-
-ConversionResult MusxToMssXmlConverter::convert(const IRandomAccessReader& input,
-                                                std::ostream& output,
-                                                const Options& options) const
-{
-    ConversionResult result;
-    auto context = makeMssContext(options, "input.musx");
-    context.logCallback = options.common.logCallback;
-    context.conversionResult = &result;
-    MusxLoggerScope musxLogger(makeMusxLogCallback(context));
-
-    formats::mss::detail::convert(output, formats::enigmaxml::detail::extractMusxInputData(input, context), context);
-    return result;
-}
-
-ConversionResult MusxToMssXmlConverter::convert(const IRandomAccessReader& input,
-                                                std::ostream& output,
-                                                const ConversionRequest& request) const
-{
-    return convert(input, output, optionsFromRequest<Options>(request, "MusxToMssXmlConverter"));
-}
 
 ConversionResult EnigmaXmlToMssXmlMultiOutputConverter::convert(std::span<const std::byte> input,
                                                                 const MultiOutputCallback& outputCallback,
@@ -147,8 +104,6 @@ ConversionResult MusxToMssXmlMultiOutputConverter::convert(const IRandomAccessRe
 
 void registerConverters(ConverterRegistry& registry)
 {
-    registry.add(std::make_unique<EnigmaXmlToMssXmlConverter>());
-    registry.add(std::make_unique<MusxToMssXmlConverter>());
     registry.add(std::make_unique<EnigmaXmlToMssXmlMultiOutputConverter>());
     registry.add(std::make_unique<MusxToMssXmlMultiOutputConverter>());
 }

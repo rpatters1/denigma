@@ -30,7 +30,6 @@
 #include "utils/stringutils.h"
 
 using namespace musx::dom;
-using namespace musx::factory;
 
 namespace denigma {
 namespace formats {
@@ -107,19 +106,16 @@ void MnxMusxMapping::setCurrentMeasureStaff(const MusxInstance<others::Measure>&
     }
 
     current.layerVoices = current.gfhold->calcVoices();
-    if (const auto cueSummary = current.gfhold->calcCueSummary()) {
-        current.cueDiscardPlan.discardWholeHold = true;
-        current.cueDiscardPlan.discardLayers.insert(cueSummary.cueLayers.begin(), cueSummary.cueLayers.end());
+    current.cueDiscardPlan = createCueLayerPlan(*current.gfhold, denigmaContext->cueLayer);
+    if (!current.cueDiscardPlan.heuristicCueLayers.empty()) {
         logDiscardedHeuristicCueHold();
-        return;
-    }
-
-    if (denigmaContext->cueLayer) {
-        const LayerIndex cueLayer = static_cast<LayerIndex>(*denigmaContext->cueLayer - 1);
-        if (current.gfhold.value()->frames[cueLayer] != 0) {
-            current.cueDiscardPlan.discardLayers.emplace(cueLayer);
-            logDiscardedCueLayerFrame(cueLayer);
+        if (current.cueDiscardPlan.discardWholeHold) {
+            return;
         }
+    }
+    if (current.cueDiscardPlan.explicitCueLayer
+        && !current.cueDiscardPlan.heuristicCueLayers.contains(*current.cueDiscardPlan.explicitCueLayer)) {
+        logDiscardedCueLayerFrame(*current.cueDiscardPlan.explicitCueLayer);
     }
 }
 
@@ -175,7 +171,7 @@ static void createMnx(const MnxMusxMappingPtr& context)
     auto client = mnx.ensure_mnxdom().ensure_client();
     client.set_name(DENIGMA_NAME);
     client.set_version(DENIGMA_VERSION);
-    client.set_commit(DENIGMA_GIT_COMMIT);
+    client.set_commit(gitCommit());
 
     const auto& inputFilePath = context->denigmaContext->inputFilePath;
     auto source = mnx.ensure_mnxdom().ensure_source();
@@ -230,37 +226,13 @@ static void createScores(const MnxMusxMappingPtr& context)
     }
 }
 
-static void createMappings(const MnxMusxMappingPtr& context)
-{
-    auto textRepeatDefs = context->document->getOthers()->getArray<others::TextRepeatDef>(SCORE_PARTID);
-    for (const auto& def : textRepeatDefs) {
-        context->textRepeat2Jump.emplace(def->getCmper(), classify::classifyJump(def));
-    }
-}
-
 static std::unique_ptr<mnxdom::Document> createMnxDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
-    DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
-    if (!inputData.embeddedGraphics.empty()) {
-        embeddedGraphicFiles.reserve(inputData.embeddedGraphics.size());
-        for (const auto& graphic : inputData.embeddedGraphics) {
-            DocumentFactory::CreateOptions::EmbeddedGraphicFile file;
-            file.filename = graphic.filename;
-            file.bytes.assign(graphic.blob.begin(), graphic.blob.end());
-            embeddedGraphicFiles.emplace_back(std::move(file));
-        }
-    }
-    DocumentFactory::CreateOptions createOptions(
-        denigmaContext.inputFilePath,
-        inputData.notationMetadata.value_or(Buffer{}),
-        std::move(embeddedGraphicFiles));
-    auto document = DocumentFactory::create<MusxReader>(inputData.primaryBuffer, std::move(createOptions));
+    auto document = denigma::createMusxDocument<MusxReader>(inputData, denigmaContext);
     auto context = std::make_shared<MnxMusxMapping>(denigmaContext, document);
     context->mnxDocument = std::make_unique<mnxdom::Document>();
     context->musxParts = others::PartDefinition::getInUserOrder(document);
     MusxLoggerScope mnxMusxLogger(makeMusxLogCallback(context));
-
-    createMappings(context);   // map repeat text, text exprs, articulations, etc. to semantic values
 
     createMnx(context);
     createGlobal(context);

@@ -26,6 +26,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "smufl_mapping.h"
@@ -35,13 +36,22 @@
 
 namespace denigma::classify {
 
+using namespace dynamics;
+
 namespace {
 
 struct DynamicText
 {
+    struct SourceSpan
+    {
+        size_t start{};
+        size_t end{};
+    };
+
     std::string text;
     std::vector<std::optional<std::string>> glyphNames;
     std::vector<std::optional<size_t>> glyphIds;
+    std::vector<SourceSpan> sourceSpans;
 };
 
 static DynamicText normalizeDynamicText(const DynamicText& input)
@@ -50,10 +60,17 @@ static DynamicText normalizeDynamicText(const DynamicText& input)
     result.text.reserve(input.text.size());
     result.glyphNames.reserve(input.glyphNames.size());
     result.glyphIds.reserve(input.glyphIds.size());
+    result.sourceSpans.reserve(input.sourceSpans.size());
     bool previousWasSpace = false;
+    DynamicText::SourceSpan pendingSpaceSpan{};
     for (size_t i = 0; i < input.text.size(); ++i) {
         const unsigned char ch = static_cast<unsigned char>(input.text[i]);
         if (utils::isSpace(ch)) {
+            if (!previousWasSpace) {
+                pendingSpaceSpan = input.sourceSpans[i];
+            } else {
+                pendingSpaceSpan.end = input.sourceSpans[i].end;
+            }
             previousWasSpace = true;
             continue;
         }
@@ -61,115 +78,94 @@ static DynamicText normalizeDynamicText(const DynamicText& input)
             result.text.push_back(' ');
             result.glyphNames.emplace_back(std::nullopt);
             result.glyphIds.emplace_back(std::nullopt);
+            result.sourceSpans.push_back(pendingSpaceSpan);
         }
         previousWasSpace = false;
         result.text.push_back(utils::toLowerCase(input.text[i]));
         result.glyphNames.push_back(input.glyphNames[i]);
         result.glyphIds.push_back(input.glyphIds[i]);
+        result.sourceSpans.push_back(input.sourceSpans[i]);
     }
     return result;
 }
 
-static std::string glyphNameToDynamicText(std::string_view glyphName)
+static const std::unordered_map<std::string_view, std::string_view>& dynamicGlyphLettersMap()
 {
-    if (glyphName == "dynamicPiano" || glyphName == "dynamicPianoSmall") {
-        return "p";
-    }
-    if (glyphName == "dynamicPP") {
-        return "pp";
-    }
-    if (glyphName == "dynamicPPP") {
-        return "ppp";
-    }
-    if (glyphName == "dynamicPPPP") {
-        return "pppp";
-    }
-    if (glyphName == "dynamicPPPPP") {
-        return "ppppp";
-    }
-    if (glyphName == "dynamicPPPPPP") {
-        return "pppppp";
-    }
-    if (glyphName == "dynamicMezzo" || glyphName == "dynamicMezzoSmall") {
-        return "m";
-    }
-    if (glyphName == "dynamicMP") {
-        return "mp";
-    }
-    if (glyphName == "dynamicMF") {
-        return "mf";
-    }
-    if (glyphName == "dynamicForte" || glyphName == "dynamicForteSmall") {
-        return "f";
-    }
-    if (glyphName == "dynamicFF") {
-        return "ff";
-    }
-    if (glyphName == "dynamicFFF") {
-        return "fff";
-    }
-    if (glyphName == "dynamicFFFF") {
-        return "ffff";
-    }
-    if (glyphName == "dynamicFFFFF") {
-        return "fffff";
-    }
-    if (glyphName == "dynamicFFFFFF") {
-        return "ffffff";
-    }
-    if (glyphName == "dynamicFortePiano") {
-        return "fp";
-    }
-    if (glyphName == "dynamicPF") {
-        return "pf";
-    }
-    if (glyphName == "dynamicForzando") {
-        return "fz";
-    }
-    if (glyphName == "dynamicSforzando" || glyphName == "dynamicSforzandoLegacy" || glyphName == "dynamicSforzandoSmall") {
-        return "s";
-    }
-    if (glyphName == "dynamicSforzando1") {
-        return "sf";
-    }
-    if (glyphName == "dynamicSforzandoPiano") {
-        return "sfp";
-    }
-    if (glyphName == "dynamicSforzandoPianissimo") {
-        return "sfpp";
-    }
-    if (glyphName == "dynamicSforzato") {
-        return "sfz";
-    }
-    if (glyphName == "dynamicSforzatoPiano") {
-        return "sfzp";
-    }
-    if (glyphName == "dynamicSforzatoFF") {
-        return "sffz";
-    }
-    if (glyphName == "dynamicRinforzando" || glyphName == "dynamicRinforzandoSmall") {
-        return "r";
-    }
-    if (glyphName == "dynamicRinforzando1") {
-        return "rf";
-    }
-    if (glyphName == "dynamicRinforzando2") {
-        return "rfz";
-    }
-    if (glyphName == "dynamicZ" || glyphName == "dynamicZSmall") {
-        return "z";
-    }
-    if (glyphName == "dynamicNiente" || glyphName == "dynamicNienteForHairpin" || glyphName == "dynamicNienteSmall") {
-        return "n";
-    }
-    return {};
+    static const std::unordered_map<std::string_view, std::string_view> result = {
+        { "dynamicPiano", "p" },
+        { "dynamicPianoSmall", "p" },
+        { "dynamicPP", "pp" },
+        { "dynamicPPP", "ppp" },
+        { "dynamicPPPP", "pppp" },
+        { "dynamicPPPPP", "ppppp" },
+        { "dynamicPPPPPP", "pppppp" },
+        { "dynamicMezzo", "m" },
+        { "dynamicMezzoSmall", "m" },
+        { "dynamicMP", "mp" },
+        { "dynamicMF", "mf" },
+        { "dynamicForte", "f" },
+        { "dynamicForteSmall", "f" },
+        { "dynamicFF", "ff" },
+        { "dynamicFFF", "fff" },
+        { "dynamicFFFF", "ffff" },
+        { "dynamicFFFFF", "fffff" },
+        { "dynamicFFFFFF", "ffffff" },
+        { "dynamicFortePiano", "fp" },
+        { "dynamicPF", "pf" },
+        { "dynamicForzando", "fz" },
+        { "dynamicSforzando", "s" },
+        { "dynamicSforzandoLegacy", "s" },
+        { "dynamicSforzandoSmall", "s" },
+        { "dynamicSforzando1", "sf" },
+        { "dynamicSforzandoPiano", "sfp" },
+        { "dynamicSforzandoPianissimo", "sfpp" },
+        { "dynamicSforzato", "sfz" },
+        { "dynamicSforzatoPiano", "sfzp" },
+        { "dynamicSforzatoFF", "sffz" },
+        { "dynamicRinforzando", "r" },
+        { "dynamicRinforzandoSmall", "r" },
+        { "dynamicRinforzando1", "rf" },
+        { "dynamicRinforzando2", "rfz" },
+        { "dynamicZ", "z" },
+        { "dynamicZSmall", "z" },
+        { "dynamicNiente", "n" },
+        { "dynamicNienteForHairpin", "n" },
+        { "dynamicNienteSmall", "n" }
+    };
+    return result;
 }
 
-static void appendDynamicText(DynamicText& text, const std::string& chunk, const musx::dom::MusxInstance<musx::dom::FontInfo>& font)
+static std::optional<std::string_view> dynamicLetterGlyphName(char ch)
+{
+    switch (utils::toLowerCase(ch)) {
+    case 'p': return "dynamicPiano";
+    case 'm': return "dynamicMezzo";
+    case 'f': return "dynamicForte";
+    case 's': return "dynamicSforzando";
+    case 'r': return "dynamicRinforzando";
+    case 'z': return "dynamicZ";
+    case 'n': return "dynamicNiente";
+    default: return std::nullopt;
+    }
+}
+
+static std::string glyphNameToDynamicText(std::string_view glyphName)
+{
+    const auto& glyphLetters = dynamicGlyphLettersMap();
+    const auto glyphIt = glyphLetters.find(glyphName);
+    return glyphIt == glyphLetters.end() ? std::string{} : std::string(glyphIt->second);
+}
+
+static void appendDynamicText(
+    DynamicText& text,
+    const std::string& chunk,
+    const musx::dom::MusxInstance<musx::dom::FontInfo>& font,
+    size_t chunkStart)
 {
     size_t nextGlyphId = text.glyphIds.size();
     for (utils::Utf8Iterator iter(chunk); !iter.atEnd(); iter.next()) {
         const std::string codepointText = chunk.substr(iter.offset(), iter->byteCount);
+        const DynamicText::SourceSpan sourceSpan{ chunkStart + iter.offset(), chunkStart + iter.offset() + iter->byteCount };
         if (font) {
             if (const auto* glyphName = smufl_mapping::getGlyphNameForFont(
                     font->getName(),
@@ -180,6 +176,7 @@ static void appendDynamicText(DynamicText& text, const std::string& chunk, const
                     text.text += glyphText;
                     text.glyphNames.insert(text.glyphNames.end(), glyphText.size(), std::string(*glyphName));
                     text.glyphIds.insert(text.glyphIds.end(), glyphText.size(), nextGlyphId++);
+                    text.sourceSpans.insert(text.sourceSpans.end(), glyphText.size(), sourceSpan);
                     continue;
                 }
             }
@@ -187,6 +184,7 @@ static void appendDynamicText(DynamicText& text, const std::string& chunk, const
         text.text += codepointText;
         text.glyphNames.insert(text.glyphNames.end(), codepointText.size(), std::nullopt);
         text.glyphIds.insert(text.glyphIds.end(), codepointText.size(), std::nullopt);
+        text.sourceSpans.insert(text.sourceSpans.end(), codepointText.size(), sourceSpan);
     }
 }
 
@@ -197,91 +195,48 @@ struct DynamicTokenMatch
     size_t length{};
 };
 
-static std::string_view withoutFinalPeriods(std::string_view text)
-{
-    while (!text.empty() && text.back() == '.') {
-        text.remove_suffix(1);
-    }
-    return text;
-}
-
-static DynamicChange qualifierChangeForText(std::string_view text)
-{
-    bool sawIncrease = false;
-    bool sawDecrease = false;
-    const auto isBoundary = [](unsigned char ch) {
-        return utils::isSpace(ch) || utils::isPunctuation(ch);
-    };
-
-    for (size_t start = 0; start < text.size();) {
-        while (start < text.size() && isBoundary(static_cast<unsigned char>(text[start]))) {
-            ++start;
-        }
-        size_t end = start;
-        while (end < text.size() && !isBoundary(static_cast<unsigned char>(text[end]))) {
-            ++end;
-        }
-        if (start < end) {
-            const std::string_view token = withoutFinalPeriods(text.substr(start, end - start));
-            if (token == "piu" || token == "più") {
-                sawIncrease = true;
-            } else if (token == "meno" || token == "menos") {
-                sawDecrease = true;
-            }
-        }
-        start = end;
-    }
-
-    if (sawIncrease == sawDecrease) {
-        return DynamicChange::Absolute;
-    }
-    return sawIncrease ? DynamicChange::RelativeIncrease : DynamicChange::RelativeDecrease;
-}
-
-static DynamicChange classifyDynamicChange(std::string_view prefixText, std::string_view suffixText)
-{
-    const DynamicChange prefixChange = qualifierChangeForText(prefixText);
-    const DynamicChange suffixChange = qualifierChangeForText(suffixText);
-    if (prefixChange == DynamicChange::Absolute) {
-        return suffixChange;
-    }
-    if (suffixChange == DynamicChange::Absolute || suffixChange == prefixChange) {
-        return prefixChange;
-    }
-    return DynamicChange::Absolute;
-}
-
 static Dynamic classifyExactDynamicToken(std::string_view text)
 {
-    if (text == "pppppp") return Dynamic::pppppp;
-    if (text == "ppppp") return Dynamic::ppppp;
-    if (text == "pppp") return Dynamic::pppp;
-    if (text == "ppp") return Dynamic::ppp;
-    if (text == "pp") return Dynamic::pp;
-    if (text == "p") return Dynamic::p;
-    if (text == "mp") return Dynamic::mp;
-    if (text == "mf") return Dynamic::mf;
-    if (text == "f") return Dynamic::f;
-    if (text == "ff") return Dynamic::ff;
-    if (text == "fff") return Dynamic::fff;
-    if (text == "ffff") return Dynamic::ffff;
-    if (text == "fffff") return Dynamic::fffff;
-    if (text == "ffffff") return Dynamic::ffffff;
-    if (text == "fp") return Dynamic::fp;
-    if (text == "ffp") return Dynamic::ffp;
-    if (text == "fz" || text == "forzando") return Dynamic::fz;
-    if (text == "ffz") return Dynamic::ffz;
-    if (text == "pf") return Dynamic::pf;
-    if (text == "sf" || text == "sforzando") return Dynamic::sf;
-    if (text == "sfp") return Dynamic::sfp;
-    if (text == "sfpp") return Dynamic::sfpp;
-    if (text == "sfz" || text == "sforzato" || text == "sforzado") return Dynamic::sfz;
-    if (text == "sffz") return Dynamic::sffz;
-    if (text == "sfzp") return Dynamic::sfzp;
-    if (text == "rf" || text == "rinf" || text == "rinf." || text == "rinforzando") return Dynamic::rf;
-    if (text == "rfz") return Dynamic::rfz;
-    if (text == "n" || text == "niente") return Dynamic::n;
-    return Dynamic::None;
+    static const std::unordered_map<std::string_view, Dynamic> dynamicTokens = {
+        { "pppppp", Dynamic::pppppp },
+        { "ppppp", Dynamic::ppppp },
+        { "pppp", Dynamic::pppp },
+        { "ppp", Dynamic::ppp },
+        { "pp", Dynamic::pp },
+        { "p", Dynamic::p },
+        { "mp", Dynamic::mp },
+        { "mf", Dynamic::mf },
+        { "f", Dynamic::f },
+        { "ff", Dynamic::ff },
+        { "fff", Dynamic::fff },
+        { "ffff", Dynamic::ffff },
+        { "fffff", Dynamic::fffff },
+        { "ffffff", Dynamic::ffffff },
+        { "fp", Dynamic::fp },
+        { "ffp", Dynamic::ffp },
+        { "fz", Dynamic::fz },
+        { "forzando", Dynamic::fz },
+        { "ffz", Dynamic::ffz },
+        { "pf", Dynamic::pf },
+        { "sf", Dynamic::sf },
+        { "sforzando", Dynamic::sf },
+        { "sfp", Dynamic::sfp },
+        { "sfpp", Dynamic::sfpp },
+        { "sfz", Dynamic::sfz },
+        { "sforzato", Dynamic::sfz },
+        { "sforzado", Dynamic::sfz },
+        { "sffz", Dynamic::sffz },
+        { "sfzp", Dynamic::sfzp },
+        { "rf", Dynamic::rf },
+        { "rinf", Dynamic::rf },
+        { "rinf.", Dynamic::rf },
+        { "rinforzando", Dynamic::rf },
+        { "rfz", Dynamic::rfz },
+        { "n", Dynamic::n },
+        { "niente", Dynamic::n }
+    };
+    const auto tokenIt = dynamicTokens.find(text);
+    return tokenIt == dynamicTokens.end() ? Dynamic::None : tokenIt->second;
 }
 
 static bool isDynamicLikeText(std::string_view text)
@@ -349,41 +304,13 @@ static std::vector<std::string> knownGlyphNames(const DynamicText& text)
     return result;
 }
 
-static DynamicClassification makeOtherDynamicClassification(const DynamicText& text)
-{
-    const std::vector<std::string> glyphs = knownGlyphNames(text);
-    std::string prefixText;
-    std::string suffixText;
-
-    if (glyphs.empty()) {
-        prefixText = utils::trimAscii(text.text);
-    } else {
-        const auto firstGlyphIt = std::find_if(text.glyphNames.begin(), text.glyphNames.end(),
-            [](const std::optional<std::string>& glyphName) { return glyphName.has_value(); });
-        const auto lastGlyphIt = std::find_if(text.glyphNames.rbegin(), text.glyphNames.rend(),
-            [](const std::optional<std::string>& glyphName) { return glyphName.has_value(); });
-        const size_t firstGlyphIndex = static_cast<size_t>(std::distance(text.glyphNames.begin(), firstGlyphIt));
-        const size_t lastGlyphIndex = text.glyphNames.size() - static_cast<size_t>(std::distance(text.glyphNames.rbegin(), lastGlyphIt)) - 1;
-        prefixText = utils::trimAscii(std::string_view(text.text).substr(0, firstGlyphIndex));
-        suffixText = utils::trimAscii(std::string_view(text.text).substr(lastGlyphIndex + 1));
-    }
-
-    return {
-        Dynamic::Other,
-        !prefixText.empty() || !suffixText.empty(),
-        prefixText,
-        suffixText,
-        glyphs,
-        classifyDynamicChange(prefixText, suffixText)
-    };
-}
-
-static std::optional<DynamicTokenMatch> findDynamicToken(const DynamicText& text)
+static std::vector<DynamicTokenMatch> findDynamicTokens(const DynamicText& text)
 {
     if (const Dynamic exact = classifyExactDynamicToken(text.text); exact != Dynamic::None) {
-        return DynamicTokenMatch{ exact, 0, text.text.size() };
+        return { DynamicTokenMatch{ exact, 0, text.text.size() } };
     }
 
+    std::vector<DynamicTokenMatch> result;
     const auto isBoundary = [](unsigned char ch) {
         return utils::isSpace(ch) || utils::isPunctuation(ch);
     };
@@ -401,71 +328,74 @@ static std::optional<DynamicTokenMatch> findDynamicToken(const DynamicText& text
             if (const Dynamic dynamic = classifyExactDynamicToken(token); dynamic != Dynamic::None) {
                 DynamicTokenMatch match{ dynamic, start, end - start };
                 if (isAcceptedMatch(text, match)) {
-                    return match;
+                    result.push_back(match);
                 }
             }
         }
         start = end;
     }
 
-    return std::nullopt;
+    return result;
 }
 
-static DynamicClassification classifyNormalizedDynamicText(const DynamicText& text)
+static DynamicText makeDynamicTextFromChunk(const musx::util::EnigmaTextChunk& chunk)
 {
-    if (const auto match = findDynamicToken(text)) {
-        const std::string prefixText = utils::trimAscii(std::string_view(text.text).substr(0, match->start));
-        const std::string suffixText = utils::trimAscii(std::string_view(text.text).substr(match->start + match->length));
-        return {
-            match->dynamic,
-            !prefixText.empty() || !suffixText.empty(),
-            prefixText,
-            suffixText,
-            matchedGlyphNames(text, *match),
-            classifyDynamicChange(prefixText, suffixText)
-        };
-    }
-    if (isDynamicLikeText(text.text)) {
-        return makeOtherDynamicClassification(text);
-    }
-    return {};
+    DynamicText text;
+    appendDynamicText(text, chunk.text, chunk.styles.font, 0);
+    return text;
+}
+
+static std::span<const char> sourceSpanForMatch(const musx::util::EnigmaTextChunk& chunk, const DynamicText& text, const DynamicTokenMatch& match)
+{
+    const size_t matchEnd = match.start + match.length;
+    const size_t sourceStart = text.sourceSpans[match.start].start;
+    const size_t sourceEnd = text.sourceSpans[matchEnd - 1].end;
+    return std::span<const char>(chunk.text.data() + sourceStart, sourceEnd - sourceStart);
 }
 
 } // namespace
 
-DynamicClassification classifyDynamic(const musx::util::EnigmaParsingContext& rawTextCtx, bool isDynamicsCategory)
+std::optional<Mark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk, bool forceOther)
 {
-    if (!rawTextCtx) {
-        return isDynamicsCategory ? DynamicClassification{ Dynamic::Other, true, {}, {}, {}, DynamicChange::Absolute } : DynamicClassification{};
+    if (!chunk.styles.font || chunk.styles.font->hidden) {
+        return std::nullopt;
     }
 
-    DynamicText text;
-    rawTextCtx.parseEnigmaText([&](const std::string& chunk, const musx::util::EnigmaStyles& styles) -> bool {
-        if (!styles.font || styles.font->hidden) {
-            return true;
-        }
-        appendDynamicText(text, chunk, styles.font);
-        return true;
-    }, musx::util::EnigmaString::EnigmaParsingOptions(musx::util::EnigmaString::AccidentalStyle::Unicode));
+    const DynamicText normalizedText = normalizeDynamicText(makeDynamicTextFromChunk(chunk));
+    if (normalizedText.text.empty()) {
+        return std::nullopt;
+    }
 
-    const DynamicText normalizedText = normalizeDynamicText(text);
-    DynamicClassification result = classifyNormalizedDynamicText(normalizedText);
-    if (!result && isDynamicsCategory) {
-        return makeOtherDynamicClassification(normalizedText);
+    if (const Dynamic exact = classifyExactDynamicToken(normalizedText.text); exact != Dynamic::None) {
+        DynamicTokenMatch match{ exact, 0, normalizedText.text.size() };
+        return Mark{ exact, matchedGlyphNames(normalizedText, match) };
+    }
+    if (isDynamicLikeText(normalizedText.text) || forceOther) {
+        return Mark{ Dynamic::Other, knownGlyphNames(normalizedText) };
+    }
+    return std::nullopt;
+}
+
+namespace detail {
+
+std::vector<DynamicSpan> findDynamicSpans(const musx::util::EnigmaTextChunk& chunk)
+{
+    if (!chunk.styles.font || chunk.styles.font->hidden) {
+        return {};
+    }
+
+    const DynamicText normalizedText = normalizeDynamicText(makeDynamicTextFromChunk(chunk));
+    std::vector<DynamicSpan> result;
+    for (const auto& match : findDynamicTokens(normalizedText)) {
+        result.push_back({
+            sourceSpanForMatch(chunk, normalizedText, match),
+            Mark{ match.dynamic, matchedGlyphNames(normalizedText, match) }
+        });
     }
     return result;
 }
 
-DynamicClassification classifyDynamic(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
-{
-    if (!def) {
-        return {};
-    }
-
-    const bool isDynamicsCategory = categoryTypeFromId(def->categoryId) == ExpressionCategoryType::Dynamics;
-
-    return classifyDynamic(def->getRawTextCtx(musx::dom::SCORE_PARTID), isDynamicsCategory);
-}
+} // namespace detail
 
 std::string dynamicCanonicalText(Dynamic dynamic)
 {
@@ -579,6 +509,32 @@ std::vector<std::string> dynamicCanonicalLetterGlyphs(Dynamic dynamic)
     case Dynamic::n: return { "dynamicNiente" };
     }
     return {};
+}
+
+std::vector<std::string> dynamicLettersToLetterGlyphs(std::string_view letters)
+{
+    std::vector<std::string> result;
+    result.reserve(letters.size());
+    for (const char ch : letters) {
+        if (const auto glyphName = dynamicLetterGlyphName(ch)) {
+            result.emplace_back(*glyphName);
+        }
+    }
+    return result;
+}
+
+std::string dynamicGlyphsToLetters(const std::vector<std::string>& glyphs)
+{
+    std::string result;
+    const auto& letterMap = dynamicGlyphLettersMap();
+    for (const auto& glyph : glyphs) {
+        const auto glyphIt = letterMap.find(glyph);
+        if (glyphIt == letterMap.end()) {
+            return {};
+        }
+        result += glyphIt->second;
+    }
+    return result;
 }
 
 } // namespace denigma::classify

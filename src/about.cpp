@@ -64,7 +64,7 @@ constexpr std::span<const unsigned char> freetypeLicense(freetype::FTL_TXT, size
 #endif
 
 constexpr auto licenses = std::to_array<std::pair<std::string_view, std::span<const unsigned char>>>({
-    { "denigma", denigmaLicense },
+    { DENIGMA_NAME, denigmaLicense },
     { "musx object model", musxLicense },
     { "mnx object model", mnxLicense },
     { "SMuFL mapping", smuflLicense },

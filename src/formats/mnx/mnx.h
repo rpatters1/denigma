@@ -31,13 +31,15 @@
 #include <vector>
 
 #include "core/denigma.h"
+#include "core/cue_layers.h"
 #include "core/finale_options.h"
+#include "core/ottavas.h"
 #include "musx/musx.h"
 #include "mnxdom.h"
 
 #include "mnx_fwd.h"
 #include "mnx_mapping.h"
-#include "mnx_markings.h"
+#include "mnx_articulations.h"
 #include "denigma/classify/jumps.h"
 
 using namespace musx::dom;
@@ -91,7 +93,6 @@ struct MnxMusxMapping
     std::unordered_set<std::string> lyricLineIds;
 
     // musx mappings
-    std::unordered_map<Cmper, classify::Jump> textRepeat2Jump;
     std::unordered_map<std::string, mnxdom::json_pointer> noteJsonById;
     std::unordered_map<EntryNumber, EntryTarget> entryTargetByNumber;
 
@@ -111,24 +112,14 @@ struct MnxMusxMapping
     std::unordered_set<EntryNumber> beamedEntries;
     size_t discardedCueFrames{};
 
-    struct CueDiscardPlan {
-        bool discardWholeHold{};
-        std::unordered_set<LayerIndex> discardLayers;
-
-        bool skipsLayer(LayerIndex layer) const
-        {
-            return discardWholeHold || discardLayers.contains(layer);
-        }
-    };
-
     struct CurrentMeasureStaff {
         MeasCmper meas{};
         StaffCmper staff{};
         std::string voice;
         std::optional<details::GFrameHoldContext> gfhold;
         std::map<LayerIndex, int> layerVoices;
-        CueDiscardPlan cueDiscardPlan;
-        std::unordered_map<Cmper, MusxInstance<others::SmartShape>> ottavasApplicableInMeasure;
+        CueLayerPlan cueDiscardPlan;
+        OttavaShapeMap ottavasApplicableInMeasure;
 
         void clear()
         {

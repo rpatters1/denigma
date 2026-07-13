@@ -22,7 +22,9 @@
 #include "denigma/classify/expressions.h"
 
 #include <algorithm>
+#include <array>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -30,10 +32,15 @@
 #include "core/denigma.h"
 #include "denigma/classify/articulations.h"
 #include "classify/classify.h"
+#include "smufl_mapping.h"
+#include "utils/smufl_support.h"
 #include "utils/stringutils.h"
 #include "utils/utf8_iterator.h"
 
 namespace denigma::classify {
+
+using namespace dynamics;
+using namespace expression;
 
 namespace {
 
@@ -108,20 +115,142 @@ static std::string_view withoutFinalPeriods(std::string_view text)
     return text;
 }
 
+static musx::util::EnigmaTextChunk sliceChunk(const musx::util::EnigmaTextChunk& chunk, size_t start, size_t length)
+{
+    auto result = chunk;
+    result.text = chunk.text.substr(start, length);
+    return result;
+}
+
+static musx::util::EnigmaTextChunk sliceChunk(const musx::util::EnigmaTextChunk& chunk, std::span<const char> sourceText)
+{
+    const auto* chunkStart = chunk.text.data();
+    const size_t start = static_cast<size_t>(sourceText.data() - chunkStart);
+    return sliceChunk(chunk, start, sourceText.size());
+}
+
+static Change qualifierChangeForText(std::string_view text)
+{
+    bool sawIncrease = false;
+    bool sawDecrease = false;
+    const auto isBoundary = [](unsigned char ch) {
+        return utils::isSpace(ch) || utils::isPunctuation(ch);
+    };
+
+    for (size_t start = 0; start < text.size();) {
+        while (start < text.size() && isBoundary(static_cast<unsigned char>(text[start]))) {
+            ++start;
+        }
+        size_t end = start;
+        while (end < text.size() && !isBoundary(static_cast<unsigned char>(text[end]))) {
+            ++end;
+        }
+        if (start < end) {
+            const std::string_view token = withoutFinalPeriods(text.substr(start, end - start));
+            if (token == "piu" || token == "più") {
+                sawIncrease = true;
+            } else if (token == "meno" || token == "menos") {
+                sawDecrease = true;
+            }
+        }
+        start = end;
+    }
+
+    if (sawIncrease == sawDecrease) {
+        return Change::Absolute;
+    }
+    return sawIncrease ? Change::RelativeIncrease : Change::RelativeDecrease;
+}
+
+static std::vector<musx::util::EnigmaTextChunk> collectVisibleExpressionChunks(
+    const musx::util::EnigmaParsingContext& rawTextCtx)
+{
+    std::vector<musx::util::EnigmaTextChunk> result;
+    auto chunks = rawTextCtx.collectEnigmaTextChunks(
+        musx::util::EnigmaString::EnigmaParsingOptions(musx::util::EnigmaString::AccidentalStyle::Unicode));
+    for (auto& chunk : chunks) {
+        if (!chunk.styles.font || chunk.styles.font->hidden || chunk.text.empty()) {
+            continue;
+        }
+        result.push_back(std::move(chunk));
+    }
+    return result;
+}
+
+static void appendGenericRun(std::vector<RunClassification>& runs, const musx::util::EnigmaTextChunk& chunk)
+{
+    if (!chunk.text.empty()) {
+        const std::string normalizedText = normalizeExpressionText(chunk.text);
+        const Change change = qualifierChangeForText(normalizedText);
+        if (change != Change::Absolute) {
+            runs.push_back({ chunk, ClassificationBasis::Heuristic, DynamicQualifier{ change, chunk.text } });
+        } else {
+            runs.push_back({ chunk, ClassificationBasis::FallbackToGenericText, GenericText{ chunk.text } });
+        }
+    }
+}
+
+static std::vector<RunClassification> classifyExpressionRuns(const ResolvedTextExpression& resolved)
+{
+    if (!resolved.rawTextCtx) {
+        return {};
+    }
+
+    std::vector<RunClassification> result;
+    const bool forceDynamicOther = resolved.categoryType == CategoryType::Dynamics;
+    for (const auto& chunk : collectVisibleExpressionChunks(resolved.rawTextCtx)) {
+        const auto dynamicSpans = detail::findDynamicSpans(chunk);
+        if (dynamicSpans.empty()) {
+            if (auto dynamic = classifyDynamicRun(chunk, forceDynamicOther)) {
+                result.push_back({ chunk, dynamic->dynamic == Dynamic::Other
+                    ? ClassificationBasis::FinaleCategory
+                    : basisForRecognition(resolved.categoryType, CategoryType::Dynamics), *dynamic });
+            } else {
+                appendGenericRun(result, chunk);
+            }
+            continue;
+        }
+
+        size_t cursor = 0;
+        for (const auto& dynamicSpan : dynamicSpans) {
+            const size_t dynamicStart = static_cast<size_t>(dynamicSpan.sourceText.data() - chunk.text.data());
+            if (dynamicStart > cursor) {
+                appendGenericRun(result, sliceChunk(chunk, cursor, dynamicStart - cursor));
+            }
+            result.push_back({
+                sliceChunk(chunk, dynamicSpan.sourceText),
+                basisForRecognition(resolved.categoryType, CategoryType::Dynamics),
+                dynamicSpan.mark
+            });
+            cursor = dynamicStart + dynamicSpan.sourceText.size();
+        }
+        if (cursor < chunk.text.size()) {
+            appendGenericRun(result, sliceChunk(chunk, cursor, chunk.text.size() - cursor));
+        }
+    }
+    return result;
+}
+
 static std::optional<ExpressionClassification> makeDynamicExpression(
-    const DynamicClassification& dynamicClass,
+    std::vector<RunClassification> runs,
     CategoryType categoryType)
 {
-    if (!dynamicClass) {
+    const auto dynamicIt = std::find_if(runs.begin(), runs.end(), [](const RunClassification& run) {
+        return std::holds_alternative<dynamics::Mark>(run.value);
+    });
+    if (dynamicIt == runs.end()) {
         return std::nullopt;
     }
 
+    const auto& dynamicMark = std::get<dynamics::Mark>(dynamicIt->value);
+
     ExpressionClassification result;
     result.type = ExpressionType::Dynamic;
-    result.basis = dynamicClass.dynamic == Dynamic::Other
+    result.basis = dynamicMark.dynamic == Dynamic::Other
         ? ClassificationBasis::FinaleCategory
         : basisForRecognition(categoryType, CategoryType::Dynamics);
-    result.value = dynamicClass;
+    result.value = dynamicMark;
+    result.runs = std::move(runs);
     return result;
 }
 
@@ -133,78 +262,75 @@ static bool matchesAny(std::string_view text, const std::initializer_list<std::s
     });
 }
 
-static Technique classifyTechniqueText(std::string_view normalizedText)
+static TechniqueText classifyTechniqueText(std::string_view text, std::string_view normalizedText)
 {
     if (matchesAny(normalizedText, { "arco" })) {
-        return { TechniqueType::Arco, std::string(normalizedText) };
+        return { TechniqueText::Type::Arco, std::string(text) };
     }
     if (matchesAny(normalizedText, { "pizz", "pizzicato" })) {
-        return { TechniqueType::Pizzicato, std::string(normalizedText) };
+        return { TechniqueText::Type::Pizzicato, std::string(text) };
     }
     if (matchesAny(normalizedText, { "col legno", "c. legno" })) {
-        return { TechniqueType::ColLegno, std::string(normalizedText) };
+        return { TechniqueText::Type::ColLegno, std::string(text) };
     }
     if (matchesAny(normalizedText, { "col legno battuto", "col legno batt", "c. legno battuto", "c. legno batt" })) {
-        return { TechniqueType::ColLegnoBattuto, std::string(normalizedText) };
+        return { TechniqueText::Type::ColLegnoBattuto, std::string(text) };
     }
     if (matchesAny(normalizedText, { "col legno tratto", "col legno tratt", "c. legno tratto", "c. legno tratt" })) {
-        return { TechniqueType::ColLegnoTratto, std::string(normalizedText) };
+        return { TechniqueText::Type::ColLegnoTratto, std::string(text) };
     }
     if (matchesAny(normalizedText, { "sul pont", "sul ponticello", "s. pont" })) {
-        return { TechniqueType::SulPonticello, std::string(normalizedText) };
+        return { TechniqueText::Type::SulPonticello, std::string(text) };
     }
     if (matchesAny(normalizedText, { "sul tasto", "s. tasto" })) {
-        return { TechniqueType::SulTasto, std::string(normalizedText) };
+        return { TechniqueText::Type::SulTasto, std::string(text) };
     }
     if (matchesAny(normalizedText, { "flautando", "flaut" })) {
-        return { TechniqueType::Flautando, std::string(normalizedText) };
+        return { TechniqueText::Type::Flautando, std::string(text) };
     }
     if (matchesAny(normalizedText, { "ord", "ordinario" })) {
-        return { TechniqueType::Ordinario, std::string(normalizedText) };
+        return { TechniqueText::Type::Ordinario, std::string(text) };
     }
     if (matchesAny(normalizedText, {
         "straight mute", "straight", "con sordino straight", "straight sord",
         "metal mute", "wood mute", "fiber mute", "fibre mute"
     })) {
-        return { TechniqueType::StraightMute, std::string(normalizedText) };
+        return { TechniqueText::Type::StraightMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "cup mute", "cup", "con sordino cup", "cup sord" })) {
-        return { TechniqueType::CupMute, std::string(normalizedText) };
+        return { TechniqueText::Type::CupMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "harmon mute", "harmon", "wah-wah mute", "wah wah mute", "wah-wah", "wah wah" })) {
-        return { TechniqueType::HarmonMute, std::string(normalizedText) };
+        return { TechniqueText::Type::HarmonMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "plunger mute", "plunger" })) {
-        return { TechniqueType::PlungerMute, std::string(normalizedText) };
+        return { TechniqueText::Type::PlungerMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "bucket mute", "bucket" })) {
-        return { TechniqueType::BucketMute, std::string(normalizedText) };
+        return { TechniqueText::Type::BucketMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "solotone mute", "solotone" })) {
-        return { TechniqueType::SolotoneMute, std::string(normalizedText) };
+        return { TechniqueText::Type::SolotoneMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "stop mute", "brass mute" })) {
-        return { TechniqueType::StopMute, std::string(normalizedText) };
+        return { TechniqueText::Type::StopMute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "stopped", "stop" })) {
-        return { TechniqueType::Stopped, std::string(normalizedText) };
+        return { TechniqueText::Type::Stopped, std::string(text) };
     }
     if (matchesAny(normalizedText, { "con sord", "mute", "muted" })) {
-        return { TechniqueType::Mute, std::string(normalizedText) };
+        return { TechniqueText::Type::Mute, std::string(text) };
     }
     if (matchesAny(normalizedText, { "senza sord", "open" })) {
-        return { TechniqueType::Open, std::string(normalizedText) };
-    }
-    if (matchesAny(normalizedText, { "trem", "tremolo" })) {
-        return { TechniqueType::Tremolo, std::string(normalizedText) };
+        return { TechniqueText::Type::Open, std::string(text) };
     }
     return {};
 }
 
-static std::optional<ExpressionClassification> classifyTechnique(std::string_view normalizedText, CategoryType categoryType)
+static std::optional<ExpressionClassification> classifyTechnique(std::string_view text, std::string_view normalizedText, CategoryType categoryType)
 {
-    Technique technique = classifyTechniqueText(normalizedText);
-    if (technique.type == TechniqueType::None) {
+    TechniqueText technique = classifyTechniqueText(text, normalizedText);
+    if (technique.type == TechniqueText::Type::None) {
         return std::nullopt;
     }
 
@@ -249,6 +375,7 @@ static bool isRehearsalMarkText(std::string_view text)
 }
 
 static std::optional<ExpressionClassification> classifyTempoAlteration(
+    std::string_view text,
     std::string_view normalizedText,
     CategoryType categoryType,
     bool allowCategoryFallback = true)
@@ -263,11 +390,12 @@ static std::optional<ExpressionClassification> classifyTempoAlteration(
     result.basis = recognizedText
         ? basisForRecognition(categoryType, CategoryType::TempoAlterations)
         : ClassificationBasis::FinaleCategory;
-    result.value = TempoAlteration{ TempoInfo{ std::string(normalizedText), 0, 0 } };
+    result.value = TempoAlteration{ TempoInfo{ std::string(text), 0, 0 } };
     return result;
 }
 
 static std::optional<ExpressionClassification> classifyTempo(
+    std::string_view text,
     std::string_view normalizedText,
     CategoryType categoryType,
     bool allowCategoryFallback = true)
@@ -282,12 +410,13 @@ static std::optional<ExpressionClassification> classifyTempo(
     result.basis = recognizedText
         ? basisForRecognition(categoryType, CategoryType::TempoMarks)
         : ClassificationBasis::FinaleCategory;
-    result.value = TempoMark{ TempoInfo{ std::string(normalizedText), 0, 0 } };
+    result.value = TempoText{ TempoInfo{ std::string(text), 0, 0 } };
     return result;
 }
 
 static std::optional<ExpressionClassification> classifyTempo(
     const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
+    std::string_view text,
     std::string_view normalizedText,
     CategoryType categoryType)
 {
@@ -295,10 +424,10 @@ static std::optional<ExpressionClassification> classifyTempo(
         ExpressionClassification result;
         result.type = ExpressionType::TempoMark;
         result.basis = basisForRecognition(categoryType, CategoryType::TempoMarks);
-        result.value = TempoMark{ TempoInfo{ std::string(normalizedText), def->value, def->auxData1 } };
+        result.value = TempoText{ TempoInfo{ std::string(text), def->value, def->auxData1 } };
         return result;
     }
-    return classifyTempo(normalizedText, categoryType);
+    return classifyTempo(text, normalizedText, categoryType);
 }
 
 static bool hasTempoPlayback(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
@@ -314,13 +443,13 @@ static std::optional<ExpressionClassification> classifyTempo(
         ExpressionClassification result;
         result.type = ExpressionType::TempoMark;
         result.basis = basisForRecognition(categoryType, CategoryType::TempoMarks);
-        result.value = TempoMark{ TempoInfo{ {}, def->value, def->auxData1 } };
+        result.value = TempoText{ TempoInfo{ {}, def->value, def->auxData1 } };
         return result;
     }
     return std::nullopt;
 }
 
-static std::optional<ExpressionClassification> classifyRehearsalMark(std::string_view normalizedText, CategoryType categoryType)
+static std::optional<ExpressionClassification> classifyRehearsalMark(std::string_view text, CategoryType categoryType)
 {
     if (categoryType != CategoryType::RehearsalMarks) {
         return std::nullopt;
@@ -329,13 +458,17 @@ static std::optional<ExpressionClassification> classifyRehearsalMark(std::string
     ExpressionClassification result;
     result.type = ExpressionType::RehearsalMark;
     result.basis = ClassificationBasis::FinaleCategory;
-    result.value = RehearsalMark{ std::string(normalizedText) };
+    result.value = RehearsalMark{ std::string(text) };
     return result;
+}
+
+static bool hasExplicitRehearsalMarkStyle(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+{
+    return def && def->rehearsalMarkStyle != musx::dom::others::RehearsalMarkStyle::None;
 }
 
 static std::optional<ExpressionClassification> classifyRehearsalMarkText(
     std::string_view text,
-    std::string_view normalizedText,
     CategoryType categoryType)
 {
     if (!isRehearsalMarkText(text)) {
@@ -345,7 +478,7 @@ static std::optional<ExpressionClassification> classifyRehearsalMarkText(
     ExpressionClassification result;
     result.type = ExpressionType::RehearsalMark;
     result.basis = basisForRecognition(categoryType, CategoryType::RehearsalMarks);
-    result.value = RehearsalMark{ std::string(normalizedText) };
+    result.value = RehearsalMark{ std::string(text) };
     return result;
 }
 
@@ -356,50 +489,42 @@ static bool assignmentUsesTopStaff(const musx::dom::MusxInstance<musx::dom::othe
 }
 
 static ExpressionClassification classifySystemTextExpression(
+    const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
     std::string_view text,
     std::string_view normalizedText,
     CategoryType categoryType)
 {
-    if (const auto tempoAlteration = classifyTempoAlteration(normalizedText, categoryType, false)) {
+    if (hasExplicitRehearsalMarkStyle(def)) {
+        ExpressionClassification result;
+        result.type = ExpressionType::RehearsalMark;
+        result.basis = ClassificationBasis::Heuristic;
+        result.value = RehearsalMark{ std::string(text) };
+        return result;
+    }
+    if (const auto tempoAlteration = classifyTempoAlteration(text, normalizedText, categoryType, false)) {
         return *tempoAlteration;
     }
-    if (const auto tempo = classifyTempo(normalizedText, categoryType, false)) {
+    if (const auto tempo = classifyTempo(text, normalizedText, categoryType, false)) {
         return *tempo;
     }
-    if (const auto rehearsalMark = classifyRehearsalMarkText(text, normalizedText, categoryType)) {
+    if (const auto rehearsalMark = classifyRehearsalMarkText(text, categoryType)) {
         return *rehearsalMark;
     }
     if (categoryType == CategoryType::TempoMarks) {
-        return *classifyTempo(normalizedText, categoryType);
+        return *classifyTempo(text, normalizedText, categoryType);
     }
     if (categoryType == CategoryType::TempoAlterations) {
-        return *classifyTempoAlteration(normalizedText, categoryType);
+        return *classifyTempoAlteration(text, normalizedText, categoryType);
     }
 
     ExpressionClassification result;
     result.type = ExpressionType::TempoMark;
     result.basis = ClassificationBasis::Heuristic;
-    result.value = TempoMark{ TempoInfo{ std::string(normalizedText), 0, 0 } };
+    result.value = TempoText{ TempoInfo{ std::string(text), 0, 0 } };
     return result;
 }
 
-static bool sameExpressionDefinition(
-    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& left,
-    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& right)
-{
-    if (!left || !right) {
-        return false;
-    }
-    if (left->textExprId || right->textExprId) {
-        return left->textExprId && right->textExprId && left->textExprId == right->textExprId;
-    }
-    if (left->shapeExprId || right->shapeExprId) {
-        return left->shapeExprId && right->shapeExprId && left->shapeExprId == right->shapeExprId;
-    }
-    return false;
-}
-
-static ExpressionClassification classifyGenericText(std::string_view normalizedText, CategoryType categoryType)
+static ExpressionClassification classifyGenericText(std::string_view text, CategoryType categoryType)
 {
     ExpressionClassification result;
     result.type = ExpressionType::GenericText;
@@ -410,7 +535,7 @@ static ExpressionClassification classifyGenericText(std::string_view normalizedT
     } else {
         result.basis = ClassificationBasis::FallbackToGenericText;
     }
-    result.value = GenericText{ std::string(normalizedText) };
+    result.value = GenericText{ std::string(text) };
     return result;
 }
 
@@ -439,7 +564,9 @@ static CategoryType categoryTypeForExpression(const musx::dom::MusxInstance<musx
     return categoryTypeFromId(def->categoryId);
 }
 
-static ResolvedTextExpression resolveTextExpression(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+static ResolvedTextExpression resolveTextExpression(
+    const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment = nullptr)
 {
     ResolvedTextExpression result;
     result.expressionDef = def;
@@ -452,7 +579,9 @@ static ResolvedTextExpression resolveTextExpression(const musx::dom::MusxInstanc
             << " has non-existent text block " << def->textIdKey).str();
         return result;
     }
-    result.rawTextCtx = def->getRawTextCtx(musx::dom::SCORE_PARTID);
+    result.rawTextCtx = assignment
+        ? assignment->getRawTextCtx(musx::dom::SCORE_PARTID)
+        : def->getRawTextCtx(musx::dom::SCORE_PARTID);
     if (!result.rawTextCtx) {
         result.errorMessage = (LogMsg() << "Text expression " << def->getCmper()
             << " could not load EnigmaParsingContext for text block " << def->textIdKey).str();
@@ -472,7 +601,7 @@ static std::optional<ExpressionClassification> classifyTextExpressionError(const
     ExpressionClassification result;
     result.type = ExpressionType::Error;
     result.basis = ClassificationBasis::FallbackToGenericText;
-    result.value = ExpressionError{ resolved.errorMessage };
+    result.value = Error{ resolved.errorMessage };
     return result;
 }
 
@@ -488,22 +617,138 @@ static std::optional<ExpressionClassification> classifySymbolExpression(const Re
     }
 
     const auto classification = classifyArticulationSymbol(resolved.rawTextCtx.parseFirstFontInfo(), *symbol);
-    if (const auto* fermata = classification.as<classify::Fermata>()) {
+    if (const auto* fermata = classification.as<articulation::Fermata>()) {
         ExpressionClassification result;
         result.type = ExpressionType::Fermata;
         result.basis = basisForSymbolRecognition(resolved.categoryType);
-        result.value = ExpressionFermata{ *fermata, classification.glyphName,
+        result.value = Fermata{ *fermata, classification.glyphName, fermata->glyphStyle,
             resolved.expressionDef->horzMeasExprAlign == musx::dom::others::HorizontalMeasExprAlign::RightBarline };
         return result;
     }
-    if (const auto* breathMark = classification.as<classify::BreathMark>()) {
+    if (const auto* breathMark = classification.as<articulation::BreathMark>()) {
         ExpressionClassification result;
         result.type = ExpressionType::BreathMark;
         result.basis = basisForSymbolRecognition(resolved.categoryType);
-        result.value = ExpressionBreathMark{ *breathMark, classification.glyphName };
+        result.value = BreathMark{ *breathMark, classification.glyphName };
         return result;
     }
     return std::nullopt;
+}
+
+static std::optional<HarpDiagram::PedalPosition> harpPedalPositionFromGlyphName(std::string_view glyphName)
+{
+    using PedalPosition = HarpDiagram::PedalPosition;
+    if (glyphName == "harpPedalRaised") {
+        return PedalPosition::Flat;
+    }
+    if (glyphName == "harpPedalCentered") {
+        return PedalPosition::Natural;
+    }
+    if (glyphName == "harpPedalLowered") {
+        return PedalPosition::Sharp;
+    }
+    return std::nullopt;
+}
+
+static std::optional<HarpDiagram::PedalPosition> harpPedalPositionFromCodepoint(char32_t codepoint)
+{
+    using PedalPosition = HarpDiagram::PedalPosition;
+    switch (codepoint) {
+    case 0xE680: return PedalPosition::Flat;
+    case 0xE681: return PedalPosition::Natural;
+    case 0xE682: return PedalPosition::Sharp;
+    default: return std::nullopt;
+    }
+}
+
+static bool isHarpPedalDividerCodepoint(char32_t codepoint)
+{
+    return codepoint == 0xE683;
+}
+
+static std::optional<ExpressionClassification> classifyHarpDiagramExpression(const ResolvedTextExpression& resolved)
+{
+    const auto chunks = collectVisibleExpressionChunks(resolved.rawTextCtx);
+    if (chunks.empty()) {
+        return std::nullopt;
+    }
+
+    std::array<HarpDiagram::PedalPosition, 7> pedalPositions{};
+    size_t pedalIndex = 0;
+    bool sawDivider = false;
+
+    for (const auto& chunk : chunks) {
+        const auto font = chunk.styles.font;
+        if (!font) {
+            return std::nullopt;
+        }
+        const bool fontIsSmufl = font->calcIsSMuFL();
+        bool utf8Valid = true;
+        for (utils::Utf8Iterator iter(chunk.text); !iter.atEnd(); iter.next()) {
+            if (!iter.valid()) {
+                utf8Valid = false;
+                break;
+            }
+            const auto glyphName = [&]() -> std::optional<std::string> {
+                if (fontIsSmufl) {
+                    if (const auto* name = smufl_mapping::getGlyphName(iter->codepoint)) {
+                        return std::string(*name);
+                    }
+                    return std::nullopt;
+                }
+                return utils::smuflGlyphNameForFont(font, iter->codepoint);
+            }();
+            if ((glyphName && *glyphName == "harpPedalDivider") || isHarpPedalDividerCodepoint(iter->codepoint)) {
+                if (sawDivider || pedalIndex != 3) {
+                    return std::nullopt;
+                }
+                sawDivider = true;
+                continue;
+            }
+
+            const auto pedalPosition = glyphName
+                ? harpPedalPositionFromGlyphName(*glyphName)
+                : harpPedalPositionFromCodepoint(iter->codepoint);
+            if (!pedalPosition || pedalIndex >= pedalPositions.size()) {
+                return std::nullopt;
+            }
+            pedalPositions[pedalIndex++] = pedalPosition.value();
+        }
+        if (!utf8Valid) {
+            return std::nullopt;
+        }
+    }
+
+    if (!sawDivider || pedalIndex != pedalPositions.size()) {
+        return std::nullopt;
+    }
+
+    ExpressionClassification result;
+    result.type = ExpressionType::HarpDiagram;
+    result.basis = basisForSymbolRecognition(resolved.categoryType);
+    result.value = HarpDiagram{
+        pedalPositions[0], pedalPositions[1], pedalPositions[2],
+        pedalPositions[3], pedalPositions[4], pedalPositions[5], pedalPositions[6]
+    };
+    return result;
+}
+
+static std::optional<ExpressionClassification> classifyKeyboardPedalExpression(const ResolvedTextExpression& resolved)
+{
+    auto pedal = classifyKeyboardPedal(resolved.rawTextCtx);
+    if (!pedal) {
+        pedal = classifyKeyboardPedal(resolved.normalizedText);
+    }
+    if (!pedal) {
+        return std::nullopt;
+    }
+    ExpressionClassification result;
+    result.type = ExpressionType::KeyboardPedal;
+    result.basis = pedal->fromGlyph
+        ? basisForSymbolRecognition(resolved.categoryType)
+        : basisForRecognition(resolved.categoryType, CategoryType::TechniqueText);
+    result.value = pedal->type;
+    return result;
 }
 
 static ExpressionClassification withEnigmaCtx(ExpressionClassification result, const ResolvedTextExpression& resolved)
@@ -514,74 +759,186 @@ static ExpressionClassification withEnigmaCtx(ExpressionClassification result, c
     return result;
 }
 
+static std::optional<ExpressionClassification> classifyResolvedTextExpressionBeforeAssignment(const ResolvedTextExpression& resolved)
+{
+    const CategoryType categoryType = resolved.categoryType;
+    const std::string_view normalizedText = resolved.normalizedText;
+
+    if (const auto error = classifyTextExpressionError(resolved)) {
+        return error;
+    }
+    if (const auto harpDiagram = classifyHarpDiagramExpression(resolved)) {
+        return withEnigmaCtx(*harpDiagram, resolved);
+    }
+    if (const auto pedal = classifyKeyboardPedalExpression(resolved)) {
+        return withEnigmaCtx(*pedal, resolved);
+    }
+    if (const auto symbol = classifySymbolExpression(resolved)) {
+        return withEnigmaCtx(*symbol, resolved);
+    }
+    if (hasTempoPlayback(resolved.expressionDef)) {
+        return withEnigmaCtx(*classifyTempo(resolved.expressionDef, resolved.text, normalizedText, categoryType), resolved);
+    }
+    if (categoryType == CategoryType::RehearsalMarks) {
+        return withEnigmaCtx(*classifyRehearsalMark(resolved.text, categoryType), resolved);
+    }
+    if (const auto dynamic = makeDynamicExpression(classifyExpressionRuns(resolved), categoryType)) {
+        return withEnigmaCtx(*dynamic, resolved);
+    }
+    if (categoryType == CategoryType::TempoMarks || categoryType == CategoryType::TempoAlterations) {
+        if (const auto tempoAlteration = classifyTempoAlteration(resolved.text, normalizedText, categoryType, false)) {
+            return withEnigmaCtx(*tempoAlteration, resolved);
+        }
+        if (const auto tempo = classifyTempo(resolved.text, normalizedText, categoryType, false)) {
+            return withEnigmaCtx(*tempo, resolved);
+        }
+        if (categoryType == CategoryType::TempoMarks) {
+            return withEnigmaCtx(*classifyTempo(resolved.text, normalizedText, categoryType), resolved);
+        }
+        return withEnigmaCtx(*classifyTempoAlteration(resolved.text, normalizedText, categoryType), resolved);
+    }
+    return std::nullopt;
+}
+
+static ExpressionClassification classifyResolvedTextExpressionDefinition(const ResolvedTextExpression& resolved)
+{
+    const CategoryType categoryType = resolved.categoryType;
+    const std::string_view normalizedText = resolved.normalizedText;
+
+    if (const auto classification = classifyResolvedTextExpressionBeforeAssignment(resolved)) {
+        return *classification;
+    }
+    if (const auto technique = classifyTechnique(resolved.text, normalizedText, categoryType)) {
+        return withEnigmaCtx(*technique, resolved);
+    }
+    return withEnigmaCtx(classifyGenericText(resolved.text, categoryType), resolved);
+}
+
+static ExpressionClassification classifyAssignedTextExpression(
+    const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+{
+    const ResolvedTextExpression resolved = resolveTextExpression(def, assignment);
+    const CategoryType categoryType = resolved.categoryType;
+    const std::string_view normalizedText = resolved.normalizedText;
+
+    if (const auto classification = classifyResolvedTextExpressionBeforeAssignment(resolved)) {
+        return *classification;
+    }
+    if (assignmentUsesTopStaff(assignment)) {
+        return withEnigmaCtx(classifySystemTextExpression(def, resolved.text, normalizedText, categoryType), resolved);
+    }
+    if (const auto technique = classifyTechnique(resolved.text, normalizedText, categoryType)) {
+        return withEnigmaCtx(*technique, resolved);
+    }
+    return withEnigmaCtx(classifyGenericText(resolved.text, categoryType), resolved);
+}
+
+static ExpressionClassification classifyTextExpressionDefinition(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+{
+    return classifyResolvedTextExpressionDefinition(resolveTextExpression(def));
+}
+
+static ExpressionClassification classifyShapeExpressionDefinition(const musx::dom::MusxInstance<musx::dom::others::ShapeExpressionDef>& def)
+{
+    if (const auto tempo = classifyTempo(def, categoryTypeForExpression(def))) {
+        return *tempo;
+    }
+    return suppressExpression();
+}
+
+static musx::dom::CurveContourDirection calcShapeExpressionContour(
+    const musx::dom::MusxInstance<musx::dom::others::ShapeDef>& shape)
+{
+    return shape ? shape->calcSlurContour() : musx::dom::CurveContourDirection::Unspecified;
+}
+
+static std::optional<ExpressionClassification> classifyPseudoTieExpression(
+    const musx::dom::MusxInstance<musx::dom::others::ShapeDef>& shape,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+{
+    if (!assignment) {
+        return std::nullopt;
+    }
+    const auto entryInfo = assignment->calcAssociatedEntry();
+    if (!entryInfo) {
+        return std::nullopt;
+    }
+
+    auto makeResult = [&](PseudoTie::Type type) {
+        ExpressionClassification result;
+        result.type = ExpressionType::PseudoTie;
+        result.basis = ClassificationBasis::Heuristic;
+        result.value = PseudoTie{ type, calcShapeExpressionContour(shape) };
+        return result;
+    };
+
+    if (assignment->calcIsPseudoTie(musx::utils::PseudoTieMode::LaissezVibrer, entryInfo)) {
+        return makeResult(PseudoTie::Type::LaissezVibrer);
+    }
+    if (assignment->calcIsPseudoTie(musx::utils::PseudoTieMode::TieEnd, entryInfo)) {
+        return makeResult(PseudoTie::Type::TieEnd);
+    }
+    return std::nullopt;
+}
+
+static ExpressionClassification classifyAssignedShapeExpression(
+    const musx::dom::MusxInstance<musx::dom::others::ShapeExpressionDef>& def,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+{
+    const CategoryType categoryType = categoryTypeForExpression(def);
+    const auto shape = def ? def->getShape() : musx::dom::MusxInstance<musx::dom::others::ShapeDef>{};
+    const auto shapeType = shape ? shape->recognize() : musx::dom::KnownShapeDefType::Unrecognized;
+
+    switch (shapeType) {
+    case musx::dom::KnownShapeDefType::SlurTieCurveLeft:
+    case musx::dom::KnownShapeDefType::SlurTieCurveRight:
+        if (const auto pseudoTie = classifyPseudoTieExpression(shape, assignment)) {
+            return *pseudoTie;
+        }
+        break;
+    case musx::dom::KnownShapeDefType::VerticalLineRightHooks:
+        if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForAssignment(assignment)) {
+            ExpressionClassification result;
+            result.type = ExpressionType::NonArpeggio;
+            result.basis = ClassificationBasis::FinaleCategory;
+            result.value = NonArpeggio{ nonArpeggio.value() };
+            return result;
+        }
+        break;
+    default:
+        break;
+    }
+
+    if (const auto tempo = classifyTempo(def, categoryType)) {
+        return *tempo;
+    }
+    if (assignmentUsesTopStaff(assignment)) {
+        return classifySystemTextExpression(nullptr, {}, {}, categoryType);
+    }
+    return suppressExpression();
+}
+
 } // namespace
 
 ExpressionClassification classifyExpression(
     const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def,
     const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
 {
-    const ResolvedTextExpression resolved = resolveTextExpression(def);
-    const CategoryType categoryType = resolved.categoryType;
-    const std::string_view normalizedText = resolved.normalizedText;
-
-    if (const auto error = classifyTextExpressionError(resolved)) {
-        return *error;
+    if (assignment) {
+        return classifyAssignedTextExpression(def, assignment);
     }
-    if (const auto symbol = classifySymbolExpression(resolved)) {
-        return withEnigmaCtx(*symbol, resolved);
-    }
-    if (hasTempoPlayback(def)) {
-        return withEnigmaCtx(*classifyTempo(def, normalizedText, categoryType), resolved);
-    }
-    if (categoryType == CategoryType::RehearsalMarks) {
-        return withEnigmaCtx(*classifyRehearsalMark(normalizedText, categoryType), resolved);
-    }
-    if (const auto dynamic = makeDynamicExpression(classifyDynamic(resolved.rawTextCtx, categoryType == CategoryType::Dynamics), categoryType)) {
-        return withEnigmaCtx(*dynamic, resolved);
-    }
-    if (categoryType == CategoryType::TempoMarks || categoryType == CategoryType::TempoAlterations) {
-        if (const auto tempoAlteration = classifyTempoAlteration(normalizedText, categoryType, false)) {
-            return withEnigmaCtx(*tempoAlteration, resolved);
-        }
-        if (const auto tempo = classifyTempo(normalizedText, categoryType, false)) {
-            return withEnigmaCtx(*tempo, resolved);
-        }
-        if (categoryType == CategoryType::TempoMarks) {
-            return withEnigmaCtx(*classifyTempo(normalizedText, categoryType), resolved);
-        }
-        return withEnigmaCtx(*classifyTempoAlteration(normalizedText, categoryType), resolved);
-    }
-    if (assignmentUsesTopStaff(assignment)) {
-        return withEnigmaCtx(classifySystemTextExpression(resolved.text, normalizedText, categoryType), resolved);
-    }
-    if (const auto technique = classifyTechnique(normalizedText, categoryType)) {
-        return withEnigmaCtx(*technique, resolved);
-    }
-    return withEnigmaCtx(classifyGenericText(normalizedText, categoryType), resolved);
+    return classifyTextExpressionDefinition(def);
 }
 
 ExpressionClassification classifyExpression(
     const musx::dom::MusxInstance<musx::dom::others::ShapeExpressionDef>& def,
     const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
 {
-    const CategoryType categoryType = categoryTypeForExpression(def);
-
-    if (const auto tempo = classifyTempo(def, categoryType)) {
-        return *tempo;
-    }
     if (assignment) {
-        if (const auto nonArpeggio = musx::util::calcNonArpeggioSpanForAssignment(assignment)) {
-            ExpressionClassification result;
-            result.type = ExpressionType::NonArpeggio;
-            result.basis = ClassificationBasis::FinaleCategory;
-            result.value = ExpressionNonArpeggio{ nonArpeggio.value() };
-            return result;
-        }
+        return classifyAssignedShapeExpression(def, assignment);
     }
-    if (assignmentUsesTopStaff(assignment)) {
-        return classifySystemTextExpression({}, {}, categoryType);
-    }
-    return suppressExpression();
+    return classifyShapeExpressionDefinition(def);
 }
 
 ExpressionClassification classifyExpression(
@@ -613,7 +970,7 @@ std::vector<ExpressionAssignmentClassification> classifyExpressionAssignments(
             continue;
         }
         for (auto& result : results) {
-            if (sameExpressionDefinition(topStaffResult.assignment, result.assignment)) {
+            if (result.assignment && topStaffResult.assignment->calcIsSameDefinition(*result.assignment)) {
                 result.classification = topStaffResult.classification;
             }
         }

@@ -29,6 +29,7 @@
 #include <fstream>
 #include <functional>
 #include <cassert>
+#include <utility>
 
 #include "denigma/conversion.h"
 #include "musx/musx.h"
@@ -56,6 +57,8 @@ constexpr int JSON_INDENT_SPACES     = 4;
 #endif
 
 namespace denigma {
+
+const char* gitCommit();
 
 #ifdef _WIN32
 using arg_view = std::wstring_view;
@@ -284,6 +287,31 @@ std::string getTimeStamp(const std::string& fmt);
 bool createDirectoryIfNeeded(const std::filesystem::path& path);
 void showAboutPage();
 bool isFontSMuFL(const std::shared_ptr<musx::dom::FontInfo>& font);
+
+// createMusxDocument is implemented as a template to avoid promoting pugixml to being a core dependency
+template <typename Reader>
+musx::dom::DocumentPtr createMusxDocument(
+    const CommandInputData& inputData,
+    const DenigmaContext& denigmaContext,
+    musx::dom::PartVoicingPolicy partVoicingPolicy = musx::dom::PartVoicingPolicy::Ignore)
+{
+    musx::factory::DocumentFactory::CreateOptions::EmbeddedGraphicFiles embeddedGraphicFiles;
+    embeddedGraphicFiles.reserve(inputData.embeddedGraphics.size());
+    for (const auto& graphic : inputData.embeddedGraphics) {
+        musx::factory::DocumentFactory::CreateOptions::EmbeddedGraphicFile file;
+        file.filename = graphic.filename;
+        file.bytes.assign(graphic.blob.begin(), graphic.blob.end());
+        embeddedGraphicFiles.emplace_back(std::move(file));
+    }
+
+    musx::factory::DocumentFactory::CreateOptions createOptions(
+        denigmaContext.inputFilePath,
+        inputData.notationMetadata.value_or(Buffer{}),
+        std::move(embeddedGraphicFiles),
+        partVoicingPolicy);
+
+    return musx::factory::DocumentFactory::create<Reader>(inputData.primaryBuffer, std::move(createOptions));
+}
 
 template <typename T>
 musx::dom::MusxInstance<T> getDocOptions(const musx::dom::DocumentPtr& document, const std::string& prefsName)
