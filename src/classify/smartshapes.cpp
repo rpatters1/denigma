@@ -513,6 +513,15 @@ SmartShapeClassification classifySmartShape(
 
     const auto contour = shape->calcContourDirection();
     result.value = Slur{ startEntry, endEntry, contour };
+    if (shape->calcIsPseudoTie(musx::utils::PseudoTieMode::LaissezVibrer, startEntry)) {
+        result.value = PseudoTie{ PseudoTie::Type::LaissezVibrer, contour };
+        return result;
+    }
+    if (shape->calcIsPseudoTie(musx::utils::PseudoTieMode::TieEnd, startEntry)) {
+        result.value = PseudoTie{ PseudoTie::Type::TieEnd, contour };
+        return result;
+    }
+
     if (shape->entryBased) {
         return result;
     }
@@ -522,15 +531,6 @@ SmartShapeClassification classifySmartShape(
             throw std::logic_error("musxdom classified an arpeggiated tie on an entry with note count other than 1.");
         }
         result.value = ArpeggiatedTie{ musx::dom::NoteInfoPtr(startEntry, 0), tiedTo, contour };
-        return result;
-    }
-
-    if (shape->calcIsPseudoTie(musx::utils::PseudoTieMode::LaissezVibrer, startEntry)) {
-        result.value = PseudoTie{ PseudoTie::Type::LaissezVibrer, contour };
-        return result;
-    }
-    if (shape->calcIsPseudoTie(musx::utils::PseudoTieMode::TieEnd, startEntry)) {
-        result.value = PseudoTie{ PseudoTie::Type::TieEnd, contour };
         return result;
     }
 
