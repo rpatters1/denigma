@@ -28,6 +28,7 @@ namespace denigma::test::musicxml {
 
 std::filesystem::path exportMusicXmlFixture(const std::string& musxFile);
 std::optional<mx::api::ScoreData> createScoreDataFromMusicXmlFixture(const std::string& musxFile);
+std::optional<mx::api::ScoreData> createScoreDataFromMusxPath(const std::filesystem::path& musxPath);
 std::optional<mx::api::ScoreData> loadScoreData(const std::filesystem::path& path);
 
 } // namespace denigma::test::musicxml

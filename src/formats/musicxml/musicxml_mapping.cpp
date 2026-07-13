@@ -35,6 +35,23 @@ MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, con
     return MusicXmlPitchContext::Concert;
 }
 
+mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLocation& location)
+{
+    if (!context.currentPart || location.measureIndex >= context.currentPart->measures.size()) {
+        return nullptr;
+    }
+    auto& measure = context.currentPart->measures[location.measureIndex];
+    if (location.staffIndex >= measure.staves.size() || location.userVoiceNumber <= 0) {
+        return nullptr;
+    }
+    auto& staff = measure.staves[location.staffIndex];
+    const auto voiceIt = staff.voices.find(static_cast<size_t>(location.userVoiceNumber - 1));
+    if (voiceIt == staff.voices.end() || location.noteIndex >= voiceIt->second.notes.size()) {
+        return nullptr;
+    }
+    return &voiceIt->second.notes[location.noteIndex];
+}
+
 int MusicXmlTimingPlan::calcNearestMusicXmlDivisions(const musx::util::Fraction& wholeNoteFraction) const
 {
     const auto result = wholeNoteFraction * 4 * divisions;

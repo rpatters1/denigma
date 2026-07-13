@@ -49,15 +49,20 @@ std::optional<mx::api::ScoreData> createScoreDataFromMusicXmlFixture(const std::
     std::filesystem::path inputPath;
     copyInputToOutput(musxFile, inputPath);
 
+    return createScoreDataFromMusxPath(inputPath);
+}
+
+std::optional<mx::api::ScoreData> createScoreDataFromMusxPath(const std::filesystem::path& musxPath)
+{
     DenigmaContext denigmaContext(DENIGMA_NAME);
-    denigmaContext.inputFilePath = inputPath;
+    denigmaContext.inputFilePath = musxPath;
     MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
 
     try {
-        const auto inputData = formats::enigmaxml::detail::extractMusxInputData(inputPath, denigmaContext);
+        const auto inputData = formats::enigmaxml::detail::extractMusxInputData(musxPath, denigmaContext);
         return formats::musicxml::detail::createMusicXmlDocument(inputData, denigmaContext);
     } catch (const std::exception& ex) {
-        ADD_FAILURE() << "Unable to create MusicXML ScoreData from " << pathString(inputPath) << ": " << ex.what();
+        ADD_FAILURE() << "Unable to create MusicXML ScoreData from " << pathString(musxPath) << ": " << ex.what();
     }
     return std::nullopt;
 }

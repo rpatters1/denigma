@@ -116,14 +116,6 @@ This is primarily a MusicXML specification limit rather than an `mx::api` gap, b
 
 ## Notes
 
-### Non-arpeggiate endpoints
-
-MusicXML `<non-arpeggiate>` is attached only to the top and bottom notes of the bracket. It requires a `type` attribute (`top` or `bottom`) and may need a shared `number` to distinguish simultaneous brackets.
-
-`mx::api::MarkType::nonArpeggiate` can emit a `<non-arpeggiate>` element, but `mx::api::MarkData` does not expose the required endpoint `type` or `number`. Denigma can resolve Finale non-arpeggio expressions to the correct top note of the top entry and bottom note of the bottom entry, but cannot write the correct paired MusicXML notation through the public API.
-
-Needed API shape: note-attached non-arpeggiate data with endpoint type (`top` / `bottom`) and optional number, or equivalent fields on `MarkData` that are only meaningful for `MarkType::nonArpeggiate`.
-
 ### Notehead fill and SMuFL glyph refinement
 
 MusicXML `<notehead>` carries a shape value plus two independent refinements: a `filled="yes|no"` attribute (the spec's default is white for half notes and longer, filled otherwise, but Finale can override this per note), and a `smufl` attribute that selects a specific glyph when the base shape value is ambiguous (e.g. distinguishing a small rhythmic slash from a large chord-symbol slash, both of which share the `slash` shape value).

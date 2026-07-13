@@ -979,6 +979,8 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         }
     }
 
+    finalizeArpeggioCandidates(context);
+
     assignStaffAttributes(context, part, musxMeasures, stavesIt->second);
 }
 

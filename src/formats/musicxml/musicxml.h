@@ -60,6 +60,7 @@ MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, con
 std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);
 mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacement placement);
 mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fermata);
+mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLocation& location);
 double musicXmlQuarterNotesPerMinute(const classify::expression::TempoInfo& tempo);
 mx::api::ScoreData createMusicXmlDocument(
     const CommandInputData& inputData,
@@ -100,6 +101,8 @@ void processJumps(
     musx::dom::StaffCmper staffId,
     size_t staffIndex);
 void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note, const musx::dom::EntryInfoPtr& entryInfo);
+void appendArpeggioCandidate(MusicXmlMusxMapping& context, const musx::util::ArpeggioSpanCandidate& candidate);
+void finalizeArpeggioCandidates(MusicXmlMusxMapping& context);
 void applyNoteheadData(
     mx::api::NoteData& note,
     const musx::dom::NoteInfoPtr& noteInfo,

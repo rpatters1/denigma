@@ -391,7 +391,7 @@ void processExpressions(
             appendMarkToAssociatedNote(assignment, musicXmlMark(mx::api::MarkType::breathMark, placement));
             break;
         case classify::ExpressionType::NonArpeggio:
-            /// @todo Export when mx::api support it.
+            appendArpeggioCandidate(context, classification.nonArpeggio().candidate);
             break;
         case classify::ExpressionType::Error:
             context.logMessage(LogMsg() << classification.error().message, MessageSeverity::Warning);

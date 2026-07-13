@@ -32,6 +32,7 @@
 #include "core/finale_options.h"
 #include "core/ottavas.h"
 #include "musx/musx.h"
+#include "musx/util/Arpeggio.h"
 #include "mx/api/FontData.h"
 #include "mx/api/CurveData.h"
 #include "mx/api/PartData.h"
@@ -172,6 +173,8 @@ struct MusicXmlMusxMapping
     std::unordered_map<std::uint64_t, CueLayerPlan> cueDiscardPlansByMeasureStaff;
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;
     std::unordered_set<std::uint64_t> pendingTieStopKeys;
+    std::vector<musx::util::ArpeggioSpanCandidate> deferredArpeggioCandidates;
+    std::unordered_set<std::string> deferredArpeggioCandidateKeys;
 
     void clearCurrent()
     {
@@ -181,6 +184,8 @@ struct MusicXmlMusxMapping
         entryNumberToFirstNote.clear();
         noteLocations.clear();
         cueDiscardPlansByMeasureStaff.clear();
+        deferredArpeggioCandidates.clear();
+        deferredArpeggioCandidateKeys.clear();
     }
 
     double musicXmlTenthsFromEvpu(double evpu, double backoutScaling = 1.0) const;

@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <filesystem>
 #include <optional>
 #include <stdexcept>
 #include <tuple>
@@ -28,6 +29,7 @@
 #include "formats/musicxml/musicxml.h"
 #include "musx/util/Fraction.h"
 #include "mx/api/ScoreData.h"
+#include "mx/api/MarkDataChoice.h"
 #include "pugixml.hpp"
 #include "musicxml_test.h"
 #include "test_utils.h"
@@ -868,6 +870,35 @@ TEST(MusicXmlNotes, TieTargetTypesArpeggiatedTiesExportSmoke)
         << "expected an E4 arpeggiated tie stop in measure 3 (first ending)";
     EXPECT_TRUE(findTieEvent(firstEndingMeasureIndex, mx::api::Step::g, 4, false))
         << "expected a G4 arpeggiated tie stop in measure 3 (first ending)";
+}
+
+TEST(MusicXmlNotes, NonArpeggioMarksUseTopAndBottomEndpoints)
+{
+    const auto score = createScoreDataFromMusxPath(std::filesystem::path(MUSX_TEST_DATA_PATH) / "nonArpeggios.musx");
+    ASSERT_TRUE(score);
+
+    std::vector<mx::api::NonArpeggiatePlacement> placements;
+    for (const auto& part : score->parts) {
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    static_cast<void>(voiceIndex);
+                    for (const auto& note : voice.notes) {
+                        for (const auto& mark : note.noteAttachmentData.marks) {
+                            if (mark.markType == mx::api::MarkType::nonArpeggiate) {
+                                ASSERT_TRUE(mark.choice.isNonArpeggiate());
+                                placements.emplace_back(mark.choice.nonArpeggiate().placement);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    ASSERT_FALSE(placements.empty());
+    EXPECT_EQ(std::count(placements.begin(), placements.end(), mx::api::NonArpeggiatePlacement::top),
+        std::count(placements.begin(), placements.end(), mx::api::NonArpeggiatePlacement::bottom));
 }
 
 TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)

@@ -69,31 +69,6 @@ mx::api::SpannerNumber smartShapeSpannerNumber(const MusxInstance<others::SmartS
     return mx::api::SpannerNumber{ std::to_string(shape->getCmper()) };
 }
 
-mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLocation& location)
-{
-    if (!context.currentPart || location.measureIndex >= context.currentPart->measures.size()) {
-        return nullptr;
-    }
-    auto& measure = context.currentPart->measures[location.measureIndex];
-    if (location.staffIndex >= measure.staves.size()) {
-        return nullptr;
-    }
-    auto& staff = measure.staves[location.staffIndex];
-    if (location.userVoiceNumber <= 0) {
-        return nullptr;
-    }
-    const auto voiceIndex = static_cast<size_t>(location.userVoiceNumber - 1);
-    const auto voiceIt = staff.voices.find(voiceIndex);
-    if (voiceIt == staff.voices.end()) {
-        return nullptr;
-    }
-    auto& voice = voiceIt->second;
-    if (location.noteIndex >= voice.notes.size()) {
-        return nullptr;
-    }
-    return &voice.notes[location.noteIndex];
-}
-
 std::optional<MusicXmlNoteLocation> findEntryNoteLocation(
     const MusicXmlMusxMapping& context,
     const EntryInfoPtr& entryInfo,
@@ -669,6 +644,8 @@ void processSmartShapesForStaff(
             appendGeneralLine(context, staff, staffId, staffIndex, shape, *generalLine);
         } else if (const auto* arpeggiatedTie = classification.as<classify::smartshape::ArpeggiatedTie>()) {
             processArpeggiatedTie(context, *arpeggiatedTie);
+        } else if (const auto* nonArpeggio = classification.as<classify::smartshape::NonArpeggio>()) {
+            appendArpeggioCandidate(context, nonArpeggio->candidate);
         }
     }
 }
