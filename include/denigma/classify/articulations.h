@@ -341,7 +341,7 @@ using ArticulationValue = std::variant<
     std::monostate, articulation::ArticulationMarks, articulation::TechniqueMark, articulation::HarmonMute,
     articulation::Tremolo, articulation::Fermata, articulation::BreathMark, articulation::Caesura,
     articulation::Arpeggio, articulation::Ornament, articulation::VerticalEntryBracket,
-    articulation::Parenthesis, articulation::OtherMark>;
+    articulation::Parenthesis, PseudoTie, articulation::OtherMark>;
 
 /// @struct ArticulationClassification
 /// @brief Result returned by articulation classification.

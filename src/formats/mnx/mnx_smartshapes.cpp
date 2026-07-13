@@ -20,10 +20,12 @@
  * THE SOFTWARE.
  */
 
-#include "mnx.h"
-#include "mnx_smartshapes.h"
-#include "mnx_articulations.h"
+#include <type_traits>
+
 #include "denigma/classify/smartshapes.h"
+#include "mnx.h"
+#include "mnx_articulations.h"
+#include "mnx_smartshapes.h"
 
 namespace denigma {
 namespace formats {
@@ -71,14 +73,21 @@ void processSmartShapes(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 continue;
             }
             const auto classification = denigma::classify::classifySmartShape(shape);
-            if (classification.as<denigma::classify::smartshape::Crescendo>()) {
-                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Increasing);
-            } else if (classification.as<denigma::classify::smartshape::Decrescendo>()) {
-                appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Decreasing);
-            } else if (const auto* nonArpeggio = classification.as<denigma::classify::smartshape::NonArpeggio>()) {
-                appendArpeggioCandidate(context, mnxMeasure, nonArpeggio->candidate);
-            }
-            // slurs, ottavas, pseudotie, and arpeggio tie classifications are handled elsewhere
+            std::visit([&](const auto& value) {
+                using Value = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<Value, denigma::classify::smartshape::Crescendo>) {
+                    appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Increasing);
+                } else if constexpr (std::is_same_v<Value, denigma::classify::smartshape::Decrescendo>) {
+                    appendHairpin(context, mnxMeasure, mnxStaffNumber, shape, mnxdom::DynamicWedgeType::Decreasing);
+                } else if constexpr (std::is_same_v<Value, denigma::classify::smartshape::NonArpeggio>) {
+                    appendArpeggioCandidate(context, mnxMeasure, value.candidate);
+                } else if constexpr (std::is_same_v<Value, denigma::classify::smartshape::Slur>
+                    || std::is_same_v<Value, denigma::classify::smartshape::Ottava>
+                    || std::is_same_v<Value, denigma::classify::PseudoTie>
+                    || std::is_same_v<Value, denigma::classify::smartshape::ArpeggiatedTie>) {
+                    // Processed by the dedicated slur, ottava, or note-level tie paths.
+                }
+            }, classification.value);
         }
     }
 }

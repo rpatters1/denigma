@@ -155,18 +155,6 @@ struct HarpDiagram
     PedalPosition a{};
 };
 
-struct PseudoTie
-{
-    enum class Type
-    {
-        LaissezVibrer,
-        TieEnd
-    };
-
-    Type type{ Type::LaissezVibrer };
-    musx::dom::CurveContourDirection direction{ musx::dom::CurveContourDirection::Unspecified };
-};
-
 struct NonArpeggio
 {
     musx::util::ArpeggioSpanCandidate candidate;
@@ -216,7 +204,7 @@ struct RunClassification
 
 using ExpressionValue = std::variant<
     std::monostate, dynamics::Mark, expression::Fermata, expression::BreathMark,
-    expression::HarpDiagram, keyboardpedal::Type, expression::PseudoTie, expression::NonArpeggio,
+    expression::HarpDiagram, keyboardpedal::Type, PseudoTie, expression::NonArpeggio,
     expression::TempoText, expression::TempoAlteration, expression::TechniqueText, expression::RehearsalMark,
     expression::GenericText, expression::Error, expression::Suppress>;
 
@@ -260,8 +248,8 @@ public:
     keyboardpedal::Type keyboardPedal() const
     { return checkedPayload<keyboardpedal::Type, ExpressionType::KeyboardPedal>("KeyboardPedal"); }
 
-    const expression::PseudoTie& pseudoTie() const
-    { return checkedPayload<expression::PseudoTie, ExpressionType::PseudoTie>("PseudoTie"); }
+    const PseudoTie& pseudoTie() const
+    { return checkedPayload<PseudoTie, ExpressionType::PseudoTie>("PseudoTie"); }
 
     const expression::NonArpeggio& nonArpeggio() const
     { return checkedPayload<expression::NonArpeggio, ExpressionType::NonArpeggio>("NonArpeggio"); }

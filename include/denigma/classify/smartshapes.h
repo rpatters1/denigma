@@ -24,6 +24,7 @@
 #include <optional>
 #include <variant>
 
+#include "denigma/classify/classifier_common.h"
 #include "denigma/classify/general_lines.h"
 #include "denigma/classify/keyboard_pedals.h"
 #include "musx/musx.h"
@@ -79,21 +80,6 @@ struct ArpeggiatedTie
     musx::dom::CurveContourDirection contour{ musx::dom::CurveContourDirection::Unspecified };
 };
 
-struct PseudoTie
-{
-    enum class Type
-    {
-        LaissezVibrer,
-        TieEnd
-    };
-
-    // This payload exists to distinguish pseudo-tie smart shapes from true slurs.
-    // It is not intended to replace NoteInfoPtr pseudo-tie orchestration, which
-    // must still resolve all pseudo-tie sources at the note level.
-    Type type{};
-    musx::dom::CurveContourDirection contour{ musx::dom::CurveContourDirection::Unspecified };
-};
-
 struct NonArpeggio
 {
     musx::util::ArpeggioSpanCandidate candidate;
@@ -140,7 +126,7 @@ using SmartShapeValue = std::variant<
     smartshape::Decrescendo,
     smartshape::Slur,
     smartshape::ArpeggiatedTie,
-    smartshape::PseudoTie,
+    PseudoTie,
     smartshape::NonArpeggio,
     smartshape::KeyboardPedal,
     smartshape::TrillLine,

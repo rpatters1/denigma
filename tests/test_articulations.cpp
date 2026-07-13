@@ -343,3 +343,22 @@ TEST(ArticulationClassification, ClassifiesVerticalEntryBracketShapes)
     EXPECT_TRUE(classification.is<articulation::VerticalEntryBracket>());
     EXPECT_NE(classification.placement, musx::dom::VerticalPlacement::NotApplicable);
 }
+
+TEST(ArticulationClassification, ClassifiesPseudoLaissezVibrerShapeArticulations)
+{
+    std::vector<char> xml;
+    readFile(std::filesystem::path(MUSX_TEST_DATA_PATH) / "lvshapes.enigmaxml", xml);
+    auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(xml);
+    ASSERT_TRUE(document);
+
+    const auto entryInfo = EntryInfoPtr::fromEntryNumber(document, SCORE_PARTID, 23);
+    ASSERT_TRUE(entryInfo);
+    const auto assignments = document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, 23);
+    ASSERT_EQ(assignments.size(), 2u);
+    for (const auto& assignment : assignments) {
+        const auto classification = classifyArticulation(assignment, entryInfo);
+        const auto* pseudoTie = classification.as<PseudoTie>();
+        ASSERT_NE(pseudoTie, nullptr);
+        EXPECT_EQ(pseudoTie->type, PseudoTie::Type::LaissezVibrer);
+    }
+}

@@ -43,5 +43,23 @@ struct GlyphStyle
     Placement placement{ Placement::Automatic };
 };
 
+/// @struct PseudoTie
+/// @brief A source shape used as a stand-in for a laissez-vibrer tie or tie end.
+struct PseudoTie
+{
+    /// @enum Type
+    /// @brief The tie behavior represented by the source shape.
+    enum class Type
+    {
+        LaissezVibrer,
+        TieEnd
+    };
+
+    /// The tie behavior represented by the source shape.
+    Type type{};
+    /// The source shape's resolved contour direction.
+    musx::dom::CurveContourDirection contour{ musx::dom::CurveContourDirection::Unspecified };
+};
+
 } // namespace classify
 } // namespace denigma

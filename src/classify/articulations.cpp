@@ -193,6 +193,13 @@ static ArticulationClassification makeParenthesis(ParenthesisSide side, std::opt
     return result;
 }
 
+static ArticulationClassification makePseudoTie(PseudoTie::Type type, musx::dom::CurveContourDirection contour)
+{
+    ArticulationClassification result;
+    result.value = PseudoTie{ type, contour };
+    return result;
+}
+
 static AmbiguousMark makeAmbiguousMark(
     AmbiguousMark::Shape shape, OtherMark::Category category, std::optional<std::string> glyphName)
 {
@@ -345,7 +352,7 @@ static ArticulationClassification classifyShape(
                     }
                 } else if constexpr (std::is_same_v<T, TechniqueMark> || std::is_same_v<T, HarmonMute>) {
                     value.glyphStyle = glyphStyleFromKnownShapeDefType(recognizedShapeType);
-                } else if constexpr (!std::is_same_v<T, std::monostate>) {
+                } else if constexpr (!std::is_same_v<T, std::monostate> && !std::is_same_v<T, PseudoTie>) {
                     value.glyphStyle = glyphStyleFromKnownShapeDefType(recognizedShapeType);
                 }
             },
@@ -953,6 +960,12 @@ ArticulationClassification classifyArticulation(
 {
     if (!assignment || !entryInfo) {
         return {};
+    }
+    if (const auto pseudoTie = assignment->calcIsPseudoTie(musx::utils::PseudoTieMode::LaissezVibrer, entryInfo)) {
+        return makePseudoTie(PseudoTie::Type::LaissezVibrer, pseudoTie->shape->calcSlurContour());
+    }
+    if (const auto pseudoTie = assignment->calcIsPseudoTie(musx::utils::PseudoTieMode::TieEnd, entryInfo)) {
+        return makePseudoTie(PseudoTie::Type::TieEnd, pseudoTie->shape->calcSlurContour());
     }
     if (const auto symbolContext = assignment->calcSelectedSymbolContext(entryInfo)) {
         auto classification = classifySelectedSymbolContext(symbolContext.value());
