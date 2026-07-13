@@ -20,6 +20,7 @@ endfunction()
         xml_compare.cpp
         test_articulations.cpp
         test_barlines.cpp
+        test_chords.cpp
         test_clefs.cpp
         test_enigmaxml_converter.cpp
         test_entries.cpp

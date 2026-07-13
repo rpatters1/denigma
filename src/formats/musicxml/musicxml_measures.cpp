@@ -30,10 +30,12 @@
 #include <vector>
 
 #include "denigma/classify/barlines.h"
+#include "denigma/classify/chords.h"
 #include "denigma/classify/clefs.h"
 
 #include "mx/api/BarlineData.h"
 #include "mx/api/ClefData.h"
+#include "mx/api/ChordData.h"
 #include "mx/api/DirectionData.h"
 #include "mx/api/KeyData.h"
 #include "mx/api/MeasureData.h"
@@ -831,6 +833,85 @@ void processMeasureText(
     }
 }
 
+void processChords(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    const MusxInstance<others::Measure>& musxMeasure,
+    StaffCmper staffId,
+    MusicXmlPitchContext pitchContext)
+{
+    const auto assignments = context.document->getDetails()->getArray<details::ChordAssign>(
+        context.forPartId, staffId, musxMeasure->getCmper());
+    if (assignments.empty()) {
+        return;
+    }
+
+    const auto keySignature = musxMeasure->createKeySignature(staffId);
+    if (!keySignature) {
+        context.logMessage(LogMsg() << "Skipping chord symbols in measure " << musxMeasure->getCmper()
+            << " because no effective key signature was found.", MessageSeverity::Warning);
+        return;
+    }
+
+    const auto keyContext = enumConvert<KeySignature::KeyContext>(pitchContext);
+    for (const auto& assignment : assignments) {
+        if (!assignment->showRoot) {
+            continue;
+        }
+
+        const auto root = keySignature->calcPitch(assignment->rootScaleNum, assignment->rootAlter, keyContext);
+        auto chord = mx::api::ChordData{};
+        chord.root = enumConvert<mx::api::Step>(root.noteName);
+        chord.rootAlter = root.alteration;
+        const auto suffix = assignment->showSuffix
+            ? classify::classifyChordSuffix(assignment->getChordSuffix())
+            : classify::classifyChordSuffix();
+        chord.chordKind = suffix.quality
+            ? enumConvert<mx::api::ChordKind>(*suffix.quality)
+            : mx::api::ChordKind::other;
+        /// @todo Apply suffix.parenthesizeDegrees and suffix.stackDegrees when mx::api exposes the corresponding
+        /// MusicXML <kind> attributes. See "Parenthesized and stacked chord degrees" in mx-api-gaps.md.
+        if (assignment->showSuffix) {
+            chord.text = suffix.calcText();
+            for (const auto& degree : suffix.degrees) {
+                auto extension = mx::api::Extension{};
+                extension.extensionType = enumConvert<mx::api::ExtensionType>(degree.type);
+                extension.setAlterValue(degree.alteration);
+                extension.printObject = mx::api::fromBool(degree.printObject);
+                switch (degree.value) {
+                case 1: extension.extensionNumber = mx::api::ExtensionNumber::first; break;
+                case 2: extension.extensionNumber = mx::api::ExtensionNumber::second; break;
+                case 3: extension.extensionNumber = mx::api::ExtensionNumber::third; break;
+                case 4: extension.extensionNumber = mx::api::ExtensionNumber::fourth; break;
+                case 5: extension.extensionNumber = mx::api::ExtensionNumber::fifth; break;
+                case 6: extension.extensionNumber = mx::api::ExtensionNumber::sixth; break;
+                case 7: extension.extensionNumber = mx::api::ExtensionNumber::seventh; break;
+                case 9: extension.extensionNumber = mx::api::ExtensionNumber::ninth; break;
+                case 11: extension.extensionNumber = mx::api::ExtensionNumber::eleventh; break;
+                case 13: extension.extensionNumber = mx::api::ExtensionNumber::thirteenth; break;
+                default: continue;
+                }
+                chord.extensions.emplace_back(extension);
+            }
+            if (suffix.hasUnrecognizedGlyphs) {
+                context.logMessage(LogMsg() << "Chord suffix " << assignment->suffixId << " in measure "
+                    << musxMeasure->getCmper() << " contains unrecognized glyphs.", MessageSeverity::Warning);
+            }
+        }
+        if (assignment->showAltBass) {
+            const auto bass = keySignature->calcPitch(assignment->bassScaleNum, assignment->bassAlter, keyContext);
+            chord.bass = enumConvert<mx::api::Step>(bass.noteName);
+            chord.bassAlter = bass.alteration;
+        }
+
+        auto direction = mx::api::DirectionData{};
+        direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(
+            Fraction::fromEdu((std::max)(Edu{}, assignment->horzEdu)));
+        direction.chords.emplace_back(std::move(chord));
+        staff.directions.emplace_back(std::move(direction));
+    }
+}
+
 void addMeasureNumber(
     MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,
@@ -977,6 +1058,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         for (size_t staffIndex = 0; staffIndex < stavesIt->second.size(); ++staffIndex) {
             const StaffCmper staffId = stavesIt->second[staffIndex];
             auto& staff = measure.staves[staffIndex];
+            processChords(context, staff, musxMeasure, staffId, pitchContext);
             processMeasureText(context, staff, musxMeasure, staffId);
             processJumps(context, staff, musxMeasure, staffId, staffIndex);
             processExpressions(context, measure, staff, musxMeasure, staffId, staffIndex);

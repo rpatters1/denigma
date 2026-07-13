@@ -27,6 +27,7 @@
 
 #include "denigma/formats/musicxml.h"
 #include "denigma/io/random_access_reader.h"
+#include "musicxml_test.h"
 #include "test_utils.h"
 
 TEST(ConverterApi, EnigmaXmlToMusicXmlWritesToStream)
@@ -127,4 +128,19 @@ TEST(ConverterApi, MusxToMusicXmlInvokesOutputCallbackForParts)
         foundNamedPart = foundNamedPart || output.suggestedName == "オボえ";
     }
     EXPECT_TRUE(foundNamedPart);
+}
+
+TEST(MusicXmlChordFixture, ExportsChordsForInspection)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = denigma::test::musicxml::exportMusicXmlFixture("chords.musx");
+    EXPECT_TRUE(std::filesystem::exists(outputPath));
+
+    pugi::xml_document document;
+    ASSERT_TRUE(document.load_file(outputPath.c_str()));
+    const auto firstKind = document.select_node("//harmony[1]/kind").node();
+    ASSERT_TRUE(firstKind);
+    EXPECT_STREQ(firstKind.child_value(), "major");
+    EXPECT_FALSE(firstKind.attribute("text"));
 }

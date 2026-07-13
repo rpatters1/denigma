@@ -2,12 +2,14 @@
 
 #include "denigma/classify/articulations.h"
 #include "denigma/classify/barlines.h"
+#include "denigma/classify/chords.h"
 #include "denigma/classify/dynamics.h"
 #include "denigma/classify/noteheads.h"
 #include "formats/enum_conversion_macros.h"
 
 #include "mx/api/BarlineData.h"
 #include "mx/api/ClefData.h"
+#include "mx/api/ChordData.h"
 #include "mx/api/CurveData.h"
 #include "mx/api/DurationData.h"
 #include "mx/api/MarkData.h"
@@ -80,6 +82,41 @@ BEGIN_ENUM_CONVERSION(classify::barline::Type, mx::api::BarlineType)
     case classify::barline::Type::Heavy: return mx::api::BarlineType::heavy;
     case classify::barline::Type::Dashed: return mx::api::BarlineType::dashed;
     case classify::barline::Type::Tick: return mx::api::BarlineType::tick;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::chord::Degree::Type, mx::api::ExtensionType)
+    case classify::chord::Degree::Type::Add: return mx::api::ExtensionType::add;
+    case classify::chord::Degree::Type::Remove: return mx::api::ExtensionType::remove;
+    case classify::chord::Degree::Type::Alter: return mx::api::ExtensionType::alter;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::chord::Quality, mx::api::ChordKind)
+    case classify::chord::Quality::Major: return mx::api::ChordKind::major;
+    case classify::chord::Quality::Minor: return mx::api::ChordKind::minor;
+    case classify::chord::Quality::Augmented: return mx::api::ChordKind::augmented;
+    case classify::chord::Quality::Diminished: return mx::api::ChordKind::diminished;
+    case classify::chord::Quality::Dominant: return mx::api::ChordKind::dominant;
+    case classify::chord::Quality::MajorSeventh: return mx::api::ChordKind::majorSeventh;
+    case classify::chord::Quality::MinorSeventh: return mx::api::ChordKind::minorSeventh;
+    case classify::chord::Quality::DiminishedSeventh: return mx::api::ChordKind::diminishedSeventh;
+    case classify::chord::Quality::HalfDiminished: return mx::api::ChordKind::halfDiminished;
+    case classify::chord::Quality::MajorMinor: return mx::api::ChordKind::majorMinor;
+    case classify::chord::Quality::MajorSixth: return mx::api::ChordKind::majorSixth;
+    case classify::chord::Quality::MinorSixth: return mx::api::ChordKind::minorSixth;
+    case classify::chord::Quality::DominantNinth: return mx::api::ChordKind::dominantNinth;
+    case classify::chord::Quality::MajorNinth: return mx::api::ChordKind::majorNinth;
+    case classify::chord::Quality::MinorNinth: return mx::api::ChordKind::minorNinth;
+    case classify::chord::Quality::DominantEleventh: return mx::api::ChordKind::dominant11Th;
+    case classify::chord::Quality::MajorEleventh: return mx::api::ChordKind::major11Th;
+    case classify::chord::Quality::MinorEleventh: return mx::api::ChordKind::minor11Th;
+    case classify::chord::Quality::DominantThirteenth: return mx::api::ChordKind::dominant13Th;
+    case classify::chord::Quality::MajorThirteenth: return mx::api::ChordKind::major13Th;
+    case classify::chord::Quality::MinorThirteenth: return mx::api::ChordKind::minor13Th;
+    case classify::chord::Quality::SuspendedSecond: return mx::api::ChordKind::suspendedSecond;
+    case classify::chord::Quality::SuspendedFourth: return mx::api::ChordKind::suspendedFourth;
+    case classify::chord::Quality::Pedal: return mx::api::ChordKind::pedal;
+    case classify::chord::Quality::None: return mx::api::ChordKind::none;
+    case classify::chord::Quality::Power: return mx::api::ChordKind::power;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(details::Bracket::BracketStyle, mx::api::BracketType)
