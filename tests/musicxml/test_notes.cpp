@@ -917,6 +917,35 @@ TEST(MusicXmlNotes, CaesuraVariantsMapToMusicXml)
     EXPECT_EQ(convert(CaesuraType::Chant), mx::api::MarkType::caesura);
 }
 
+TEST(MusicXmlNotes, PseudoLaissezVibrerTiesExportFromExpressionsAndSmartShapes)
+{
+    const auto countLaissezVibrerTies = [](const mx::api::ScoreData& score) {
+        size_t count{};
+        for (const auto& part : score.parts) {
+            for (const auto& measure : part.measures) {
+                for (const auto& staff : measure.staves) {
+                    for (const auto& [voiceIndex, voice] : staff.voices) {
+                        static_cast<void>(voiceIndex);
+                        for (const auto& note : voice.notes) {
+                            count += note.tieLetRing.has_value();
+                        }
+                    }
+                }
+            }
+        }
+        return count;
+    };
+
+    const auto musxTestData = std::filesystem::path(MUSX_TEST_DATA_PATH);
+    const auto shapeExpressionScore = createScoreDataFromMusxPath(musxTestData / "lvshapes.musx");
+    const auto smartShapeScore = createScoreDataFromMusxPath(musxTestData / "lvslurs.musx");
+    ASSERT_TRUE(shapeExpressionScore);
+    ASSERT_TRUE(smartShapeScore);
+
+    EXPECT_GT(countLaissezVibrerTies(*shapeExpressionScore), 0u);
+    EXPECT_GT(countLaissezVibrerTies(*smartShapeScore), 0u);
+}
+
 TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)
 {
     setupTestDataPaths();

@@ -579,6 +579,35 @@ void appendEntryNotes(
 
 } // namespace
 
+void applyPseudoLvTies(MusicXmlMusxMapping& context, const EntryInfoPtr& entryInfo)
+{
+    if (!entryInfo) {
+        return;
+    }
+    const auto entry = entryInfo->getEntry();
+    if (!context.processedPseudoLvTieEntries.emplace(entry->getEntryNumber()).second) {
+        return;
+    }
+
+    for (size_t noteIndex = 0; noteIndex < entry->notes.size(); ++noteIndex) {
+        const NoteInfoPtr noteInfo(entryInfo, noteIndex);
+        const auto locationIt = context.noteLocations.find(musicXmlNoteKey(entry->getEntryNumber(), noteInfo->getNoteId()));
+        if (locationIt == context.noteLocations.end()) {
+            continue;
+        }
+        auto* note = noteDataAt(context, locationIt->second);
+        if (!note || note->isTieStart || note->tieLetRing || noteInfo->tieStart || noteInfo.calcArpeggiatedTieInfo()) {
+            continue;
+        }
+
+        if (const auto pseudoTieInfo = noteInfo.calcPseudoLvTieInfo()) {
+            auto tieLetRing = mx::api::TieLetRing{};
+            tieLetRing.curveOrientation = enumConvert<mx::api::CurveOrientation>(pseudoTieInfo.direction);
+            note->tieLetRing = std::move(tieLetRing);
+        }
+    }
+}
+
 void createNotesForMeasureStaff(
     MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,

@@ -393,6 +393,11 @@ void processExpressions(
         case classify::ExpressionType::NonArpeggio:
             appendArpeggioCandidate(context, classification.nonArpeggio().candidate);
             break;
+        case classify::ExpressionType::PseudoTie:
+            if (classification.pseudoTie().type == classify::expression::PseudoTie::Type::LaissezVibrer) {
+                applyPseudoLvTies(context, assignment->calcAssociatedEntry());
+            }
+            break;
         case classify::ExpressionType::Error:
             context.logMessage(LogMsg() << classification.error().message, MessageSeverity::Warning);
             break;

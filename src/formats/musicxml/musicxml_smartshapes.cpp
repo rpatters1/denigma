@@ -644,6 +644,10 @@ void processSmartShapesForStaff(
             appendGeneralLine(context, staff, staffId, staffIndex, shape, *generalLine);
         } else if (const auto* arpeggiatedTie = classification.as<classify::smartshape::ArpeggiatedTie>()) {
             processArpeggiatedTie(context, *arpeggiatedTie);
+        } else if (const auto* pseudoTie = classification.as<classify::smartshape::PseudoTie>()) {
+            if (pseudoTie->type == classify::smartshape::PseudoTie::Type::LaissezVibrer) {
+                applyPseudoLvTies(context, shape->startTermSeg->endPoint->calcAssociatedEntry(true));
+            }
         } else if (const auto* nonArpeggio = classification.as<classify::smartshape::NonArpeggio>()) {
             appendArpeggioCandidate(context, nonArpeggio->candidate);
         }
