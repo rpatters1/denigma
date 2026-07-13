@@ -1,6 +1,6 @@
 # MusicXML MX API Gaps
 
-Notes collected while implementing Denigma's MusicXML exporter. These are MusicXML features or Finale/MUSX requirements that are currently difficult or impossible to express through `mx::api`.
+Notes collected while implementing Denigma's MusicXML exporter. These are MusicXML features or Finale/MUSX requirements that are currently difficult or impossible to express through `mx::api`. Larger user-facing work is tracked in the [MusicXML feature roadmap](roadmap.md).
 
 ## Staff Details
 
@@ -137,6 +137,28 @@ MusicXML's `<technical><harmonic>` element can specify `natural` or `artificial`
 Needed API shape: natural/artificial and base-pitch/touching-pitch/sounding-pitch fields on `MarkData`, meaningful only for `MarkType::harmonic`, written through to `core::Harmonic::setChoice`/`setChoice2`.
 
 ## Measures
+
+### Multimeasure rests
+
+MusicXML represents a multimeasure rest by placing `<measure-style><multiple-rest>N</multiple-rest></measure-style>` in the starting measure's `<attributes>`, where `N` is the span in measures. MUSX exposes the corresponding part-scoped `others::MultimeasureRest` records, including the start measure and span, so Denigma has the information needed to export the basic semantic form.
+
+`mx::api::MeasureData` already has `multiMeasureRest` for this purpose, and `MeasureReader` populates it. However, `MeasureWriter` and `PropertiesWriter` never consume it, so `mx::api` cannot currently write a `<multiple-rest>` element. Consequently, Denigma does not yet export any multimeasure-rest spans to MusicXML.
+
+Needed MX work: this is a writer implementation gap rather than a new basic API. Add a `PropertiesWriter` operation that writes a `MeasureStyle` containing `MultipleRest`, and call it when `MeasureData::multiMeasureRest` is positive. Add an API writer/round-trip test.
+
+The existing integer field is not sufficient for full fidelity. MusicXML also permits the `multiple-rest` `use-symbols` attribute and the enclosing `measure-style` `number` (staff) attribute, neither of which `mx::api` exposes. Finale/MUSX additionally records whether to use symbols, the symbol threshold and spacing, custom H-bar shape and dimensions, and number visibility and placement. Some of those layout details have no direct MusicXML equivalent; the interoperable subset would need at least optional `useSymbols` and staff fields, ideally in a dedicated multimeasure-rest data object rather than extending the scalar span field.
+
+### Alternate notation: measure repeats and slash notation
+
+Finale's effective staff setting `others::Staff::AlternateNotation` can request one-bar repeats, two-bar repeats, slash notation on beats, or rhythmic notation. It can be changed by a staff style over a measure range and can apply to one Finale layer. MUSX supplies the effective notation, target layer, compound-meter slash-dot setting, rhythmic stem direction, and several options for hiding the affected or other layers' content.
+
+MusicXML has direct measure-style vocabulary for the principal display modes: `<measure-repeat type="start">1</measure-repeat>` and `2` for one- and two-bar repeats, and `<slash type="start" use-stems="no|yes">` for slash-on-beats and rhythmic notation. These styles require a corresponding `type="stop"` at the first measure after the effective range. The actual music must remain in every MusicXML measure; measure-style controls its display rather than replacing the musical content.
+
+MX's generated core layer models all three elements, but `mx::api` has no public data model for `measure-repeat`, `beat-repeat`, or `slash`, and its reader and writer do not handle them. Denigma consequently exports the underlying entries as ordinary notation and loses the alternate display mode.
+
+Needed API shape: a staff-scoped, positionable measure-style collection on `MeasureData`. It should model start/stop state; measure-repeat pattern length and optional slash count; slash or beat-repeat `useStems`, `useDots`, display beat, and excluded voices; and the optional MusicXML staff number. This should supersede the scalar multimeasure-rest field with a common measure-style data object, or coexist with it while sharing the same writer path.
+
+Full Finale fidelity is not possible through measure style alone. `altLayer` has no general equivalent for measure repeats, while slash/beat-repeat can only exclude other MusicXML voices. `Blank` and `BlankWithRests`, and Finale's independent hide-articulation, lyrics, expressions, and smart-shape settings, require selective `print-object="no"` handling in addition to any measure style. The alternate-notation slash and number fonts, glyph-position options, and two-bar-repeat number offset are likewise Finale-specific layout data with no direct standard MusicXML mapping.
 
 ### Measure-numbering text and staff attribute
 

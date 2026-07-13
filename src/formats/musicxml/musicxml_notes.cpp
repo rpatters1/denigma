@@ -649,6 +649,8 @@ void createNotesForMeasureStaff(
     bool emittedNotes = false;
     const auto pitchContext = pitchContextForStaff(context, staffId);
     /// @todo Export cue notes/rests instead of omitting cue layers.
+    /// @todo Honor Blank/BlankWithRests alternate notation by suppressing the affected entries and
+    /// their attachments with print-object once its layer semantics have been mapped to MusicXML.
     const auto cueLayerPlan = createCueLayerPlan(gfHold, context.denigmaContext->cueLayer);
     context.cueDiscardPlansByMeasureStaff.emplace(musicXmlMeasureStaffKey(musxMeasure->getCmper(), staffId), cueLayerPlan);
     const auto layerVoices = gfHold.calcVoices();

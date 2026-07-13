@@ -944,6 +944,10 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         const auto& musxMeasure = musxMeasures[measureIndex];
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
+        /// @todo Export the matching part-scoped others::MultimeasureRest here by setting
+        /// MeasureData::multiMeasureRest once mx::api writes <measure-style><multiple-rest>.
+        /// @todo Export effective staff alternate-notation starts/stops here once mx::api exposes
+        /// staff-scoped measure styles for measure repeats and slash notation.
         addMeasureNumber(context, measure, musxMeasure, stavesIt->second, scoreStaves);
         assignKeySignatures(context, measure, musxMeasure, stavesIt->second, pitchContext, prevKeyData);
         assignTimeSignature(context, measure, musxMeasure, stavesIt->second, prevTimeSigs);
