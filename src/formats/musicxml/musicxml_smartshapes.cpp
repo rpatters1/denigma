@@ -25,6 +25,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #include "denigma/classify/smartshapes.h"
@@ -615,8 +616,7 @@ void processSmartShapesForStaff(
         }
 
         const auto classification = classify::classifySmartShape(shape);
-        const auto* ottava = classification.as<classify::smartshape::Ottava>();
-        if (shape->hidden && !ottava) {
+        if (shape->hidden && !std::holds_alternative<classify::smartshape::Ottava>(classification.value)) {
             // Hidden ottavas can be semantic carriers for visible custom lines and
             // must be processed; all other hidden shapes are skipped.
             continue;
@@ -625,32 +625,35 @@ void processSmartShapesForStaff(
             continue;
         }
 
-        if (classification.as<classify::smartshape::Crescendo>()) {
-            appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::crescendo);
-        } else if (classification.as<classify::smartshape::Decrescendo>()) {
-            appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::diminuendo);
-        } else if (ottava) {
-            appendOttava(context, staff, staffId, staffIndex, shape, *ottava);
-        } else if (const auto* pedal = classification.as<classify::smartshape::KeyboardPedal>()) {
-            appendKeyboardPedal(context, staff, staffId, staffIndex, shape, *pedal);
-        } else if (const auto* trillLine = classification.as<classify::smartshape::TrillLine>()) {
-            appendTrillLine(context, shape, *trillLine);
-        } else if (classification.as<classify::smartshape::VibratoLine>()) {
-            /// @todo Emit vibrato lines as paired wavy-line ornaments when mx::api
-            /// supports them. (See mx-api-gaps.md.)
-            context.logMessage(LogMsg() << "Omitting vibrato line smart shape " << shape->getCmper()
-                << " because mx::api cannot pair wavy-line start/stop.", MessageSeverity::Verbose);
-        } else if (const auto* generalLine = classification.as<classify::smartshape::GeneralLine>()) {
-            appendGeneralLine(context, staff, staffId, staffIndex, shape, *generalLine);
-        } else if (const auto* arpeggiatedTie = classification.as<classify::smartshape::ArpeggiatedTie>()) {
-            processArpeggiatedTie(context, *arpeggiatedTie);
-        } else if (const auto* pseudoTie = classification.as<classify::smartshape::PseudoTie>()) {
-            if (pseudoTie->type == classify::smartshape::PseudoTie::Type::LaissezVibrer) {
-                applyPseudoLvTies(context, shape->startTermSeg->endPoint->calcAssociatedEntry(true));
+        std::visit([&](const auto& value) {
+            using Value = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<Value, classify::smartshape::Crescendo>) {
+                appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::crescendo);
+            } else if constexpr (std::is_same_v<Value, classify::smartshape::Decrescendo>) {
+                appendHairpin(context, staff, staffId, staffIndex, shape, mx::api::WedgeType::diminuendo);
+            } else if constexpr (std::is_same_v<Value, classify::smartshape::Ottava>) {
+                appendOttava(context, staff, staffId, staffIndex, shape, value);
+            } else if constexpr (std::is_same_v<Value, classify::smartshape::KeyboardPedal>) {
+                appendKeyboardPedal(context, staff, staffId, staffIndex, shape, value);
+            } else if constexpr (std::is_same_v<Value, classify::smartshape::TrillLine>) {
+                appendTrillLine(context, shape, value);
+            } else if constexpr (std::is_same_v<Value, classify::smartshape::VibratoLine>) {
+                /// @todo Emit vibrato lines as paired wavy-line ornaments when mx::api
+                /// supports them. (See mx-api-gaps.md.)
+                context.logMessage(LogMsg() << "Omitting vibrato line smart shape " << shape->getCmper()
+                    << " because mx::api cannot pair wavy-line start/stop.", MessageSeverity::Verbose);
+            } else if constexpr (std::is_same_v<Value, classify::smartshape::GeneralLine>) {
+                appendGeneralLine(context, staff, staffId, staffIndex, shape, value);
+            } else if constexpr (std::is_same_v<Value, classify::smartshape::ArpeggiatedTie>) {
+                processArpeggiatedTie(context, value);
+            } else if constexpr (std::is_same_v<Value, classify::PseudoTie>) {
+                if (value.type == classify::PseudoTie::Type::LaissezVibrer) {
+                    applyPseudoLvTies(context, shape->startTermSeg->endPoint->calcAssociatedEntry(true));
+                }
+            } else if constexpr (std::is_same_v<Value, classify::smartshape::NonArpeggio>) {
+                appendArpeggioCandidate(context, value.candidate);
             }
-        } else if (const auto* nonArpeggio = classification.as<classify::smartshape::NonArpeggio>()) {
-            appendArpeggioCandidate(context, nonArpeggio->candidate);
-        }
+        }, classification.value);
     }
 }
 

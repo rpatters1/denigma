@@ -142,6 +142,18 @@ struct ComparableTremoloEvent
     bool operator==(const ComparableTremoloEvent&) const = default;
 };
 
+struct ComparableLaissezVibrerTie
+{
+    size_t partIndex{};
+    size_t measureIndex{};
+    mx::api::Step step{};
+    int alter{};
+    int octave{};
+    mx::api::CurveOrientation orientation{mx::api::CurveOrientation::unspecified};
+
+    bool operator==(const ComparableLaissezVibrerTie&) const = default;
+};
+
 mx::api::Step parseStep(const std::string& step)
 {
     if (step == "A") return mx::api::Step::a;
@@ -168,6 +180,103 @@ std::filesystem::path exportMnxFixture(const std::string& musxFile)
     outputPath.replace_extension(".mnx");
     EXPECT_TRUE(std::filesystem::exists(outputPath)) << "Missing MNX output " << pathString(outputPath);
     return outputPath;
+}
+
+std::filesystem::path exportMusxTestDataFixture(
+    const std::string& fileName, const std::string& converterOption, const std::string& outputExtension)
+{
+    const auto sourcePath = std::filesystem::path(MUSX_TEST_DATA_PATH) / fileName;
+    const auto inputPath = getOutputPath() / fileName;
+    if (!std::filesystem::exists(sourcePath)) {
+        ADD_FAILURE() << "Missing MUSX test fixture " << pathString(sourcePath);
+        return {};
+    }
+    try {
+        std::filesystem::copy_file(sourcePath, inputPath, std::filesystem::copy_options::overwrite_existing);
+    } catch (const std::filesystem::filesystem_error& ex) {
+        ADD_FAILURE() << "Unable to copy MUSX test fixture " << pathString(sourcePath) << ": " << ex.what();
+        return {};
+    }
+
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), converterOption, "--force" };
+    checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export " << fileName << " to " << converterOption;
+    });
+
+    auto outputPath = inputPath;
+    outputPath.replace_extension(outputExtension);
+    EXPECT_TRUE(std::filesystem::exists(outputPath)) << "Missing export " << pathString(outputPath);
+    return outputPath;
+}
+
+std::vector<ComparableLaissezVibrerTie> createComparableMnxLaissezVibrerTies(const nlohmann::json& mnx)
+{
+    std::vector<ComparableLaissezVibrerTie> result;
+    const auto& parts = mnx.at("parts");
+    for (size_t partIndex = 0; partIndex < parts.size(); ++partIndex) {
+        const auto& measures = parts.at(partIndex).at("measures");
+        for (size_t measureIndex = 0; measureIndex < measures.size(); ++measureIndex) {
+            for (const auto& sequence : measures.at(measureIndex).at("sequences")) {
+                for (const auto& event : sequence.at("content")) {
+                    if (!event.contains("notes")) {
+                        continue;
+                    }
+                    for (const auto& note : event.at("notes")) {
+                        if (!note.contains("ties")) {
+                            continue;
+                        }
+                        for (const auto& tie : note.at("ties")) {
+                            if (!tie.value("lv", false)) {
+                                continue;
+                            }
+                            const auto& pitch = note.at("pitch");
+                            const auto side = tie.value("side", std::string{});
+                            result.emplace_back(ComparableLaissezVibrerTie{
+                                partIndex,
+                                measureIndex,
+                                parseStep(pitch.at("step").get<std::string>()),
+                                pitch.value("alter", 0),
+                                pitch.at("octave").get<int>(),
+                                side == "up" ? mx::api::CurveOrientation::overhand
+                                    : side == "down" ? mx::api::CurveOrientation::underhand
+                                    : mx::api::CurveOrientation::unspecified
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
+std::vector<ComparableLaissezVibrerTie> createComparableMusicXmlLaissezVibrerTies(const mx::api::ScoreData& score)
+{
+    std::vector<ComparableLaissezVibrerTie> result;
+    for (size_t partIndex = 0; partIndex < score.parts.size(); ++partIndex) {
+        const auto& part = score.parts.at(partIndex);
+        for (size_t measureIndex = 0; measureIndex < part.measures.size(); ++measureIndex) {
+            for (const auto& staff : part.measures.at(measureIndex).staves) {
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    static_cast<void>(voiceIndex);
+                    for (const auto& note : voice.notes) {
+                        if (!note.tieLetRing || note.isRest) {
+                            continue;
+                        }
+                        result.emplace_back(ComparableLaissezVibrerTie{
+                            partIndex,
+                            measureIndex,
+                            note.pitchData.step,
+                            note.pitchData.alter,
+                            note.pitchData.octave,
+                            note.tieLetRing->curveOrientation
+                        });
+                    }
+                }
+            }
+        }
+    }
+    return result;
 }
 
 std::vector<ComparableTremoloEvent> createComparableTremoloEvents(const mx::api::ScoreData& score)
@@ -917,33 +1026,21 @@ TEST(MusicXmlNotes, CaesuraVariantsMapToMusicXml)
     EXPECT_EQ(convert(CaesuraType::Chant), mx::api::MarkType::caesura);
 }
 
-TEST(MusicXmlNotes, PseudoLaissezVibrerTiesExportFromExpressionsAndSmartShapes)
+TEST(MusicXmlNotes, PseudoLaissezVibrerTiesMatchMnxAfterMusicXmlRoundTrip)
 {
-    const auto countLaissezVibrerTies = [](const mx::api::ScoreData& score) {
-        size_t count{};
-        for (const auto& part : score.parts) {
-            for (const auto& measure : part.measures) {
-                for (const auto& staff : measure.staves) {
-                    for (const auto& [voiceIndex, voice] : staff.voices) {
-                        static_cast<void>(voiceIndex);
-                        for (const auto& note : voice.notes) {
-                            count += note.tieLetRing.has_value();
-                        }
-                    }
-                }
-            }
-        }
-        return count;
-    };
+    setupTestDataPaths();
 
-    const auto musxTestData = std::filesystem::path(MUSX_TEST_DATA_PATH);
-    const auto shapeExpressionScore = createScoreDataFromMusxPath(musxTestData / "lvshapes.musx");
-    const auto smartShapeScore = createScoreDataFromMusxPath(musxTestData / "lvslurs.musx");
-    ASSERT_TRUE(shapeExpressionScore);
-    ASSERT_TRUE(smartShapeScore);
+    for (const std::string& fixture : { "lvslurs.musx", "lvshapes.musx" }) {
+        const auto musicXmlPath = exportMusxTestDataFixture(fixture, "--musicxml", ".musicxml");
+        const auto mnxPath = exportMusxTestDataFixture(fixture, "--mnx", ".mnx");
+        const auto musicXmlScore = loadScoreData(musicXmlPath);
+        ASSERT_TRUE(musicXmlScore) << fixture;
 
-    EXPECT_GT(countLaissezVibrerTies(*shapeExpressionScore), 0u);
-    EXPECT_GT(countLaissezVibrerTies(*smartShapeScore), 0u);
+        nlohmann::json mnx;
+        openJson(mnxPath, mnx);
+        EXPECT_EQ(createComparableMusicXmlLaissezVibrerTies(*musicXmlScore), createComparableMnxLaissezVibrerTies(mnx))
+            << fixture;
+    }
 }
 
 TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)

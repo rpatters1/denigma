@@ -174,6 +174,8 @@ struct MusicXmlMusxMapping
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;
     std::unordered_set<std::uint64_t> pendingTieStopKeys;
     std::unordered_set<musx::dom::EntryNumber> processedPseudoLvTieEntries;
+    std::vector<musx::dom::EntryInfoPtr> deferredPseudoLvTieEntries;
+    std::unordered_set<musx::dom::EntryNumber> deferredPseudoLvTieEntryNumbers;
     std::vector<musx::util::ArpeggioSpanCandidate> deferredArpeggioCandidates;
     std::unordered_set<std::string> deferredArpeggioCandidateKeys;
 
@@ -186,6 +188,8 @@ struct MusicXmlMusxMapping
         noteLocations.clear();
         cueDiscardPlansByMeasureStaff.clear();
         processedPseudoLvTieEntries.clear();
+        deferredPseudoLvTieEntries.clear();
+        deferredPseudoLvTieEntryNumbers.clear();
         deferredArpeggioCandidates.clear();
         deferredArpeggioCandidateKeys.clear();
     }

@@ -608,6 +608,24 @@ void applyPseudoLvTies(MusicXmlMusxMapping& context, const EntryInfoPtr& entryIn
     }
 }
 
+void deferPseudoLvTies(MusicXmlMusxMapping& context, const EntryInfoPtr& entryInfo)
+{
+    if (!entryInfo) {
+        return;
+    }
+    const auto entryNumber = entryInfo->getEntry()->getEntryNumber();
+    if (context.deferredPseudoLvTieEntryNumbers.emplace(entryNumber).second) {
+        context.deferredPseudoLvTieEntries.emplace_back(entryInfo);
+    }
+}
+
+void finalizePseudoLvTies(MusicXmlMusxMapping& context)
+{
+    for (const auto& entryInfo : context.deferredPseudoLvTieEntries) {
+        applyPseudoLvTies(context, entryInfo);
+    }
+}
+
 void createNotesForMeasureStaff(
     MusicXmlMusxMapping& context,
     mx::api::MeasureData& measure,

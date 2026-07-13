@@ -108,6 +108,8 @@ void applyNoteheadData(
     const musx::dom::NoteInfoPtr& noteInfo,
     const classify::EntryNoteheadClassification& entryNoteheads);
 void applyPseudoLvTies(MusicXmlMusxMapping& context, const musx::dom::EntryInfoPtr& entryInfo);
+void deferPseudoLvTies(MusicXmlMusxMapping& context, const musx::dom::EntryInfoPtr& entryInfo);
+void finalizePseudoLvTies(MusicXmlMusxMapping& context);
 void processSmartShapes(
     MusicXmlMusxMapping& context,
     const musx::dom::MusxInstanceList<musx::dom::others::Measure>& musxMeasures,

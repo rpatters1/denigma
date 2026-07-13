@@ -394,7 +394,7 @@ void processExpressions(
             appendArpeggioCandidate(context, classification.nonArpeggio().candidate);
             break;
         case classify::ExpressionType::PseudoTie:
-            if (classification.pseudoTie().type == classify::expression::PseudoTie::Type::LaissezVibrer) {
+            if (classification.pseudoTie().type == classify::PseudoTie::Type::LaissezVibrer) {
                 applyPseudoLvTies(context, assignment->calcAssociatedEntry());
             }
             break;
