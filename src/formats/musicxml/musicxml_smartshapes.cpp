@@ -20,11 +20,13 @@
 #include "musicxml.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -152,36 +154,170 @@ mx::api::DirectionData createSmartShapeDirection(
     return direction;
 }
 
-mx::api::StaffData* staffDataForEndpoint(
+struct MusicXmlEndpointStaffLocation
+{
+    size_t measureIndex{};
+    size_t staffIndex{};
+};
+
+std::optional<MusicXmlEndpointStaffLocation> staffLocationForEndpoint(
     MusicXmlMusxMapping& context,
     const std::shared_ptr<smartshape::EndPoint>& endpoint)
 {
-    if (!context.currentPart || !endpoint || !endpoint->calcIsAssigned()) {
-        return nullptr;
+    if (!context.currentPart || !endpoint) {
+        return std::nullopt;
     }
 
     const auto measureNumber = std::to_string(endpoint->measId);
-    auto measureIt = std::ranges::find_if(context.currentPart->measures, [&measureNumber](const mx::api::MeasureData& measure) {
+    const auto& measures = context.currentPart->measures;
+    const auto measureIt = std::ranges::find_if(measures, [&measureNumber](const mx::api::MeasureData& measure) {
         return measure.number == measureNumber;
     });
-    if (measureIt == context.currentPart->measures.end()) {
-        return nullptr;
+    if (measureIt == measures.end()) {
+        return std::nullopt;
     }
 
     const auto stavesIt = context.partIdToStaves.find(context.currentPart->uniqueId);
     if (stavesIt == context.partIdToStaves.end()) {
-        return nullptr;
+        return std::nullopt;
     }
     const auto staffIt = std::ranges::find(stavesIt->second, endpoint->staffId);
     if (staffIt == stavesIt->second.end()) {
-        return nullptr;
+        return std::nullopt;
     }
 
+    const auto measureIndex = static_cast<size_t>(std::distance(measures.begin(), measureIt));
     const auto staffIndex = static_cast<size_t>(std::distance(stavesIt->second.begin(), staffIt));
     if (staffIndex >= measureIt->staves.size()) {
+        return std::nullopt;
+    }
+    return MusicXmlEndpointStaffLocation{ measureIndex, staffIndex };
+}
+
+mx::api::StaffData* staffDataForEndpoint(
+    MusicXmlMusxMapping& context,
+    const std::shared_ptr<smartshape::EndPoint>& endpoint)
+{
+    if (!endpoint || !endpoint->calcIsAssigned()) {
         return nullptr;
     }
-    return &measureIt->staves[staffIndex];
+    const auto location = staffLocationForEndpoint(context, endpoint);
+    if (!location) {
+        return nullptr;
+    }
+    return &context.currentPart->measures[location->measureIndex].staves[location->staffIndex];
+}
+
+// Hosts a floating curve endpoint. MusicXML curve notations can only hang off a
+// <note>, so an endpoint with no coinciding entry anchors to a hidden rest at the
+// endpoint's tick in a reserved voice. The tick, not graphical offsets, carries the
+// horizontal position: readers re-lay out curves from their anchors and ignore
+// exported offsets. Idempotent: concurrent floating endpoints at one tick share a
+// single anchor rest, and re-resolving an endpoint returns its current location.
+std::optional<MusicXmlNoteLocation> createFloatingCurveAnchor(
+    MusicXmlMusxMapping& context,
+    const std::shared_ptr<smartshape::EndPoint>& endpoint)
+{
+    const auto staffLocation = staffLocationForEndpoint(context, endpoint);
+    if (!staffLocation) {
+        return std::nullopt;
+    }
+    const auto musxMeasure = context.document->getOthers()->get<others::Measure>(context.forPartId, endpoint->measId);
+    if (!musxMeasure) {
+        return std::nullopt;
+    }
+    const auto measureTicks = context.timing.calcMusicXmlDivisions(musxMeasure->calcDuration());
+    auto tick = std::clamp(calcEndpointTick(context, endpoint), 0, (std::max)(0, measureTicks - 1));
+
+    const int userVoiceNumber = musicXmlFloatingAnchorVoiceNumber(staffLocation->staffIndex);
+    auto& staff = context.currentPart->measures[staffLocation->measureIndex].staves[staffLocation->staffIndex];
+
+    if (calcEndpointTick(context, endpoint) >= measureTicks) {
+        // An endpoint at the measure end anchors at the start of the last beat or at
+        // the last entry of the staff, whichever comes later. A rest one tick before
+        // the barline renders poorly: readers give the phantom sub-beat segment
+        // minimal width, cramming the curve against the barline.
+        /// @todo Search the whole measure stack (every staff, not just the endpoint's)
+        /// for the last entry tick, so the anchor aligns with the latest sounding event
+        /// under the endpoint. Probably belongs in a musxdom helper.
+        const auto measureDurationEdu = musxMeasure->calcDuration().calcEduDuration();
+        const auto beatValue = musxMeasure->createTimeSignature(endpoint->staffId)
+            ->calcBeatValueAt((std::max)(0, measureDurationEdu - 1));
+        const auto beatTicks = context.timing.calcNearestMusicXmlDivisions(beatValue);
+        int anchorTick = (std::max)(0, measureTicks - beatTicks);
+        for (const auto& [voiceIndex, staffVoice] : staff.voices) {
+            if (voiceIndex == userVoiceNumber - 1) {
+                continue;
+            }
+            for (const auto& note : staffVoice.notes) {
+                if (note.tickTimePosition > anchorTick && note.tickTimePosition < measureTicks) {
+                    anchorTick = note.tickTimePosition;
+                }
+            }
+        }
+        tick = anchorTick;
+    }
+
+    auto& voice = staff.voices[userVoiceNumber - 1];
+
+    auto insertIt = voice.notes.begin();
+    while (insertIt != voice.notes.end() && insertIt->tickTimePosition < tick) {
+        ++insertIt;
+    }
+    const auto noteIndex = static_cast<size_t>(std::distance(voice.notes.begin(), insertIt));
+    const auto location = MusicXmlNoteLocation{
+        .measureIndex = staffLocation->measureIndex,
+        .staffIndex = staffLocation->staffIndex,
+        .userVoiceNumber = userVoiceNumber,
+        .noteIndex = noteIndex
+    };
+    if (insertIt != voice.notes.end() && insertIt->tickTimePosition == tick) {
+        return location;
+    }
+
+    // Anchors must carry a coherent type/duration pair: readers reconcile <type>
+    // against <duration> and may re-place a rest whose two disagree. Use the largest
+    // subdivision of a quarter that the divisions grid expresses exactly and that
+    // fits the available gap.
+    const auto anchorDuration = [&context](int maxTicks) -> std::pair<int, mx::api::DurationName> {
+        constexpr std::array<std::pair<int, mx::api::DurationName>, 6> subdivisions{ {
+            { 1, mx::api::DurationName::quarter },
+            { 2, mx::api::DurationName::eighth },
+            { 4, mx::api::DurationName::dur16th },
+            { 8, mx::api::DurationName::dur32nd },
+            { 16, mx::api::DurationName::dur64th },
+            { 32, mx::api::DurationName::dur128th },
+        } };
+        for (const auto& [divisor, name] : subdivisions) {
+            if (context.timing.divisions % divisor != 0) {
+                continue;
+            }
+            const int ticks = context.timing.divisions / divisor;
+            if (ticks <= maxTicks) {
+                return { ticks, name };
+            }
+        }
+        return { (std::max)(1, maxTicks), mx::api::DurationName::dur128th };
+    };
+
+    const auto nextTick = insertIt != voice.notes.end() ? insertIt->tickTimePosition : measureTicks;
+    auto rest = mx::api::NoteData{};
+    rest.isRest = true;
+    rest.userRequestedVoiceNumber = userVoiceNumber;
+    rest.tickTimePosition = tick;
+    std::tie(rest.durationData.durationTimeTicks, rest.durationData.durationName) = anchorDuration(nextTick - tick);
+    rest.printData.printObject = mx::api::Bool::no;
+    if (insertIt != voice.notes.begin()) {
+        // Keep the anchor voice non-overlapping: truncate the previous anchor if it
+        // reaches past the new one.
+        auto& previous = *std::prev(insertIt);
+        if (previous.tickTimePosition + previous.durationData.durationTimeTicks > tick) {
+            std::tie(previous.durationData.durationTimeTicks, previous.durationData.durationName) =
+                anchorDuration(tick - previous.tickTimePosition);
+        }
+    }
+    voice.notes.insert(insertIt, std::move(rest));
+    return location;
 }
 
 bool processSlur(
@@ -194,9 +330,27 @@ bool processSlur(
         return false;
     }
 
-    const auto startLocation = findEntryNoteLocation(context, slur->startEntry, shape->startNoteId);
-    const auto endLocation = findEntryNoteLocation(context, slur->endEntry, shape->endNoteId);
+    auto startLocation = findEntryNoteLocation(context, slur->startEntry, shape->startNoteId);
+    auto endLocation = findEntryNoteLocation(context, slur->endEntry, shape->endNoteId);
+
+    // Endpoints with no coinciding entry anchor to synthesized hidden rests. The end
+    // anchor is created after the start anchor, so re-resolve the start afterward:
+    // when both share the anchor voice, the second insertion can shift the first
+    // anchor's note index.
+    const bool startIsFloating = !startLocation;
+    const bool endIsFloating = !endLocation;
+    if (startIsFloating) {
+        startLocation = createFloatingCurveAnchor(context, shape->startTermSeg->endPoint);
+    }
+    if (endIsFloating) {
+        endLocation = createFloatingCurveAnchor(context, shape->endTermSeg->endPoint);
+        if (startIsFloating && startLocation) {
+            startLocation = createFloatingCurveAnchor(context, shape->startTermSeg->endPoint);
+        }
+    }
     if (!startLocation || !endLocation) {
+        context.logMessage(LogMsg() << "Omitting slur smart shape " << shape->getCmper()
+            << " because an endpoint could not be attached or anchored.", MessageSeverity::Verbose);
         return false;
     }
 
@@ -206,15 +360,28 @@ bool processSlur(
         return false;
     }
 
+    // A floating endpoint's vertical position is layout-independent (EVPU relative to
+    // the top staff line, as is MusicXML default-y), so it survives the anchor hop.
+    const auto applyFloatingOffset = [&context](mx::api::CurvePoints& curvePoints, const std::shared_ptr<others::SmartShape::TerminationSeg>& termSeg) {
+        curvePoints.positionData.isDefaultYSpecified = true;
+        curvePoints.positionData.defaultY = context.musicXmlTenthsFromEvpu(termSeg->endPointAdj->calcVertOffset());
+    };
+
     auto start = mx::api::CurveStart{ mx::api::CurveType::slur };
     start.number = smartShapeSpannerNumber(shape);
     start.curveOrientation = enumConvert<mx::api::CurveOrientation>(slur->contour);
     if (shape->calcIsDashed()) {
         start.lineData.lineType = mx::api::LineType::dashed;
     }
+    if (startIsFloating) {
+        applyFloatingOffset(start.curvePoints, shape->startTermSeg);
+    }
     startNote->noteAttachmentData.curveStarts.emplace_back(std::move(start));
     auto stop = mx::api::CurveStop{ mx::api::CurveType::slur };
     stop.number = smartShapeSpannerNumber(shape);
+    if (endIsFloating) {
+        applyFloatingOffset(stop.curvePoints, shape->endTermSeg);
+    }
     endNote->noteAttachmentData.curveStops.emplace_back(std::move(stop));
     return true;
 }
@@ -573,7 +740,7 @@ void appendTrillLine(
             << " because mx::api cannot pair wavy-line start/stop.", MessageSeverity::Verbose);
         return;
     }
-    const auto startEntry = shape->startTermSeg->endPoint->calcAssociatedEntry(true);
+    const auto startEntry = shape->startTermSeg->endPoint->calcAssociatedEntry();
     const auto location = findEntryNoteLocation(context, startEntry, shape->startNoteId);
     auto* note = location ? noteDataAt(context, *location) : nullptr;
     if (!note) {
@@ -648,7 +815,7 @@ void processSmartShapesForStaff(
                 processArpeggiatedTie(context, value);
             } else if constexpr (std::is_same_v<Value, classify::PseudoTie>) {
                 if (value.type == classify::PseudoTie::Type::LaissezVibrer) {
-                    applyPseudoLvTies(context, shape->startTermSeg->endPoint->calcAssociatedEntry(true));
+                    applyPseudoLvTies(context, shape->startTermSeg->endPoint->calcAssociatedEntry());
                 }
             } else if constexpr (std::is_same_v<Value, classify::smartshape::NonArpeggio>) {
                 appendArpeggioCandidate(context, value.candidate);

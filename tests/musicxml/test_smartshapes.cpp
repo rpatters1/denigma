@@ -230,6 +230,77 @@ TEST(MusicXmlSmartShapes, OverlappingSlursAcrossStavesCarryDistinctNumbers)
            "contract was not exercised";
 }
 
+/// Beat-attached slurs whose endpoints coincide with no entry anchor to synthesized
+/// hidden rests at the endpoint tick (in the reserved anchor voice), because MusicXML
+/// curve notations can only hang off a <note>. Short same-position hooks that coincide
+/// with an entry classify as pseudo lv ties and export as <tied type="let-ring">.
+TEST(MusicXmlSmartShapes, BeatAttachedSlursAnchorToHiddenRests)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("slurs_beatattached.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+    ASSERT_GE(score->parts.size(), 2u);
+
+    struct SlurEndpointCounts
+    {
+        int onHiddenRestAnchors{};
+        int onVisibleNotes{};
+        int onHiddenNotes{};
+        int letRingTies{};
+    };
+    const auto countPart = [](const mx::api::PartData& part) {
+        SlurEndpointCounts counts;
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& voicePair : staff.voices) {
+                    for (const auto& note : voicePair.second.notes) {
+                        if (note.tieLetRing) {
+                            ++counts.letRingTies;
+                        }
+                        int slurEndpoints = 0;
+                        for (const auto& start : note.noteAttachmentData.curveStarts) {
+                            slurEndpoints += start.curveType == mx::api::CurveType::slur ? 1 : 0;
+                        }
+                        for (const auto& stop : note.noteAttachmentData.curveStops) {
+                            slurEndpoints += stop.curveType == mx::api::CurveType::slur ? 1 : 0;
+                        }
+                        if (slurEndpoints == 0) {
+                            continue;
+                        }
+                        if (note.isRest && note.printData.printObject == mx::api::Bool::no) {
+                            counts.onHiddenRestAnchors += slurEndpoints;
+                        } else if (note.printData.printObject == mx::api::Bool::no) {
+                            counts.onHiddenNotes += slurEndpoints;
+                        } else {
+                            counts.onVisibleNotes += slurEndpoints;
+                        }
+                    }
+                }
+            }
+        }
+        return counts;
+    };
+
+    // Part 1: three chained slur pairs across empty measures (m1-m2, m2-m3, m3-m4),
+    // stacked three high, all floating; plus three same-position hooks on the m1
+    // notes that classify as lv ties.
+    const auto part1 = countPart(score->parts.at(0));
+    EXPECT_EQ(part1.onHiddenRestAnchors, 18);
+    EXPECT_EQ(part1.onVisibleNotes, 0);
+    EXPECT_EQ(part1.onHiddenNotes, 0);
+    EXPECT_EQ(part1.letRingTies, 3);
+
+    // Part 2: one slur attached to hidden entries in m1 (hidden entries export with
+    // print-object="no" and remain valid attachment points), one real note-attached
+    // slur in m2, one floating slur inside m2, and two floating slurs spanning m3-m4.
+    const auto part2 = countPart(score->parts.at(1));
+    EXPECT_EQ(part2.onHiddenRestAnchors, 6);
+    EXPECT_EQ(part2.onVisibleNotes, 2);
+    EXPECT_EQ(part2.onHiddenNotes, 2);
+    EXPECT_EQ(part2.letRingTies, 0);
+}
+
 TEST(MusicXmlSmartShapes, OverlappingOttavas)
 {
     setupTestDataPaths();

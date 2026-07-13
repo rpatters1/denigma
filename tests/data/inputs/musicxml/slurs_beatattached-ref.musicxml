@@ -90,7 +90,7 @@
   <!--=========================================================-->
   <part id="P1">
     <?SmartMusic maxVoice=1?>
-    <measure number="1" width="375">
+    <measure number="1" width="299">
       <print>
         <system-layout>
           <system-margins>
@@ -136,9 +136,9 @@
           <slur default-y="-27" number="2" relative-x="37" type="stop"/>
           <slur default-y="-8" number="3" placement="above" relative-x="12" type="start"/>
           <slur default-y="-8" number="3" relative-x="37" type="stop"/>
-          <slur default-y="-37" number="4" placement="below" relative-x="303" type="start"/>
-          <slur default-y="-27" number="5" placement="below" relative-x="303" type="start"/>
-          <slur default-y="-12" number="6" placement="above" relative-x="303" type="start"/>
+          <slur default-y="-37" number="4" placement="below" relative-x="227" type="start"/>
+          <slur default-y="-27" number="5" placement="below" relative-x="227" type="start"/>
+          <slur default-y="-12" number="6" placement="above" relative-x="227" type="start"/>
         </notations>
       </note>
       <note default-x="84">
@@ -163,7 +163,7 @@
       </note>
     </measure>
     <!--=======================================================-->
-    <measure number="2" width="304">
+    <measure number="2" width="228">
       <note print-object="no">
         <rest measure="yes"/>
         <duration>8</duration>
@@ -179,7 +179,7 @@
       </note>
     </measure>
     <!--=======================================================-->
-    <measure number="3" width="304">
+    <measure number="3" width="228">
       <note print-object="no">
         <rest measure="yes"/>
         <duration>8</duration>
@@ -195,12 +195,7 @@
       </note>
     </measure>
     <!--=======================================================-->
-    <measure number="4" width="1054">
-      <print new-system="yes">
-        <system-layout>
-          <system-distance>114</system-distance>
-        </system-layout>
-      </print>
+    <measure number="4" width="228">
       <note print-object="no">
         <rest measure="yes"/>
         <duration>8</duration>
@@ -219,7 +214,7 @@
   <!--=========================================================-->
   <part id="P2">
     <?SmartMusic maxVoice=1?>
-    <measure number="1" width="375">
+    <measure number="1" width="299">
       <print>
         <measure-numbering multiple-rest-always="no" multiple-rest-range="no" system="also-top">system</measure-numbering>
       </print>
@@ -243,14 +238,53 @@
           <straight/>
         </swing>
       </sound>
-      <note>
-        <rest measure="yes"/>
-        <duration>8</duration>
+      <note print-object="no">
+        <cue/>
+        <pitch>
+          <step>F</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>2</duration>
         <voice>1</voice>
+        <type size="full">quarter</type>
+        <stem>up</stem>
+        <notations>
+          <slur default-y="13" number="1" placement="above" relative-x="10" type="start"/>
+        </notations>
+      </note>
+      <note default-x="138">
+        <pitch>
+          <step>G</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+        <stem default-y="5">up</stem>
+      </note>
+      <note print-object="no">
+        <cue/>
+        <pitch>
+          <step>A</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type size="full">quarter</type>
+        <stem>up</stem>
+        <notations>
+          <slur default-y="13" number="1" type="stop"/>
+        </notations>
+      </note>
+      <note default-x="245">
+        <rest/>
+        <duration>2</duration>
+        <voice>1</voice>
+        <type>quarter</type>
       </note>
     </measure>
     <!--=======================================================-->
-    <measure number="2" width="304">
+    <measure number="2" width="228">
       <note default-x="13">
         <pitch>
           <step>A</step>
@@ -262,9 +296,10 @@
         <stem default-y="10">up</stem>
         <notations>
           <slur default-y="-42" number="1" placement="below" relative-x="5" type="start"/>
+          <slur default-y="15" number="2" placement="above" type="start"/>
         </notations>
       </note>
-      <note default-x="86">
+      <note default-x="67">
         <pitch>
           <step>F</step>
           <octave>4</octave>
@@ -273,8 +308,11 @@
         <voice>1</voice>
         <type>quarter</type>
         <stem default-y="0">up</stem>
+        <notations>
+          <slur default-y="6" number="2" type="stop"/>
+        </notations>
       </note>
-      <note default-x="158">
+      <note default-x="120">
         <pitch>
           <step>G</step>
           <octave>4</octave>
@@ -287,7 +325,7 @@
           <slur default-y="-45" number="1" type="stop"/>
         </notations>
       </note>
-      <note default-x="231">
+      <note default-x="174">
         <rest/>
         <duration>2</duration>
         <voice>1</voice>
@@ -295,24 +333,25 @@
       </note>
     </measure>
     <!--=======================================================-->
-    <measure number="3" width="304">
+    <measure number="3" width="228">
       <note>
         <rest measure="yes"/>
         <duration>8</duration>
         <voice>1</voice>
         <notations>
           <slur default-y="18" number="1" placement="above" relative-x="29" type="start"/>
+          <slur default-y="-62" number="2" placement="below" relative-x="5" type="start"/>
         </notations>
       </note>
     </measure>
     <!--=======================================================-->
-    <measure number="4" width="1054">
-      <print new-system="yes"/>
+    <measure number="4" width="228">
       <note>
         <rest measure="yes"/>
         <duration>8</duration>
         <voice>1</voice>
         <notations>
+          <slur default-y="-46" number="2" relative-x="5" type="stop"/>
           <slur default-y="3" number="1" relative-x="5" type="stop"/>
         </notations>
       </note>

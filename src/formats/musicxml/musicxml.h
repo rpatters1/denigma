@@ -56,6 +56,16 @@ inline int musicXmlVoiceNumber(size_t staffIndex, musx::dom::LayerIndex layer, i
     return (static_cast<int>(staffIndex) * voicesPerStaff) + (static_cast<int>(layer) * v1v2StreamsPerLayer) + v1v2;
 }
 
+/// Reserved per-staff voice for the hidden anchor rests that host floating (beat-attached)
+/// curve endpoints with no coinciding entry. The base sits far above anything
+/// musicXmlVoiceNumber can produce, and the distinctive number range marks the anchors
+/// as synthetic in the emitted MusicXML.
+inline int musicXmlFloatingAnchorVoiceNumber(size_t staffIndex)
+{
+    constexpr int floatingAnchorVoiceBase = 1000;
+    return floatingAnchorVoiceBase + static_cast<int>(staffIndex) + 1;
+}
+
 MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, const std::string& partId);
 std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);
 mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacement placement);
