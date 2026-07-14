@@ -32,8 +32,6 @@
 #include "core/denigma.h"
 #include "denigma/classify/articulations.h"
 #include "classify/classify.h"
-#include "smufl_mapping.h"
-#include "utils/smufl_support.h"
 #include "utils/stringutils.h"
 #include "utils/utf8_iterator.h"
 
@@ -682,22 +680,13 @@ static std::optional<ExpressionClassification> classifyHarpDiagramExpression(con
         if (!font) {
             return std::nullopt;
         }
-        const bool fontIsSmufl = font->calcIsSMuFL();
         bool utf8Valid = true;
         for (utils::Utf8Iterator iter(chunk.text); !iter.atEnd(); iter.next()) {
             if (!iter.valid()) {
                 utf8Valid = false;
                 break;
             }
-            const auto glyphName = [&]() -> std::optional<std::string> {
-                if (fontIsSmufl) {
-                    if (const auto* name = smufl_mapping::getGlyphName(iter->codepoint)) {
-                        return std::string(*name);
-                    }
-                    return std::nullopt;
-                }
-                return utils::smuflGlyphNameForFont(font, iter->codepoint);
-            }();
+            const auto glyphName = detail::glyphNameForFont(font, iter->codepoint);
             if ((glyphName && *glyphName == "harpPedalDivider") || isHarpPedalDividerCodepoint(iter->codepoint)) {
                 if (sawDivider || pedalIndex != 3) {
                     return std::nullopt;

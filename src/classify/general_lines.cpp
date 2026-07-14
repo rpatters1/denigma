@@ -22,33 +22,11 @@
 #include "denigma/classify/general_lines.h"
 
 #include "classify.h"
-#include "smufl_mapping.h"
-#include "utils/smufl_support.h"
 
 namespace denigma {
 namespace classify {
 
 using namespace smartshape;
-
-namespace detail {
-
-std::optional<std::string> glyphNameForFont(
-    const std::shared_ptr<musx::dom::FontInfo>& font,
-    char32_t codepoint)
-{
-    if (!font) {
-        return std::nullopt;
-    }
-    if (font->calcIsSMuFL()) {
-        if (const auto* name = smufl_mapping::getGlyphName(codepoint)) {
-            return std::string(*name);
-        }
-        return std::nullopt;
-    }
-    return utils::smuflGlyphNameForFont(font, codepoint);
-}
-
-} // namespace detail
 
 namespace {
 

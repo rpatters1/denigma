@@ -17,6 +17,7 @@ Denigma is split into small reusable libraries as well as the CLI utility:
 - `denigma_format_enigmaxml` handles MUSX archive extraction and EnigmaXML pass-through.
 - `denigma_format_mnx` converts MUSX content to MNX.
 - `denigma_format_mss` converts MUSX content to MSS.
+- `denigma_format_musicxml` converts MUSX content to MusicXML.
 - `denigma_format_svg` converts MUSX content to SVG.
 
 The documentation site for the library API is [https://rpatters1.github.io/denigma/](https://rpatters1.github.io/denigma/).
@@ -29,6 +30,7 @@ Denigma can also be consumed as libraries from another CMake project. Link only 
 target_link_libraries(my_tool PRIVATE denigma::classify)
 target_link_libraries(my_tool PRIVATE denigma::mnx)
 target_link_libraries(my_tool PRIVATE denigma::mss)
+target_link_libraries(my_tool PRIVATE denigma::musicxml)
 target_link_libraries(my_tool PRIVATE denigma::svg)
 target_link_libraries(my_tool PRIVATE denigma::enigmaxml)
 ```
