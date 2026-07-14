@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for suggesting an improvement. Describe the need independently of a particular implementation so that alternatives remain open. For missing MusicXML support, use the [MusicXML feature gap form](https://github.com/rpatters1/denigma/issues/new?template=musicxml-gap.yml) instead.
+        Thank you for suggesting an improvement. Describe the need independently of a particular implementation so that alternatives remain open. For missing MusicXML support, use the [MusicXML feature gap form](https://github.com/rpatters1/denigma/issues/new?template=musicxml-gap.yml) instead.
 
   - type: textarea
     id: problem

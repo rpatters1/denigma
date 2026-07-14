@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve denigma's MusicXML support. Please provide a minimal, shareable example whenever possible. Reports with enough detail to reproduce and verify the requested behavior are much easier to act on.
+        Thank you for helping improve denigma's MusicXML support. Please provide a minimal, shareable example whenever possible. Reports with enough detail to reproduce and verify the requested behavior are much easier to act on.
 
   - type: textarea
     id: missing-feature

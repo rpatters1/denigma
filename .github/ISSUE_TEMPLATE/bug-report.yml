@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve denigma. Please reduce the problem to the smallest reproducible example you can share. If this is a request for MusicXML support that denigma does not yet implement, use the [MusicXML feature gap form](https://github.com/rpatters1/denigma/issues/new?template=musicxml-gap.yml) instead.
+        Thank you for helping improve denigma. Please reduce the problem to the smallest reproducible example you can share. If this is a request for MusicXML support that denigma does not yet implement, use the [MusicXML feature gap form](https://github.com/rpatters1/denigma/issues/new?template=musicxml-gap.yml) instead.
 
   - type: textarea
     id: summary
@@ -76,10 +76,10 @@ body:
     id: sample-files
     attributes:
       label: Minimal sample files
-      description: Upload the smallest input and output files that reproduce the bug. Append `.zip` to MUSX filenames without recompressing them; ZIP other unsupported formats.
+      description: Upload the smallest input and output files that reproduce the bug as a ZIP archive. For MUSX files, append `.zip` to the filename without recompressing it.
     validations:
       required: false
-      accept: ".zip,.gz,.tar.gz,.json,.log,.txt,.csv,.pdf,.png,.jpg,.jpeg,.gif,.svg,.webp"
+      accept: ".zip"
 
   - type: textarea
     id: diagnostics
