@@ -1030,7 +1030,7 @@ TEST(MusicXmlNotes, PseudoLaissezVibrerTiesMatchMnxAfterMusicXmlRoundTrip)
 {
     setupTestDataPaths();
 
-    for (const std::string& fixture : { "lvslurs.musx", "lvshapes.musx" }) {
+    for (const std::string fixture : { "lvslurs.musx", "lvshapes.musx" }) {
         const auto musicXmlPath = exportMusxTestDataFixture(fixture, "--musicxml", ".musicxml");
         const auto mnxPath = exportMusxTestDataFixture(fixture, "--mnx", ".mnx");
         const auto musicXmlScore = loadScoreData(musicXmlPath);
