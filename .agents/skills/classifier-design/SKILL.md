@@ -14,4 +14,5 @@ Rules:
 - If an existing classifier exposes target-format concepts, first factor those concepts into neutral source-domain terms, then adapt each exporter at the call site.
 - Prefer adding source-domain detail to the classifier over adding parallel exporter-specific classifiers when the underlying MUSX detection logic is shared.
 - Do not add one-off target-format switches inside `src/classify`; put those mappings in the relevant exporter code.
+- Do not link classifiers to `denigma_smufl_support`. It parses SMuFL metadata with JSON and would make the classifier library transitively depend on `nlohmann_json`. For glyph-name lookup, prefer the common classifier helper; extend or add a common helper when needed instead of scattering direct `smufl_mapping` calls.
 - When adding domain namespaces, qualify the domain-specific payload classes and enums inside the namespace, but keep the top-level classifier return types and classifier functions directly under `denigma::classify`.

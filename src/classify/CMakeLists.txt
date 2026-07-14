@@ -3,6 +3,7 @@ set(DENIGMA_CLASSIFY_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/barlines.cpp
     ${CMAKE_CURRENT_LIST_DIR}/chords.cpp
     ${CMAKE_CURRENT_LIST_DIR}/clefs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/classify.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamics.cpp
     ${CMAKE_CURRENT_LIST_DIR}/entries.cpp
     ${CMAKE_CURRENT_LIST_DIR}/expressions.cpp
