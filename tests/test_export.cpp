@@ -256,6 +256,63 @@ TEST(Export, Parts)
     }
 }
 
+TEST(Export, MusicXmlParts)
+{
+    setupTestDataPaths();
+    std::string inputFile = "notAscii-其れ";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".musx", inputPath);
+
+    auto expectValidMusicXml = [](const std::filesystem::path& path) {
+        std::vector<char> contents;
+        readFile(path, contents);
+        ASSERT_FALSE(contents.empty()) << "empty MusicXML file: " << pathString(path);
+        const std::string text(contents.begin(), contents.end());
+        EXPECT_NE(text.find("<score-partwise"), std::string::npos) << "missing <score-partwise> in " << pathString(path);
+    };
+
+    // inplace
+    {
+        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml", "--part" };
+        checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << pathString(inputPath);
+        });
+        std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".オボえ.musicxml");
+        ASSERT_TRUE(std::filesystem::exists(getOutputPath() / musicXmlFilename));
+        expectValidMusicXml(getOutputPath() / musicXmlFilename);
+    }
+    // explicit to subdir
+    {
+        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml", "-musicxml-exports", "--part", "オボえ" };
+        checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create " << pathString(inputPath);
+        });
+        std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".オボえ.musicxml");
+        ASSERT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-musicxml-exports" / musicXmlFilename));
+        expectValidMusicXml(std::filesystem::current_path() / "-musicxml-exports" / musicXmlFilename);
+    }
+    // non-existent part
+    {
+        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml", "-musicxml-exports", "--part", "Doesn't Exist" };
+        checkStderr("No part name starting with \"Doesn't Exist\" was found", [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << pathString(inputPath);
+        });
+    }
+    // all parts and score
+    {
+        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml", "-musicxml-exports", "--all-parts", "--force" };
+        checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "create from " << pathString(inputPath);
+        });
+        std::filesystem::path musicXmlFilename = utils::utf8ToPath(inputFile + ".musicxml");
+        ASSERT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-musicxml-exports" / musicXmlFilename));
+        expectValidMusicXml(std::filesystem::current_path() / "-musicxml-exports" / musicXmlFilename);
+        std::filesystem::path musicXmlFilenamePart = utils::utf8ToPath(inputFile + ".オボえ.musicxml");
+        ASSERT_TRUE(std::filesystem::exists(std::filesystem::current_path() / "-musicxml-exports" / musicXmlFilenamePart));
+        expectValidMusicXml(std::filesystem::current_path() / "-musicxml-exports" / musicXmlFilenamePart);
+    }
+}
+
 TEST(Export, CalcPageFormat)
 {
     setupTestDataPaths();

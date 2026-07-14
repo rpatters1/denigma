@@ -9,6 +9,7 @@ add_denigma_internal_library(denigma_export MUSX_PCH ${DENIGMA_EXPORT_COMMAND_SO
 target_link_libraries(denigma_export PUBLIC
     denigma_core
     denigma_format_enigmaxml
+    denigma_musicxml
     denigma_mnx
     denigma_mss
     denigma_svg
@@ -19,6 +20,7 @@ if(denigma_BUILD_TESTING)
     target_link_libraries(denigma_export_test PUBLIC
         denigma_core_test
         denigma_format_enigmaxml
+        denigma_musicxml
         denigma_mnx
         denigma_mss
         denigma_svg

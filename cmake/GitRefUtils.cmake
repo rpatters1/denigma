@@ -1,6 +1,7 @@
 function(denigma_resolve_git_ref_commit output_variable repository ref)
     set(_resolved_commit "")
-    if(ref MATCHES "^[0-9a-fA-F]{7,40}$")
+    string(LENGTH "${ref}" _ref_length)
+    if(ref MATCHES "^[0-9a-fA-F]+$" AND _ref_length GREATER_EQUAL 7 AND _ref_length LESS_EQUAL 40)
         string(SUBSTRING "${ref}" 0 7 _resolved_commit)
     elseif(GIT_FOUND)
         execute_process(

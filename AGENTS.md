@@ -54,6 +54,10 @@ The repository builds a CLI plus reusable libraries for classification, massage,
 - If a change affects converter behavior, update the corresponding reference fixtures under `tests/data/inputs/reference` and verify the diff carefully.
 - Preserve the existing CMake target structure and naming conventions.
 - Do not remove or rewrite third-party dependency wiring unless the task is specifically about build configuration.
+- Prefer a local lambda over a file-scope one-off helper when the logic is only used in one function and does not improve readability as a named abstraction.
+- Prefer horizontal function calls up to about 135 columns. When wrapping is needed, keep as much of the call as practical on the next indented line.
+- Strongly prefer named constants, existing domain constants, or computed values over hardcoded numeric literals other than `0`.
+- Do not place project-internal design notes in top-level `docs`; that directory is primarily for Doxygen/external-library documentation. Keep implementation notes near the relevant source area unless asked otherwise.
 
 ## Verification
 

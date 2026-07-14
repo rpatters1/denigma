@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "denigma/formats/mss.h"
+#include "denigma/formats/musicxml.h"
 #include "denigma/formats/mnx.h"
 #include "denigma/formats/svg.h"
 #include "export/export.h"
@@ -65,6 +66,16 @@ formats::mnx::Options makeMnxOptions(const DenigmaContext& denigmaContext)
     options.schema = denigmaContext.mnxSchema;
     options.includeTempoTool = denigmaContext.includeTempoTool;
     options.splitInstruments = denigmaContext.mnxSplitInstruments;
+    return options;
+}
+
+formats::musicxml::Options makeMusicXmlOptions(const DenigmaContext& denigmaContext)
+{
+    formats::musicxml::Options options;
+    options.common = makeCommonOptions(denigmaContext);
+    options.includeTempoTool = denigmaContext.includeTempoTool;
+    options.allPartsAndScore = denigmaContext.allPartsAndScore;
+    options.partName = denigmaContext.partName;
     return options;
 }
 
@@ -144,6 +155,48 @@ void exportMnxJsonWithAdapter(const std::filesystem::path& outputPath,
     const auto options = makeMnxOptions(denigmaContext);
     converter->convert(enigmaXmlBytes(inputData), output, ConversionRequest{ &options });
     output.close();
+}
+
+void exportMusicXmlWithAdapter(const std::filesystem::path& outputPath,
+                               const CommandInputData& inputData,
+                               const DenigmaContext& denigmaContext)
+{
+#ifdef DENIGMA_TEST
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Converting to " << utils::asUtf8Bytes(outputPath));
+        return;
+    }
+#endif
+
+    ConverterRegistry registry;
+    formats::musicxml::registerConverters(registry);
+    const auto* converter = registry.findMultiOutput(FormatId::EnigmaXml, FormatId::MusicXml);
+    if (!converter) {
+        throw std::logic_error("MusicXML converter is not registered.");
+    }
+
+    size_t generatedCount = 0;
+    const auto options = makeMusicXmlOptions(denigmaContext);
+    converter->convert(enigmaXmlBytes(inputData), [&](std::string_view suggestedName, std::span<const std::byte> musicXmlData) {
+        std::filesystem::path qualifiedOutputPath = outputPath;
+        if (!suggestedName.empty()) {
+            auto currExtension = qualifiedOutputPath.extension();
+            qualifiedOutputPath.replace_extension(utils::stringToUtf8(suggestedName) + currExtension.u8string());
+        }
+        if (!denigmaContext.validatePathsAndOptions(qualifiedOutputPath)) {
+            return;
+        }
+        std::ofstream output;
+        output.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+        output.open(qualifiedOutputPath, std::ios::out | std::ios::binary);
+        output.write(reinterpret_cast<const char*>(musicXmlData.data()), static_cast<std::streamsize>(musicXmlData.size()));
+        output.close();
+        ++generatedCount;
+    }, ConversionRequest{ &options });
+
+    if (generatedCount == 0) {
+        denigmaContext.logMessage(LogMsg() << "No MusicXML files were written.", MessageSeverity::Warning);
+    }
 }
 
 void exportMssWithAdapter(const std::filesystem::path& outputPath,
@@ -310,6 +363,7 @@ constexpr auto outputProcessors = []() {
             { SVG_EXTENSION, exportSvgWithAdapter },
             { MNX_EXTENSION, exportMnxJsonWithAdapter },
             { JSON_EXTENSION, exportMnxJsonWithAdapter },
+            { MUSICXML_EXTENSION, exportMusicXmlWithAdapter },
         });
     }();
 
@@ -324,6 +378,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "  mss:        the Styles format for MuseScore" << std::endl;
     std::cout << indentSpaces << "  svg:        Shape Designer shapes as SVG files" << std::endl;
     std::cout << indentSpaces << "  mnx:        MNX open standard files (currently in development)" << std::endl;
+    std::cout << indentSpaces << "  musicxml:   MusicXML files (currently in development)" << std::endl;
     std::cout << indentSpaces << "Note: reverse export to musx is intended for small test cases" << std::endl;
     std::cout << indentSpaces << "      and does not restore ancillary files (for example embedded graphics or audio)." << std::endl;
     std::cout << std::endl;
@@ -371,6 +426,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mss --part" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mnx --mss" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --musicxml" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.musx --svg --shape-def 3,7 --svg-unit px" << std::endl;
 
     return 1;

@@ -20,6 +20,7 @@ endfunction()
         xml_compare.cpp
         test_articulations.cpp
         test_barlines.cpp
+        test_chords.cpp
         test_clefs.cpp
         test_enigmaxml_converter.cpp
         test_entries.cpp
@@ -50,6 +51,14 @@ endfunction()
         mnx/test_schema.cpp
         mnx/test_scores.cpp
         mnx/test_sequences.cpp
+        musicxml/musicxml_test.cpp
+        musicxml/test_converter.cpp
+        musicxml/test_defaults.cpp
+        musicxml/test_expressions.cpp
+        musicxml/test_metadata.cpp
+        musicxml/test_notes.cpp
+        musicxml/test_parts.cpp
+        musicxml/test_smartshapes.cpp
         ${CMAKE_SOURCE_DIR}/src/main.cpp
         ${CMAKE_SOURCE_DIR}/src/about.cpp
     )
@@ -70,6 +79,7 @@ endfunction()
         "${zlib_BINARY_DIR}"          # generated zconf.h included by zlib.h
         "${zlib_SOURCE_DIR}/contrib/minizip"
         $<TARGET_PROPERTY:mnxdom,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:mx,INTERFACE_INCLUDE_DIRECTORIES>
     )
     target_compile_definitions(denigma_tests PRIVATE
         $<TARGET_PROPERTY:mnxdom,INTERFACE_COMPILE_DEFINITIONS>
@@ -127,7 +137,7 @@ endfunction()
         DENIGMA_TEST
     )
     target_precompile_headers(denigma_tests_pch PRIVATE
-        <musx/musx.h>
+        "${CMAKE_SOURCE_DIR}/src/musx_pch.h"
     )
     target_precompile_headers(denigma_tests REUSE_FROM denigma_tests_pch)
 

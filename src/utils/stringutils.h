@@ -85,6 +85,15 @@ inline std::string utf8ToString(std::u8string_view utf8)
     return std::string(reinterpret_cast<const char*>(utf8.data()), utf8.size());
 }
 
+inline std::string trimNewLineFromString(const std::string& src)
+{
+    const size_t pos = src.find('\n');
+    if (pos != std::string::npos) {
+        return src.substr(0, pos);
+    }
+    return src;
+}
+
 inline void appendUtf8(std::string& target, std::u8string_view utf8)
 {
     target.append(reinterpret_cast<const char*>(utf8.data()), utf8.size());

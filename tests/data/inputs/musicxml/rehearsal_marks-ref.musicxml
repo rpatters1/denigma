@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="4.0">
+  <identification>
+    <encoding>
+      <software>Finale v27.4 for Mac</software>
+      <encoding-date>2026-07-08</encoding-date>
+      <supports attribute="new-system" element="print" type="yes" value="yes"/>
+      <supports attribute="new-page" element="print" type="yes" value="yes"/>
+      <supports element="accidental" type="yes"/>
+      <supports element="beam" type="yes"/>
+      <supports element="stem" type="yes"/>
+    </encoding>
+  </identification>
+  <defaults>
+    <scaling>
+      <millimeters>5.9267</millimeters>
+      <tenths>40</tenths>
+    </scaling>
+    <page-layout>
+      <page-height>2229</page-height>
+      <page-width>1714</page-width>
+      <page-margins type="both">
+        <left-margin>171</left-margin>
+        <right-margin>171</right-margin>
+        <top-margin>171</top-margin>
+        <bottom-margin>171</bottom-margin>
+      </page-margins>
+    </page-layout>
+    <system-layout>
+      <system-margins>
+        <left-margin>14</left-margin>
+        <right-margin>0</right-margin>
+      </system-margins>
+      <system-distance>129</system-distance>
+      <top-system-distance>129</top-system-distance>
+    </system-layout>
+    <appearance>
+      <line-width type="stem">0.8333</line-width>
+      <line-width type="beam">5</line-width>
+      <line-width type="staff">0.8333</line-width>
+      <line-width type="light barline">1.6667</line-width>
+      <line-width type="heavy barline">7.5</line-width>
+      <line-width type="leger">1.6667</line-width>
+      <line-width type="ending">2.5</line-width>
+      <line-width type="wedge">0.7682</line-width>
+      <line-width type="enclosure">1.6667</line-width>
+      <line-width type="tuplet bracket">0.8333</line-width>
+      <note-size type="grace">70</note-size>
+      <note-size type="cue">70</note-size>
+      <distance type="hyphen">120</distance>
+      <distance type="beam">7.5</distance>
+    </appearance>
+    <music-font font-family="Finale Maestro,engraved" font-size="16.8"/>
+    <word-font font-family="Times" font-size="9.8" font-style="italic"/>
+  </defaults>
+  <credit page="1">
+    <credit-type>page number</credit-type>
+    <credit-words default-x="1543" default-y="2154" font-size="12" font-style="italic" font-weight="bold" halign="right" valign="top">1</credit-words>
+  </credit>
+  <part-list>
+    <score-part id="P1">
+      <part-name print-object="no">MusicXML Part</part-name>
+      <group>score</group>
+      <score-instrument id="P1-I1">
+        <instrument-name>ARIA Player</instrument-name>
+      </score-instrument>
+      <midi-instrument id="P1-I1">
+        <midi-channel>1</midi-channel>
+        <midi-bank>15489</midi-bank>
+        <midi-program>1</midi-program>
+        <volume>80</volume>
+        <pan>0</pan>
+      </midi-instrument>
+    </score-part>
+  </part-list>
+  <!--=========================================================-->
+  <part id="P1">
+    <measure number="123" width="386">
+      <print page-number="1">
+        <system-layout>
+          <system-margins>
+            <left-margin>343</left-margin>
+            <right-margin>0</right-margin>
+          </system-margins>
+          <top-system-distance>292</top-system-distance>
+        </system-layout>
+        <measure-numbering multiple-rest-always="yes" multiple-rest-range="yes" system="only-top">measure</measure-numbering>
+      </print>
+      <attributes>
+        <divisions>8</divisions>
+        <key>
+          <fifths>0</fifths>
+          <mode>major</mode>
+        </key>
+        <time>
+          <beats>4</beats>
+          <beat-type>4</beat-type>
+        </time>
+        <clef>
+          <sign>G</sign>
+          <line>2</line>
+        </clef>
+      </attributes>
+      <sound tempo="120">
+        <swing>
+          <straight/>
+        </swing>
+      </sound>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="124" width="321">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="6">A</rehearsal>
+        </direction-type>
+      </direction>
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold">1</rehearsal>
+        </direction-type>
+        <offset>8</offset>
+      </direction>
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="-18">A</rehearsal>
+        </direction-type>
+        <offset>16</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="-8">A</rehearsal>
+        </direction-type>
+        <offset>-8</offset>
+      </direction>
+    </measure>
+    <!--=======================================================-->
+    <measure number="125" width="321">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="-4">A</rehearsal>
+        </direction-type>
+        <offset>8</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="-25">A</rehearsal>
+        </direction-type>
+      </direction>
+    </measure>
+    <!--=======================================================-->
+    <measure number="126" width="301">
+      <print new-system="yes"/>
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="-24">B</rehearsal>
+        </direction-type>
+        <offset>16</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="127" width="264">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="8">C</rehearsal>
+        </direction-type>
+        <offset>16</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="128" width="264">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="-23">2</rehearsal>
+        </direction-type>
+        <offset>16</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="129" width="264">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="10">D</rehearsal>
+        </direction-type>
+        <offset>8</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="130" width="265">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="131" width="301">
+      <print new-system="yes"/>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="132" width="264">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="10">E</rehearsal>
+        </direction-type>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="133" width="264">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="10">3</rehearsal>
+        </direction-type>
+        <offset>8</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="134" width="264">
+      <direction placement="below">
+        <direction-type>
+          <dynamics default-y="-65" halign="center">
+            <p/>
+          </dynamics>
+        </direction-type>
+        <offset>8</offset>
+        <sound dynamics="54"/>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="135" width="265">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="136" width="301">
+      <print new-system="yes"/>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="137" width="264">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="-20">137</rehearsal>
+        </direction-type>
+        <offset>8</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="138" width="264">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="139" width="264">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="140" width="265">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="141" width="301">
+      <print new-system="yes"/>
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="-22">4</rehearsal>
+        </direction-type>
+        <offset>8</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="142" width="264">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="143" width="264">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="144" width="264">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="-26">F</rehearsal>
+        </direction-type>
+        <offset>16</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="145" width="265">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="146" width="301">
+      <print new-system="yes"/>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="147" width="264">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="148" width="264">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold">26</rehearsal>
+        </direction-type>
+        <offset>16</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="149" width="264">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="150" width="265">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="151" width="478">
+      <print new-system="yes"/>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="152" width="440">
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+    </measure>
+    <!--=======================================================-->
+    <measure number="153" width="440">
+      <direction placement="above" system="only-top">
+        <direction-type>
+          <rehearsal default-y="10" enclosure="none" font-family="Garamond" font-size="21" font-weight="bold" relative-x="-27">3</rehearsal>
+        </direction-type>
+        <offset>8</offset>
+      </direction>
+      <note>
+        <rest measure="yes"/>
+        <duration>32</duration>
+        <voice>1</voice>
+      </note>
+      <barline location="right">
+        <bar-style>light-heavy</bar-style>
+      </barline>
+    </measure>
+  </part>
+  <!--=========================================================-->
+</score-partwise>

@@ -130,10 +130,6 @@ TEST(NoteheadClassification, ClassifiesXNoteheadsBySmuflName)
     EXPECT_EQ(unfilled.fill, notehead::Fill::Unfilled);
 }
 
-#ifdef small
-#undef small
-#endif
-
 TEST(NoteheadClassification, ClassifiesSlashNoteheadsBySmuflName)
 {
     const auto fontContext = makeFontContext("Finale Maestro");

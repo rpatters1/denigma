@@ -46,6 +46,7 @@ enum class FormatId
     Musx,       ///< Finale MUSX archive.  
     EnigmaXml,  ///< Finale Enigma XML.
     MnxJson,    ///< MNX JSON as produced by mnxdom.
+    MusicXml,   ///< MusicXML score-partwise XML.
     MssXml,     ///< MuseScore style sheet XML.
     Svg         ///< Scalable Vector Graphics XML.
 };

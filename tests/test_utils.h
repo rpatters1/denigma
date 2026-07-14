@@ -21,10 +21,13 @@
  */
 #pragma once
 
+#include <cmath>
+#include <optional>
 #include <vector>
 #include <string>
 #include <functional>
 
+#include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
 
 #include "core/denigma.h"
@@ -105,3 +108,24 @@ inline void assertStringInFile(const std::string& target, const std::filesystem:
 void openJson(const std::filesystem::path& path, nlohmann::json& result);
 
 inline std::string pathString(const std::filesystem::path& path) { return utils::pathToString(path); }
+
+template <typename T>
+long roundedValue(const T& value)
+{
+    return std::lround(static_cast<double>(value));
+}
+
+template <typename Actual, typename Expected>
+void expectRoundedValue(const Actual& actual, const Expected& expected, const char* label)
+{
+    EXPECT_EQ(roundedValue(actual), roundedValue(expected)) << "Mismatch for " << label;
+}
+
+template <typename Actual, typename Expected>
+void expectOptionalValue(const std::optional<Actual>& actual, const std::optional<Expected>& expected, const char* label)
+{
+    ASSERT_EQ(actual.has_value(), expected.has_value()) << "Presence mismatch for " << label;
+    if (expected) {
+        expectRoundedValue(*actual, *expected, label);
+    }
+}

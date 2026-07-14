@@ -505,33 +505,38 @@ SmartShapeClassification classifySmartShape(
         return result;
     }
 
-    const auto startEntry = shape->startTermSeg->endPoint->calcAssociatedEntry(true);
-    const auto endEntry = shape->endTermSeg->endPoint->calcAssociatedEntry(true);
-    if (!startEntry || !endEntry) {
-        return result;
-    }
+    // Coinciding entries (within calcAssociatedEntry's quarter-beat tolerance) become
+    // the slur's attachment points. Endpoints that resolve to no entry stay null: the
+    // shape still classifies as a Slur, and exporters may host such floating endpoints
+    // however their target format allows.
+    const auto startEntry = shape->startTermSeg->endPoint->calcAssociatedEntry();
+    const auto endEntry = shape->endTermSeg->endPoint->calcAssociatedEntry();
 
     const auto contour = shape->calcContourDirection();
     result.value = Slur{ startEntry, endEntry, contour };
-    if (shape->calcIsPseudoTie(musx::utils::PseudoTieMode::LaissezVibrer, startEntry)) {
-        result.value = PseudoTie{ PseudoTie::Type::LaissezVibrer, contour };
-        return result;
-    }
-    if (shape->calcIsPseudoTie(musx::utils::PseudoTieMode::TieEnd, startEntry)) {
-        result.value = PseudoTie{ PseudoTie::Type::TieEnd, contour };
-        return result;
+    if (startEntry) {
+        if (shape->calcIsPseudoTie(musx::utils::PseudoTieMode::LaissezVibrer, startEntry)) {
+            result.value = PseudoTie{ PseudoTie::Type::LaissezVibrer, contour };
+            return result;
+        }
+        if (shape->calcIsPseudoTie(musx::utils::PseudoTieMode::TieEnd, startEntry)) {
+            result.value = PseudoTie{ PseudoTie::Type::TieEnd, contour };
+            return result;
+        }
     }
 
     if (shape->entryBased) {
         return result;
     }
 
-    if (const auto tiedTo = shape->calcArpeggiatedTieToNote(startEntry)) {
-        MUSX_ASSERT_IF(startEntry->getEntry()->notes.size() != 1) {
-            throw std::logic_error("musxdom classified an arpeggiated tie on an entry with note count other than 1.");
+    if (startEntry) {
+        if (const auto tiedTo = shape->calcArpeggiatedTieToNote(startEntry)) {
+            MUSX_ASSERT_IF(startEntry->getEntry()->notes.size() != 1) {
+                throw std::logic_error("musxdom classified an arpeggiated tie on an entry with note count other than 1.");
+            }
+            result.value = ArpeggiatedTie{ musx::dom::NoteInfoPtr(startEntry, 0), tiedTo, contour };
+            return result;
         }
-        result.value = ArpeggiatedTie{ musx::dom::NoteInfoPtr(startEntry, 0), tiedTo, contour };
-        return result;
     }
 
     result.value = Slur{ startEntry, endEntry, contour };

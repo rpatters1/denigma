@@ -4,7 +4,7 @@
   <identification>
     <encoding>
       <software>Finale v27.4 for Mac</software>
-      <encoding-date>2026-07-07</encoding-date>
+      <encoding-date>2026-07-12</encoding-date>
       <supports attribute="new-system" element="print" type="yes" value="yes"/>
       <supports attribute="new-page" element="print" type="yes" value="yes"/>
       <supports element="accidental" type="yes"/>
@@ -88,7 +88,7 @@
         <measure-numbering multiple-rest-always="no" multiple-rest-range="no" system="only-top">system</measure-numbering>
       </print>
       <attributes>
-        <divisions>2</divisions>
+        <divisions>4</divisions>
         <key>
           <fifths>0</fifths>
           <mode>major</mode>
@@ -114,35 +114,154 @@
       </sound>
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>16</duration>
         <voice>1</voice>
         <staff>1</staff>
       </note>
       <backup>
-        <duration>8</duration>
+        <duration>16</duration>
       </backup>
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>16</duration>
         <voice>2</voice>
         <staff>2</staff>
       </note>
     </measure>
     <!--=======================================================-->
     <measure number="2" width="304">
-      <note>
-        <rest measure="yes"/>
+      <note default-x="12">
+        <rest/>
         <duration>8</duration>
         <voice>1</voice>
+        <type>half</type>
+        <staff>1</staff>
+      </note>
+      <note default-x="157">
+        <rest/>
+        <duration>8</duration>
+        <voice>1</voice>
+        <type>half</type>
         <staff>1</staff>
       </note>
       <backup>
-        <duration>8</duration>
+        <duration>16</duration>
       </backup>
-      <note>
-        <rest measure="yes"/>
+      <note default-x="13">
+        <pitch>
+          <step>G</step>
+          <octave>3</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>2</voice>
+        <type>16th</type>
+        <stem default-y="33">up</stem>
+        <staff>2</staff>
+        <beam number="1">begin</beam>
+        <beam number="2">begin</beam>
+        <notations>
+          <slur bezier-x="17" bezier-y="44" default-x="13" default-y="38" number="1" placement="above" type="start"/>
+        </notations>
+      </note>
+      <note default-x="32">
+        <pitch>
+          <step>B</step>
+          <octave>3</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>2</voice>
+        <type>16th</type>
+        <stem default-y="37">up</stem>
+        <staff>2</staff>
+        <beam number="1">continue</beam>
+        <beam number="2">continue</beam>
+      </note>
+      <note default-x="50">
+        <pitch>
+          <step>C</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>2</voice>
+        <type>16th</type>
+        <stem default-y="41">up</stem>
+        <staff>2</staff>
+        <beam number="1">continue</beam>
+        <beam number="2">continue</beam>
+      </note>
+      <note default-x="68">
+        <pitch>
+          <step>E</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>2</voice>
+        <type>16th</type>
+        <stem default-y="-78">down</stem>
+        <staff>1</staff>
+        <beam number="1">end</beam>
+        <beam number="2">end</beam>
+      </note>
+      <note default-x="86">
+        <pitch>
+          <step>F</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>2</voice>
+        <type>16th</type>
+        <stem default-y="-70">down</stem>
+        <staff>1</staff>
+        <beam number="1">begin</beam>
+        <beam number="2">begin</beam>
+      </note>
+      <note default-x="104">
+        <pitch>
+          <step>G</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>2</voice>
+        <type>16th</type>
+        <stem default-y="-68">down</stem>
+        <staff>1</staff>
+        <beam number="1">continue</beam>
+        <beam number="2">continue</beam>
+      </note>
+      <note default-x="122">
+        <pitch>
+          <step>B</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>2</voice>
+        <type>16th</type>
+        <stem default-y="-66.5">down</stem>
+        <staff>1</staff>
+        <beam number="1">continue</beam>
+        <beam number="2">continue</beam>
+      </note>
+      <note default-x="140">
+        <pitch>
+          <step>C</step>
+          <octave>5</octave>
+        </pitch>
+        <duration>1</duration>
+        <voice>2</voice>
+        <type>16th</type>
+        <stem default-y="-65">down</stem>
+        <staff>1</staff>
+        <beam number="1">end</beam>
+        <beam number="2">end</beam>
+        <notations>
+          <slur bezier-x="-43" bezier-y="9" default-x="7" default-y="-5" number="1" type="stop"/>
+        </notations>
+      </note>
+      <note default-x="157">
+        <rest/>
         <duration>8</duration>
         <voice>2</voice>
+        <type>half</type>
         <staff>2</staff>
       </note>
     </measure>
@@ -150,7 +269,7 @@
     <measure number="3" width="304">
       <note default-x="14">
         <rest/>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <staff>1</staff>
@@ -160,7 +279,7 @@
           <step>A</step>
           <octave>3</octave>
         </pitch>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <stem default-y="125">up</stem>
@@ -172,7 +291,7 @@
           <step>F</step>
           <octave>4</octave>
         </pitch>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <stem>up</stem>
@@ -184,7 +303,7 @@
           <step>A</step>
           <octave>4</octave>
         </pitch>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <stem>up</stem>
@@ -192,20 +311,20 @@
       </note>
       <note default-x="157">
         <rest/>
-        <duration>4</duration>
+        <duration>8</duration>
         <voice>1</voice>
         <type>half</type>
         <staff>1</staff>
       </note>
       <backup>
-        <duration>8</duration>
+        <duration>16</duration>
       </backup>
       <note default-x="13">
         <pitch>
           <step>A</step>
           <octave>2</octave>
         </pitch>
-        <duration>8</duration>
+        <duration>16</duration>
         <voice>2</voice>
         <type>whole</type>
         <staff>2</staff>
@@ -216,7 +335,7 @@
           <step>D</step>
           <octave>3</octave>
         </pitch>
-        <duration>8</duration>
+        <duration>16</duration>
         <voice>2</voice>
         <type>whole</type>
         <staff>2</staff>
@@ -240,7 +359,7 @@
           <step>A</step>
           <octave>3</octave>
         </pitch>
-        <duration>4</duration>
+        <duration>8</duration>
         <voice>1</voice>
         <type>half</type>
         <stem default-y="125">up</stem>
@@ -252,7 +371,7 @@
           <step>F</step>
           <octave>4</octave>
         </pitch>
-        <duration>4</duration>
+        <duration>8</duration>
         <voice>1</voice>
         <type>half</type>
         <stem>up</stem>
@@ -264,7 +383,7 @@
           <step>A</step>
           <octave>4</octave>
         </pitch>
-        <duration>4</duration>
+        <duration>8</duration>
         <voice>1</voice>
         <type>half</type>
         <stem>up</stem>
@@ -275,7 +394,7 @@
           <step>A</step>
           <octave>3</octave>
         </pitch>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <stem default-y="125">up</stem>
@@ -287,7 +406,7 @@
           <step>F</step>
           <octave>4</octave>
         </pitch>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <stem>up</stem>
@@ -299,7 +418,7 @@
           <step>A</step>
           <octave>4</octave>
         </pitch>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <stem>up</stem>
@@ -307,17 +426,17 @@
       </note>
       <note default-x="296">
         <rest/>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <staff>1</staff>
       </note>
       <backup>
-        <duration>8</duration>
+        <duration>16</duration>
       </backup>
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>16</duration>
         <voice>2</voice>
         <staff>2</staff>
       </note>
@@ -326,7 +445,7 @@
     <measure number="5" width="338">
       <note default-x="12">
         <rest/>
-        <duration>4</duration>
+        <duration>8</duration>
         <voice>1</voice>
         <type>half</type>
         <staff>1</staff>
@@ -336,7 +455,7 @@
           <step>A</step>
           <octave>3</octave>
         </pitch>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <stem default-y="125">up</stem>
@@ -348,7 +467,7 @@
           <step>F</step>
           <octave>4</octave>
         </pitch>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <stem>up</stem>
@@ -360,7 +479,7 @@
           <step>A</step>
           <octave>4</octave>
         </pitch>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <stem>up</stem>
@@ -368,17 +487,17 @@
       </note>
       <note default-x="256">
         <rest/>
-        <duration>2</duration>
+        <duration>4</duration>
         <voice>1</voice>
         <type>quarter</type>
         <staff>1</staff>
       </note>
       <backup>
-        <duration>8</duration>
+        <duration>16</duration>
       </backup>
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>16</duration>
         <voice>2</voice>
         <staff>2</staff>
       </note>
@@ -387,16 +506,16 @@
     <measure number="6" width="339">
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>16</duration>
         <voice>1</voice>
         <staff>1</staff>
       </note>
       <backup>
-        <duration>8</duration>
+        <duration>16</duration>
       </backup>
       <note>
         <rest measure="yes"/>
-        <duration>8</duration>
+        <duration>16</duration>
         <voice>2</voice>
         <staff>2</staff>
       </note>
