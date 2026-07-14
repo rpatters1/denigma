@@ -2,6 +2,18 @@
 
 This is the implementation backlog for larger user-facing MusicXML export features. It is not a version plan or a dependency order. Keep concrete `mx::api` limitations in [mx-api-gaps.md](mx-api-gaps.md).
 
+## Compressed MusicXML (`.mxl`) output
+
+Export standards-compliant compressed MusicXML in addition to uncompressed `.musicxml` files. Each archive should contain an uncompressed `mimetype` entry first, a `META-INF/container.xml` file that identifies the root MusicXML document, and the compressed score document. The existing ZIP utilities and MXL massage support should supply most of the required archive infrastructure.
+
+Initially, write one `.mxl` archive for each score or part document that Denigma currently emits separately. Packaging the score and all linked parts into one MusicXML 4.0 archive through `<part-link>` can be considered as a later extension rather than a prerequisite for basic compressed output.
+
+## Nontraditional and microtonal key signatures
+
+Export Finale nontraditional key signatures through MusicXML's ordered `<key-step>`, `<key-alter>`, and optional `<key-accidental>` values instead of degrading them to zero fifths. Begin with custom 12-EDO signatures, for which MUSX DOM can provide the key map and `mx::api::KeyData::nonTraditional` already provides a writer path.
+
+Extend the same mapping to microtonal key signatures by converting Finale's EDO divisions into MusicXML semitone alterations and suitable accidental values. Preserve the effective written or concert-pitch signature independently for each staff, as the exporter already does for traditional keys.
+
 ## Visible cue notes and rests
 
 Export cue material that is visible in the target score or part as MusicXML `<cue/>` notes and rests. Skip cue material hidden in that target context. `mx::api::NoteData::isCue` already writes and reads cue, grace-cue, and cue-rest forms, so this is a Denigma policy and mapping task rather than an MX API feature.
