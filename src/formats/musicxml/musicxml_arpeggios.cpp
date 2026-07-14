@@ -99,11 +99,15 @@ void finalizeArpeggioCandidates(MusicXmlMusxMapping& context)
         }
 
         auto topMark = mx::api::MarkData(mx::api::MarkType::nonArpeggiate);
-        topMark.choice = mx::api::NonArpeggiateMarkData{ .placement = mx::api::NonArpeggiatePlacement::top };
+        mx::api::NonArpeggiateMarkData topMarkData;
+        topMarkData.placement = mx::api::NonArpeggiatePlacement::top;
+        topMark.choice = topMarkData;
         topNote->noteAttachmentData.marks.emplace_back(std::move(topMark));
 
         auto bottomMark = mx::api::MarkData(mx::api::MarkType::nonArpeggiate);
-        bottomMark.choice = mx::api::NonArpeggiateMarkData{ .placement = mx::api::NonArpeggiatePlacement::bottom };
+        mx::api::NonArpeggiateMarkData bottomMarkData;
+        bottomMarkData.placement = mx::api::NonArpeggiatePlacement::bottom;
+        bottomMark.choice = bottomMarkData;
         bottomNote->noteAttachmentData.marks.emplace_back(std::move(bottomMark));
     }
 }
