@@ -238,7 +238,7 @@ void processExpressions(
         }
         const auto& location = locationIt->second;
         const auto voiceIndex = static_cast<size_t>(location.userVoiceNumber - 1);
-        const auto voiceIt = staff.voices.find(voiceIndex);
+        const auto voiceIt = staff.voices.find(int(voiceIndex));
         ASSERT_IF(voiceIt == staff.voices.end()) {
             return nullptr;
         }

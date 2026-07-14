@@ -69,7 +69,7 @@ MusxInstanceList<others::ChordSuffixElement> makeSuffix(const FontContext& conte
 {
     MusxInstanceList<others::ChordSuffixElement> suffix(context.document, SCORE_PARTID);
     auto element = std::make_shared<others::ChordSuffixElement>(
-        context.document, SCORE_PARTID, CommonClassBase::ShareMode::All, 1, 0);
+        context.document, SCORE_PARTID, CommonClassBase::ShareMode::All, Cmper(1), Inci(0));
     element->font = context.font;
     element->symbol = symbol;
     suffix.push_back(element);
@@ -83,7 +83,7 @@ void appendSuffixElement(
     Inci index)
 {
     auto element = std::make_shared<others::ChordSuffixElement>(
-        context.document, SCORE_PARTID, CommonClassBase::ShareMode::All, 1, index);
+        context.document, SCORE_PARTID, CommonClassBase::ShareMode::All, Cmper(1), index);
     element->font = context.font;
     element->symbol = symbol;
     suffix.push_back(element);
@@ -144,14 +144,14 @@ TEST(ChordSuffixClassifier, SeparatesStackedSuffixStrings)
     const auto context = makeFontContext("Times New Roman");
     auto suffix = makeSuffix(context, U'm');
     auto stacked = std::make_shared<others::ChordSuffixElement>(
-        context.document, SCORE_PARTID, CommonClassBase::ShareMode::All, 1, 1);
+        context.document, SCORE_PARTID, CommonClassBase::ShareMode::All, Cmper(1), Inci(1));
     stacked->font = context.font;
     stacked->symbol = 9;
     stacked->isNumber = true;
     stacked->ydisp = 24;
     suffix.push_back(stacked);
     auto trailing = std::make_shared<others::ChordSuffixElement>(
-        context.document, SCORE_PARTID, CommonClassBase::ShareMode::All, 1, 2);
+        context.document, SCORE_PARTID, CommonClassBase::ShareMode::All, Cmper(1), Inci(2));
     trailing->font = context.font;
     trailing->symbol = U'7';
     suffix.push_back(trailing);

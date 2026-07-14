@@ -63,6 +63,7 @@ if(APPLE)
 endif()
 
 if(MSVC)
+    add_compile_options(/utf-8) # interpret source and execution character sets as UTF-8
     add_compile_options(/Zc:__cplusplus) # force MSVC to report correct c++ version
     add_compile_options(/DNOMINMAX) # do not use min and max macros from Win32
     add_compile_options(/bigobj) # stoopid Microsoft can't handle industrial size without holding its hand
@@ -285,7 +286,7 @@ target_include_directories(denigma_musx_pch PRIVATE
     ${PROJECT_SOURCE_DIR}/src
 )
 target_precompile_headers(denigma_musx_pch PRIVATE
-    <musx/musx.h>
+    "${PROJECT_SOURCE_DIR}/src/musx_pch.h"
 )
 
 # Internal library targets are still intended to become externally consumable

@@ -137,7 +137,7 @@ endfunction()
         DENIGMA_TEST
     )
     target_precompile_headers(denigma_tests_pch PRIVATE
-        <musx/musx.h>
+        "${CMAKE_SOURCE_DIR}/src/musx_pch.h"
     )
     target_precompile_headers(denigma_tests REUSE_FROM denigma_tests_pch)
 

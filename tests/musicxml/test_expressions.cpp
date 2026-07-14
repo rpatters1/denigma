@@ -652,14 +652,16 @@ TEST(MusicXmlExpressions, TempoToolChanges)
     const auto firstPart = musicXmlDoc.child("score-partwise").child("part");
     ASSERT_TRUE(firstPart);
     int currentDivisions = 0;
-    size_t measureIndex = 0;
-    for (const auto& measureNode : firstPart.children("measure")) {
-        if (const auto divisionsNode = measureNode.child("attributes").child("divisions")) {
-            currentDivisions = divisionsNode.text().as_int();
+    {
+        size_t measureIndex = 0;
+        for (const auto& measureNode : firstPart.children("measure")) {
+            if (const auto divisionsNode = measureNode.child("attributes").child("divisions")) {
+                currentDivisions = divisionsNode.text().as_int();
+            }
+            measureDivisions.emplace(measureIndex++, currentDivisions);
         }
-        measureDivisions.emplace(measureIndex++, currentDivisions);
     }
-
+    
     std::vector<char> xmlBuf;
     readFile(inputPath.parent_path() / "tempo_changes.enigmaxml", xmlBuf);
     auto musxDoc = musx::factory::DocumentFactory::create<MusxReader>(xmlBuf);
