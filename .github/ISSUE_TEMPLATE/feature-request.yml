@@ -1,0 +1,74 @@
+name: General feature request
+description: Suggest a new denigma capability or improvement
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement. Describe the need independently of a particular implementation so that alternatives remain open. For missing MusicXML support, use the [MusicXML feature gap form](https://github.com/rpatters1/denigma/issues/new?template=musicxml-gap.yml) instead.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or need
+      description: Describe the limitation, workflow problem, or user need this feature would address. Explain who encounters it and why it matters.
+      placeholder: Currently, users cannot ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-behavior
+    attributes:
+      label: Proposed behavior
+      description: Describe what denigma should do. Focus on observable behavior and results; implementation suggestions are welcome but not required.
+      placeholder: denigma should ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use cases and acceptance criteria
+      description: Give concrete workflows or examples and explain how maintainers can verify that the feature is complete. Identify affected commands or output formats where relevant.
+      placeholder: |
+        Use case:
+
+        The feature is complete when:
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and workarounds
+      description: Describe current workarounds or other solutions you considered, and why they are insufficient.
+    validations:
+      required: false
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples and additional context
+      description: Attach minimal example files, screenshots, links to relevant specifications, or related discussions. For MUSX files, append `.zip` to the filename without recompressing it.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: prior-search
+    attributes:
+      label: Prior search
+      description: Confirm that this feature is not already tracked in [open or closed GitHub issues](https://github.com/rpatters1/denigma/issues?q=is%3Aissue).
+      options:
+        - label: I searched both open and closed issues for this feature.
+          required: true
+
+  - type: checkboxes
+    id: sharing
+    attributes:
+      label: Permission to use attachments for testing
+      description: Public issue attachments can be viewed and downloaded by anyone. Test fixtures committed to denigma are distributed under the repository's [MIT License](https://github.com/rpatters1/denigma/blob/main/LICENSE).
+      options:
+        - label: If I attached example files, I own them or have authority to grant permission, and they contain no private or sensitive information.
+          required: true
+        - label: If I attached example files, I grant the denigma project permission to retain, copy, modify, minimize, and redistribute them in its public repository, including as automated test fixtures under the MIT License.
+          required: true

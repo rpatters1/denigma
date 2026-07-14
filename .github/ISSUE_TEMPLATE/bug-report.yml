@@ -1,0 +1,114 @@
+name: Bug report
+description: Report behavior that is incorrect, unexpected, or crashes denigma
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve denigma. Please reduce the problem to the smallest reproducible example you can share. If this is a request for MusicXML support that denigma does not yet implement, use the [MusicXML feature gap form](https://github.com/rpatters1/denigma/issues/new?template=musicxml-gap.yml) instead.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Bug summary
+      description: Briefly describe what went wrong and its impact.
+      placeholder: What operation failed, and how does that affect the resulting score or workflow?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Select the area most directly involved.
+      options:
+        - Command-line interface
+        - Enigma XML
+        - MusicXML
+        - MNX
+        - MSS
+        - SVG
+        - Classification or massage
+        - Build or installation
+        - Other or unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Version and environment
+      description: Give the denigma release or commit, operating system and architecture, and relevant source or destination application versions. If this worked before, identify the last known working version.
+      placeholder: |
+        - denigma version or commit:
+        - Operating system and architecture:
+        - Source application and version:
+        - Destination application and version:
+        - Last known working denigma version, if any:
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: List the exact command or workflow and identify the relevant measure, staff, or score item.
+      placeholder: |
+        1. Run `denigma ...`
+        2. Open or inspect ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: Expected and actual behavior
+      description: Explain what you expected and what happened instead. Include enough detail to define when the bug is fixed.
+      placeholder: |
+        Expected:
+
+        Actual:
+    validations:
+      required: true
+
+  - type: upload
+    id: sample-files
+    attributes:
+      label: Minimal sample files
+      description: Upload the smallest input and output files that reproduce the bug. Append `.zip` to MUSX filenames without recompressing them; ZIP other unsupported formats.
+    validations:
+      required: false
+      accept: ".zip,.gz,.tar.gz,.json,.log,.txt,.csv,.pdf,.png,.jpg,.jpeg,.gif,.svg,.webp"
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics and additional context
+      description: Paste relevant console output in a fenced code block. Add screenshots, validation errors, workarounds, or other context that helps isolate the cause. Remove secrets and personal information.
+      placeholder: |
+        ```text
+        Relevant output
+        ```
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: prior-search
+    attributes:
+      label: Prior search
+      description: Confirm that this bug is not already tracked in [open or closed GitHub issues](https://github.com/rpatters1/denigma/issues?q=is%3Aissue).
+      options:
+        - label: I searched both open and closed issues for this bug.
+          required: true
+
+  - type: checkboxes
+    id: sharing
+    attributes:
+      label: Permission to use attachments for testing
+      description: Public issue attachments can be viewed and downloaded by anyone. Test fixtures committed to denigma are distributed under the repository's [MIT License](https://github.com/rpatters1/denigma/blob/main/LICENSE).
+      options:
+        - label: If I attached example files, I own them or have authority to grant permission, and they contain no private or sensitive information.
+          required: true
+        - label: If I attached example files, I grant the denigma project permission to retain, copy, modify, minimize, and redistribute them in its public repository, including as automated test fixtures under the MIT License.
+          required: true
