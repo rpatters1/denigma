@@ -58,16 +58,6 @@ Needed API shape: the same tie-notation data model requested above should also c
 
 ## Smart Shapes And Spanners
 
-### Spanner numbers are pooled per staff instead of per part
-
-MusicXML's `number-level` type states that spanner `number` attributes distinguish "concurrent objects of the same type when the objects overlap in MusicXML document order" within "a single musical part" — the staff plays no role in that scoping. The spec's own worked example is a piano part in which a cross-staff slur "will need a separate number from the mid-measure slurs because it overlaps those slurs in MusicXML document order," even though they are on different staves. Readers accordingly pair slur starts and stops by number within the part (MuseScore, for example, keeps one open-slur slot per number per part).
-
-`mx::impl::SpannerNumberResolver` (added by the unified spanner numbering change) draws numbers from a pool per *staff* per spanner class (`occupied[staffIndex][number]`). Two identity slurs that overlap in document order on different staves of the same part therefore both receive number 1. Minimal repro: a two-staff part with one whole-note slur per staff spanning measures 1-2 serializes as start@staff1, start@staff2, stop@staff1, stop@staff2 — all four emitted as `number="1"`. Readers mispair or drop the second slur, which presents as slurs attached to the wrong staff on multistaff instruments; cross-staff notes increase document-order overlap between the staves' slurs and make the collisions more frequent. Denigma supplies correct identity-based `SpannerNumber` values; the collision happens at write time inside mx.
-
-Needed API shape: none — this is a writer bug. The resolver's pools should be scoped per part and spanner class only (drop the staff dimension from `occupied`). The special-case logic that reserves a cross-staff spanner's number "in every staff pool it touches" then becomes unnecessary rather than needing repair.
-
-Status: filed as mx issue #350 with a PR; the fix is already applied on the rpatters1/mx fork that Denigma builds against, and `MusicXmlSmartShapes.OverlappingSlursAcrossStavesCarryDistinctNumbers` pins it. Remove this entry when the PR merges upstream.
-
 ### Octave shifts beyond two octaves
 
 MusicXML `<octave-shift>` supports any shift via the `size` attribute (8, 15, 22, ...). Finale has no built-in 22ma smart shape, but custom lines classified as three-octave shifts ("22ma"/"22mb") can occur.
@@ -80,7 +70,7 @@ Needed API shape: either additional `OttavaType` values for 22ma/22mb or a numer
 
 MusicXML `<octave-shift>` accepts the position and print-object/print-style attributes on the start element.
 
-`mx::api::OttavaStart::spannerStart` carries `positionData` and `printData`, but `DirectionWriter::emitOttavaStart` applies only `LineData` and the spanner number (the number drop was fixed by the unified spanner numbering change), so the start's `positionData` and `printData` are still silently dropped. Denigma does not currently populate these fields on ottava starts, so this is a low-priority gap.
+`mx::api::OttavaStart::spannerStart` carries `positionData` and `printData`, but `DirectionWriter::emitOttavaStart` applies only `LineData` and the spanner number, so the start's `positionData` and `printData` are silently dropped. Denigma does not currently populate these fields on ottava starts, so this is a low-priority gap.
 
 Needed API shape: none — this is a writer bug. `emitOttavaStart` should apply position and print data like the bracket, dashes, and ottava-stop writers do.
 

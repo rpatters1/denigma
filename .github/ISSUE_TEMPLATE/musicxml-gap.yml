@@ -1,0 +1,99 @@
+name: MusicXML feature gap
+description: Report MusicXML content that denigma cannot yet produce or represent correctly
+title: "[MusicXML gap]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve denigma's MusicXML support. Please provide a minimal, shareable example whenever possible. Reports with enough detail to reproduce and verify the requested behavior are much easier to act on.
+
+  - type: textarea
+    id: missing-feature
+    attributes:
+      label: Missing MusicXML feature
+      description: Describe the notation or semantic information that denigma cannot currently encode, and explain why it matters.
+      placeholder: Include the expected musical meaning and what denigma currently produces or omits.
+    validations:
+      required: true
+
+  - type: input
+    id: specification
+    attributes:
+      label: MusicXML specification reference
+      description: Link to the relevant MusicXML specification page, if known, or name the relevant elements and attributes.
+      placeholder: https://www.w3.org/2021/06/musicxml40/...
+    validations:
+      required: false
+
+  - type: textarea
+    id: correct-musicxml
+    attributes:
+      label: Correctly encoded MusicXML example
+      description: Paste a focused XML snippet in a fenced code block, or attach a minimal sample as a ZIP file. Explain which part demonstrates the requested encoding.
+      placeholder: |
+        ```xml
+        <example>...</example>
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: importers
+    attributes:
+      label: Importers that use this feature
+      description: Name one or more applications or libraries that consume this MusicXML feature. Include tested versions and describe the result you expect after import.
+      placeholder: |
+        - Application and version:
+        - Expected imported result:
+    validations:
+      required: true
+
+  - type: upload
+    id: musx-example
+    attributes:
+      label: MUSX example
+      description: Upload a minimal MUSX file that illustrates the need. Append `.zip` to its filename (for example, `example.musx.zip`); do not recompress it. Identify the relevant score location under Conversion details.
+    validations:
+      required: true
+      accept: ".zip"
+
+  - type: textarea
+    id: conversion-details
+    attributes:
+      label: Conversion details
+      description: Give the denigma version or commit, the source application's version, and the exact command or workflow used. Attach denigma's current output if it helps show the gap.
+      placeholder: |
+        - denigma version or commit:
+        - Source application and version:
+        - Command or workflow:
+        - Relevant location in the score:
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add screenshots, related discussions, known workarounds, or other information that may help implement and verify the feature.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: prior-search
+    attributes:
+      label: Prior search
+      description: Confirm that this request is not already tracked in the [MusicXML feature roadmap](https://github.com/rpatters1/denigma/blob/main/src/formats/musicxml/roadmap.md) or [GitHub issues](https://github.com/rpatters1/denigma/issues?q=is%3Aissue).
+      options:
+        - label: I searched the roadmap and both open and closed issues for this feature.
+          required: true
+
+  - type: checkboxes
+    id: sharing
+    attributes:
+      label: Permission to use attachments for testing
+      description: Public issue attachments can be viewed and downloaded by anyone. Test fixtures committed to denigma are distributed under the repository's [MIT License](https://github.com/rpatters1/denigma/blob/main/LICENSE).
+      options:
+        - label: I own the attached MUSX and MusicXML examples, or I have authority to grant the permissions below, and the files contain no private or sensitive information.
+          required: true
+        - label: I grant the denigma project permission to retain, copy, modify, minimize, and redistribute the attached examples in its public repository, including as automated test fixtures under the MIT License.
+          required: true

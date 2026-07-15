@@ -188,8 +188,8 @@ TEST(MusicXmlSmartShapes, SlursOverbarsMatchReference)
 /// by number within the part, so a collision mispairs them (typically visible as
 /// slurs jumping between the staves of a multistaff instrument). The fixture's
 /// staff-1 slur (m5-m6) is open when the staff-2 slur (m6) starts, so they must
-/// take different numbers. Requires mx's part-scoped spanner number pools
-/// (mx PR for issue #350; see mx-api-gaps.md).
+/// take different numbers. This pins the part-scoped spanner number pools from
+/// mx issue #350 and PR #351.
 TEST(MusicXmlSmartShapes, OverlappingSlursAcrossStavesCarryDistinctNumbers)
 {
     setupTestDataPaths();
