@@ -57,7 +57,6 @@ endif()
 foreach(_denigma_mx_non_product_target IN ITEMS
         mxtest-core
         mxtest-core-dev
-        mxtest-validate
         mxtest
         mxtest-api-roundtrip
         mxread

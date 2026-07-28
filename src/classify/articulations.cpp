@@ -36,6 +36,8 @@ namespace {
 using ArticulationType = ArticulationMark::Type;
 using TechniqueType = TechniqueMark::Type;
 using HarmonMuteQualifier = HarmonMute::Qualifier;
+using PluckedDampType = PluckedDamp::Type;
+using StringMuteType = StringMute::Type;
 using ParenthesisSide = Parenthesis::Side;
 
 struct AmbiguousMark
@@ -123,6 +125,22 @@ static ArticulationClassification makeHarmonMute(HarmonMuteQualifier qualifier, 
 {
     ArticulationClassification result;
     result.value = HarmonMute{ qualifier, glyphStyleFromGlyphName(glyphName) };
+    setGlyphMetadata(result, std::move(glyphName));
+    return result;
+}
+
+static ArticulationClassification makePluckedDamp(PluckedDampType type, std::optional<std::string> glyphName)
+{
+    ArticulationClassification result;
+    result.value = PluckedDamp{ type, glyphStyleFromGlyphName(glyphName) };
+    setGlyphMetadata(result, std::move(glyphName));
+    return result;
+}
+
+static ArticulationClassification makeStringMute(StringMuteType type, std::optional<std::string> glyphName)
+{
+    ArticulationClassification result;
+    result.value = StringMute{ type, glyphStyleFromGlyphName(glyphName) };
     setGlyphMetadata(result, std::move(glyphName));
     return result;
 }
@@ -614,6 +632,12 @@ static PrivateClassification classifyGlyphName(std::string glyphName)
         { "pluckedBuzzPizzicato", [](std::string glyphName) -> PrivateClassification {
             return makeTechniqueMark(TechniqueType::BuzzPizzicato, std::move(glyphName));
         } },
+        { "pluckedDamp", [](std::string glyphName) -> PrivateClassification {
+            return makePluckedDamp(PluckedDampType::Damp, std::move(glyphName));
+        } },
+        { "pluckedDampAll", [](std::string glyphName) -> PrivateClassification {
+            return makePluckedDamp(PluckedDampType::DampAll, std::move(glyphName));
+        } },
         { "pluckedFingernailFlick", [](std::string glyphName) -> PrivateClassification {
             return makeTechniqueMark(TechniqueType::Fingernails, std::move(glyphName));
         } },
@@ -637,6 +661,12 @@ static PrivateClassification classifyGlyphName(std::string glyphName)
         } },
         { "stringsDownBowTurned", [](std::string glyphName) -> PrivateClassification {
             return makeTechniqueMark(TechniqueType::DownBow, std::move(glyphName));
+        } },
+        { "stringsMuteOff", [](std::string glyphName) -> PrivateClassification {
+            return makeStringMute(StringMuteType::Off, std::move(glyphName));
+        } },
+        { "stringsMuteOn", [](std::string glyphName) -> PrivateClassification {
+            return makeStringMute(StringMuteType::On, std::move(glyphName));
         } },
         { "stringsUpBow", [](std::string glyphName) -> PrivateClassification {
             return makeTechniqueMark(TechniqueType::UpBow, std::move(glyphName));

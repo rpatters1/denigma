@@ -41,6 +41,35 @@ namespace formats {
 namespace musicxml {
 namespace detail {
 
+mx::api::HarpPedalsData musicXmlHarpPedals(const classify::expression::HarpDiagram& diagram)
+{
+    using PedalPosition = classify::expression::HarpDiagram::PedalPosition;
+
+    constexpr int FLAT_ALTERATION = -1;
+    constexpr int NATURAL_ALTERATION = 0;
+    constexpr int SHARP_ALTERATION = 1;
+    auto alteration = [](PedalPosition position) {
+        switch (position) {
+        case PedalPosition::Flat: return FLAT_ALTERATION;
+        case PedalPosition::Natural: return NATURAL_ALTERATION;
+        case PedalPosition::Sharp: return SHARP_ALTERATION;
+        }
+        return NATURAL_ALTERATION;
+    };
+
+    mx::api::HarpPedalsData result;
+    result.pedalTunings = {
+        { mx::api::Step::d, alteration(diagram.d) },
+        { mx::api::Step::c, alteration(diagram.c) },
+        { mx::api::Step::b, alteration(diagram.b) },
+        { mx::api::Step::e, alteration(diagram.e) },
+        { mx::api::Step::f, alteration(diagram.f) },
+        { mx::api::Step::g, alteration(diagram.g) },
+        { mx::api::Step::a, alteration(diagram.a) }
+    };
+    return result;
+}
+
 namespace {
 
 void appendTechniquePlayback(mx::api::DirectionData& direction, const classify::expression::TechniqueText& technique)
@@ -122,13 +151,15 @@ std::optional<mx::api::DirectionData> createTempoExpressionDirection(
     bool isStaffValueSpecified)
 {
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    auto words = std::vector<mx::api::WordsData>{};
     if (classification.enigmaCtx) {
-        direction.words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
+        words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
     }
     const auto enclosure = enclosureForTextExpression(assignment);
-    for (auto& words : direction.words) {
-        words.enclosure = enclosure;
+    for (auto& item : words) {
+        item.enclosure = enclosure;
     }
+    appendMusicXmlWordsRun(direction, std::move(words));
 
     const double quarterNotesPerMinute = musicXmlQuarterNotesPerMinute(classification.tempoText().tempo);
     if (quarterNotesPerMinute >= 0.0) {
@@ -151,13 +182,15 @@ std::optional<mx::api::DirectionData> createWordsExpressionDirection(
     bool isStaffValueSpecified)
 {
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    auto words = std::vector<mx::api::WordsData>{};
     if (classification.enigmaCtx) {
-        direction.words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
+        words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
     }
     const auto enclosure = enclosureForTextExpression(assignment);
-    for (auto& words : direction.words) {
-        words.enclosure = enclosure;
+    for (auto& item : words) {
+        item.enclosure = enclosure;
     }
+    appendMusicXmlWordsRun(direction, std::move(words));
     if (mx::api::isDirectionDataEmpty(direction)) {
         return std::nullopt;
     }
@@ -191,7 +224,35 @@ std::optional<mx::api::DirectionData> createRehearsalExpressionDirection(
         }
     }
 
-    direction.rehearsals.emplace_back(std::move(rehearsal));
+    direction.directionTypes.emplace_back(std::move(rehearsal));
+    return direction;
+}
+
+std::optional<mx::api::DirectionData> createStringMuteExpressionDirection(
+    const MusicXmlMusxMapping& context,
+    size_t staffIndex,
+    const MusxInstance<others::MeasureExprAssign>& assignment,
+    const classify::ExpressionClassification& classification,
+    VerticalPlacement placement,
+    bool isStaffValueSpecified)
+{
+    auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    auto stringMute = mx::api::StringMuteData{};
+    stringMute.type = enumConvert<mx::api::StringMuteType>(classification.stringMute().type);
+    direction.directionTypes.emplace_back(std::move(stringMute));
+    return direction;
+}
+
+std::optional<mx::api::DirectionData> createHarpDiagramExpressionDirection(
+    const MusicXmlMusxMapping& context,
+    size_t staffIndex,
+    const MusxInstance<others::MeasureExprAssign>& assignment,
+    const classify::ExpressionClassification& classification,
+    VerticalPlacement placement,
+    bool isStaffValueSpecified)
+{
+    auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    direction.directionTypes.emplace_back(musicXmlHarpPedals(classification.harpDiagram()));
     return direction;
 }
 
@@ -268,8 +329,6 @@ void processExpressions(
     const auto exprAssigns = context.document->getOthers()->getArray<others::MeasureExprAssign>(
         musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
     const auto cuePlanIt = context.cueDiscardPlansByMeasureStaff.find(musicXmlMeasureStaffKey(musxMeasure->getCmper(), staffId));
-    /// @todo Export harp pedal diagrams here once mx::api exposes a public harp-pedals direction
-    /// model. The generated MX core supports `<harp-pedals>`, but the public api layer does not.
     std::unordered_map<int, DirectionGroupTracking> directionGroups;
     for (const auto& assignment : exprAssigns) {
         if (assignment->hidden) {
@@ -389,6 +448,14 @@ void processExpressions(
         }
         case classify::ExpressionType::BreathMark:
             appendMarkToAssociatedNote(assignment, musicXmlMark(mx::api::MarkType::breathMark, placement));
+            break;
+        case classify::ExpressionType::StringMute:
+            emitGroupedDirection(createStringMuteExpressionDirection(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
+            break;
+        case classify::ExpressionType::HarpDiagram:
+            emitGroupedDirection(createHarpDiagramExpressionDirection(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
             break;
         case classify::ExpressionType::NonArpeggio:
             appendArpeggioCandidate(context, classification.nonArpeggio().candidate);

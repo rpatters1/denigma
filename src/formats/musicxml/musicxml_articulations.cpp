@@ -162,9 +162,23 @@ void appendOrnament(mx::api::NoteData& note, const classify::articulation::Ornam
 
 } // namespace
 
-void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
+void processArticulations(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    mx::api::NoteData& note,
+    const EntryInfoPtr& entryInfo,
+    bool isStaffValueSpecified)
 {
     const auto entry = entryInfo->getEntry();
+    const auto appendDirection = [&](VerticalPlacement placement, const auto& appendComponent) {
+        auto direction = mx::api::DirectionData{};
+        direction.tickTimePosition = note.tickTimePosition;
+        direction.placement = enumConvert<mx::api::Placement>(placement);
+        direction.voice = note.userRequestedVoiceNumber;
+        direction.isStaffValueSpecified = isStaffValueSpecified;
+        appendComponent(direction);
+        staff.directions.emplace_back(std::move(direction));
+    };
     const auto articAssigns = context.document->getDetails()->getArray<details::ArticulationAssign>(SCORE_PARTID, entry->getEntryNumber());
     for (const auto& asgn : articAssigns) {
         if (asgn->hide) {
@@ -204,6 +218,20 @@ void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note,
                 }
             } else if constexpr (std::is_same_v<Value, classify::articulation::HarmonMute>) {
                 note.noteAttachmentData.marks.emplace_back(musicXmlMark(musicXmlHarmonMuteType(value), classification.placement));
+            } else if constexpr (std::is_same_v<Value, classify::articulation::PluckedDamp>) {
+                appendDirection(classification.placement, [&](mx::api::DirectionData& direction) {
+                    if (value.type == classify::articulation::PluckedDamp::Type::DampAll) {
+                        direction.directionTypes.emplace_back(mx::api::DampAllData{});
+                    } else {
+                        direction.directionTypes.emplace_back(mx::api::DampData{});
+                    }
+                });
+            } else if constexpr (std::is_same_v<Value, classify::articulation::StringMute>) {
+                appendDirection(classification.placement, [&](mx::api::DirectionData& direction) {
+                    auto stringMute = mx::api::StringMuteData{};
+                    stringMute.type = enumConvert<mx::api::StringMuteType>(value.type);
+                    direction.directionTypes.emplace_back(std::move(stringMute));
+                });
             } else if constexpr (std::is_same_v<Value, classify::articulation::Fermata>) {
                 note.noteAttachmentData.marks.emplace_back(musicXmlMark(musicXmlFermataType(value), classification.placement));
             } else if constexpr (std::is_same_v<Value, classify::articulation::BreathMark>) {

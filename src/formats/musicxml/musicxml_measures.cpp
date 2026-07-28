@@ -145,19 +145,26 @@ void assignBarlines(
         setBarline(context, measure, classification.type, mx::api::HorizontalAlignment::right);
     }
 
-    const auto setRepeat = [&](mx::api::HorizontalAlignment location, mx::api::BarlineType repeatBarlineType) {
+    const auto setRepeat = [&](mx::api::HorizontalAlignment location, mx::api::BarlineType repeatBarlineType,
+                               mx::api::RepeatDirection repeatDirection) {
         auto& barline = ensureBarlineData(measure, location);
         if (barline.barlineType == mx::api::BarlineType::unspecified || barline.barlineType == mx::api::BarlineType::normal) {
             barline.barlineType = repeatBarlineType;
         }
         barline.repeat = true;
+        barline.repeatDirection = repeatDirection;
+        barline.repeatWinged = enumConvert<mx::api::RepeatWinged>(context.finaleOptions.repeatOptions->wingStyle);
+        /// @todo It may be possible to derive repeatAfterJump from Finale repeat pass numbers.
+        /// Wait for a real-world need before attempting that semantic mapping.
     };
 
     if (musxMeasure->forwardRepeatBar) {
-        setRepeat(mx::api::HorizontalAlignment::left, mx::api::BarlineType::heavyLight);
+        setRepeat(
+            mx::api::HorizontalAlignment::left, mx::api::BarlineType::heavyLight, mx::api::RepeatDirection::forward);
     }
     if (musxMeasure->backwardsRepeatBar) {
-        setRepeat(mx::api::HorizontalAlignment::right, mx::api::BarlineType::lightHeavy);
+        setRepeat(
+            mx::api::HorizontalAlignment::right, mx::api::BarlineType::lightHeavy, mx::api::RepeatDirection::backward);
     }
 }
 
@@ -793,8 +800,8 @@ void processMeasureText(
 
         auto direction = mx::api::DirectionData{};
         direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(Fraction::fromEdu((std::max)(Edu{}, assignment->xDispEdu)));
-        direction.words = musicXmlWordsFromEnigmaText(context, rawText);
-        if (direction.words.empty()) {
+        auto words = musicXmlWordsFromEnigmaText(context, rawText);
+        if (words.empty()) {
             continue;
         }
 
@@ -812,23 +819,24 @@ void processMeasureText(
         } else if (resolvedYEvpu < currentStaff->calcBottomLineEvpu()) {
             direction.placement = mx::api::Placement::below;
         }
-        for (auto& words : direction.words) {
+        for (auto& item : words) {
             if (hasDefaultX) {
-                words.positionData.defaultX = context.musicXmlTenthsFromEvpu(defaultXEvpu);
-                words.positionData.isDefaultXSpecified = true;
+                item.positionData.defaultX = context.musicXmlTenthsFromEvpu(defaultXEvpu);
+                item.positionData.isDefaultXSpecified = true;
             }
             if (hasDefaultY) {
-                words.positionData.defaultY = context.musicXmlTenthsFromEvpu(defaultYEvpu);
-                words.positionData.isDefaultYSpecified = true;
+                item.positionData.defaultY = context.musicXmlTenthsFromEvpu(defaultYEvpu);
+                item.positionData.isDefaultYSpecified = true;
             }
             if (horizontalAlignment != mx::api::HorizontalAlignment::unspecified) {
-                words.positionData.horizontalAlignment = horizontalAlignment;
+                item.positionData.horizontalAlignment = horizontalAlignment;
             }
             if (useStandardFrameEnclosure) {
-                words.enclosure = mx::api::RehearsalEnclosure::rectangle;
+                item.enclosure = mx::api::RehearsalEnclosure::rectangle;
             }
         }
 
+        appendMusicXmlWordsRun(direction, std::move(words));
         staff.directions.emplace_back(std::move(direction));
     }
 }

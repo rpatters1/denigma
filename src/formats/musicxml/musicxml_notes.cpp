@@ -407,10 +407,12 @@ std::vector<mx::api::Beam> createBeamData(const MusicXmlMusxMapping& context, co
 
 mx::api::NoteData createRestData(
     MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
     const EntryInfoPtr::InterpretedIterator& entryIt,
     const MusxInstance<others::Measure>& musxMeasure,
     const MusxInstance<others::StaffComposite>& measureStartStaff,
-    int userVoiceNumber)
+    int userVoiceNumber,
+    bool isStaffValueSpecified)
 {
     const auto& entryInfo = entryIt.getEntryInfo();
 
@@ -439,7 +441,7 @@ mx::api::NoteData createRestData(
         rest.beams = createBeamData(context, entryInfo);
         applyTupletData(rest, entryInfo);
         applyRestPositionIfNeeded(rest, entryInfo);
-        processArticulations(context, rest, entryInfo);
+        processArticulations(context, staff, rest, entryInfo, isStaffValueSpecified);
         if (entryIt.getEffectiveHidden() || (effectiveStaff && effectiveStaff->hideRests)) {
             rest.printData.printObject = mx::api::Bool::no;
         }
@@ -459,7 +461,8 @@ void addSyntheticFullMeasureRest(
 {
     const int userVoiceNumber = musicXmlVoiceNumber(staffIndex, 0, 1);
     const auto measureStartStaff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, musxMeasure->getCmper(), 0);
-    auto rest = createRestData(context, EntryInfoPtr::InterpretedIterator{}, musxMeasure, measureStartStaff, userVoiceNumber);
+    auto rest = createRestData(
+        context, staff, EntryInfoPtr::InterpretedIterator{}, musxMeasure, measureStartStaff, userVoiceNumber, false);
 
     auto& voice = staff.voices[userVoiceNumber - 1];
     voice.notes.emplace_back(rest);
@@ -467,6 +470,7 @@ void addSyntheticFullMeasureRest(
 
 void appendEntryNotes(
     MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
     mx::api::VoiceData& voice,
     const EntryInfoPtr::InterpretedIterator& entryIt,
     const MusxInstance<others::Measure>& musxMeasure,
@@ -475,6 +479,7 @@ void appendEntryNotes(
     size_t staffIndex,
     bool hasMultipleLayers,
     bool hasVoice1Voice2,
+    bool isStaffValueSpecified,
     MusicXmlPitchContext pitchContext)
 {
     const auto& entryInfo = entryIt.getEntryInfo();
@@ -498,7 +503,7 @@ void appendEntryNotes(
             });
     };
     if (entryInfo.calcIsFullMeasureRest() || entryInfo.calcDisplaysAsRest()) {
-        auto rest = createRestData(context, entryIt, musxMeasure, nullptr, userVoiceNumber);
+        auto rest = createRestData(context, staff, entryIt, musxMeasure, nullptr, userVoiceNumber, isStaffValueSpecified);
         rememberFirstNote(voice.notes.size());
         voice.notes.emplace_back(rest);
         return;
@@ -553,7 +558,7 @@ void appendEntryNotes(
             note.beams = createBeamData(context, entryInfo);
             applyTupletData(note, entryInfo);
             applyLyrics(context, note, entryInfo);
-            processArticulations(context, note, entryInfo);
+            processArticulations(context, staff, note, entryInfo, isStaffValueSpecified);
             applyTremoloData(note, entryInfo);
         }
         if (entry->hasStem()) {
@@ -672,7 +677,8 @@ void createNotesForMeasureStaff(
                 if (entryIt.calcIsPastLogicalEndOfFrame()) {
                     break;
                 }
-                appendEntryNotes(context, voice, entryIt, musxMeasure, userVoiceNumber, measureIndex, staffIndex, hasMultipleLayers, usesV1V2, pitchContext);
+                appendEntryNotes(context, staff, voice, entryIt, musxMeasure, userVoiceNumber, measureIndex, staffIndex,
+                    hasMultipleLayers, usesV1V2, measure.staves.size() > 1, pitchContext);
                 emittedNotes = true;
             }
         }

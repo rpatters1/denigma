@@ -246,32 +246,24 @@ Needed API shape: ending data with a string/list representation for the MusicXML
 
 ## Directions and Expressions
 
-### Keyboard pedal events and spanners
+### Keyboard pedal appearance and identity
 
-Finale custom-line smart shapes can represent damper, sostenuto, and una-corda pedals using independent start,
-continuation, and end text; visible or blank lines; ordinary hooks; and four custom pedal-cap shapes. The two
-compound custom caps represent a pedal pump: release followed immediately by re-engagement. MusicXML can model
-damper and sostenuto events, including `start`, `stop`, `sostenuto`, `change`, `continue`, `discontinue`, and
-`resume`, together with independent `line`, `sign`, and `abbreviated` attributes.
+Finale custom-line smart shapes can use independent start, continuation, and end text; visible or blank lines;
+ordinary hooks; four custom pedal-cap shapes; and solid, dashed, or character-based line bodies. MusicXML pedal
+directions also support `line`, `sign`, `abbreviated`, and `number` attributes.
 
-`mx::api::DirectionData` currently exposes sign-only damper start/stop marks and line-based damper start/stop
-spanners. The writer forces spanners to `line="yes" sign="yes"`, ignores their `LineData`, and cannot emit the
-other MusicXML pedal event types or sign controls. Denigma therefore exports blank-line Ped/* custom lines as
-sign-only damper marks and visible damper lines as start/stop spanners. It leaves pedal expressions as formatted
-words, omits sostenuto and una-corda spanners rather than misrepresenting them, and cannot preserve pump changes,
-half-pedal and special-release glyphs, custom hook geometry, continuation text, or dashed/character pedal lines.
+`mx::api::PedalLineData` exposes the complete pedal-line event vocabulary but carries only the event kind, tick,
+and position. Its writer always emits `line="yes"` and does not expose sign selection, abbreviation, identity
+numbers, or line appearance. MusicXML has no visual pedal type for una corda / Pedal III; visible notation uses
+words and bracket elements. It does, however, represent una-corda playback semantically through
+`<sound soft-pedal="...">`, including numeric half-pedal values, but `mx::api::SoundData` does not expose that
+attribute. Denigma can preserve visible una-corda text and brackets through general direction words and lines, but
+cannot preserve its playback semantics. It also cannot preserve independent pedal text/sign choices, half-pedal
+and special-release glyphs, ordinary or custom hook geometry, continuation text, overlapping-line identity, or
+dashed/character pedal lines.
 
-Needed API shape: a general pedal-event object exposing every MusicXML pedal type plus `line`, `sign`,
-`abbreviated`, `number`, positioning, and line-style data, with matching reader/writer support. This should replace
-the current semantic split between pedal marks and pedal start/stop spanner vectors.
-
-### Harp pedal diagrams
-
-MusicXML `<harp-pedals>` is a direction-type used for harp pedal diagrams, with ordered pedal-tuning children and print / position attributes.
-
-MX's generated core model includes `core::HarpPedals`, but the public `mx::api` layer does not expose a harp-pedals direction model. The current reader stub also drops this content rather than mapping it into `DirectionData`. Denigma therefore has no supported public API path for exporting or round-tripping Finale harp pedal diagrams through `mx::api`.
-
-Needed API shape: a public harp-pedals direction data object on `mx::api::DirectionData` (or equivalent ordered direction-item model), plus reader/writer support that preserves the ordered pedal tunings and print / position attributes.
+Needed API shape: extend line-pedal data with `sign`, `abbreviated`, `number`, and line-style fields. `SoundData`
+should also expose MusicXML's `soft-pedal` playback attribute.
 
 ### Direction words justification
 
@@ -289,21 +281,13 @@ Denigma currently degrades MUSX pentagon-through-octagon text enclosures to `squ
 
 Needed API shape: expose the additional MusicXML direction-text enclosure shapes through `mx::api`, so Denigma can round-trip MUSX polygon enclosures without downgrading them to `square`.
 
-### Direction words enclosure serialization
-
-`mx::api::WordsData` exposes an `enclosure` field, which Denigma now uses for generic expression text and standard-framed measure text. However, MX's current `DirectionWriter::emitWords()` implementation does not serialize that field into MusicXML `<words enclosure="...">`.
-
-This means Denigma can build the correct pre-serialization `ScoreData`, but exported MusicXML still drops generic word enclosures unless the downstream MX writer is updated.
-
-Needed API shape: have `DirectionWriter::emitWords()` write `WordsData.enclosure` to the MusicXML `<words>` enclosure attribute, parallel to how rehearsal enclosures are already serialized.
-
 ### Interleaved words and symbols
 
-MusicXML direction types can interleave `<words>` and `<symbol>` elements in the same direction-type group. This is the correct representation for Finale expressions that mix normal formatted text with SMuFL music glyphs, such as dynamic expressions with text before or after dynamic glyphs, or arbitrary text expressions containing embedded music symbols.
+MusicXML direction types can interleave `<words>` and `<symbol>` elements in the same direction-type group. This provides a portable representation for arbitrary text expressions containing embedded music symbols. Semantic dynamics with prefix or suffix text do not require `<symbol>`; Denigma represents those as ordered words, dynamic, and words direction types.
 
-The generated MX core model represents this as `DirectionTypeChoiceChoice` with `words` and `symbol` alternatives. `mx::api::DirectionData` currently exposes `WordsData`, but does not expose a public formatted-symbol direction item or an ordered mixed run of words/symbol chunks. Denigma can therefore emit plain words and semantic dynamics, but cannot yet preserve mixed formatted text plus glyph expressions through `mx::api`.
+`mx::api` now exposes this as an ordered `DirectionChoice::wordsRun` containing `WordsChoice` items, with `WordsData` and `SymbolData` alternatives. Denigma deliberately continues to emit each Enigma text chunk as `WordsData` with its original font. This renders correctly while the receiving system has that font and avoids prematurely deciding which music-font characters should become semantic direction types versus generic symbols.
 
-Needed API shape: a public direction text model that can represent an ordered run of formatted words and formatted SMuFL symbols, preserving order and per-chunk formatting. This could either extend `DirectionData` with a mixed words/symbol collection or add a higher-level formatted direction text object that writes MusicXML `<words>` / `<symbol>` siblings in order.
+Implementation TODO: convert eligible music-font characters to `SymbolData` when portable rendering is needed, particularly for legacy symbol fonts that may not be installed on the receiving system. Preserve unknown or intentionally font-specific characters as `WordsData` rather than dropping them.
 
 ### Direction system relation
 

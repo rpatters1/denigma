@@ -72,6 +72,8 @@ mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacem
 mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fermata);
 mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLocation& location);
 double musicXmlQuarterNotesPerMinute(const classify::expression::TempoInfo& tempo);
+/// Converts a classified Finale harp diagram to ordered MusicXML pedal tunings.
+mx::api::HarpPedalsData musicXmlHarpPedals(const classify::expression::HarpDiagram& diagram);
 mx::api::ScoreData createMusicXmlDocument(
     const CommandInputData& inputData,
     const DenigmaContext& denigmaContext,
@@ -110,7 +112,12 @@ void processJumps(
     const musx::dom::MusxInstance<musx::dom::others::Measure>& musxMeasure,
     musx::dom::StaffCmper staffId,
     size_t staffIndex);
-void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note, const musx::dom::EntryInfoPtr& entryInfo);
+void processArticulations(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    mx::api::NoteData& note,
+    const musx::dom::EntryInfoPtr& entryInfo,
+    bool isStaffValueSpecified);
 void appendArpeggioCandidate(MusicXmlMusxMapping& context, const musx::util::ArpeggioSpanCandidate& candidate);
 void finalizeArpeggioCandidates(MusicXmlMusxMapping& context);
 void applyNoteheadData(

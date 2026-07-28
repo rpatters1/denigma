@@ -258,10 +258,22 @@ BEGIN_ENUM_CONVERSION(classify::notehead::Shape, mx::api::Notehead)
     case classify::notehead::Shape::Unclassified: break; // causes a throw; callers must not convert an unclassified shape
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(options::RepeatOptions::WingStyle, mx::api::RepeatWinged)
+    case options::RepeatOptions::WingStyle::None: return mx::api::RepeatWinged::none;
+    case options::RepeatOptions::WingStyle::Curved: return mx::api::RepeatWinged::curved;
+    case options::RepeatOptions::WingStyle::SingleLine: return mx::api::RepeatWinged::straight;
+    case options::RepeatOptions::WingStyle::DoubleLine: return mx::api::RepeatWinged::doubleStraight;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarline)
     case details::StaffGroup::DrawBarlineStyle::OnlyOnStaves: return mx::api::GroupBarline::no;
     case details::StaffGroup::DrawBarlineStyle::ThroughStaves: return mx::api::GroupBarline::yes;
     case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::articulation::StringMute::Type, mx::api::StringMuteType)
+    case classify::articulation::StringMute::Type::On: return mx::api::StringMuteType::on;
+    case classify::articulation::StringMute::Type::Off: return mx::api::StringMuteType::off;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(classify::articulation::TechniqueMark::Type, mx::api::MarkType)

@@ -316,23 +316,25 @@ TEST(MusicXmlSmartShapes, OverlappingOttavas)
 
     const auto& measure1Staff = part.measures.at(0).staves.at(0);
     ASSERT_GE(measure1Staff.directions.size(), 2);
-    ASSERT_EQ(measure1Staff.directions.at(0).ottavaStarts.size(), 1);
+    const auto firstStarts = directionOttavaStarts(measure1Staff.directions.at(0));
+    ASSERT_EQ(firstStarts.size(), 1);
     EXPECT_EQ(measure1Staff.directions.at(0).placement, mx::api::Placement::above);
-    EXPECT_EQ(measure1Staff.directions.at(0).ottavaStarts.front().ottavaType, mx::api::OttavaType::o15ma);
-    ASSERT_EQ(measure1Staff.directions.at(1).ottavaStarts.size(), 1);
+    EXPECT_EQ(firstStarts.front().ottavaType, mx::api::OttavaType::o15ma);
+    const auto secondStarts = directionOttavaStarts(measure1Staff.directions.at(1));
+    ASSERT_EQ(secondStarts.size(), 1);
     EXPECT_EQ(measure1Staff.directions.at(1).placement, mx::api::Placement::below);
-    EXPECT_EQ(measure1Staff.directions.at(1).ottavaStarts.front().ottavaType, mx::api::OttavaType::o8vb);
+    EXPECT_EQ(secondStarts.front().ottavaType, mx::api::OttavaType::o8vb);
 
     const auto& measure2Staff = part.measures.at(1).staves.at(0);
     ASSERT_GE(measure2Staff.directions.size(), 2);
-    ASSERT_EQ(measure2Staff.directions.at(0).ottavaStops.size(), 1);
-    ASSERT_EQ(measure2Staff.directions.at(1).ottavaStops.size(), 1);
+    ASSERT_EQ(directionOttavaStops(measure2Staff.directions.at(0)).size(), 1);
+    ASSERT_EQ(directionOttavaStops(measure2Staff.directions.at(1)).size(), 1);
 
     const auto& voice2 = measure2Staff.voices.at(0);
     ASSERT_GE(voice2.notes.size(), 3);
     const auto secondMeasure2NoteEnd = voice2.notes.at(1).tickTimePosition + voice2.notes.at(1).durationData.durationTimeTicks;
-    EXPECT_EQ(measure2Staff.directions.at(0).tickTimePosition, secondMeasure2NoteEnd);
-    EXPECT_EQ(measure2Staff.directions.at(1).tickTimePosition, secondMeasure2NoteEnd);
+    EXPECT_EQ(directionDrawnTick(measure2Staff.directions.at(0)), secondMeasure2NoteEnd);
+    EXPECT_EQ(directionDrawnTick(measure2Staff.directions.at(1)), secondMeasure2NoteEnd);
 
     const auto& voice1 = measure1Staff.voices.at(0);
     ASSERT_GE(voice1.notes.size(), 4);
@@ -360,16 +362,17 @@ TEST(MusicXmlSmartShapes, OttavaEndOfBar)
 
     const auto& measure1Staff = part.measures.at(0).staves.at(0);
     ASSERT_FALSE(measure1Staff.directions.empty());
-    ASSERT_EQ(measure1Staff.directions.back().ottavaStarts.size(), 1);
-    EXPECT_EQ(measure1Staff.directions.back().ottavaStarts.front().ottavaType, mx::api::OttavaType::o8va);
+    const auto starts = directionOttavaStarts(measure1Staff.directions.back());
+    ASSERT_EQ(starts.size(), 1);
+    EXPECT_EQ(starts.front().ottavaType, mx::api::OttavaType::o8va);
 
     const auto& measure2Staff = part.measures.at(1).staves.at(0);
     ASSERT_FALSE(measure2Staff.directions.empty());
-    ASSERT_EQ(measure2Staff.directions.front().ottavaStops.size(), 1);
+    ASSERT_EQ(directionOttavaStops(measure2Staff.directions.front()).size(), 1);
     const auto& voice = measure2Staff.voices.at(0);
     ASSERT_FALSE(voice.notes.empty());
     const auto firstNoteEnd = voice.notes.front().tickTimePosition + voice.notes.front().durationData.durationTimeTicks;
-    EXPECT_EQ(measure2Staff.directions.front().tickTimePosition, firstNoteEnd);
+    EXPECT_EQ(directionDrawnTick(measure2Staff.directions.front()), firstNoteEnd);
 }
 
 static void expectOttava(const mx::api::PartData& part, size_t startMeasureIdx, size_t startNoteIdx, mx::api::OttavaType ottavaType,
@@ -378,27 +381,32 @@ static void expectOttava(const mx::api::PartData& part, size_t startMeasureIdx, 
     {
         const auto& staff = part.measures.at(startMeasureIdx).staves.at(0);
         ASSERT_FALSE(staff.directions.empty());
-        ASSERT_EQ(staff.directions.front().ottavaStarts.size(), 1);
+        const auto starts = directionOttavaStarts(staff.directions.front());
+        ASSERT_EQ(starts.size(), 1);
         EXPECT_EQ(staff.directions.front().placement, placement);
-        EXPECT_EQ(staff.directions.front().ottavaStarts.front().ottavaType, ottavaType);
+        EXPECT_EQ(starts.front().ottavaType, ottavaType);
+        const bool expectsDefaultSize = ottavaType == mx::api::OttavaType::o8va
+            || ottavaType == mx::api::OttavaType::o8vb;
+        EXPECT_EQ(starts.front().writeDefaultSize, expectsDefaultSize);
         const auto& voice = staff.voices.at(0);
         ASSERT_GT(voice.notes.size(), startNoteIdx);        
         const auto expectedStartTick = voice.notes.at(startNoteIdx).tickTimePosition;
-        EXPECT_EQ(staff.directions.front().tickTimePosition, expectedStartTick);
+        EXPECT_EQ(directionDrawnTick(staff.directions.front()), expectedStartTick);
     }
 
     {
         const auto& staff = part.measures.at(endMeasureIdx).staves.at(0);
         ASSERT_FALSE(staff.directions.empty());
-        ASSERT_FALSE(staff.directions.back().ottavaStops.empty());
-        ASSERT_TRUE(staff.directions.back().ottavaStops.front().size.has_value());
-        EXPECT_EQ(*staff.directions.back().ottavaStops.front().size, expectedStopSize);
+        const auto stops = directionOttavaStops(staff.directions.back());
+        ASSERT_FALSE(stops.empty());
+        ASSERT_TRUE(stops.front().size.has_value());
+        EXPECT_EQ(*stops.front().size, expectedStopSize);
         EXPECT_EQ(staff.directions.back().placement, placement);
         const auto& voice = staff.voices.at(0);
         ASSERT_GT(voice.notes.size(), endNoteIdx);
         const auto expectedStopTick = voice.notes.at(endNoteIdx).tickTimePosition
             + voice.notes.at(endNoteIdx).durationData.durationTimeTicks;
-        EXPECT_EQ(staff.directions.back().tickTimePosition, expectedStopTick);
+        EXPECT_EQ(directionDrawnTick(staff.directions.back()), expectedStopTick);
     }
 };
 
@@ -449,7 +457,7 @@ TEST(MusicXmlSmartShapes, BlankLinePedalExportsAsSignOnlyMarks)
         for (const auto& measure : part.measures) {
             for (const auto& staff : measure.staves) {
                 for (const auto& direction : staff.directions) {
-                    for (const auto& mark : direction.marks) {
+                    for (const auto& mark : directionMarks(direction)) {
                         foundPedalStart = foundPedalStart || mark.markType == mx::api::MarkType::pedal;
                         foundPedalStop = foundPedalStop || mark.markType == mx::api::MarkType::damp;
                     }
@@ -467,49 +475,53 @@ size_t countOttavaStarts(const mx::api::StaffData& staff)
 {
     size_t count = 0;
     for (const auto& direction : staff.directions) {
-        count += direction.ottavaStarts.size();
+        count += directionOttavaStarts(direction).size();
     }
     return count;
 }
 
-const mx::api::OttavaStart* firstOttavaStart(const mx::api::StaffData& staff)
+std::optional<mx::api::OttavaStart> firstOttavaStart(const mx::api::StaffData& staff)
 {
     for (const auto& direction : staff.directions) {
-        if (!direction.ottavaStarts.empty()) {
-            return &direction.ottavaStarts.front();
+        const auto starts = directionOttavaStarts(direction);
+        if (!starts.empty()) {
+            return starts.front();
         }
     }
-    return nullptr;
+    return std::nullopt;
 }
 
-const mx::api::OttavaStop* firstOttavaStop(const mx::api::StaffData& staff)
+std::optional<mx::api::OttavaStop> firstOttavaStop(const mx::api::StaffData& staff)
 {
     for (const auto& direction : staff.directions) {
-        if (!direction.ottavaStops.empty()) {
-            return &direction.ottavaStops.front();
+        const auto stops = directionOttavaStops(direction);
+        if (!stops.empty()) {
+            return stops.front();
         }
     }
-    return nullptr;
+    return std::nullopt;
 }
 
-const mx::api::SpannerStart* firstBracketStart(const mx::api::StaffData& staff)
+std::optional<mx::api::SpannerStart> firstBracketStart(const mx::api::StaffData& staff)
 {
     for (const auto& direction : staff.directions) {
-        if (!direction.bracketStarts.empty()) {
-            return &direction.bracketStarts.front();
+        const auto starts = directionBracketStarts(direction);
+        if (!starts.empty()) {
+            return starts.front();
         }
     }
-    return nullptr;
+    return std::nullopt;
 }
 
-const mx::api::SpannerStop* firstBracketStop(const mx::api::StaffData& staff)
+std::optional<mx::api::SpannerStop> firstBracketStop(const mx::api::StaffData& staff)
 {
     for (const auto& direction : staff.directions) {
-        if (!direction.bracketStops.empty()) {
-            return &direction.bracketStops.front();
+        const auto stops = directionBracketStops(direction);
+        if (!stops.empty()) {
+            return stops.front();
         }
     }
-    return nullptr;
+    return std::nullopt;
 }
 
 std::vector<int> noteOctaves(const mx::api::StaffData& staff)
@@ -543,14 +555,14 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaCarriers)
     {
         const auto& m14 = staff1.measures.at(13).staves.at(0);
         ASSERT_EQ(countOttavaStarts(m14), 1u);
-        const auto* start = firstOttavaStart(m14);
-        ASSERT_NE(start, nullptr);
+        const auto start = firstOttavaStart(m14);
+        ASSERT_TRUE(start.has_value());
         EXPECT_EQ(m14.directions.front().placement, mx::api::Placement::above);
         EXPECT_EQ(start->ottavaType, mx::api::OttavaType::o15ma);
         EXPECT_EQ(countOttavaStarts(staff1.measures.at(14).staves.at(0)), 0u);
         EXPECT_EQ(countOttavaStarts(staff1.measures.at(15).staves.at(0)), 0u);
-        const auto* stop = firstOttavaStop(staff1.measures.at(22).staves.at(0));
-        ASSERT_NE(stop, nullptr);
+        const auto stop = firstOttavaStop(staff1.measures.at(22).staves.at(0));
+        ASSERT_TRUE(stop.has_value());
         ASSERT_TRUE(stop->size.has_value());
         EXPECT_EQ(*stop->size, 15);
         EXPECT_EQ(noteOctaves(m14), (std::vector<int>{ 6, 6, 6, 7 }));
@@ -559,8 +571,8 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaCarriers)
     // The unpaired "8vb" line inside the quindicesima is its own carrier; where the
     // two overlap, the displacements sum.
     {
-        const auto* start = firstOttavaStart(staff1.measures.at(18).staves.at(0));
-        ASSERT_NE(start, nullptr);
+        const auto start = firstOttavaStart(staff1.measures.at(18).staves.at(0));
+        ASSERT_TRUE(start.has_value());
         EXPECT_EQ(start->ottavaType, mx::api::OttavaType::o8vb);
         EXPECT_EQ(noteOctaves(staff1.measures.at(18).staves.at(0)), (std::vector<int>{ 6, 6, 5, 6 }));
         EXPECT_EQ(noteOctaves(staff1.measures.at(19).staves.at(0)), (std::vector<int>{ 5, 5, 5, 6 }));
@@ -571,11 +583,11 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaCarriers)
     {
         const auto& m26 = staff1.measures.at(25).staves.at(0);
         ASSERT_EQ(countOttavaStarts(m26), 1u);
-        const auto* start = firstOttavaStart(m26);
-        ASSERT_NE(start, nullptr);
+        const auto start = firstOttavaStart(m26);
+        ASSERT_TRUE(start.has_value());
         EXPECT_EQ(start->ottavaType, mx::api::OttavaType::o8va);
-        const auto* stop = firstOttavaStop(staff1.measures.at(27).staves.at(0));
-        ASSERT_NE(stop, nullptr);
+        const auto stop = firstOttavaStop(staff1.measures.at(27).staves.at(0));
+        ASSERT_TRUE(stop.has_value());
         ASSERT_TRUE(stop->size.has_value());
         EXPECT_EQ(*stop->size, 8);
         EXPECT_EQ(noteOctaves(m26), (std::vector<int>{ 5, 5, 5, 6 }));
@@ -586,8 +598,8 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaCarriers)
     {
         const auto& staff3 = score->parts.at(2);
         ASSERT_GE(staff3.measures.size(), 23u);
-        const auto* start = firstOttavaStart(staff3.measures.at(20).staves.at(0));
-        ASSERT_NE(start, nullptr);
+        const auto start = firstOttavaStart(staff3.measures.at(20).staves.at(0));
+        ASSERT_TRUE(start.has_value());
         EXPECT_EQ(start->ottavaType, mx::api::OttavaType::o8vb);
         // Staff 3 is written A4 B4 C5 D5 per measure; m22 sounds an octave lower.
         EXPECT_EQ(noteOctaves(staff3.measures.at(21).staves.at(0)), (std::vector<int>{ 3, 3, 4, 4 }));
@@ -604,11 +616,11 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaNumberLevels)
 
     const auto expectNumberLevels = [](const mx::api::StaffData& startStaff, const mx::api::StaffData& stopStaff,
                                        int expectedNumberLevel, const char* which) {
-        const auto* start = firstOttavaStart(startStaff);
-        ASSERT_NE(start, nullptr) << which;
+        const auto start = firstOttavaStart(startStaff);
+        ASSERT_TRUE(start.has_value()) << which;
         EXPECT_EQ(start->spannerStart.number.level(), expectedNumberLevel) << which << " start";
-        const auto* stop = firstOttavaStop(stopStaff);
-        ASSERT_NE(stop, nullptr) << which;
+        const auto stop = firstOttavaStop(stopStaff);
+        ASSERT_TRUE(stop.has_value()) << which;
         EXPECT_EQ(stop->spannerStop.number.level(), expectedNumberLevel) << which << " stop";
     };
 
@@ -647,14 +659,14 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesGeneralLineBrackets)
     // both ends.
     {
         const auto& staff1 = score->parts.at(0);
-        const auto* start = firstBracketStart(staff1.measures.at(0).staves.at(0));
-        ASSERT_NE(start, nullptr);
+        const auto start = firstBracketStart(staff1.measures.at(0).staves.at(0));
+        ASSERT_TRUE(start.has_value());
         EXPECT_EQ(start->lineData.lineType, mx::api::LineType::solid);
         EXPECT_EQ(start->lineData.lineHook, mx::api::LineHook::down);
         ASSERT_TRUE(start->lineData.isStopLengthSpecified);
         EXPECT_NEAR(start->lineData.endLength, expectedHookTenths, kEndLengthTolerance);
-        const auto* stop = firstBracketStop(staff1.measures.at(1).staves.at(0));
-        ASSERT_NE(stop, nullptr);
+        const auto stop = firstBracketStop(staff1.measures.at(1).staves.at(0));
+        ASSERT_TRUE(stop.has_value());
         EXPECT_EQ(stop->lineData.lineHook, mx::api::LineHook::down);
         ASSERT_TRUE(stop->lineData.isStopLengthSpecified);
         EXPECT_NEAR(stop->lineData.endLength, expectedHookTenths, kEndLengthTolerance);
@@ -664,12 +676,12 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesGeneralLineBrackets)
     // end with its length expressed in tenths (1536 Efix = 24 Evpu = 10 tenths).
     {
         const auto& staff2 = score->parts.at(1);
-        const auto* start = firstBracketStart(staff2.measures.at(0).staves.at(0));
-        ASSERT_NE(start, nullptr);
+        const auto start = firstBracketStart(staff2.measures.at(0).staves.at(0));
+        ASSERT_TRUE(start.has_value());
         EXPECT_EQ(start->lineData.lineType, mx::api::LineType::solid);
         EXPECT_EQ(start->lineData.lineHook, mx::api::LineHook::none);
-        const auto* stop = firstBracketStop(staff2.measures.at(1).staves.at(0));
-        ASSERT_NE(stop, nullptr);
+        const auto stop = firstBracketStop(staff2.measures.at(1).staves.at(0));
+        ASSERT_TRUE(stop.has_value());
         EXPECT_EQ(stop->lineData.lineHook, mx::api::LineHook::up);
         ASSERT_TRUE(stop->lineData.isStopLengthSpecified);
         EXPECT_DOUBLE_EQ(stop->lineData.endLength, 10.0);
@@ -679,8 +691,8 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesGeneralLineBrackets)
     // the document's smart shape options (18 Evpu = 7.5 tenths).
     {
         const auto& staff4 = score->parts.at(3);
-        const auto* start = firstBracketStart(staff4.measures.at(0).staves.at(0));
-        ASSERT_NE(start, nullptr);
+        const auto start = firstBracketStart(staff4.measures.at(0).staves.at(0));
+        ASSERT_TRUE(start.has_value());
         EXPECT_EQ(start->lineData.lineType, mx::api::LineType::dashed);
         EXPECT_EQ(start->lineData.lineHook, mx::api::LineHook::down);
         ASSERT_TRUE(start->lineData.isStopLengthSpecified);
@@ -692,8 +704,8 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesGeneralLineBrackets)
     // Neutral wiggle char line on staff 5, m9-m11: wavy bracket with no hooks.
     {
         const auto& staff5 = score->parts.at(4);
-        const auto* start = firstBracketStart(staff5.measures.at(8).staves.at(0));
-        ASSERT_NE(start, nullptr);
+        const auto start = firstBracketStart(staff5.measures.at(8).staves.at(0));
+        ASSERT_TRUE(start.has_value());
         EXPECT_EQ(start->lineData.lineType, mx::api::LineType::wavy);
         EXPECT_EQ(start->lineData.lineHook, mx::api::LineHook::none);
     }

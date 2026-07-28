@@ -19,7 +19,6 @@
 
 #include "musicxml.h"
 
-#include <iterator>
 #include <optional>
 #include <string>
 #include <vector>
@@ -117,19 +116,18 @@ void appendVisibleJump(
         mx::api::SegnoData segno;
         segno.isSmuflSpecified = true;
         segno.smufl = *glyphName;
-        direction.segnos.emplace_back(std::move(segno));
+        direction.directionTypes.emplace_back(std::move(segno));
         return;
     }
     if (glyphName && jump == classify::jump::Jump::Coda) {
         mx::api::CodaData coda;
         coda.isSmuflSpecified = true;
         coda.smufl = *glyphName;
-        direction.codas.emplace_back(std::move(coda));
+        direction.directionTypes.emplace_back(std::move(coda));
         return;
     }
 
-    auto words = createJumpWords(context, repeatDef, repeatText);
-    direction.words.insert(direction.words.end(), std::make_move_iterator(words.begin()), std::make_move_iterator(words.end()));
+    appendMusicXmlWordsRun(direction, createJumpWords(context, repeatDef, repeatText));
 }
 
 void appendSoundJump(mx::api::DirectionData& direction, classify::jump::Jump playback, const MusxInstance<others::TextRepeatAssign>& assignment)

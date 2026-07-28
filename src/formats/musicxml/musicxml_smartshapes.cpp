@@ -438,13 +438,13 @@ void appendHairpin(
     wedgeStart.number = smartShapeSpannerNumber(shape);
     wedgeStart.wedgeType = wedgeType;
     wedgeStart.lineData.lineType = mx::api::LineType::solid;
-    startDirection.wedgeStarts.emplace_back(std::move(wedgeStart));
+    startDirection.directionTypes.emplace_back(std::move(wedgeStart));
     staff.directions.emplace_back(std::move(startDirection));
 
     auto stopDirection = createSmartShapeDirection(context, endPoint, staffId, staffIndex, placement);
     auto wedgeStop = mx::api::WedgeStop{};
     wedgeStop.number = smartShapeSpannerNumber(shape);
-    stopDirection.wedgeStops.emplace_back(std::move(wedgeStop));
+    stopDirection.directionTypes.emplace_back(std::move(wedgeStop));
     if (auto* stopStaff = staffDataForEndpoint(context, endPoint)) {
         stopStaff->directions.emplace_back(std::move(stopDirection));
     }
@@ -498,9 +498,10 @@ void appendOttava(
         context, startPoint, staffId, staffIndex, placement, calcOttavaStartTick(context, startPoint));
     auto ottavaStart = mx::api::OttavaStart{};
     ottavaStart.ottavaType = *ottavaType;
+    ottavaStart.writeDefaultSize = true;
     ottavaStart.spannerStart.tickTimePosition = startDirection.tickTimePosition;
     ottavaStart.spannerStart.number = smartShapeSpannerNumber(shape);
-    startDirection.ottavaStarts.emplace_back(std::move(ottavaStart));
+    startDirection.directionTypes.emplace_back(std::move(ottavaStart));
     staff.directions.emplace_back(std::move(startDirection));
 
     if (auto* stopStaff = staffDataForEndpoint(context, endPoint)) {
@@ -512,33 +513,26 @@ void appendOttava(
         constexpr int kOttavaSize = 8;
         constexpr int k15maSize = 15;
         ottavaStop.size = std::abs(ottava.octaveShift) == 1 ? kOttavaSize : k15maSize;
-        stopDirection.ottavaStops.emplace_back(std::move(ottavaStop));
+        stopDirection.directionTypes.emplace_back(std::move(ottavaStop));
         stopStaff->directions.emplace_back(std::move(stopDirection));
     }
 }
 
-bool hasUnsupportedPedalIdentity(const classify::smartshape::KeyboardPedal& pedal)
+bool isPedalChange(
+    const std::optional<classify::KeyboardPedalClassification>& marking,
+    classify::smartshape::KeyboardPedal::CapType cap)
 {
-    const auto isUnsupported = [](const std::optional<classify::KeyboardPedalClassification>& marking) {
-        if (!marking) {
-            return false;
-        }
-        using Type = classify::keyboardpedal::Type;
-        return marking->type == Type::PedalTwo || marking->type == Type::PedalThree;
-    };
-    return isUnsupported(pedal.startText) || isUnsupported(pedal.continuationText) || isUnsupported(pedal.endText);
+    return cap == classify::smartshape::KeyboardPedal::CapType::PedalChange
+        || (marking && marking->type == classify::keyboardpedal::Type::PedalChange);
 }
 
-mx::api::LineType pedalLineType(const classify::smartshape::KeyboardPedal& pedal)
-{
-    using LineStyle = others::SmartShapeCustomLine::LineStyle;
-    switch (pedal.line.lineStyle) {
-    case LineStyle::Solid: return mx::api::LineType::solid;
-    case LineStyle::Dashed: return mx::api::LineType::dashed;
-    case LineStyle::Char: return mx::api::LineType::wavy;
-    }
-    return mx::api::LineType::unspecified;
-}
+void appendGeneralLine(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    StaffCmper staffId,
+    size_t staffIndex,
+    const MusxInstance<others::SmartShape>& shape,
+    const classify::smartshape::GeneralLine& line);
 
 void appendKeyboardPedal(
     MusicXmlMusxMapping& context,
@@ -553,9 +547,11 @@ void appendKeyboardPedal(
     if (!startPoint->calcIsAssigned() || !endPoint->calcIsAssigned() || startPoint->staffId != staffId) {
         return;
     }
-    if (hasUnsupportedPedalIdentity(pedal)) {
-        /// @todo Export sostenuto and una-corda pedal spanners when mx::api exposes the
-        /// corresponding MusicXML pedal event types. Do not misrepresent them as damper pedal.
+    if (pedal.isUnaCorda()) {
+        // MusicXML represents visible una-corda notation with words and brackets rather than a
+        // pedal direction. mx::api::SoundData does not yet expose its soft-pedal playback
+        // attribute, so preserve the source appearance without misrepresenting its semantics.
+        appendGeneralLine(context, staff, staffId, staffIndex, shape, pedal.line);
         return;
     }
 
@@ -568,24 +564,32 @@ void appendKeyboardPedal(
     auto stopDirection = createSmartShapeDirection(context, endPoint, endPoint->staffId, staffIndex, placement);
 
     if (!pedal.line.lineVisible) {
-        // mx::api's pedal marks are the only way to request sign="yes" with line="no".
-        startDirection.marks.emplace_back(enumConvert<mx::api::Placement>(placement), mx::api::MarkType::pedal);
-        stopDirection.marks.emplace_back(enumConvert<mx::api::Placement>(placement), mx::api::MarkType::damp);
+        if (pedal.isSostPedal()) {
+            // The MusicXML sostenuto pedal event is inherently line-based. Preserve a source
+            // marking without a line as formatted text rather than dropping it.
+            appendGeneralLine(context, staff, staffId, staffIndex, shape, pedal.line);
+            return;
+        }
+        // mx::api's pedal marks are the way to request sign="yes" with line="no".
+        startDirection.directionTypes.emplace_back(
+            mx::api::MarkData{ enumConvert<mx::api::Placement>(placement), mx::api::MarkType::pedal });
+        stopDirection.directionTypes.emplace_back(
+            mx::api::MarkData{ enumConvert<mx::api::Placement>(placement), mx::api::MarkType::damp });
     } else {
-        auto start = mx::api::SpannerStart{};
-        auto stop = mx::api::SpannerStop{};
+        auto start = mx::api::PedalLineData{};
+        auto stop = mx::api::PedalLineData{};
         start.tickTimePosition = startDirection.tickTimePosition;
         stop.tickTimePosition = stopDirection.tickTimePosition;
-        /// @todo Assign identity spanner numbers to pedals once mx::api serializes them.
-        /// MusicXML 3.1+ gives <pedal> a number attribute and core::Pedal supports it, but
-        /// mx::api's pedal writer and SpannerNumberResolver ignore it. (See mx-api-gaps.md.)
-        start.lineData.lineType = pedalLineType(pedal);
-        stop.lineData.lineType = pedalLineType(pedal);
-        /// @todo Preserve Finale pedal text/sign choices, ordinary hooks, custom cap geometry,
-        /// dashed/character lines, and pump changes when mx::api exposes them. Its current pedal
-        /// writer forces line="yes" sign="yes", ignores LineData, and supports only start/stop.
-        startDirection.pedalStarts.emplace_back(std::move(start));
-        stopDirection.pedalStops.emplace_back(std::move(stop));
+        start.positionData.placement = enumConvert<mx::api::Placement>(placement);
+        stop.positionData.placement = enumConvert<mx::api::Placement>(placement);
+        start.kind = isPedalChange(pedal.startText, pedal.startCap)
+            ? mx::api::PedalLineKind::change
+            : (pedal.isSostPedal() ? mx::api::PedalLineKind::sostenuto : mx::api::PedalLineKind::start);
+        stop.kind = isPedalChange(pedal.endText, pedal.endCap)
+            ? mx::api::PedalLineKind::change
+            : mx::api::PedalLineKind::stop;
+        startDirection.directionTypes.emplace_back(std::move(start));
+        stopDirection.directionTypes.emplace_back(std::move(stop));
     }
 
     staff.directions.emplace_back(std::move(startDirection));
@@ -675,8 +679,10 @@ void appendGeneralLine(
     const auto placement = shape->calcVerticalPlacementForBeatAttached();
     auto startDirection = createSmartShapeDirection(context, startPoint, staffId, staffIndex, placement);
     auto stopDirection = createSmartShapeDirection(context, endPoint, endPoint->staffId, staffIndex, placement);
-    startDirection.words = musicXmlWordsFromEnigmaText(context, line.startText);
-    stopDirection.words = musicXmlWordsFromEnigmaText(context, line.endText);
+    auto startWords = musicXmlWordsFromEnigmaText(context, line.startText);
+    auto stopWords = musicXmlWordsFromEnigmaText(context, line.endText);
+    const bool startHasWords = !startWords.empty();
+    appendMusicXmlWordsRun(startDirection, std::move(startWords));
 
     if (line.lineVisible) {
         const bool hasCaps = line.startCap.type != classify::smartshape::LineCap::Type::None
@@ -689,10 +695,10 @@ void appendGeneralLine(
         stop.number = smartShapeSpannerNumber(shape);
         applyGeneralLineDashes(line, start.lineData);
         applyGeneralLineDashes(line, stop.lineData);
-        if (!hasCaps && !startDirection.words.empty()) {
+        if (!hasCaps && startHasWords) {
             // The MusicXML idiom for a hookless text line is words followed by dashes.
-            startDirection.dashesStarts.emplace_back(std::move(start));
-            stopDirection.dashesStops.emplace_back(std::move(stop));
+            startDirection.directionTypes.emplace_back(mx::api::DirectionChoice::dashesStart(std::move(start)));
+            stopDirection.directionTypes.emplace_back(mx::api::DirectionChoice::dashesStop(std::move(stop)));
         } else {
             start.lineData.lineType = lineTypeFromGeneralLine(line);
             stop.lineData.lineType = start.lineData.lineType;
@@ -706,15 +712,16 @@ void appendGeneralLine(
                 stop.lineData.isStopLengthSpecified = true;
                 stop.lineData.endLength = tenthsFromEfix(std::abs(line.endCap.hookLength));
             }
-            startDirection.bracketStarts.emplace_back(std::move(start));
-            stopDirection.bracketStops.emplace_back(std::move(stop));
+            startDirection.directionTypes.emplace_back(mx::api::DirectionChoice::bracketStart(std::move(start)));
+            stopDirection.directionTypes.emplace_back(mx::api::DirectionChoice::bracketStop(std::move(stop)));
         }
     }
+    // End text follows the terminating line component, parallel to start text preceding
+    // the starting component.
+    appendMusicXmlWordsRun(stopDirection, std::move(stopWords));
 
-    const bool startHasContent = !startDirection.words.empty()
-        || !startDirection.bracketStarts.empty() || !startDirection.dashesStarts.empty();
-    const bool stopHasContent = !stopDirection.words.empty()
-        || !stopDirection.bracketStops.empty() || !stopDirection.dashesStops.empty();
+    const bool startHasContent = !startDirection.directionTypes.empty();
+    const bool stopHasContent = !stopDirection.directionTypes.empty();
     if (!startHasContent && !stopHasContent) {
         context.logMessage(LogMsg() << "Omitting custom line smart shape " << shape->getCmper()
             << " with no expressible MusicXML content.", MessageSeverity::Verbose);

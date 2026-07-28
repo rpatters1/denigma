@@ -28,6 +28,7 @@
 #include "denigma/classify/dynamics.h"
 #include "musicxml_formatted_text.h"
 #include "mx/api/MarkData.h"
+#include "mx/api/SymbolData.h"
 
 using namespace musx::dom;
 using namespace musx::util;
@@ -84,47 +85,64 @@ std::vector<mx::api::DirectionData> createDynamicExpressionDirections(
     VerticalPlacement placement,
     bool isStaffValueSpecified)
 {
-    std::vector<mx::api::DirectionData> result;
-    mx::api::DirectionData pendingWords = createDynamicDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    auto direction = createDynamicDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    auto pendingWords = std::vector<mx::api::WordsData>{};
 
     auto flushPendingWords = [&]() {
-        if (!pendingWords.words.empty()) {
-            result.emplace_back(std::move(pendingWords));
-            pendingWords = createDynamicDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
-        }
+        appendMusicXmlWordsRun(direction, std::move(pendingWords));
+        pendingWords.clear();
     };
 
-    auto appendWordsToDirection = [&](mx::api::DirectionData& direction, const musx::util::EnigmaTextChunk& chunk) {
+    auto appendWords = [&](const musx::util::EnigmaTextChunk& chunk) {
         auto words = musicXmlWordsFromEnigmaTextChunk(context, chunk);
         if (words) {
-            direction.words.emplace_back(std::move(*words));
+            pendingWords.emplace_back(std::move(*words));
         }
     };
 
-    mx::api::DirectionData* currentDynamicDirection = nullptr;
     for (const auto& run : classification.runs) {
         if (const auto* dynamic = run.as<classify::dynamics::Mark>()) {
             auto mark = createDynamicMark(*dynamic, enumConvert<mx::api::Placement>(placement));
             if (!mark) {
+                if (dynamic->glyphs.empty()) {
+                    appendWords(run.chunk);
+                    continue;
+                }
+                // Preserve a fully resolved but semantically unrepresentable dynamic as
+                // portable SMuFL symbols; retain the font-based words fallback otherwise.
+                const auto sourceWords = musicXmlWordsFromEnigmaTextChunk(context, run.chunk);
+                if (!sourceWords) {
+                    continue;
+                }
+                flushPendingWords();
+                auto symbols = std::vector<mx::api::WordsChoice>{};
+                symbols.reserve(dynamic->glyphs.size());
+                for (const auto& glyph : dynamic->glyphs) {
+                    auto symbol = mx::api::SymbolData{};
+                    symbol.smufl = glyph;
+                    symbol.positionData = sourceWords->positionData;
+                    symbol.fontData = sourceWords->fontData;
+                    if (sourceWords->isColorSpecified) {
+                        symbol.color = sourceWords->colorData;
+                    }
+                    symbol.enclosure = sourceWords->enclosure;
+                    symbols.emplace_back(std::move(symbol));
+                }
+                direction.directionTypes.emplace_back(std::move(symbols));
                 continue;
             }
             flushPendingWords();
-            result.emplace_back(createDynamicDirection(context, staffIndex, assignment, placement, isStaffValueSpecified));
-            result.back().marks.emplace_back(std::move(*mark));
-            currentDynamicDirection = &result.back();
+            direction.directionTypes.emplace_back(std::move(*mark));
         } else if (run.as<classify::expression::GenericText>() || run.as<classify::expression::DynamicQualifier>()) {
-            if (currentDynamicDirection) {
-                appendWordsToDirection(*currentDynamicDirection, run.chunk);
-            } else {
-                appendWordsToDirection(pendingWords, run.chunk);
-            }
-        } else {
-            currentDynamicDirection = nullptr;
+            appendWords(run.chunk);
         }
     }
 
     flushPendingWords();
-    return result;
+    if (mx::api::isDirectionDataEmpty(direction)) {
+        return {};
+    }
+    return { std::move(direction) };
 }
 
 } // namespace detail

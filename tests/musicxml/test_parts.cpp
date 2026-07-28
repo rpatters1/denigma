@@ -445,6 +445,25 @@ TEST(MusicXmlParts, RepeatsExportSmoke)
     const auto outputPath = exportMusicXmlFixture("repeats.musx");
     const auto actualScore = loadScoreData(outputPath);
     ASSERT_TRUE(actualScore);
+
+    const auto authoredScore = createScoreDataFromMusicXmlFixture("repeats.musx");
+    ASSERT_TRUE(authoredScore);
+    ASSERT_FALSE(authoredScore->parts.empty());
+
+    bool foundForward = false;
+    bool foundBackward = false;
+    for (const auto& measure : authoredScore->parts.front().measures) {
+        for (const auto& barline : measure.barlines) {
+            if (!barline.repeat) {
+                continue;
+            }
+            EXPECT_EQ(barline.repeatWinged, mx::api::RepeatWinged::none);
+            foundForward = foundForward || barline.repeatDirection == mx::api::RepeatDirection::forward;
+            foundBackward = foundBackward || barline.repeatDirection == mx::api::RepeatDirection::backward;
+        }
+    }
+    EXPECT_TRUE(foundForward);
+    EXPECT_TRUE(foundBackward);
 }
 
 TEST(MusicXmlParts, RepeatsExportJumpSound)
@@ -467,9 +486,10 @@ TEST(MusicXmlParts, RepeatsExportJumpSound)
     });
     ASSERT_NE(jumpDirectionIt, directions.end());
     EXPECT_EQ(jumpDirectionIt->tickTimePosition, 0);
-    ASSERT_FALSE(jumpDirectionIt->words.empty());
-    EXPECT_EQ(jumpDirectionIt->words.front().text, "Segno");
-    EXPECT_EQ(jumpDirectionIt->words.front().positionData.horizontalAlignment, mx::api::HorizontalAlignment::right);
+    const auto words = directionWords(*jumpDirectionIt);
+    ASSERT_FALSE(words.empty());
+    EXPECT_EQ(words.front().text, "Segno");
+    EXPECT_EQ(words.front().positionData.horizontalAlignment, mx::api::HorizontalAlignment::right);
 }
 
 TEST(MusicXmlParts, RepeatsExportEndingBrackets)

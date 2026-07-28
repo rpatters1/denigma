@@ -402,6 +402,30 @@ std::optional<VibratoLine> classifyVibratoLine(const GeneralLine& line)
 
 } // namespace
 
+bool smartshape::KeyboardPedal::isUnaCorda() const noexcept
+{
+    const auto matches = [](const std::optional<KeyboardPedalClassification>& marking) {
+        return marking && marking->type == keyboardpedal::Type::PedalThree;
+    };
+    return matches(startText) || matches(continuationText) || matches(endText);
+}
+
+bool smartshape::KeyboardPedal::isSostPedal() const noexcept
+{
+    const auto matches = [](const std::optional<KeyboardPedalClassification>& marking) {
+        return marking && marking->type == keyboardpedal::Type::PedalTwo;
+    };
+    return matches(startText) || matches(continuationText) || matches(endText);
+}
+
+bool smartshape::KeyboardPedal::isSustainPedal() const noexcept
+{
+    const auto matches = [](const std::optional<KeyboardPedalClassification>& marking) {
+        return marking && marking->type == keyboardpedal::Type::PedalOne;
+    };
+    return matches(startText) || matches(continuationText) || matches(endText);
+}
+
 std::optional<KeyboardPedal> classifyKeyboardPedalCustomLine(
     const musx::dom::MusxInstance<musx::dom::others::SmartShapeCustomLine>& customLine)
 {

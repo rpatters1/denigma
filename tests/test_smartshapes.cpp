@@ -119,6 +119,9 @@ TEST(SmartShapeClassification, ClassifiesPedalTextAtEachCustomLinePosition)
     ASSERT_TRUE(pedal->endText);
     EXPECT_EQ(pedal->endText->type, keyboardpedal::Type::PedalUp);
     EXPECT_FALSE(pedal->line.lineVisible);
+    EXPECT_TRUE(pedal->isSustainPedal());
+    EXPECT_FALSE(pedal->isSostPedal());
+    EXPECT_FALSE(pedal->isUnaCorda());
 }
 
 TEST(SmartShapeClassification, ClassifiesAsciiPedalTextWithOrdinaryHooks)
@@ -138,6 +141,24 @@ TEST(SmartShapeClassification, ClassifiesAsciiPedalTextWithOrdinaryHooks)
     EXPECT_EQ(pedal->startCap, classifiedshape::KeyboardPedal::CapType::Hook);
     EXPECT_EQ(pedal->endCap, classifiedshape::KeyboardPedal::CapType::Hook);
     EXPECT_TRUE(pedal->line.lineVisible);
+    EXPECT_FALSE(pedal->isSustainPedal());
+    EXPECT_TRUE(pedal->isSostPedal());
+    EXPECT_FALSE(pedal->isUnaCorda());
+}
+
+TEST(SmartShapeClassification, IdentifiesUnaCordaPedalFromCustomLineText)
+{
+    const auto context = makeCustomLine(
+        {}, "una corda", {},
+        "      <lineStyle>solid</lineStyle>\n"
+        "      <solidParams><lineWidth>141</lineWidth></solidParams>\n");
+
+    const auto classification = classifySmartShape(context.shape);
+    const auto* pedal = classification.as<classifiedshape::KeyboardPedal>();
+    ASSERT_NE(pedal, nullptr);
+    EXPECT_FALSE(pedal->isSustainPedal());
+    EXPECT_FALSE(pedal->isSostPedal());
+    EXPECT_TRUE(pedal->isUnaCorda());
 }
 
 TEST(SmartShapeClassification, DoesNotClassifyOrdinaryHooksWithoutPedalEvidence)

@@ -111,6 +111,34 @@ static void expectHarmonMute(
     EXPECT_EQ(classification.glyphName.value(), expectedGlyphName);
 }
 
+static void expectPluckedDamp(
+    const musx::dom::MusxInstance<FontInfo>& fontInfo,
+    char32_t symbol,
+    articulation::PluckedDamp::Type expectedType,
+    const std::string& expectedGlyphName)
+{
+    const auto classification = classifyArticulationSymbol(fontInfo, symbol);
+    const auto* pluckedDamp = classification.as<articulation::PluckedDamp>();
+    ASSERT_NE(pluckedDamp, nullptr);
+    EXPECT_EQ(pluckedDamp->type, expectedType);
+    ASSERT_TRUE(classification.glyphName);
+    EXPECT_EQ(classification.glyphName.value(), expectedGlyphName);
+}
+
+static void expectStringMute(
+    const musx::dom::MusxInstance<FontInfo>& fontInfo,
+    char32_t symbol,
+    articulation::StringMute::Type expectedType,
+    const std::string& expectedGlyphName)
+{
+    const auto classification = classifyArticulationSymbol(fontInfo, symbol);
+    const auto* stringMute = classification.as<articulation::StringMute>();
+    ASSERT_NE(stringMute, nullptr);
+    EXPECT_EQ(stringMute->type, expectedType);
+    ASSERT_TRUE(classification.glyphName);
+    EXPECT_EQ(classification.glyphName.value(), expectedGlyphName);
+}
+
 } // namespace
 
 TEST(ArticulationClassification, ClassifiesUnicodeArticulationMarks)
@@ -177,6 +205,20 @@ TEST(ArticulationClassification, ClassifiesHarmonMuteGlyphs)
     expectHarmonMute(fontContext.fontInfo, 0xE5E9, articulation::HarmonMute::Qualifier::HalfLeft, "brassHarmonMuteStemHalfLeft");
     expectHarmonMute(fontContext.fontInfo, 0xE5EA, articulation::HarmonMute::Qualifier::HalfRight, "brassHarmonMuteStemHalfRight");
     expectHarmonMute(fontContext.fontInfo, 0xE5EB, articulation::HarmonMute::Qualifier::Open, "brassHarmonMuteStemOpen");
+}
+
+TEST(ArticulationClassification, ClassifiesPluckedDampGlyphs)
+{
+    const auto fontContext = makeFontContext("Finale Maestro");
+    expectPluckedDamp(fontContext.fontInfo, 0xE638, articulation::PluckedDamp::Type::Damp, "pluckedDamp");
+    expectPluckedDamp(fontContext.fontInfo, 0xE639, articulation::PluckedDamp::Type::DampAll, "pluckedDampAll");
+}
+
+TEST(ArticulationClassification, ClassifiesStringMuteGlyphs)
+{
+    const auto fontContext = makeFontContext("Finale Maestro");
+    expectStringMute(fontContext.fontInfo, 0xE616, articulation::StringMute::Type::On, "stringsMuteOn");
+    expectStringMute(fontContext.fontInfo, 0xE617, articulation::StringMute::Type::Off, "stringsMuteOff");
 }
 
 TEST(ArticulationClassification, ClassifiesBrassArticulationGlyphs)

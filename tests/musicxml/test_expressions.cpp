@@ -23,6 +23,7 @@
 
 #include "core/denigma.h"
 #include "core/musx_reader.h"
+#include "formats/musicxml/musicxml.h"
 #include "gtest/gtest.h"
 #include "mnxdom.h"
 #include "musicxml_test.h"
@@ -58,18 +59,19 @@ std::vector<ComparableWordsDirection> collectWordsOnlyDirections(
         for (size_t staffIndex = 0; staffIndex < measure.staves.size(); ++staffIndex) {
             const auto& staff = measure.staves.at(staffIndex);
             for (const auto& direction : staff.directions) {
-                if (direction.words.empty() || direction.isSoundDataSpecified) {
+                const auto words = directionWords(direction);
+                if (words.empty() || direction.isSoundDataSpecified) {
                     continue;
                 }
                 ComparableWordsDirection comparable{
                     measureIndex,
                     staffIndex,
-                    direction.tickTimePosition,
+                    directionDrawnTick(direction),
                     direction.placement,
                     {},
                     {}
                 };
-                for (const auto& word : direction.words) {
+                for (const auto& word : words) {
                     comparable.words.emplace_back(word.text);
                     comparable.enclosures.emplace_back(word.enclosure);
                 }
@@ -145,10 +147,10 @@ std::vector<ComparableRehearsalDirection> collectRehearsalDirections(const mx::a
         const auto& measure = measures.at(measureIndex);
         for (const auto& staff : measure.staves) {
             for (const auto& direction : staff.directions) {
-                for (const auto& rehearsal : direction.rehearsals) {
+                for (const auto& rehearsal : directionRehearsals(direction)) {
                     ComparableRehearsalDirection comparable{
                         measureIndex,
-                        direction.tickTimePosition,
+                        directionDrawnTick(direction),
                         direction.placement,
                         rehearsal.text,
                         rehearsal.enclosure,
@@ -203,22 +205,22 @@ std::vector<ComparableExpressionEnclosure> collectExpressionEnclosures(
         const auto& measure = measures.at(measureIndex);
         for (const auto& staff : measure.staves) {
             for (const auto& direction : staff.directions) {
-                for (const auto& word : direction.words) {
+                for (const auto& word : directionWords(direction)) {
                     if (predicate(word.text)) {
                         result.push_back({
                             measureIndex,
-                            direction.tickTimePosition,
+                            directionDrawnTick(direction),
                             direction.placement,
                             word.text,
                             word.enclosure
                         });
                     }
                 }
-                for (const auto& rehearsal : direction.rehearsals) {
+                for (const auto& rehearsal : directionRehearsals(direction)) {
                     if (predicate(rehearsal.text)) {
                         result.push_back({
                             measureIndex,
-                            direction.tickTimePosition,
+                            directionDrawnTick(direction),
                             direction.placement,
                             rehearsal.text,
                             rehearsal.enclosure
@@ -252,9 +254,10 @@ TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
                     continue;
                 }
                 ++tempoDirectionCount;
-                if (!direction.words.empty()) {
+                const auto words = directionWords(direction);
+                if (!words.empty()) {
                     foundVisibleTempoDirection = true;
-                    EXPECT_FALSE(direction.words.front().text.empty());
+                    EXPECT_FALSE(words.front().text.empty());
                 } else {
                     foundSoundOnlyTempo = true;
                 }
@@ -265,6 +268,35 @@ TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
     EXPECT_EQ(tempoDirectionCount, 2u);
     EXPECT_TRUE(foundVisibleTempoDirection);
     EXPECT_TRUE(foundSoundOnlyTempo);
+}
+
+TEST(MusicXmlExpressions, HarpPedalDiagramMapsToOrderedPedalTunings)
+{
+    using PedalPosition = classify::expression::HarpDiagram::PedalPosition;
+
+    const auto harpPedals = formats::musicxml::detail::musicXmlHarpPedals({
+        PedalPosition::Flat,
+        PedalPosition::Natural,
+        PedalPosition::Sharp,
+        PedalPosition::Sharp,
+        PedalPosition::Natural,
+        PedalPosition::Flat,
+        PedalPosition::Sharp
+    });
+
+    constexpr int FLAT_ALTERATION = -1;
+    constexpr int NATURAL_ALTERATION = 0;
+    constexpr int SHARP_ALTERATION = 1;
+    const std::vector<mx::api::HarpPedalTuning> expected = {
+        { mx::api::Step::d, FLAT_ALTERATION },
+        { mx::api::Step::c, NATURAL_ALTERATION },
+        { mx::api::Step::b, SHARP_ALTERATION },
+        { mx::api::Step::e, SHARP_ALTERATION },
+        { mx::api::Step::f, NATURAL_ALTERATION },
+        { mx::api::Step::g, FLAT_ALTERATION },
+        { mx::api::Step::a, SHARP_ALTERATION }
+    };
+    EXPECT_EQ(harpPedals.pedalTunings, expected);
 }
 
 TEST(MusicXmlExpressions, GenericTextDirectionsMatchReference)
@@ -321,9 +353,10 @@ TEST(MusicXmlExpressions, TempoVariedStavesSmoke)
                 TempoEvent event;
                 event.tempo = direction.soundData.tempo;
                 event.hasSound = true;
-                if (!direction.words.empty()) {
+                const auto words = directionWords(direction);
+                if (!words.empty()) {
                     event.hasWords = true;
-                    event.words = direction.words.front().text;
+                    event.words = words.front().text;
                 }
                 result.emplace_back(std::move(event));
             }
@@ -400,18 +433,20 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
             const auto& measure = score.parts.front().measures.at(measureIndex);
             for (const auto& staff : measure.staves) {
                 for (const auto& direction : staff.directions) {
-                    if (direction.words.size() != 1 || direction.isSoundDataSpecified) {
+                    const auto words = directionWords(direction);
+                    if (words.size() != 1 || direction.isSoundDataSpecified) {
                         continue;
                     }
-                    const auto& words = direction.words.front();
+                    const auto& wordsData = words.front();
+                    const auto drawnTick = directionDrawnTick(direction);
                     result.push_back({
                         measureIndex,
-                        words.text,
+                        wordsData.text,
                         direction.placement,
-                        words.positionData.isDefaultXSpecified ? std::make_optional(words.positionData.defaultX) : std::nullopt,
-                        words.positionData.isDefaultYSpecified ? std::make_optional(words.positionData.defaultY) : std::nullopt,
-                        words.positionData.isRelativeXSpecified ? std::make_optional(words.positionData.relativeX) : std::nullopt,
-                        direction.tickTimePosition > 0 ? std::make_optional(direction.tickTimePosition) : std::nullopt
+                        wordsData.positionData.isDefaultXSpecified ? std::make_optional(wordsData.positionData.defaultX) : std::nullopt,
+                        wordsData.positionData.isDefaultYSpecified ? std::make_optional(wordsData.positionData.defaultY) : std::nullopt,
+                        wordsData.positionData.isRelativeXSpecified ? std::make_optional(wordsData.positionData.relativeX) : std::nullopt,
+                        drawnTick > 0 ? std::make_optional(drawnTick) : std::nullopt
                     });
                 }
             }
@@ -516,15 +551,16 @@ TEST(MusicXmlExpressions, TechniquesMatchReference)
             for (size_t staffIndex = 0; staffIndex < measure.staves.size(); ++staffIndex) {
                 const auto& staff = measure.staves.at(staffIndex);
                 for (const auto& direction : staff.directions) {
-                    if (direction.words.empty()) {
+                    const auto words = directionWords(direction);
+                    if (words.empty()) {
                         continue;
                     }
-                    EXPECT_EQ(direction.words.size(), 1u);
-                    if (direction.words.size() != 1u) {
+                    EXPECT_EQ(words.size(), 1u);
+                    if (words.size() != 1u) {
                         continue;
                     }
                     ComparableTechniqueDirection comparable{
-                        direction.words.front().text,
+                        words.front().text,
                         std::nullopt
                     };
                     if (direction.isSoundDataSpecified && direction.soundData.pizzicato != mx::api::Bool::unspecified) {
@@ -563,10 +599,9 @@ TEST(MusicXmlExpressions, ExpressionEnclosuresExportExpectedShapes)
 {
     setupTestDataPaths();
 
-    /// @todo Switch this back to post-write MusicXML verification once MX preserves `WordsData.enclosure`.
     const auto outputPath = exportMusicXmlFixture("enclosures.musx");
     EXPECT_TRUE(std::filesystem::exists(outputPath));
-    const auto actualScore = createScoreDataFromMusicXmlFixture("enclosures.musx");
+    const auto actualScore = loadScoreData(outputPath);
     ASSERT_TRUE(actualScore);
 
     const auto actualEnclosures = collectExpressionEnclosures(*actualScore, [](const std::string& text) {
@@ -594,10 +629,9 @@ TEST(MusicXmlExpressions, MeasureTextEnclosuresUseStandardFrameRule)
 {
     setupTestDataPaths();
 
-    /// @todo Switch this back to post-write MusicXML verification once MX preserves `WordsData.enclosure`.
     const auto outputPath = exportMusicXmlFixture("enclosures.musx");
     EXPECT_TRUE(std::filesystem::exists(outputPath));
-    const auto actualScore = createScoreDataFromMusicXmlFixture("enclosures.musx");
+    const auto actualScore = loadScoreData(outputPath);
     ASSERT_TRUE(actualScore);
 
     const auto actualEnclosures = collectExpressionEnclosures(*actualScore, [](const std::string& text) {
@@ -605,7 +639,7 @@ TEST(MusicXmlExpressions, MeasureTextEnclosuresUseStandardFrameRule)
     });
 
     const std::vector<ComparableExpressionEnclosure> expected = {
-        { 2u, 16, mx::api::Placement::below, "no enclosure", mx::api::RehearsalEnclosure::none },
+        { 2u, 16, mx::api::Placement::below, "no enclosure", mx::api::RehearsalEnclosure::unspecified },
         { 3u, 3, mx::api::Placement::above, "has enclosure", mx::api::RehearsalEnclosure::rectangle }
     };
 

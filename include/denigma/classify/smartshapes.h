@@ -104,6 +104,15 @@ struct KeyboardPedal
     std::optional<KeyboardPedalClassification> endText;
     CapType startCap{};
     CapType endCap{};
+
+    /// @brief Returns whether any text position identifies the una-corda (soft) pedal.
+    [[nodiscard]] bool isUnaCorda() const noexcept;
+
+    /// @brief Returns whether any text position identifies the sostenuto pedal.
+    [[nodiscard]] bool isSostPedal() const noexcept;
+
+    /// @brief Returns whether any text position identifies the sustain pedal.
+    [[nodiscard]] bool isSustainPedal() const noexcept;
 };
 
 struct TrillLine
