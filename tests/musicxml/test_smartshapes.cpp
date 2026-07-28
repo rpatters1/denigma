@@ -381,6 +381,9 @@ static void expectOttava(const mx::api::PartData& part, size_t startMeasureIdx, 
         ASSERT_EQ(staff.directions.front().ottavaStarts.size(), 1);
         EXPECT_EQ(staff.directions.front().placement, placement);
         EXPECT_EQ(staff.directions.front().ottavaStarts.front().ottavaType, ottavaType);
+        const bool expectsDefaultSize = ottavaType == mx::api::OttavaType::o8va
+            || ottavaType == mx::api::OttavaType::o8vb;
+        EXPECT_EQ(staff.directions.front().ottavaStarts.front().writeDefaultSize, expectsDefaultSize);
         const auto& voice = staff.voices.at(0);
         ASSERT_GT(voice.notes.size(), startNoteIdx);        
         const auto expectedStartTick = voice.notes.at(startNoteIdx).tickTimePosition;

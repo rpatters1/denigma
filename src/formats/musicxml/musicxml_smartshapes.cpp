@@ -498,6 +498,7 @@ void appendOttava(
         context, startPoint, staffId, staffIndex, placement, calcOttavaStartTick(context, startPoint));
     auto ottavaStart = mx::api::OttavaStart{};
     ottavaStart.ottavaType = *ottavaType;
+    ottavaStart.writeDefaultSize = true;
     ottavaStart.spannerStart.tickTimePosition = startDirection.tickTimePosition;
     ottavaStart.spannerStart.number = smartShapeSpannerNumber(shape);
     startDirection.ottavaStarts.emplace_back(std::move(ottavaStart));
