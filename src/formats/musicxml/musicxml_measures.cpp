@@ -145,19 +145,26 @@ void assignBarlines(
         setBarline(context, measure, classification.type, mx::api::HorizontalAlignment::right);
     }
 
-    const auto setRepeat = [&](mx::api::HorizontalAlignment location, mx::api::BarlineType repeatBarlineType) {
+    const auto setRepeat = [&](mx::api::HorizontalAlignment location, mx::api::BarlineType repeatBarlineType,
+                               mx::api::RepeatDirection repeatDirection) {
         auto& barline = ensureBarlineData(measure, location);
         if (barline.barlineType == mx::api::BarlineType::unspecified || barline.barlineType == mx::api::BarlineType::normal) {
             barline.barlineType = repeatBarlineType;
         }
         barline.repeat = true;
+        barline.repeatDirection = repeatDirection;
+        barline.repeatWinged = enumConvert<mx::api::RepeatWinged>(context.finaleOptions.repeatOptions->wingStyle);
+        /// @todo It may be possible to derive repeatAfterJump from Finale repeat pass numbers.
+        /// Wait for a real-world need before attempting that semantic mapping.
     };
 
     if (musxMeasure->forwardRepeatBar) {
-        setRepeat(mx::api::HorizontalAlignment::left, mx::api::BarlineType::heavyLight);
+        setRepeat(
+            mx::api::HorizontalAlignment::left, mx::api::BarlineType::heavyLight, mx::api::RepeatDirection::forward);
     }
     if (musxMeasure->backwardsRepeatBar) {
-        setRepeat(mx::api::HorizontalAlignment::right, mx::api::BarlineType::lightHeavy);
+        setRepeat(
+            mx::api::HorizontalAlignment::right, mx::api::BarlineType::lightHeavy, mx::api::RepeatDirection::backward);
     }
 }
 
