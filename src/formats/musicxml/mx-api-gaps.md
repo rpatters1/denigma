@@ -1,6 +1,6 @@
 # MusicXML MX API Gaps
 
-Notes collected while implementing Denigma's MusicXML exporter. These are MusicXML features or Finale/MUSX requirements that are currently difficult or impossible to express through `mx::api`. Larger user-facing work is tracked in the [MusicXML feature roadmap](roadmap.md).
+Notes collected while implementing Denigma's MusicXML exporter. These are MusicXML features or Finale/MUSX requirements that are currently difficult or impossible to express through `mx::api`. Denigma implementation work and MusicXML specification limitations belong in the [MusicXML feature roadmap](roadmap.md), not here.
 
 ## Staff Details
 
@@ -8,7 +8,7 @@ Notes collected while implementing Denigma's MusicXML exporter. These are MusicX
 
 MusicXML `<staff-details>` can represent more than line count and staff size, including staff type, staff tuning, capo, and print controls.
 
-`mx::api::StaffData` currently exposes `staffLines` and `staffSize`. Denigma can export simple staff-line and staff-size changes, but cannot express the rest of Finale's staff details through `mx::api`.
+`mx::api::StaffData` currently exposes `staffLines`, `staffSize`, and `staffScaling`. Denigma can export those simple staff-detail values, but cannot express the rest of Finale's staff details through `mx::api`.
 
 Needed API shape: a staff details data object with optional fields for the MusicXML `<staff-details>` children and attributes that MX intends to support.
 
@@ -16,9 +16,9 @@ Needed API shape: a staff details data object with optional fields for the Music
 
 MusicXML allows `<attributes>` elements mid-measure, and `<attributes>` may include `<staff-details>`. The spec says mid-measure attributes affect the music in score order.
 
-`mx::api::StaffData::staffLines` and `staffSize` are currently single scalars with no tick position. MX writes them during the measure-start attributes phase, so Denigma can only express measure-start staff detail changes through the current API.
+`mx::api::StaffData::staffLines`, `staffSize`, and `staffScaling` are currently single scalars with no tick position. MX writes them during the measure-start attributes phase, so Denigma can only express measure-start staff detail changes through the current API.
 
-Needed API shape: positionable staff details data, likely a vector on `StaffData`, with `tickTimePosition` and fields such as `staffLines` and `staffSize`.
+Needed API shape: positionable staff details data, likely a vector on `StaffData`, with `tickTimePosition` and fields such as `staffLines`, `staffSize`, and `staffScaling`.
 
 ## Clefs
 
@@ -58,22 +58,6 @@ Needed API shape: the same tie-notation data model requested above should also c
 
 ## Smart Shapes And Spanners
 
-### Octave shifts beyond two octaves
-
-MusicXML `<octave-shift>` supports any shift via the `size` attribute (8, 15, 22, ...). Finale has no built-in 22ma smart shape, but custom lines classified as three-octave shifts ("22ma"/"22mb") can occur.
-
-`mx::api::OttavaType` enumerates only `o8va`, `o8vb`, `o15ma`, and `o15mb`. Denigma skips three-octave shifts with a warning.
-
-Needed API shape: either additional `OttavaType` values for 22ma/22mb or a numeric octave-shift model (direction plus size).
-
-### Octave-shift start drops position and print data
-
-MusicXML `<octave-shift>` accepts the position and print-object/print-style attributes on the start element.
-
-`mx::api::OttavaStart::spannerStart` carries `positionData` and `printData`, but `DirectionWriter::emitOttavaStart` applies only `LineData` and the spanner number, so the start's `positionData` and `printData` are silently dropped. Denigma does not currently populate these fields on ottava starts, so this is a low-priority gap.
-
-Needed API shape: none — this is a writer bug. `emitOttavaStart` should apply position and print data like the bracket, dashes, and ottava-stop writers do.
-
 ### Paired wavy-line start/stop (trill extensions and vibrato lines)
 
 MusicXML represents trill extensions and vibrato lines as `<ornaments><wavy-line type="start|continue|stop">` pairs attached to notes.
@@ -81,30 +65,6 @@ MusicXML represents trill extensions and vibrato lines as `<ornaments><wavy-line
 `mx::api::MarkData` includes `MarkType::wavyLine`, but `NotationsWriter` never sets the required `type` attribute on the emitted `<wavy-line>`, so only an untyped (default) element can be written and start/stop cannot be paired. Denigma exports the `trill-mark` for trill lines that include the tr symbol and omits the extension; pure trill-extension lines and vibrato lines are omitted entirely.
 
 Needed API shape: wavy-line start/stop data on `MarkData` (or a dedicated paired-spanner model for note-attached wavy lines).
-
-### Keyboard pedal spanner fidelity
-
-Finale pedal custom lines carry text/sign choices, hook and custom cap geometry, dashed and character line bodies, and pump (release-and-reengage) changes. MusicXML `<pedal>` supports `type="start|stop|change|continue|sostenuto"`, `line`, `sign`, and `abbreviated` attributes.
-
-`mx::api`'s pedal writer forces `line="yes" sign="yes"`, ignores `LineData`, and supports only start/stop. There is also no way to request sostenuto or una-corda pedal types, so Denigma refuses to export those rather than misrepresent them as damper pedal. Pump changes cannot be expressed as `type="change"`.
-
-Needed API shape: pedal data with the full MusicXML pedal event types and attribute control (`line`, `sign`, `abbreviated`), honoring `LineData` for dashed pedal lines.
-
-### Pedal spanner numbers
-
-MusicXML 3.1 added a `number` attribute (type `number-level`) to `<pedal>` so simultaneous pedal lines — such as a sostenuto line running under a damper line — can be paired unambiguously. The attribute is present in the 3.1, 4.0, and 4.1 schemas; only 3.0 lacks it.
-
-`mx::core::Pedal` (generated from the MusicXML 4.0 schema) supports the attribute via `setNumber`, but `mx::api` never serializes it: the pedal writer does not call `core::Pedal::setNumber`, and `SpannerNumberResolver` deliberately excludes pedals from writer-side number assignment. The resolver's comment claims the `<pedal>` element has no number attribute, which is true only of MusicXML 3.0. Denigma therefore sets no spanner number on pedal starts/stops (see the `@todo` in `appendKeyboardPedal`).
-
-This is low-priority while `mx::api` can express only damper start/stop spanners, since two overlapping damper lines on one staff are musically rare. It becomes necessary as soon as the other pedal event types land (see "Keyboard pedal events and spanners" under Directions and Expressions): sostenuto-under-damper is exactly the collision the attribute exists to resolve.
-
-Needed API shape: honor `SpannerStart::number`/`SpannerStop::number` in the pedal writer, give pedals a pool in `SpannerNumberResolver`, and correct the resolver's pedal-exclusion rationale.
-
-### Custom line continuation and center text
-
-Finale custom lines can carry left-continuation text (shown after system breaks) and center full/abbreviated text (shown mid-line). MusicXML has no continuation-text concept for brackets or dashes, and center text has no home outside of `<glissando>`/`<slide>` element text.
-
-This is primarily a MusicXML specification limit rather than an `mx::api` gap, but it is recorded here because it silently drops Finale content: Denigma logs and omits continuation and center text when exporting general lines.
 
 ## Harmony
 
@@ -134,19 +94,15 @@ MusicXML's `<technical><harmonic>` element can specify `natural` or `artificial`
 
 `mx::api::MarkData` supports `MarkType::harmonic`, but `NotationsWriter` only ever constructs a bare `core::Harmonic` with position data; it never calls `setChoice`/`setChoice2`, even though `core::Harmonic` (the raw schema layer) fully supports both. Denigma's entry-level classifier (`classify::classifyEntryNoteheads`) identifies artificial-harmonic note pairs, including the touch interval (fourth, major third, or fifth) and an optional third note at the theoretical sounding pitch when the source explicitly includes one, but none of that detail can be attached to the `<harmonic>` mark through the public API -- only an empty, undecorated `<harmonic/>` can be written.
 
-Needed API shape: natural/artificial and base-pitch/touching-pitch/sounding-pitch fields on `MarkData`, meaningful only for `MarkType::harmonic`, written through to `core::Harmonic::setChoice`/`setChoice2`.
+Needed API shape: a harmonic payload in `MarkDataChoice` with natural/artificial and base-pitch/touching-pitch/sounding-pitch fields, written through to `core::Harmonic::setChoice`/`setChoice2`.
 
 ## Measures
 
-### Multimeasure rests
+### Multimeasure-rest attributes
 
-MusicXML represents a multimeasure rest by placing `<measure-style><multiple-rest>N</multiple-rest></measure-style>` in the starting measure's `<attributes>`, where `N` is the span in measures. MUSX exposes the corresponding part-scoped `others::MultimeasureRest` records, including the start measure and span, so Denigma has the information needed to export the basic semantic form.
+`mx::api::MeasureData` supports the multimeasure-rest span and the `multiple-rest` `use-symbols` attribute. Denigma exports matching part-scoped `others::MultimeasureRest` records, including Finale's effective choice between rest symbols and a multimeasure-rest shape.
 
-`mx::api::MeasureData` already has `multiMeasureRest` for this purpose, and `MeasureReader` populates it. However, `MeasureWriter` and `PropertiesWriter` never consume it, so `mx::api` cannot currently write a `<multiple-rest>` element. Consequently, Denigma does not yet export any multimeasure-rest spans to MusicXML.
-
-Needed MX work: this is a writer implementation gap rather than a new basic API. Add a `PropertiesWriter` operation that writes a `MeasureStyle` containing `MultipleRest`, and call it when `MeasureData::multiMeasureRest` is positive. Add an API writer/round-trip test.
-
-The existing integer field is not sufficient for full fidelity. MusicXML also permits the `multiple-rest` `use-symbols` attribute and the enclosing `measure-style` `number` (staff) attribute, neither of which `mx::api` exposes. Finale/MUSX additionally records whether to use symbols, the symbol threshold and spacing, custom H-bar shape and dimensions, and number visibility and placement. Some of those layout details have no direct MusicXML equivalent; the interoperable subset would need at least optional `useSymbols` and staff fields, ideally in a dedicated multimeasure-rest data object rather than extending the scalar span field.
+MusicXML also permits the enclosing `measure-style` `number` (staff) attribute, which `mx::api` does not expose. Finale/MUSX additionally records symbol spacing, a custom multimeasure-rest shape and dimensions, and number visibility and placement. Those layout details have no direct MusicXML equivalent.
 
 ### Alternate notation: measure repeats and slash notation
 
@@ -160,13 +116,13 @@ Needed API shape: a staff-scoped, positionable measure-style collection on `Meas
 
 Full Finale fidelity is not possible through measure style alone. `altLayer` has no general equivalent for measure repeats, while slash/beat-repeat can only exclude other MusicXML voices. `Blank` and `BlankWithRests`, and Finale's independent hide-articulation, lyrics, expressions, and smart-shape settings, require selective `print-object="no"` handling in addition to any measure style. The alternate-notation slash and number fonts, glyph-position options, and two-bar-repeat number offset are likewise Finale-specific layout data with no direct standard MusicXML mapping.
 
-### Measure-numbering text and staff attribute
+### Measure display text and measure-numbering staff
 
-MusicXML `<measure-numbering>` can carry display text as element content and a `staff` attribute. The element text can differ from the measure's `number` attribute, and `staff` selects the reference staff for vertical positioning.
+MusicXML separates the measure's semantic identifier (`<measure number="...">`) from its optional displayed label (`<measure text="...">`). The `<measure-numbering>` element instead contains the display frequency (`none`, `measure`, or `system`) and can carry a `staff` attribute selecting the reference staff for vertical positioning.
 
-`mx::api::MeasureData` now exposes the basic measure/system style, `multiple-rest-always`, `multiple-rest-range`, and the `system` relation, which Denigma exports. It does not expose the element text or `staff` attribute.
+`mx::api::MeasureData::number` exposes the semantic `number` attribute. `MeasureData` also exposes the basic measure-numbering value, `multiple-rest-always`, `multiple-rest-range`, and `system`, but it does not expose the measure's `text` attribute or the measure-numbering `staff` attribute.
 
-Needed API shape: fields on `MeasureData` for measure-numbering element text and its optional `staff` attribute.
+Needed API shape: fields on `MeasureData` for the optional measure display text and measure-numbering staff.
 
 ## Transposition
 
@@ -192,7 +148,7 @@ Needed API shape: multiple score instruments per part, plus positionable instrum
 
 MusicXML `<sound>` can include nested child elements such as `<midi-instrument>`, `<midi-device>`, `<play>`, `<swing>`, and `<offset>`.
 
-`mx::api::SoundData` models common scalar attributes only. The header notes that these nested child elements are intentionally not modeled.
+`mx::api::SoundData` models common scalar attributes and `<swing>`, but not the other nested child elements.
 
 Needed API shape: optional support for nested sound children that matter for Denigma's playback export, especially if Finale data requires instrument-specific playback changes.
 
@@ -226,14 +182,6 @@ Denigma currently exports the resolved text and its anchor but drops the frame a
 
 Needed API shape: expose the MusicXML formatted-text enclosure attributes on page text. Custom frame geometry and fixed text layout would still require an extension or an intentional downgrade policy.
 
-### Full justification
-
-Finale supports full and forced-full text justification. MusicXML's `justify` attribute only supports left, center, and right, so these values cannot be represented even though `mx::api::PageTextData::justify` exposes the complete MusicXML vocabulary. Denigma omits `justify` for full and forced-full page text.
-
-### Page-specific layout coordinates
-
-Denigma currently computes page-text anchors from the score's default odd/even page size and margins. Finale can override page layout on individual pages. `mx::api::PageData` can carry per-page layout changes, but the MusicXML exporter does not yet populate them, so credits on overridden pages may have inaccurate absolute coordinates.
-
 ## Barlines and Endings
 
 ### Repeat-ending display text and multiple numbers
@@ -246,24 +194,28 @@ Needed API shape: ending data with a string/list representation for the MusicXML
 
 ## Directions and Expressions
 
-### Keyboard pedal appearance and identity
+### Keyboard pedal appearance, identity, and playback
 
 Finale custom-line smart shapes can use independent start, continuation, and end text; visible or blank lines;
 ordinary hooks; four custom pedal-cap shapes; and solid, dashed, or character-based line bodies. MusicXML pedal
 directions also support `line`, `sign`, `abbreviated`, and `number` attributes.
 
-`mx::api::PedalLineData` exposes the complete pedal-line event vocabulary but carries only the event kind, tick,
-and position. Its writer always emits `line="yes"` and does not expose sign selection, abbreviation, identity
-numbers, or line appearance. MusicXML has no visual pedal type for una corda / Pedal III; visible notation uses
-words and bracket elements. It does, however, represent una-corda playback semantically through
+`mx::api::PedalLineData` exposes the complete MusicXML pedal-line event vocabulary, including sostenuto, change,
+continue, discontinue, and resume, but carries only the event kind, tick, and position. Its writer always emits
+`line="yes"` and does not expose sign selection, abbreviation, or identity numbers. MusicXML 3.1 and later use
+the `number` attribute to distinguish simultaneous lines such as damper and sostenuto pedals, and
+`mx::core::Pedal` supports it, but `mx::api` does not.
+
+MusicXML does not provide dash or hook geometry on `<pedal>`, nor a visual pedal type for una corda / Pedal III;
+visible notation for those cases uses words and bracket/dashes directions. It does represent una-corda playback through
 `<sound soft-pedal="...">`, including numeric half-pedal values, but `mx::api::SoundData` does not expose that
 attribute. Denigma can preserve visible una-corda text and brackets through general direction words and lines, but
-cannot preserve its playback semantics. It also cannot preserve independent pedal text/sign choices, half-pedal
-and special-release glyphs, ordinary or custom hook geometry, continuation text, overlapping-line identity, or
-dashed/character pedal lines.
+cannot preserve its playback semantics. Finale custom hook geometry, continuation text, and character-based line
+bodies have no direct MusicXML pedal equivalent.
 
-Needed API shape: extend line-pedal data with `sign`, `abbreviated`, `number`, and line-style fields. `SoundData`
-should also expose MusicXML's `soft-pedal` playback attribute.
+Needed API shape: extend `PedalLineData` with `sign`, `abbreviated`, and `number`, with reader/writer support and
+pedal-aware number resolution. Correct `SpannerNumberResolver`'s MusicXML-3.0-era claim that `<pedal>` has no
+`number` attribute. `SoundData` should also expose MusicXML's `soft-pedal` playback attribute.
 
 ### Direction words justification
 
@@ -271,7 +223,7 @@ MusicXML `<words>` supports both `halign` and `justify`. Finale text repeats use
 
 `mx::api::WordsData` exposes `PositionData::horizontalAlignment`, which MX writes as `halign`, but it does not expose a separate `justify` field for direction words. Denigma can set `halign` from `TextRepeatDef::justification`, but cannot currently emit the parallel `justify` attribute through `mx::api`.
 
-Needed API shape: add a `justify` field to `mx::api::WordsData`, parallel to `PageTextData::justify`, and have `DirectionWriter::emitWords()` set `FormattedTextID::setJustify()`.
+Needed API shape: add a `justify` field to `mx::api::WordsData`, parallel to `PageTextData::justify`, and have `DirectionWriter::emitWordsRun()` set `FormattedTextID::setJustify()`.
 
 ### Direction text polygon enclosures beyond square / oval / triangle / diamond
 
@@ -280,14 +232,6 @@ Finale text-expression enclosures can use higher-sided polygons such as pentagon
 Denigma currently degrades MUSX pentagon-through-octagon text enclosures to `square` for both rehearsal marks and generic words directions, since that is the closest public `mx::api` shape. This preserves that the text is enclosed, but not the exact polygon geometry.
 
 Needed API shape: expose the additional MusicXML direction-text enclosure shapes through `mx::api`, so Denigma can round-trip MUSX polygon enclosures without downgrading them to `square`.
-
-### Interleaved words and symbols
-
-MusicXML direction types can interleave `<words>` and `<symbol>` elements in the same direction-type group. This provides a portable representation for arbitrary text expressions containing embedded music symbols. Semantic dynamics with prefix or suffix text do not require `<symbol>`; Denigma represents those as ordered words, dynamic, and words direction types.
-
-`mx::api` now exposes this as an ordered `DirectionChoice::wordsRun` containing `WordsChoice` items, with `WordsData` and `SymbolData` alternatives. Denigma deliberately continues to emit each Enigma text chunk as `WordsData` with its original font. This renders correctly while the receiving system has that font and avoids prematurely deciding which music-font characters should become semantic direction types versus generic symbols.
-
-Implementation TODO: convert eligible music-font characters to `SymbolData` when portable rendering is needed, particularly for legacy symbol fonts that may not be installed on the receiving system. Preserve unknown or intentionally font-specific characters as `WordsData` rather than dropping them.
 
 ### Direction system relation
 
@@ -311,7 +255,7 @@ MusicXML 4.0 defines `other-dynamics` as `other-text`, so it can carry a `smufl`
 
 `mx::api::MarkData` exposes `name` for the text content of `other-dynamics`, and `mx::impl::DynamicsWriter` writes that value into the element body. It does not expose the `smufl` attribute. Denigma can therefore emit text-valued fallback dynamics such as `<other-dynamics>ffp</other-dynamics>`, but cannot preserve a single source glyph as `<other-dynamics smufl="dynamicNiente"/>` through `mx::api`.
 
-Needed API shape: a SMuFL glyph-name field on dynamic mark data for `MarkType::otherDynamics`, with dynamics reader/writer support for threading it through `core::OtherText::smufl`.
+Needed API shape: an other-dynamics payload in `MarkDataChoice` with a SMuFL glyph-name field, with dynamics reader/writer support for threading it through `core::OtherText::smufl`.
 
 ## Tuplets and Tremolos
 
@@ -321,7 +265,7 @@ MusicXML's `other-articulation`, `other-technical`, `other-ornament`, and `other
 
 `mx::api::MarkData` exposes `name` for the text content of `other-articulation`, `other-technical`, and `other-ornament`, but does not expose the `smufl` attribute. Denigma can therefore emit semantic marks and text-valued `other-*` fallbacks, but cannot preserve the source glyph name through `mx::api` when a Finale articulation is only representable as an `other-*` MusicXML notation.
 
-Needed API shape: a SMuFL glyph-name field on mark data for `other-articulation`, `other-technical`, and `other-ornament`, and a corresponding public model for `other-notation` if MX intends to expose that notation category through `mx::api`.
+Needed API shape: `MarkDataChoice` payloads with a SMuFL glyph-name field for `other-articulation`, `other-technical`, and `other-ornament`, and a corresponding public model for `other-notation` if MX intends to expose that notation category through `mx::api`.
 
 Denigma keeps technique text as a words direction. Only the playback-style `arco`/`pizzicato` values are copied into `DirectionData::soundData.pizzicato`; the rest remain textual until `mx::api` grows richer playback or direction-technical modeling.
 
@@ -339,4 +283,4 @@ MusicXML represents unmeasured tremolos with `<tremolo type="unmeasured">0</trem
 
 `mx::api` supports measured single- and multi-note tremolos, but does not expose the MusicXML `unmeasured` type or its optional SMuFL glyph. Denigma therefore cannot express Finale unmeasured tremolo glyphs through the public API. For now, Denigma emits a visible 3-slash single-note tremolo and logs the downgrade.
 
-Needed API shape: tremolo attachment data that exposes MusicXML tremolo type (`single`, `start`, `stop`, `unmeasured`), mark count, and optional SMuFL glyph for unmeasured tremolos.
+Needed API shape: a tremolo payload in `MarkDataChoice` that exposes MusicXML tremolo type (`single`, `start`, `stop`, `unmeasured`), mark count, and optional SMuFL glyph for unmeasured tremolos.

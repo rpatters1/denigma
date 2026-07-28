@@ -466,6 +466,31 @@ TEST(MusicXmlParts, RepeatsExportSmoke)
     EXPECT_TRUE(foundBackward);
 }
 
+TEST(MusicXmlParts, MultimeasureRestsMatchFinale)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("multimeas_rests.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/multimeas_rests-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(expectedScore);
+    ASSERT_EQ(actualScore->parts.size(), expectedScore->parts.size());
+
+    for (size_t partIndex = 0; partIndex < expectedScore->parts.size(); ++partIndex) {
+        SCOPED_TRACE("part " + std::to_string(partIndex + 1));
+        const auto& actualMeasures = actualScore->parts[partIndex].measures;
+        const auto& expectedMeasures = expectedScore->parts[partIndex].measures;
+        ASSERT_EQ(actualMeasures.size(), expectedMeasures.size());
+        for (size_t measureIndex = 0; measureIndex < expectedMeasures.size(); ++measureIndex) {
+            SCOPED_TRACE("measure " + std::to_string(measureIndex + 1));
+            EXPECT_EQ(actualMeasures[measureIndex].multiMeasureRest, expectedMeasures[measureIndex].multiMeasureRest);
+            EXPECT_EQ(actualMeasures[measureIndex].multiMeasureRestUseSymbols,
+                expectedMeasures[measureIndex].multiMeasureRestUseSymbols);
+        }
+    }
+}
+
 TEST(MusicXmlParts, RepeatsExportJumpSound)
 {
     setupTestDataPaths();

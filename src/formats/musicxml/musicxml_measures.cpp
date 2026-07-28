@@ -1033,8 +1033,15 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         const auto& musxMeasure = musxMeasures[measureIndex];
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
-        /// @todo Export the matching part-scoped others::MultimeasureRest here by setting
-        /// MeasureData::multiMeasureRest once mx::api writes <measure-style><multiple-rest>.
+        if (const auto multimeasureRest = context.document->getOthers()->get<others::MultimeasureRest>(
+                context.forPartId, musxMeasure->getCmper())) {
+            if (const int measureCount = multimeasureRest->calcNumberOfMeasures(); measureCount > 0) {
+                measure.multiMeasureRest = measureCount;
+                if (multimeasureRest->calcUsesSymbols()) {
+                    measure.multiMeasureRestUseSymbols = mx::api::Bool::yes;
+                }
+            }
+        }
         /// @todo Export effective staff alternate-notation starts/stops here once mx::api exposes
         /// staff-scoped measure styles for measure repeats and slash notation.
         addMeasureNumber(context, measure, musxMeasure, stavesIt->second, scoreStaves);
