@@ -438,13 +438,13 @@ void appendHairpin(
     wedgeStart.number = smartShapeSpannerNumber(shape);
     wedgeStart.wedgeType = wedgeType;
     wedgeStart.lineData.lineType = mx::api::LineType::solid;
-    startDirection.wedgeStarts.emplace_back(std::move(wedgeStart));
+    startDirection.directionTypes.emplace_back(std::move(wedgeStart));
     staff.directions.emplace_back(std::move(startDirection));
 
     auto stopDirection = createSmartShapeDirection(context, endPoint, staffId, staffIndex, placement);
     auto wedgeStop = mx::api::WedgeStop{};
     wedgeStop.number = smartShapeSpannerNumber(shape);
-    stopDirection.wedgeStops.emplace_back(std::move(wedgeStop));
+    stopDirection.directionTypes.emplace_back(std::move(wedgeStop));
     if (auto* stopStaff = staffDataForEndpoint(context, endPoint)) {
         stopStaff->directions.emplace_back(std::move(stopDirection));
     }
@@ -501,7 +501,7 @@ void appendOttava(
     ottavaStart.writeDefaultSize = true;
     ottavaStart.spannerStart.tickTimePosition = startDirection.tickTimePosition;
     ottavaStart.spannerStart.number = smartShapeSpannerNumber(shape);
-    startDirection.ottavaStarts.emplace_back(std::move(ottavaStart));
+    startDirection.directionTypes.emplace_back(std::move(ottavaStart));
     staff.directions.emplace_back(std::move(startDirection));
 
     if (auto* stopStaff = staffDataForEndpoint(context, endPoint)) {
@@ -513,7 +513,7 @@ void appendOttava(
         constexpr int kOttavaSize = 8;
         constexpr int k15maSize = 15;
         ottavaStop.size = std::abs(ottava.octaveShift) == 1 ? kOttavaSize : k15maSize;
-        stopDirection.ottavaStops.emplace_back(std::move(ottavaStop));
+        stopDirection.directionTypes.emplace_back(std::move(ottavaStop));
         stopStaff->directions.emplace_back(std::move(stopDirection));
     }
 }
@@ -571,8 +571,10 @@ void appendKeyboardPedal(
             return;
         }
         // mx::api's pedal marks are the way to request sign="yes" with line="no".
-        startDirection.marks.emplace_back(enumConvert<mx::api::Placement>(placement), mx::api::MarkType::pedal);
-        stopDirection.marks.emplace_back(enumConvert<mx::api::Placement>(placement), mx::api::MarkType::damp);
+        startDirection.directionTypes.emplace_back(
+            mx::api::MarkData{ enumConvert<mx::api::Placement>(placement), mx::api::MarkType::pedal });
+        stopDirection.directionTypes.emplace_back(
+            mx::api::MarkData{ enumConvert<mx::api::Placement>(placement), mx::api::MarkType::damp });
     } else {
         auto start = mx::api::PedalLineData{};
         auto stop = mx::api::PedalLineData{};
@@ -586,8 +588,8 @@ void appendKeyboardPedal(
         stop.kind = isPedalChange(pedal.endText, pedal.endCap)
             ? mx::api::PedalLineKind::change
             : mx::api::PedalLineKind::stop;
-        startDirection.pedals.emplace_back(std::move(start));
-        stopDirection.pedals.emplace_back(std::move(stop));
+        startDirection.directionTypes.emplace_back(std::move(start));
+        stopDirection.directionTypes.emplace_back(std::move(stop));
     }
 
     staff.directions.emplace_back(std::move(startDirection));
@@ -677,8 +679,10 @@ void appendGeneralLine(
     const auto placement = shape->calcVerticalPlacementForBeatAttached();
     auto startDirection = createSmartShapeDirection(context, startPoint, staffId, staffIndex, placement);
     auto stopDirection = createSmartShapeDirection(context, endPoint, endPoint->staffId, staffIndex, placement);
-    startDirection.words = musicXmlWordsFromEnigmaText(context, line.startText);
-    stopDirection.words = musicXmlWordsFromEnigmaText(context, line.endText);
+    auto startWords = musicXmlWordsFromEnigmaText(context, line.startText);
+    auto stopWords = musicXmlWordsFromEnigmaText(context, line.endText);
+    const bool startHasWords = !startWords.empty();
+    appendMusicXmlWordsRun(startDirection, std::move(startWords));
 
     if (line.lineVisible) {
         const bool hasCaps = line.startCap.type != classify::smartshape::LineCap::Type::None
@@ -691,10 +695,10 @@ void appendGeneralLine(
         stop.number = smartShapeSpannerNumber(shape);
         applyGeneralLineDashes(line, start.lineData);
         applyGeneralLineDashes(line, stop.lineData);
-        if (!hasCaps && !startDirection.words.empty()) {
+        if (!hasCaps && startHasWords) {
             // The MusicXML idiom for a hookless text line is words followed by dashes.
-            startDirection.dashesStarts.emplace_back(std::move(start));
-            stopDirection.dashesStops.emplace_back(std::move(stop));
+            startDirection.directionTypes.emplace_back(mx::api::DirectionChoice::dashesStart(std::move(start)));
+            stopDirection.directionTypes.emplace_back(mx::api::DirectionChoice::dashesStop(std::move(stop)));
         } else {
             start.lineData.lineType = lineTypeFromGeneralLine(line);
             stop.lineData.lineType = start.lineData.lineType;
@@ -708,15 +712,16 @@ void appendGeneralLine(
                 stop.lineData.isStopLengthSpecified = true;
                 stop.lineData.endLength = tenthsFromEfix(std::abs(line.endCap.hookLength));
             }
-            startDirection.bracketStarts.emplace_back(std::move(start));
-            stopDirection.bracketStops.emplace_back(std::move(stop));
+            startDirection.directionTypes.emplace_back(mx::api::DirectionChoice::bracketStart(std::move(start)));
+            stopDirection.directionTypes.emplace_back(mx::api::DirectionChoice::bracketStop(std::move(stop)));
         }
     }
+    // End text follows the terminating line component, parallel to start text preceding
+    // the starting component.
+    appendMusicXmlWordsRun(stopDirection, std::move(stopWords));
 
-    const bool startHasContent = !startDirection.words.empty()
-        || !startDirection.bracketStarts.empty() || !startDirection.dashesStarts.empty();
-    const bool stopHasContent = !stopDirection.words.empty()
-        || !stopDirection.bracketStops.empty() || !stopDirection.dashesStops.empty();
+    const bool startHasContent = !startDirection.directionTypes.empty();
+    const bool stopHasContent = !stopDirection.directionTypes.empty();
     if (!startHasContent && !stopHasContent) {
         context.logMessage(LogMsg() << "Omitting custom line smart shape " << shape->getCmper()
             << " with no expressible MusicXML content.", MessageSeverity::Verbose);

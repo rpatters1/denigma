@@ -151,13 +151,15 @@ std::optional<mx::api::DirectionData> createTempoExpressionDirection(
     bool isStaffValueSpecified)
 {
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    auto words = std::vector<mx::api::WordsData>{};
     if (classification.enigmaCtx) {
-        direction.words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
+        words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
     }
     const auto enclosure = enclosureForTextExpression(assignment);
-    for (auto& words : direction.words) {
-        words.enclosure = enclosure;
+    for (auto& item : words) {
+        item.enclosure = enclosure;
     }
+    appendMusicXmlWordsRun(direction, std::move(words));
 
     const double quarterNotesPerMinute = musicXmlQuarterNotesPerMinute(classification.tempoText().tempo);
     if (quarterNotesPerMinute >= 0.0) {
@@ -180,13 +182,15 @@ std::optional<mx::api::DirectionData> createWordsExpressionDirection(
     bool isStaffValueSpecified)
 {
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    auto words = std::vector<mx::api::WordsData>{};
     if (classification.enigmaCtx) {
-        direction.words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
+        words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
     }
     const auto enclosure = enclosureForTextExpression(assignment);
-    for (auto& words : direction.words) {
-        words.enclosure = enclosure;
+    for (auto& item : words) {
+        item.enclosure = enclosure;
     }
+    appendMusicXmlWordsRun(direction, std::move(words));
     if (mx::api::isDirectionDataEmpty(direction)) {
         return std::nullopt;
     }
@@ -220,7 +224,7 @@ std::optional<mx::api::DirectionData> createRehearsalExpressionDirection(
         }
     }
 
-    direction.rehearsals.emplace_back(std::move(rehearsal));
+    direction.directionTypes.emplace_back(std::move(rehearsal));
     return direction;
 }
 
@@ -235,7 +239,7 @@ std::optional<mx::api::DirectionData> createStringMuteExpressionDirection(
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
     auto stringMute = mx::api::StringMuteData{};
     stringMute.type = enumConvert<mx::api::StringMuteType>(classification.stringMute().type);
-    direction.stringMutes.emplace_back(std::move(stringMute));
+    direction.directionTypes.emplace_back(std::move(stringMute));
     return direction;
 }
 
@@ -248,7 +252,7 @@ std::optional<mx::api::DirectionData> createHarpDiagramExpressionDirection(
     bool isStaffValueSpecified)
 {
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
-    direction.harpPedals.emplace_back(musicXmlHarpPedals(classification.harpDiagram()));
+    direction.directionTypes.emplace_back(musicXmlHarpPedals(classification.harpDiagram()));
     return direction;
 }
 

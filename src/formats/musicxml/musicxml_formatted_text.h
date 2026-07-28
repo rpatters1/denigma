@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "musicxml_mapping.h"
+#include "mx/api/DirectionData.h"
 #include "mx/api/LyricData.h"
 #include "mx/api/PageTextData.h"
 #include "mx/api/WordsData.h"
@@ -67,6 +68,10 @@ std::vector<mx::api::WordsData> musicXmlWordsFromEnigmaText(
     const MusicXmlMusxMapping& context,
     const musx::util::EnigmaParsingContext& text,
     const MusicXmlFormattedTextOptions& options = {});
+/// @brief Appends one words-only direction type while retaining the source chunk order and fonts.
+void appendMusicXmlWordsRun(
+    mx::api::DirectionData& direction,
+    std::vector<mx::api::WordsData> words);
 std::optional<MusicXmlPageTextContent> musicXmlPageTextContentFromEnigmaText(
     const MusicXmlMusxMapping& context,
     const musx::util::EnigmaParsingContext& text,

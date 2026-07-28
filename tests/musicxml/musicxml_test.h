@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "mx/api/ScoreData.h"
 
@@ -35,6 +36,88 @@ std::optional<mx::api::ScoreData> loadScoreData(const std::filesystem::path& pat
 inline int directionDrawnTick(const mx::api::DirectionData& direction)
 {
     return direction.tickTimePosition + direction.offset.value_or(0);
+}
+
+inline std::vector<mx::api::WordsData> directionWords(const mx::api::DirectionData& direction)
+{
+    std::vector<mx::api::WordsData> result;
+    for (const auto& choice : direction.directionTypes) {
+        if (!choice.isWordsRun()) {
+            continue;
+        }
+        for (const auto& item : choice.wordsRun()) {
+            if (item.isWords()) {
+                result.emplace_back(item.words());
+            }
+        }
+    }
+    return result;
+}
+
+inline std::vector<mx::api::RehearsalData> directionRehearsals(const mx::api::DirectionData& direction)
+{
+    std::vector<mx::api::RehearsalData> result;
+    for (const auto& choice : direction.directionTypes) {
+        if (choice.isRehearsal()) {
+            result.emplace_back(choice.rehearsal());
+        }
+    }
+    return result;
+}
+
+inline std::vector<mx::api::MarkData> directionMarks(const mx::api::DirectionData& direction)
+{
+    std::vector<mx::api::MarkData> result;
+    for (const auto& choice : direction.directionTypes) {
+        if (choice.isMark()) {
+            result.emplace_back(choice.mark());
+        }
+    }
+    return result;
+}
+
+inline std::vector<mx::api::OttavaStart> directionOttavaStarts(const mx::api::DirectionData& direction)
+{
+    std::vector<mx::api::OttavaStart> result;
+    for (const auto& choice : direction.directionTypes) {
+        if (choice.isOttavaStart()) {
+            result.emplace_back(choice.ottavaStart());
+        }
+    }
+    return result;
+}
+
+inline std::vector<mx::api::OttavaStop> directionOttavaStops(const mx::api::DirectionData& direction)
+{
+    std::vector<mx::api::OttavaStop> result;
+    for (const auto& choice : direction.directionTypes) {
+        if (choice.isOttavaStop()) {
+            result.emplace_back(choice.ottavaStop());
+        }
+    }
+    return result;
+}
+
+inline std::vector<mx::api::SpannerStart> directionBracketStarts(const mx::api::DirectionData& direction)
+{
+    std::vector<mx::api::SpannerStart> result;
+    for (const auto& choice : direction.directionTypes) {
+        if (choice.isBracketStart()) {
+            result.emplace_back(choice.bracketStart());
+        }
+    }
+    return result;
+}
+
+inline std::vector<mx::api::SpannerStop> directionBracketStops(const mx::api::DirectionData& direction)
+{
+    std::vector<mx::api::SpannerStop> result;
+    for (const auto& choice : direction.directionTypes) {
+        if (choice.isBracketStop()) {
+            result.emplace_back(choice.bracketStop());
+        }
+    }
+    return result;
 }
 
 } // namespace denigma::test::musicxml

@@ -281,21 +281,13 @@ Denigma currently degrades MUSX pentagon-through-octagon text enclosures to `squ
 
 Needed API shape: expose the additional MusicXML direction-text enclosure shapes through `mx::api`, so Denigma can round-trip MUSX polygon enclosures without downgrading them to `square`.
 
-### Direction words enclosure serialization
-
-`mx::api::WordsData` exposes an `enclosure` field, which Denigma now uses for generic expression text and standard-framed measure text. However, MX's current `DirectionWriter::emitWords()` implementation does not serialize that field into MusicXML `<words enclosure="...">`.
-
-This means Denigma can build the correct pre-serialization `ScoreData`, but exported MusicXML still drops generic word enclosures unless the downstream MX writer is updated.
-
-Needed API shape: have `DirectionWriter::emitWords()` write `WordsData.enclosure` to the MusicXML `<words>` enclosure attribute, parallel to how rehearsal enclosures are already serialized.
-
 ### Interleaved words and symbols
 
-MusicXML direction types can interleave `<words>` and `<symbol>` elements in the same direction-type group. This is the correct representation for Finale expressions that mix normal formatted text with SMuFL music glyphs, such as dynamic expressions with text before or after dynamic glyphs, or arbitrary text expressions containing embedded music symbols.
+MusicXML direction types can interleave `<words>` and `<symbol>` elements in the same direction-type group. This provides a portable representation for arbitrary text expressions containing embedded music symbols. Semantic dynamics with prefix or suffix text do not require `<symbol>`; Denigma represents those as ordered words, dynamic, and words direction types.
 
-The generated MX core model represents this as `DirectionTypeChoiceChoice` with `words` and `symbol` alternatives. `mx::api::DirectionData` currently exposes `WordsData`, but does not expose a public formatted-symbol direction item or an ordered mixed run of words/symbol chunks. Denigma can therefore emit plain words and semantic dynamics, but cannot yet preserve mixed formatted text plus glyph expressions through `mx::api`.
+`mx::api` now exposes this as an ordered `DirectionChoice::wordsRun` containing `WordsChoice` items, with `WordsData` and `SymbolData` alternatives. Denigma deliberately continues to emit each Enigma text chunk as `WordsData` with its original font. This renders correctly while the receiving system has that font and avoids prematurely deciding which music-font characters should become semantic direction types versus generic symbols.
 
-Needed API shape: a public direction text model that can represent an ordered run of formatted words and formatted SMuFL symbols, preserving order and per-chunk formatting. This could either extend `DirectionData` with a mixed words/symbol collection or add a higher-level formatted direction text object that writes MusicXML `<words>` / `<symbol>` siblings in order.
+Implementation TODO: convert eligible music-font characters to `SymbolData` when portable rendering is needed, particularly for legacy symbol fonts that may not be installed on the receiving system. Preserve unknown or intentionally font-specific characters as `WordsData` rather than dropping them.
 
 ### Direction system relation
 

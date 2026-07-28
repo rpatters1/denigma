@@ -800,8 +800,8 @@ void processMeasureText(
 
         auto direction = mx::api::DirectionData{};
         direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(Fraction::fromEdu((std::max)(Edu{}, assignment->xDispEdu)));
-        direction.words = musicXmlWordsFromEnigmaText(context, rawText);
-        if (direction.words.empty()) {
+        auto words = musicXmlWordsFromEnigmaText(context, rawText);
+        if (words.empty()) {
             continue;
         }
 
@@ -819,23 +819,24 @@ void processMeasureText(
         } else if (resolvedYEvpu < currentStaff->calcBottomLineEvpu()) {
             direction.placement = mx::api::Placement::below;
         }
-        for (auto& words : direction.words) {
+        for (auto& item : words) {
             if (hasDefaultX) {
-                words.positionData.defaultX = context.musicXmlTenthsFromEvpu(defaultXEvpu);
-                words.positionData.isDefaultXSpecified = true;
+                item.positionData.defaultX = context.musicXmlTenthsFromEvpu(defaultXEvpu);
+                item.positionData.isDefaultXSpecified = true;
             }
             if (hasDefaultY) {
-                words.positionData.defaultY = context.musicXmlTenthsFromEvpu(defaultYEvpu);
-                words.positionData.isDefaultYSpecified = true;
+                item.positionData.defaultY = context.musicXmlTenthsFromEvpu(defaultYEvpu);
+                item.positionData.isDefaultYSpecified = true;
             }
             if (horizontalAlignment != mx::api::HorizontalAlignment::unspecified) {
-                words.positionData.horizontalAlignment = horizontalAlignment;
+                item.positionData.horizontalAlignment = horizontalAlignment;
             }
             if (useStandardFrameEnclosure) {
-                words.enclosure = mx::api::RehearsalEnclosure::rectangle;
+                item.enclosure = mx::api::RehearsalEnclosure::rectangle;
             }
         }
 
+        appendMusicXmlWordsRun(direction, std::move(words));
         staff.directions.emplace_back(std::move(direction));
     }
 }

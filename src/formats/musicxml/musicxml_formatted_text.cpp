@@ -200,6 +200,19 @@ std::vector<mx::api::WordsData> musicXmlWordsFromEnigmaText(const MusicXmlMusxMa
     return result;
 }
 
+void appendMusicXmlWordsRun(mx::api::DirectionData& direction, std::vector<mx::api::WordsData> words)
+{
+    if (words.empty()) {
+        return;
+    }
+    std::vector<mx::api::WordsChoice> run;
+    run.reserve(words.size());
+    for (auto& item : words) {
+        run.emplace_back(std::move(item));
+    }
+    direction.directionTypes.emplace_back(std::move(run));
+}
+
 std::optional<MusicXmlPageTextContent> musicXmlPageTextContentFromEnigmaText(const MusicXmlMusxMapping& context,
     const musx::util::EnigmaParsingContext& text, const MusicXmlFormattedTextOptions& options)
 {

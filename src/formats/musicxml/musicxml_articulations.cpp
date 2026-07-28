@@ -221,16 +221,16 @@ void processArticulations(
             } else if constexpr (std::is_same_v<Value, classify::articulation::PluckedDamp>) {
                 appendDirection(classification.placement, [&](mx::api::DirectionData& direction) {
                     if (value.type == classify::articulation::PluckedDamp::Type::DampAll) {
-                        direction.dampAlls.emplace_back(mx::api::DampAllData{});
+                        direction.directionTypes.emplace_back(mx::api::DampAllData{});
                     } else {
-                        direction.damps.emplace_back(mx::api::DampData{});
+                        direction.directionTypes.emplace_back(mx::api::DampData{});
                     }
                 });
             } else if constexpr (std::is_same_v<Value, classify::articulation::StringMute>) {
                 appendDirection(classification.placement, [&](mx::api::DirectionData& direction) {
                     auto stringMute = mx::api::StringMuteData{};
                     stringMute.type = enumConvert<mx::api::StringMuteType>(value.type);
-                    direction.stringMutes.emplace_back(std::move(stringMute));
+                    direction.directionTypes.emplace_back(std::move(stringMute));
                 });
             } else if constexpr (std::is_same_v<Value, classify::articulation::Fermata>) {
                 note.noteAttachmentData.marks.emplace_back(musicXmlMark(musicXmlFermataType(value), classification.placement));
