@@ -331,8 +331,8 @@ TEST(MusicXmlSmartShapes, OverlappingOttavas)
     const auto& voice2 = measure2Staff.voices.at(0);
     ASSERT_GE(voice2.notes.size(), 3);
     const auto secondMeasure2NoteEnd = voice2.notes.at(1).tickTimePosition + voice2.notes.at(1).durationData.durationTimeTicks;
-    EXPECT_EQ(measure2Staff.directions.at(0).tickTimePosition, secondMeasure2NoteEnd);
-    EXPECT_EQ(measure2Staff.directions.at(1).tickTimePosition, secondMeasure2NoteEnd);
+    EXPECT_EQ(directionDrawnTick(measure2Staff.directions.at(0)), secondMeasure2NoteEnd);
+    EXPECT_EQ(directionDrawnTick(measure2Staff.directions.at(1)), secondMeasure2NoteEnd);
 
     const auto& voice1 = measure1Staff.voices.at(0);
     ASSERT_GE(voice1.notes.size(), 4);
@@ -369,7 +369,7 @@ TEST(MusicXmlSmartShapes, OttavaEndOfBar)
     const auto& voice = measure2Staff.voices.at(0);
     ASSERT_FALSE(voice.notes.empty());
     const auto firstNoteEnd = voice.notes.front().tickTimePosition + voice.notes.front().durationData.durationTimeTicks;
-    EXPECT_EQ(measure2Staff.directions.front().tickTimePosition, firstNoteEnd);
+    EXPECT_EQ(directionDrawnTick(measure2Staff.directions.front()), firstNoteEnd);
 }
 
 static void expectOttava(const mx::api::PartData& part, size_t startMeasureIdx, size_t startNoteIdx, mx::api::OttavaType ottavaType,
@@ -387,7 +387,7 @@ static void expectOttava(const mx::api::PartData& part, size_t startMeasureIdx, 
         const auto& voice = staff.voices.at(0);
         ASSERT_GT(voice.notes.size(), startNoteIdx);        
         const auto expectedStartTick = voice.notes.at(startNoteIdx).tickTimePosition;
-        EXPECT_EQ(staff.directions.front().tickTimePosition, expectedStartTick);
+        EXPECT_EQ(directionDrawnTick(staff.directions.front()), expectedStartTick);
     }
 
     {
@@ -401,7 +401,7 @@ static void expectOttava(const mx::api::PartData& part, size_t startMeasureIdx, 
         ASSERT_GT(voice.notes.size(), endNoteIdx);
         const auto expectedStopTick = voice.notes.at(endNoteIdx).tickTimePosition
             + voice.notes.at(endNoteIdx).durationData.durationTimeTicks;
-        EXPECT_EQ(staff.directions.back().tickTimePosition, expectedStopTick);
+        EXPECT_EQ(directionDrawnTick(staff.directions.back()), expectedStopTick);
     }
 };
 

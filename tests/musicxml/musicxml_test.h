@@ -31,4 +31,10 @@ std::optional<mx::api::ScoreData> createScoreDataFromMusicXmlFixture(const std::
 std::optional<mx::api::ScoreData> createScoreDataFromMusxPath(const std::filesystem::path& musxPath);
 std::optional<mx::api::ScoreData> loadScoreData(const std::filesystem::path& path);
 
+/// @brief Returns where a direction is drawn after applying its optional MusicXML offset.
+inline int directionDrawnTick(const mx::api::DirectionData& direction)
+{
+    return direction.tickTimePosition + direction.offset.value_or(0);
+}
+
 } // namespace denigma::test::musicxml

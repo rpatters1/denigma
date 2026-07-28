@@ -65,7 +65,7 @@ std::vector<ComparableWordsDirection> collectWordsOnlyDirections(
                 ComparableWordsDirection comparable{
                     measureIndex,
                     staffIndex,
-                    direction.tickTimePosition,
+                    directionDrawnTick(direction),
                     direction.placement,
                     {},
                     {}
@@ -149,7 +149,7 @@ std::vector<ComparableRehearsalDirection> collectRehearsalDirections(const mx::a
                 for (const auto& rehearsal : direction.rehearsals) {
                     ComparableRehearsalDirection comparable{
                         measureIndex,
-                        direction.tickTimePosition,
+                        directionDrawnTick(direction),
                         direction.placement,
                         rehearsal.text,
                         rehearsal.enclosure,
@@ -208,7 +208,7 @@ std::vector<ComparableExpressionEnclosure> collectExpressionEnclosures(
                     if (predicate(word.text)) {
                         result.push_back({
                             measureIndex,
-                            direction.tickTimePosition,
+                            directionDrawnTick(direction),
                             direction.placement,
                             word.text,
                             word.enclosure
@@ -219,7 +219,7 @@ std::vector<ComparableExpressionEnclosure> collectExpressionEnclosures(
                     if (predicate(rehearsal.text)) {
                         result.push_back({
                             measureIndex,
-                            direction.tickTimePosition,
+                            directionDrawnTick(direction),
                             direction.placement,
                             rehearsal.text,
                             rehearsal.enclosure
@@ -434,6 +434,7 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
                         continue;
                     }
                     const auto& words = direction.words.front();
+                    const auto drawnTick = directionDrawnTick(direction);
                     result.push_back({
                         measureIndex,
                         words.text,
@@ -441,7 +442,7 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
                         words.positionData.isDefaultXSpecified ? std::make_optional(words.positionData.defaultX) : std::nullopt,
                         words.positionData.isDefaultYSpecified ? std::make_optional(words.positionData.defaultY) : std::nullopt,
                         words.positionData.isRelativeXSpecified ? std::make_optional(words.positionData.relativeX) : std::nullopt,
-                        direction.tickTimePosition > 0 ? std::make_optional(direction.tickTimePosition) : std::nullopt
+                        drawnTick > 0 ? std::make_optional(drawnTick) : std::nullopt
                     });
                 }
             }
