@@ -23,6 +23,7 @@
 
 #include "core/denigma.h"
 #include "core/musx_reader.h"
+#include "formats/musicxml/musicxml.h"
 #include "gtest/gtest.h"
 #include "mnxdom.h"
 #include "musicxml_test.h"
@@ -265,6 +266,35 @@ TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
     EXPECT_EQ(tempoDirectionCount, 2u);
     EXPECT_TRUE(foundVisibleTempoDirection);
     EXPECT_TRUE(foundSoundOnlyTempo);
+}
+
+TEST(MusicXmlExpressions, HarpPedalDiagramMapsToOrderedPedalTunings)
+{
+    using PedalPosition = classify::expression::HarpDiagram::PedalPosition;
+
+    const auto harpPedals = formats::musicxml::detail::musicXmlHarpPedals({
+        PedalPosition::Flat,
+        PedalPosition::Natural,
+        PedalPosition::Sharp,
+        PedalPosition::Sharp,
+        PedalPosition::Natural,
+        PedalPosition::Flat,
+        PedalPosition::Sharp
+    });
+
+    constexpr int FLAT_ALTERATION = -1;
+    constexpr int NATURAL_ALTERATION = 0;
+    constexpr int SHARP_ALTERATION = 1;
+    const std::vector<mx::api::HarpPedalTuning> expected = {
+        { mx::api::Step::d, FLAT_ALTERATION },
+        { mx::api::Step::c, NATURAL_ALTERATION },
+        { mx::api::Step::b, SHARP_ALTERATION },
+        { mx::api::Step::e, SHARP_ALTERATION },
+        { mx::api::Step::f, NATURAL_ALTERATION },
+        { mx::api::Step::g, FLAT_ALTERATION },
+        { mx::api::Step::a, SHARP_ALTERATION }
+    };
+    EXPECT_EQ(harpPedals.pedalTunings, expected);
 }
 
 TEST(MusicXmlExpressions, GenericTextDirectionsMatchReference)

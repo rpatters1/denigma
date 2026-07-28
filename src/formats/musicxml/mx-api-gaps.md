@@ -265,14 +265,6 @@ Needed API shape: a general pedal-event object exposing every MusicXML pedal typ
 `abbreviated`, `number`, positioning, and line-style data, with matching reader/writer support. This should replace
 the current semantic split between pedal marks and pedal start/stop spanner vectors.
 
-### Harp pedal diagrams
-
-MusicXML `<harp-pedals>` is a direction-type used for harp pedal diagrams, with ordered pedal-tuning children and print / position attributes.
-
-MX's generated core model includes `core::HarpPedals`, but the public `mx::api` layer does not expose a harp-pedals direction model. The current reader stub also drops this content rather than mapping it into `DirectionData`. Denigma therefore has no supported public API path for exporting or round-tripping Finale harp pedal diagrams through `mx::api`.
-
-Needed API shape: a public harp-pedals direction data object on `mx::api::DirectionData` (or equivalent ordered direction-item model), plus reader/writer support that preserves the ordered pedal tunings and print / position attributes.
-
 ### Direction words justification
 
 MusicXML `<words>` supports both `halign` and `justify`. Finale text repeats use their justification setting for both horizontal alignment and text justification, and Finale's MusicXML export emits `justify` for right-justified jump text such as segno / D.S. markings.
