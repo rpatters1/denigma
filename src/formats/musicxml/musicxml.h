@@ -110,7 +110,12 @@ void processJumps(
     const musx::dom::MusxInstance<musx::dom::others::Measure>& musxMeasure,
     musx::dom::StaffCmper staffId,
     size_t staffIndex);
-void processArticulations(MusicXmlMusxMapping& context, mx::api::NoteData& note, const musx::dom::EntryInfoPtr& entryInfo);
+void processArticulations(
+    MusicXmlMusxMapping& context,
+    mx::api::StaffData& staff,
+    mx::api::NoteData& note,
+    const musx::dom::EntryInfoPtr& entryInfo,
+    bool isStaffValueSpecified);
 void appendArpeggioCandidate(MusicXmlMusxMapping& context, const musx::util::ArpeggioSpanCandidate& candidate);
 void finalizeArpeggioCandidates(MusicXmlMusxMapping& context);
 void applyNoteheadData(

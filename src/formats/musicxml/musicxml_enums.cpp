@@ -264,6 +264,11 @@ BEGIN_ENUM_CONVERSION(details::StaffGroup::DrawBarlineStyle, mx::api::GroupBarli
     case details::StaffGroup::DrawBarlineStyle::Mensurstriche: return mx::api::GroupBarline::mensurstrich;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(classify::articulation::StringMute::Type, mx::api::StringMuteType)
+    case classify::articulation::StringMute::Type::On: return mx::api::StringMuteType::on;
+    case classify::articulation::StringMute::Type::Off: return mx::api::StringMuteType::off;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(classify::articulation::TechniqueMark::Type, mx::api::MarkType)
     case classify::articulation::TechniqueMark::Type::BrassBend: return mx::api::MarkType::brassBend;
     case classify::articulation::TechniqueMark::Type::BrassFlip: return mx::api::MarkType::flip;

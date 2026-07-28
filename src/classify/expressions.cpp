@@ -316,12 +316,6 @@ static TechniqueText classifyTechniqueText(std::string_view text, std::string_vi
     if (matchesAny(normalizedText, { "stopped", "stop" })) {
         return { TechniqueText::Type::Stopped, std::string(text) };
     }
-    if (matchesAny(normalizedText, { "con sord", "mute", "muted" })) {
-        return { TechniqueText::Type::Mute, std::string(text) };
-    }
-    if (matchesAny(normalizedText, { "senza sord", "open" })) {
-        return { TechniqueText::Type::Open, std::string(text) };
-    }
     return {};
 }
 
@@ -628,6 +622,13 @@ static std::optional<ExpressionClassification> classifySymbolExpression(const Re
         result.type = ExpressionType::BreathMark;
         result.basis = basisForSymbolRecognition(resolved.categoryType);
         result.value = BreathMark{ *breathMark, classification.glyphName };
+        return result;
+    }
+    if (const auto* stringMute = classification.as<articulation::StringMute>()) {
+        ExpressionClassification result;
+        result.type = ExpressionType::StringMute;
+        result.basis = basisForSymbolRecognition(resolved.categoryType);
+        result.value = *stringMute;
         return result;
     }
     return std::nullopt;

@@ -268,6 +268,30 @@ TEST(ExpressionClassification, ClassifiesTextExpressionFermataAndBreathMarkSymbo
     EXPECT_EQ(*breath.breathMark().glyphName, "breathMarkComma");
 }
 
+TEST(ExpressionClassification, ClassifiesStringMuteGlyphExpressions)
+{
+    struct ExpectedStringMute
+    {
+        std::u8string_view glyph;
+        articulation::StringMute::Type type{};
+    };
+
+    const std::vector<ExpectedStringMute> expected = {
+        { u8"\uE616", articulation::StringMute::Type::On },
+        { u8"\uE617", articulation::StringMute::Type::Off }
+    };
+
+    for (const auto& item : expected) {
+        const auto context = makeTextExpressionContext(
+            "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(item.glyph),
+            ExpressionCategoryType::Misc, {}, false, "Finale Maestro", 4095);
+        const auto result = classifyExpression(context.def);
+        EXPECT_EQ(result.type, ExpressionType::StringMute);
+        EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
+        EXPECT_EQ(result.stringMute().type, item.type);
+    }
+}
+
 TEST(ExpressionClassification, ClassifiesHarpPedalDiagramGlyphSequence)
 {
     const auto context = makeTextExpressionContext(
@@ -528,8 +552,7 @@ TEST(ExpressionClassification, ClassifiesStringTechniqueTokens)
         { "stop mute", expression::TechniqueText::Type::StopMute },
         { "brass mute", expression::TechniqueText::Type::StopMute },
         { "stopped", expression::TechniqueText::Type::Stopped },
-        { "stop", expression::TechniqueText::Type::Stopped },
-        { "con sord.", expression::TechniqueText::Type::Mute }
+        { "stop", expression::TechniqueText::Type::Stopped }
     };
 
     for (const auto& item : expected) {
@@ -538,6 +561,15 @@ TEST(ExpressionClassification, ClassifiesStringTechniqueTokens)
         EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryCorrected) << item.text;
         EXPECT_EQ(result.techniqueText().type, item.type) << item.text;
         EXPECT_EQ(result.techniqueText().text, item.text) << item.text;
+    }
+}
+
+TEST(ExpressionClassification, LeavesGenericMuteTextUnclassified)
+{
+    for (const std::string_view text : { "con sord.", "mute", "muted", "remove mute", "senza sord.", "open" }) {
+        const auto result = classifyTextExpression(std::string(text), ExpressionCategoryType::ExpressiveText);
+        EXPECT_EQ(result.type, ExpressionType::GenericText) << text;
+        EXPECT_EQ(result.genericText().text, text) << text;
     }
 }
 

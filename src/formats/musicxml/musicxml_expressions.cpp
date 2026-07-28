@@ -195,6 +195,21 @@ std::optional<mx::api::DirectionData> createRehearsalExpressionDirection(
     return direction;
 }
 
+std::optional<mx::api::DirectionData> createStringMuteExpressionDirection(
+    const MusicXmlMusxMapping& context,
+    size_t staffIndex,
+    const MusxInstance<others::MeasureExprAssign>& assignment,
+    const classify::ExpressionClassification& classification,
+    VerticalPlacement placement,
+    bool isStaffValueSpecified)
+{
+    auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    auto stringMute = mx::api::StringMuteData{};
+    stringMute.type = enumConvert<mx::api::StringMuteType>(classification.stringMute().type);
+    direction.stringMutes.emplace_back(std::move(stringMute));
+    return direction;
+}
+
 enum class GroupedDirectionAction
 {
     None,
@@ -389,6 +404,10 @@ void processExpressions(
         }
         case classify::ExpressionType::BreathMark:
             appendMarkToAssociatedNote(assignment, musicXmlMark(mx::api::MarkType::breathMark, placement));
+            break;
+        case classify::ExpressionType::StringMute:
+            emitGroupedDirection(createStringMuteExpressionDirection(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
             break;
         case classify::ExpressionType::NonArpeggio:
             appendArpeggioCandidate(context, classification.nonArpeggio().candidate);

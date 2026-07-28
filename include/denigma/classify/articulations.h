@@ -125,6 +125,42 @@ struct HarmonMute
     GlyphStyle glyphStyle{};
 };
 
+/// @struct PluckedDamp
+/// @brief Classification for a plucked-string damping symbol.
+struct PluckedDamp
+{
+    /// @enum Type
+    /// @brief Distinguishes damping selected strings from damping all strings.
+    enum class Type
+    {
+        Damp,
+        DampAll
+    };
+
+    /// Damping scope encoded by the source glyph.
+    Type type{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
+};
+
+/// @struct StringMute
+/// @brief Classification for a string mute on/off symbol.
+struct StringMute
+{
+    /// @enum Type
+    /// @brief Whether the source symbol applies or removes the string mute.
+    enum class Type
+    {
+        On,
+        Off
+    };
+
+    /// Mute state encoded by the source glyph.
+    Type type{};
+    /// Visual style encoded by the source glyph variant.
+    GlyphStyle glyphStyle{};
+};
+
 /// @struct Tremolo
 /// @brief Classification for tremolo articulation marks.
 struct Tremolo
@@ -339,9 +375,9 @@ struct OtherMark
 /// Variant payload for articulation classification.
 using ArticulationValue = std::variant<
     std::monostate, articulation::ArticulationMarks, articulation::TechniqueMark, articulation::HarmonMute,
-    articulation::Tremolo, articulation::Fermata, articulation::BreathMark, articulation::Caesura,
-    articulation::Arpeggio, articulation::Ornament, articulation::VerticalEntryBracket,
-    articulation::Parenthesis, PseudoTie, articulation::OtherMark>;
+    articulation::PluckedDamp, articulation::StringMute, articulation::Tremolo, articulation::Fermata,
+    articulation::BreathMark, articulation::Caesura, articulation::Arpeggio, articulation::Ornament,
+    articulation::VerticalEntryBracket, articulation::Parenthesis, PseudoTie, articulation::OtherMark>;
 
 /// @struct ArticulationClassification
 /// @brief Result returned by articulation classification.
