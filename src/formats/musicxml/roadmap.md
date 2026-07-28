@@ -39,3 +39,15 @@ Export Finale fretboard diagrams through MusicXML `<frame>` data on their associ
 MUSX DOM exposes the fretboard groups, styles, and diagrams referenced by `details::ChordAssign`. `mx::api::ChordData::frameData` can represent the basic string/fret grid, first fret, barre, and fingering data.
 
 First export the basic diagram and its note/fingering/barre details, then assess specialized frame appearance, diagram placement, and capo behavior.
+
+## Additional direction types
+
+Use the principal-voice, other-direction, image, and accordion-registration models now exposed by `mx::api`.
+
+Begin with accordion registrations. Classify single-glyph Finale expressions using the `accdnRH3Ranks*` SMuFL names and map their 4′, 8′, and 16′ stops to `AccordionRegistrationData::high`, `middle`, and `low`. Assess the right-hand four-rank and left-hand glyph families separately where MusicXML cannot preserve their exact rank layout.
+
+For principal voice, obtain representative Finale Hauptstimme and Nebenstimme smart-line fixtures before implementing the mapping. The exporter must identify both ends of the span and choose the appropriate principal-voice symbol; an isolated `analyticsHauptstimme` or `analyticsNebenstimme` expression glyph is not enough to infer a matching stop.
+
+Use `OtherDirectionData` only for recognized direction semantics that lack a dedicated MusicXML direction type. Preserve a canonical SMuFL name and useful fallback text where available, but do not convert every unrecognized expression glyph into `<other-direction>`.
+
+Export measure-attached Finale graphics from `details::MeasureGraphicAssign` as MusicXML `<image>` directions. Resolve embedded and external graphic sources, emit required image files through the multi-output callback, determine MIME types, and convert Finale position and size values to MusicXML tenths. Page graphics and graphics embedded in Shape Designer objects remain separate mapping tasks.
