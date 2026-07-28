@@ -246,24 +246,24 @@ Needed API shape: ending data with a string/list representation for the MusicXML
 
 ## Directions and Expressions
 
-### Keyboard pedal events and spanners
+### Keyboard pedal appearance and identity
 
-Finale custom-line smart shapes can represent damper, sostenuto, and una-corda pedals using independent start,
-continuation, and end text; visible or blank lines; ordinary hooks; and four custom pedal-cap shapes. The two
-compound custom caps represent a pedal pump: release followed immediately by re-engagement. MusicXML can model
-damper and sostenuto events, including `start`, `stop`, `sostenuto`, `change`, `continue`, `discontinue`, and
-`resume`, together with independent `line`, `sign`, and `abbreviated` attributes.
+Finale custom-line smart shapes can use independent start, continuation, and end text; visible or blank lines;
+ordinary hooks; four custom pedal-cap shapes; and solid, dashed, or character-based line bodies. MusicXML pedal
+directions also support `line`, `sign`, `abbreviated`, and `number` attributes.
 
-`mx::api::DirectionData` currently exposes sign-only damper start/stop marks and line-based damper start/stop
-spanners. The writer forces spanners to `line="yes" sign="yes"`, ignores their `LineData`, and cannot emit the
-other MusicXML pedal event types or sign controls. Denigma therefore exports blank-line Ped/* custom lines as
-sign-only damper marks and visible damper lines as start/stop spanners. It leaves pedal expressions as formatted
-words, omits sostenuto and una-corda spanners rather than misrepresenting them, and cannot preserve pump changes,
-half-pedal and special-release glyphs, custom hook geometry, continuation text, or dashed/character pedal lines.
+`mx::api::PedalLineData` exposes the complete pedal-line event vocabulary but carries only the event kind, tick,
+and position. Its writer always emits `line="yes"` and does not expose sign selection, abbreviation, identity
+numbers, or line appearance. MusicXML has no visual pedal type for una corda / Pedal III; visible notation uses
+words and bracket elements. It does, however, represent una-corda playback semantically through
+`<sound soft-pedal="...">`, including numeric half-pedal values, but `mx::api::SoundData` does not expose that
+attribute. Denigma can preserve visible una-corda text and brackets through general direction words and lines, but
+cannot preserve its playback semantics. It also cannot preserve independent pedal text/sign choices, half-pedal
+and special-release glyphs, ordinary or custom hook geometry, continuation text, overlapping-line identity, or
+dashed/character pedal lines.
 
-Needed API shape: a general pedal-event object exposing every MusicXML pedal type plus `line`, `sign`,
-`abbreviated`, `number`, positioning, and line-style data, with matching reader/writer support. This should replace
-the current semantic split between pedal marks and pedal start/stop spanner vectors.
+Needed API shape: extend line-pedal data with `sign`, `abbreviated`, `number`, and line-style fields. `SoundData`
+should also expose MusicXML's `soft-pedal` playback attribute.
 
 ### Direction words justification
 
