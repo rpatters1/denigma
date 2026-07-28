@@ -123,12 +123,9 @@ static const SmuflFontMetadata* metadataForFont(const std::filesystem::path& fon
 
 } // namespace
 
-static std::optional<std::string> smuflGlyphNameForFont(const std::filesystem::path& fontMetadataPath, char32_t codepoint)
+static std::optional<std::string> smuflGlyphNameFromMetadata(
+    const std::filesystem::path& fontMetadataPath, char32_t codepoint)
 {
-    if (auto glyphName = smufl_mapping::getGlyphName(codepoint)) {
-        return std::string(*glyphName);
-    }
-
     if (const auto* metadata = metadataForFont(fontMetadataPath)) {
         auto it = metadata->optionalGlyphNames.find(codepoint);
         if (it != metadata->optionalGlyphNames.end()) {
@@ -140,11 +137,15 @@ static std::optional<std::string> smuflGlyphNameForFont(const std::filesystem::p
 
 std::optional<std::string> smuflGlyphNameForFont(const MusxInstance<FontInfo>& fontInfo, char32_t codepoint)
 {
-    if (auto metaDataPath = fontInfo->calcSMuFLMetaDataPath()) {
+    if (fontInfo->calcIsSMuFL()) {
+        if (auto metaDataPath = fontInfo->calcSMuFLMetaDataPath()) {
+            if (auto glyphName = smuflGlyphNameFromMetadata(metaDataPath.value(), codepoint)) {
+                return glyphName;
+            }
+        }
         if (auto glyphName = smufl_mapping::getGlyphName(codepoint, smufl_mapping::SmuflGlyphSource::Finale)) {
             return std::string(*glyphName);
         }
-        return smuflGlyphNameForFont(metaDataPath.value(), codepoint);
     } else if (auto legacyInfo = smufl_mapping::getLegacyGlyphInfo(fontInfo->getName(), codepoint)) {
         return std::string(legacyInfo->name);
     }
@@ -192,7 +193,12 @@ std::optional<SmuflGlyphMetricsEvpu> smuflGlyphMetricsForFont(const FontInfo& fo
         return std::nullopt;
     }
 
-    auto glyphName = smuflGlyphNameForFont(metadataPath.value(), codepoint);
+    auto glyphName = smuflGlyphNameFromMetadata(metadataPath.value(), codepoint);
+    if (!glyphName) {
+        if (auto mappedGlyphName = smufl_mapping::getGlyphName(codepoint)) {
+            glyphName = std::string(*mappedGlyphName);
+        }
+    }
     if (!glyphName) {
         return std::nullopt;
     }
