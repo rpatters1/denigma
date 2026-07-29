@@ -99,8 +99,10 @@ std::vector<mx::api::WordsData> createJumpWords(
     if (!words) {
         return {};
     }
+    // Finale uses the one justification setting for both the anchor alignment and the text's own
+    // justification, and its MusicXML export writes both attributes.
     words->positionData.horizontalAlignment = enumConvert<mx::api::HorizontalAlignment>(repeatDef->justification);
-    /// @todo Also set the MusicXML <words> justify attribute from TextRepeatDef::justification when mx::api::WordsData exposes it.
+    words->justify = words->positionData.horizontalAlignment;
     return { std::move(*words) };
 }
 

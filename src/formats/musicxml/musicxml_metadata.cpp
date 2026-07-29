@@ -197,7 +197,8 @@ void createPageTexts(const MusicXmlMusxMapping& context)
         if (!startPage || !endPage || !textBlock) {
             continue;
         }
-        // TODO: mx::api::PageTextData cannot represent Finale standard/custom frames, word wrapping, or text-block dimensions.
+        // TODO: mx::api::PageTextData has no enclosure field, so even a plain standard frame is dropped;
+        // MusicXML itself has no equivalent for custom frames, word wrapping, or text-block dimensions.
         // IWBNI MusicXML could preserve the Enigma insert template and recurring range/parity rule instead of requiring
         // resolved, page-specific credits. Importers cannot reconstruct those source semantics from credit-words.
         for (PageCmper pageNumber = *startPage; pageNumber <= *endPage; ++pageNumber) {

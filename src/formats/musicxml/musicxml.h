@@ -92,6 +92,9 @@ void createNotesForMeasureStaff(
     size_t measureIndex,
     size_t staffIndex);
 void createParts(MusicXmlMusxMapping& context);
+/// True when the expression assignment uses Finale's floating TOP staff, which draws the expression
+/// on the top staff of every system. MusicXML expresses that as `<direction system="only-top">`.
+bool isTopStaffAssignment(const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment);
 std::vector<mx::api::DirectionData> createDynamicExpressionDirections(
     MusicXmlMusxMapping& context,
     size_t staffIndex,

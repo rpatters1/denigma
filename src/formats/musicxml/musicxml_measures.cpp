@@ -806,6 +806,9 @@ void processMeasureText(
         }
 
         const auto textBlock = assignment->getTextBlock();
+        // TextBlock::justify is the text block's own justification, the same field page text maps to
+        // MusicXML's justify attribute. It also stands in for the anchor alignment, which measure
+        // text assignments do not record separately.
         const auto horizontalAlignment = textBlock ? enumConvert<mx::api::HorizontalAlignment>(textBlock->justify)
                                                    : mx::api::HorizontalAlignment::unspecified;
         const bool useStandardFrameEnclosure = textBlock && textBlock->shapeId == 0 && textBlock->stdLineThickness > 0;
@@ -830,9 +833,10 @@ void processMeasureText(
             }
             if (horizontalAlignment != mx::api::HorizontalAlignment::unspecified) {
                 item.positionData.horizontalAlignment = horizontalAlignment;
+                item.justify = horizontalAlignment;
             }
             if (useStandardFrameEnclosure) {
-                item.enclosure = mx::api::RehearsalEnclosure::rectangle;
+                item.enclosure = mx::api::Enclosure::rectangle;
             }
         }
 

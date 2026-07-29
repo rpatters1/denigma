@@ -166,13 +166,13 @@ Finale page-attached text can change font, size, and style within one text block
 
 Needed API shape: an ordered collection of formatted credit words/symbol chunks within one `PageTextData`, with independent font and position data for each chunk.
 
-### Page text frames and block layout
+### Page text enclosure
 
-Finale page text blocks may have standard or custom frames, fixed dimensions, insets, rounded corners, line spacing, and word wrapping. `mx::api::PageTextData` exposes neither MusicXML's formatted-text enclosure attribute nor a richer credit layout model. MusicXML enclosure values would cover only a subset of Finale's standard frames, and arbitrary Shape Designer frames have no direct MusicXML representation.
+MusicXML `<credit-words>` is type `formatted-text-id`, the same type as `<words>` and `<rehearsal>`, so it carries the whole `text-formatting` attribute group, `enclosure` included. Finale page text blocks can use a standard frame, which is exactly the case Denigma already resolves for measure text: `shapeId == 0 && stdLineThickness > 0` means a plain rectangle.
 
-Denigma currently exports the resolved text and its anchor but drops the frame and text-block layout properties.
+`mx::core::FormattedTextID` already exposes `enclosure()` and `setEnclosure()`, and `DirectionWriter::emitRehearsal()` calls that setter on this very class. The omission is confined to the API model: `mx::api::PageTextData` has no enclosure field, and `PageTextFunctions.cpp` reads and writes only `justify`. Denigma therefore drops the frame even when the source carries one MusicXML could represent exactly.
 
-Needed API shape: expose the MusicXML formatted-text enclosure attributes on page text. Custom frame geometry and fixed text layout would still require an extension or an intentional downgrade policy.
+Needed API shape: an `Enclosure enclosure` field on `mx::api::PageTextData`, converted in both directions in `PageTextFunctions.cpp` beside the existing `justify` handling. Finale's custom frame geometry and text-block layout are a separate, non-mappable concern; see the downgrade-policy item in the [MusicXML feature roadmap](roadmap.md).
 
 ## Barlines and Endings
 
@@ -208,38 +208,6 @@ bodies have no direct MusicXML pedal equivalent.
 Needed API shape: extend `PedalLineData` with `sign`, `abbreviated`, and `number`, with reader/writer support and
 pedal-aware number resolution. Correct `SpannerNumberResolver`'s MusicXML-3.0-era claim that `<pedal>` has no
 `number` attribute. `SoundData` should also expose MusicXML's `soft-pedal` playback attribute.
-
-### Direction words justification
-
-MusicXML `<words>` supports both `halign` and `justify`. Finale text repeats use their justification setting for both horizontal alignment and text justification, and Finale's MusicXML export emits `justify` for right-justified jump text such as segno / D.S. markings.
-
-`mx::api::WordsData` exposes `PositionData::horizontalAlignment`, which MX writes as `halign`, but it does not expose a separate `justify` field for direction words. Denigma can set `halign` from `TextRepeatDef::justification`, but cannot currently emit the parallel `justify` attribute through `mx::api`.
-
-Needed API shape: add a `justify` field to `mx::api::WordsData`, parallel to `PageTextData::justify`, and have `DirectionWriter::emitWordsRun()` set `FormattedTextID::setJustify()`.
-
-### Direction text polygon enclosures beyond square / oval / triangle / diamond
-
-Finale text-expression enclosures can use higher-sided polygons such as pentagon, hexagon, heptagon, and octagon. MusicXML's underlying enclosure vocabulary supports more shapes, but `mx::api::RehearsalEnclosure` currently exposes only `rectangle`, `square`, `oval`, `circle`, `bracket`, `triangle`, `diamond`, and `none`.
-
-Denigma currently degrades MUSX pentagon-through-octagon text enclosures to `square` for both rehearsal marks and generic words directions, since that is the closest public `mx::api` shape. This preserves that the text is enclosed, but not the exact polygon geometry.
-
-Needed API shape: expose the additional MusicXML direction-text enclosure shapes through `mx::api`, so Denigma can round-trip MUSX polygon enclosures without downgrading them to `square`.
-
-### Direction system relation
-
-MusicXML `<direction>` supports a `system` attribute with values such as `only-top` and `also-top`, distinguishing directions that belong to the system's top staff from ordinary staff-local directions. This is the correct semantic for Finale expressions assigned to TOP staff, and for grouped staff-list expressions where a top-staff assignment is later supplemented by a concrete staff assignment.
-
-The generated MX core model exposes this as `core::SystemRelation` on `core::Direction`, but `mx::api::DirectionData` does not expose any public field for the direction `system` attribute. Denigma can currently approximate some TOP-assigned expression behavior structurally, but cannot emit the actual MusicXML `system="only-top"` / `system="also-top"` semantics through `mx::api`.
-
-The missing API affects all expression directions that can originate from Finale TOP assignments. The desired behavior is:
-
-- a standalone TOP assignment should export as `system="only-top"` with no explicit staff value
-- if the same grouped expression is emitted both as TOP and as a concrete staff assignment, the TOP-owned direction should export as `system="also-top"` and the concrete assignment should still carry its staff ownership
-- if the concrete staff assignment is encountered before the TOP assignment, the existing emitted direction should be upgraded from no `system` attribute to `system="also-top"` once the TOP companion is known
-
-Without API support for `SystemRelation`, Denigma cannot represent those cases exactly in the emitted MusicXML even when the grouping logic can detect them.
-
-Needed API shape: add a public direction system-relation field to `mx::api::DirectionData`, with reader/writer support for MusicXML `system="only-top|also-top|none"`.
 
 ### Other dynamics SMuFL glyphs
 

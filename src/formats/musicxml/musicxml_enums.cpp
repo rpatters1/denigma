@@ -7,6 +7,7 @@
 #include "denigma/classify/noteheads.h"
 #include "formats/enum_conversion_macros.h"
 
+#include "mx/api/ApiCommon.h"
 #include "mx/api/BarlineData.h"
 #include "mx/api/ClefData.h"
 #include "mx/api/ChordData.h"
@@ -18,7 +19,6 @@
 #include "mx/api/PartGroupData.h"
 #include "mx/api/PitchData.h"
 #include "mx/api/PositionData.h"
-#include "mx/api/RehearsalData.h"
 
 using namespace musx::dom;
 using BarlineType = musx::dom::others::Measure::BarlineType;
@@ -181,16 +181,19 @@ BEGIN_ENUM_CONVERSION(classify::dynamics::Dynamic, mx::api::MarkType)
     case classify::dynamics::Dynamic::n: return mx::api::MarkType::n;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(others::Enclosure::Shape, mx::api::RehearsalEnclosure)
-    case others::Enclosure::Shape::NoEnclosure: return mx::api::RehearsalEnclosure::none;
-    case others::Enclosure::Shape::Rectangle: return mx::api::RehearsalEnclosure::rectangle;
-    case others::Enclosure::Shape::Ellipse: return mx::api::RehearsalEnclosure::oval;
-    case others::Enclosure::Shape::Triangle: return mx::api::RehearsalEnclosure::triangle;
-    case others::Enclosure::Shape::Diamond: return mx::api::RehearsalEnclosure::diamond;
-    case others::Enclosure::Shape::Pentagon: return mx::api::RehearsalEnclosure::square;
-    case others::Enclosure::Shape::Hexagon: return mx::api::RehearsalEnclosure::square;
-    case others::Enclosure::Shape::Heptagon: return mx::api::RehearsalEnclosure::square;
-    case others::Enclosure::Shape::Octogon: return mx::api::RehearsalEnclosure::square;
+BEGIN_ENUM_CONVERSION(others::Enclosure::Shape, mx::api::Enclosure)
+    // NoEnclosure maps to an explicit `none`, not to `unspecified`. MusicXML's default when the
+    // attribute is absent is per-element: none for <words>, but square for <rehearsal>. This table
+    // feeds both, so omitting the attribute would box every unenclosed rehearsal mark.
+    case others::Enclosure::Shape::NoEnclosure: return mx::api::Enclosure::none;
+    case others::Enclosure::Shape::Rectangle: return mx::api::Enclosure::rectangle;
+    case others::Enclosure::Shape::Ellipse: return mx::api::Enclosure::oval;
+    case others::Enclosure::Shape::Triangle: return mx::api::Enclosure::triangle;
+    case others::Enclosure::Shape::Diamond: return mx::api::Enclosure::diamond;
+    case others::Enclosure::Shape::Pentagon: return mx::api::Enclosure::pentagon;
+    case others::Enclosure::Shape::Hexagon: return mx::api::Enclosure::hexagon;
+    case others::Enclosure::Shape::Heptagon: return mx::api::Enclosure::heptagon;
+    case others::Enclosure::Shape::Octogon: return mx::api::Enclosure::octagon;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(classify::articulation::Fermata::Shape, mx::api::MarkType)
