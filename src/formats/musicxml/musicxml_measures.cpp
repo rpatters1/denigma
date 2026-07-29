@@ -898,15 +898,17 @@ void processChords(
         chord.chordKind = suffix.quality
             ? enumConvert<mx::api::ChordKind>(*suffix.quality)
             : mx::api::ChordKind::other;
-        /// @todo Apply suffix.parenthesizeDegrees and suffix.stackDegrees when mx::api exposes the corresponding
-        /// MusicXML <kind> attributes. See "Parenthesized and stacked chord degrees" in mx-api-gaps.md.
         if (assignment->showSuffix) {
             chord.text = suffix.calcText();
             for (const auto& degree : suffix.degrees) {
                 auto extension = mx::api::Extension{};
                 extension.extensionType = enumConvert<mx::api::ExtensionType>(degree.type);
                 extension.setAlterValue(degree.alteration);
-                extension.printObject = mx::api::fromBool(degree.printObject);
+                // A degree the suffix text already spells out must not print a second time. Leave the
+                // rest unspecified rather than writing "yes", as Finale's own export does.
+                if (degree.impliedByText) {
+                    extension.printObject = mx::api::Bool::no;
+                }
                 switch (degree.value) {
                 case 1: extension.extensionNumber = mx::api::ExtensionNumber::first; break;
                 case 2: extension.extensionNumber = mx::api::ExtensionNumber::second; break;
@@ -921,6 +923,17 @@ void processChords(
                 default: continue;
                 }
                 chord.extensions.emplace_back(extension);
+            }
+            // These describe how the exported degrees are laid out, so they mean nothing without any.
+            // Leave them unspecified rather than writing "no", so that the layout is only constrained
+            // where Finale's suffix calls for it. Finale's own export does the same.
+            if (!chord.extensions.empty()) {
+                if (suffix.parenthesizeDegrees) {
+                    chord.parenthesesDegrees = mx::api::Bool::yes;
+                }
+                if (suffix.stackDegrees) {
+                    chord.stackDegrees = mx::api::Bool::yes;
+                }
             }
             if (suffix.hasUnrecognizedGlyphs) {
                 context.logMessage(LogMsg() << "Chord suffix " << assignment->suffixId << " in measure "

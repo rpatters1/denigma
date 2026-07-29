@@ -58,16 +58,6 @@ MusicXML represents trill extensions and vibrato lines as `<ornaments><wavy-line
 
 Needed API shape: wavy-line start/stop data on `MarkData` (or a dedicated paired-spanner model for note-attached wavy lines).
 
-## Harmony
-
-### Parenthesized and stacked chord degrees
-
-MusicXML `<kind>` has `parentheses-degrees` and `stack-degrees` attributes. Finale chord suffixes can encode both: parentheses around an inline degree group and vertically offset suffix strings, respectively. Denigma's chord classifier preserves those source semantics as `ChordSuffixClassification::parenthesizeDegrees` and `stackDegrees`.
-
-`mx::api::ChordData` exposes the related `<kind>` `use-symbols` attribute, but it has no public fields for `parentheses-degrees` or `stack-degrees`. The generated core `Kind` type does support both attributes, so this is an API-model/writer gap rather than a MusicXML limitation. Denigma currently exports the classified kind and degrees without those display attributes.
-
-Needed API shape: optional `parenthesizeDegrees` and `stackDegrees` fields on `mx::api::ChordData`, written as the corresponding `<kind>` attributes.
-
 ## Notes
 
 ### Notehead fill and SMuFL glyph refinement

@@ -30,6 +30,7 @@ namespace denigma::classify {
 
 namespace keyboardpedal {
 
+/// @enum Type
 /// @brief Keyboard-pedal markings recognized in Finale text and custom lines.
 enum class Type
 {
@@ -48,15 +49,30 @@ enum class Type
 
 } // namespace keyboardpedal
 
+/// @struct KeyboardPedalClassification
+/// @brief A keyboard-pedal marking recognized in Finale text or in a custom line's text.
 struct KeyboardPedalClassification
 {
-    keyboardpedal::Type type{};
-    bool fromGlyph{};
+    keyboardpedal::Type type{};     ///< The recognized marking.
+    bool fromGlyph{};               ///< True when recognition relied on SMuFL glyphs rather than
+                                    ///< on the spelled-out text.
 };
 
+/// @brief Classifies plain text as a keyboard-pedal marking.
+///
+/// Recognizes the spelled-out markings ("Ped.", "sost.", "una corda", "senza Ped.", the release
+/// star), the Roman-numeral and numeric pedal identifiers ("Ped. II"), and the usual qualifiers
+/// ("sempre", "simile", "ad lib.", "con"). Punctuation and letter case are ignored.
+/// @return std::nullopt when @p text is not a recognized marking.
 [[nodiscard]]
 std::optional<KeyboardPedalClassification> classifyKeyboardPedal(std::string_view text);
 
+/// @brief Classifies Finale text as a keyboard-pedal marking, resolving SMuFL pedal glyphs.
+///
+/// This form additionally recognizes the glyph-only markings that have no spelled-out
+/// equivalent, such as the half-pedal, notched-release, and pedal-line hook glyphs.
+/// Hidden text chunks are ignored.
+/// @return std::nullopt when @p textContext is empty or is not a recognized marking.
 [[nodiscard]]
 std::optional<KeyboardPedalClassification> classifyKeyboardPedal(
     const musx::util::EnigmaParsingContext& textContext);
