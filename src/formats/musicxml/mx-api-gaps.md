@@ -116,14 +116,6 @@ Needed API shape: a staff-scoped, positionable measure-style collection on `Meas
 
 Full Finale fidelity is not possible through measure style alone. `altLayer` has no general equivalent for measure repeats, while slash/beat-repeat can only exclude other MusicXML voices. `Blank` and `BlankWithRests`, and Finale's independent hide-articulation, lyrics, expressions, and smart-shape settings, require selective `print-object="no"` handling in addition to any measure style. The alternate-notation slash and number fonts, glyph-position options, and two-bar-repeat number offset are likewise Finale-specific layout data with no direct standard MusicXML mapping.
 
-### Measure display text and measure-numbering staff
-
-MusicXML separates the measure's semantic identifier (`<measure number="...">`) from its optional displayed label (`<measure text="...">`). The `<measure-numbering>` element instead contains the display frequency (`none`, `measure`, or `system`) and can carry a `staff` attribute selecting the reference staff for vertical positioning.
-
-`mx::api::MeasureData::number` exposes the semantic `number` attribute. `MeasureData` also exposes the basic measure-numbering value, `multiple-rest-always`, `multiple-rest-range`, and `system`, but it does not expose the measure's `text` attribute or the measure-numbering `staff` attribute.
-
-Needed API shape: fields on `MeasureData` for the optional measure display text and measure-numbering staff.
-
 ## Transposition
 
 ### Concert-score `for-part`
