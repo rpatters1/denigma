@@ -189,6 +189,40 @@ TEST(MnxParts, ForcedClef)
     EXPECT_FALSE(clef.position().has_value());
 }
 
+// clef_forced_after_barline.musx changes to bass clef in measure 5, then restates the same bass
+// clef in measure 6 with Finale's forced ("Always") clef display. MNX has no counterpart to
+// MusicXML's clef@additional, so the restatement can only be carried by emitting the clef again.
+TEST(MnxParts, ForcedClefRestatesPrevailingClef)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("clef_forced_after_barline.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "clef_forced_after_barline.mnx");
+    auto parts = doc.parts();
+    ASSERT_GE(parts.size(), 1);
+
+    auto measures = parts[0].measures();
+    ASSERT_GE(measures.size(), 6);
+
+    // Measure 5 is the clef change itself; measure 6 is the forced restatement of that clef.
+    for (size_t measureIndex : { size_t(4), size_t(5) }) {
+        SCOPED_TRACE("measure " + std::to_string(measureIndex + 1));
+        auto measure = measures[measureIndex];
+        ASSERT_TRUE(measure.clefs().has_value()) << measure.dump(4);
+        auto clefs = measure.clefs().value();
+        ASSERT_EQ(clefs.size(), 1);
+        auto clef = clefs[0];
+        EXPECT_EQ(clef.clef().sign(), mnx::ClefSign::FClef);
+        EXPECT_EQ(clef.clef().octave(), mnx::OttavaAmountOrZero::NoTransposition);
+        EXPECT_FALSE(clef.position().has_value());
+    }
+}
+
 TEST(MnxParts, Measure1MidMeasureClefs)
 {
     checkMeas1MidMeasureClefExport(false);

@@ -614,7 +614,12 @@ void assignClefs(
     auto addClef = [&](const others::Staff::ClefChange& clefChange) {
         const auto clefIndex = clefChange.clefIndex;
         const auto location = clefChange.position;
-        if (clefIndex == prevClefIndex) {
+        // A clef that repeats the prevailing one is not a clef change, so MusicXML's normal
+        // clef sequence would not display it. Finale's ShowClefMode::Always forces it to show,
+        // and MusicXML expresses exactly that with clef@additional.
+        const bool isRestatement = clefIndex == prevClefIndex;
+        const bool isForcedRestatement = isRestatement && clefChange.showClefMode == ShowClefMode::Always;
+        if (isRestatement && !isForcedRestatement) {
             return;
         }
         auto musxStaff = measureStartStaff;
@@ -630,7 +635,19 @@ void assignClefs(
 
         auto clef = musicXmlClefFromMusxClef(context.finaleOptions.clefOptions->getClefDef(clefIndex), musxStaff);
         clef.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(location);
-        clef.location = location ? mx::api::ClefLocation::midMeasure : mx::api::ClefLocation::unspecified;
+        // MUSX only records "place clef after barline" for a measure-start clef, and MusicXML
+        // ignores after-barline on mid-measure clefs. Finale's default placement (before the
+        // barline) is also the notation default, so leave that case unspecified.
+        if (location) {
+            clef.location = mx::api::ClefLocation::midMeasure;
+        } else if (clefChange.afterBarline) {
+            clef.location = mx::api::ClefLocation::afterBarline;
+        } else {
+            clef.location = mx::api::ClefLocation::unspecified;
+        }
+        if (isForcedRestatement) {
+            clef.additional = mx::api::Bool::yes;
+        }
         if (clefChange.showClefMode == ShowClefMode::Never
             || (clefChange.showClefMode == ShowClefMode::WhenNeeded && musxStaff->hideClefs)) {
             clef.printObject = mx::api::Bool::no;
