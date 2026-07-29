@@ -87,7 +87,7 @@ void MnxMusxMapping::logDiscardedCueLayerFrame(LayerIndex layer)
         << "; MNX does not currently support cues.");
 }
 
-void MnxMusxMapping::logDiscardedHeuristicCueHold()
+void MnxMusxMapping::logDiscardedHeuristicCueStaffMeasure()
 {
     discardedCueFrames++;
     logMessage(LogMsg() << "discarded cue material detected heuristically in measure "
@@ -100,22 +100,23 @@ void MnxMusxMapping::setCurrentMeasureStaff(const MusxInstance<others::Measure>&
     current.clear();
     current.meas = musxMeasure->getCmper();
     current.staff = staffCmper;
-    current.gfhold.emplace(musxMeasure->getDocument(), musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper());
-    if (!*current.gfhold) {
+    current.staffMeasureContext.emplace(
+        musxMeasure->getDocument(), musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper());
+    if (!*current.staffMeasureContext) {
         return;
     }
 
-    current.layerVoices = current.gfhold->calcVoices();
-    current.cueDiscardPlan = createCueLayerPlan(*current.gfhold, denigmaContext->cueLayer);
-    if (!current.cueDiscardPlan.heuristicCueLayers.empty()) {
-        logDiscardedHeuristicCueHold();
-        if (current.cueDiscardPlan.discardWholeHold) {
+    current.layerVoices = current.staffMeasureContext->calcVoices();
+    current.cuePlan = createCueStaffMeasurePlan(*current.staffMeasureContext, denigmaContext->cueLayer);
+    if (!current.cuePlan.detectedCueLayers.empty()) {
+        logDiscardedHeuristicCueStaffMeasure();
+        if (current.cuePlan.isDetectedCueOnly) {
             return;
         }
     }
-    if (current.cueDiscardPlan.explicitCueLayer
-        && !current.cueDiscardPlan.heuristicCueLayers.contains(*current.cueDiscardPlan.explicitCueLayer)) {
-        logDiscardedCueLayerFrame(*current.cueDiscardPlan.explicitCueLayer);
+    if (current.cuePlan.forcedCueLayer
+        && !current.cuePlan.detectedCueLayers.contains(*current.cuePlan.forcedCueLayer)) {
+        logDiscardedCueLayerFrame(*current.cuePlan.forcedCueLayer);
     }
 }
 

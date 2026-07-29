@@ -130,6 +130,99 @@ TEST(ConverterApi, MusxToMusicXmlInvokesOutputCallbackForParts)
     EXPECT_TRUE(foundNamedPart);
 }
 
+TEST(ConverterApi, MusxToMusicXmlEmitsCuesOnlyWhereVisible)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::musicxml::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::MusicXml);
+    ASSERT_NE(converter, nullptr);
+
+    std::vector<std::string> outputs;
+    denigma::FileRandomAccessReader input(getInputPath() / "multimeas_cue.musx");
+    denigma::formats::musicxml::Options options;
+    options.common.sourceName = "multimeas_cue.musx";
+    options.allPartsAndScore = true;
+    const auto result = converter->convert(input, [&](std::string_view, std::span<const std::byte> data) {
+        outputs.emplace_back(reinterpret_cast<const char*>(data.data()), data.size());
+    }, denigma::ConversionRequest{ &options });
+
+    EXPECT_TRUE(result.diagnostics().empty());
+    ASSERT_EQ(outputs.size(), 3u);
+
+    size_t outputsWithCues{};
+    for (size_t outputIndex = 0; outputIndex < outputs.size(); ++outputIndex) {
+        pugi::xml_document document;
+        const auto parseResult = document.load_string(outputs[outputIndex].c_str());
+        ASSERT_TRUE(parseResult) << parseResult.description();
+        const auto cueNotes = document.select_nodes("//note[cue]");
+        if (outputIndex == 0) {
+            EXPECT_TRUE(cueNotes.empty()) << "Cues hidden in the score context must be suppressed.";
+        }
+        if (!cueNotes.empty()) {
+            ++outputsWithCues;
+            EXPECT_EQ(cueNotes.size(), 8u);
+            EXPECT_EQ(document.select_nodes("//note[cue and rest]").size(), 1u);
+            EXPECT_EQ(document.select_nodes("//note[cue and pitch]").size(), 7u);
+        }
+    }
+    EXPECT_EQ(outputsWithCues, 1u);
+}
+
+TEST(ConverterApi, MusxToMusicXmlPlumbsForcedCueLayer)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::musicxml::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::MusicXml);
+    ASSERT_NE(converter, nullptr);
+
+    std::string xmlText;
+    denigma::FileRandomAccessReader input(getInputPath() / "forced_bass_clef.musx");
+    denigma::formats::musicxml::Options options;
+    options.common.sourceName = "forced_bass_clef.musx";
+    options.cueLayer = 1;
+    const auto result = converter->convert(input, [&](std::string_view, std::span<const std::byte> data) {
+        xmlText.assign(reinterpret_cast<const char*>(data.data()), data.size());
+    }, denigma::ConversionRequest{ &options });
+
+    EXPECT_TRUE(result.diagnostics().empty());
+    pugi::xml_document document;
+    const auto parseResult = document.load_string(xmlText.c_str());
+    ASSERT_TRUE(parseResult) << parseResult.description();
+    EXPECT_EQ(document.select_nodes("//note[cue]").size(), 1u);
+    EXPECT_EQ(document.select_nodes("//note[cue and rest]").size(), 1u);
+}
+
+TEST(ConverterApi, MusxToMusicXmlRetainsForcedCueLayerExpressions)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::musicxml::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::MusicXml);
+    ASSERT_NE(converter, nullptr);
+
+    std::string xmlText;
+    denigma::FileRandomAccessReader input(getInputPath() / "techniques.musx");
+    denigma::formats::musicxml::Options options;
+    options.common.sourceName = "techniques.musx";
+    options.cueLayer = 1;
+    const auto result = converter->convert(input, [&](std::string_view, std::span<const std::byte> data) {
+        xmlText.assign(reinterpret_cast<const char*>(data.data()), data.size());
+    }, denigma::ConversionRequest{ &options });
+
+    EXPECT_TRUE(result.diagnostics().empty());
+    pugi::xml_document document;
+    const auto parseResult = document.load_string(xmlText.c_str());
+    ASSERT_TRUE(parseResult) << parseResult.description();
+    EXPECT_EQ(document.select_nodes("//note[cue]").size(), 27u);
+    EXPECT_EQ(document.select_nodes("//direction[voice='1']").size(), 5u);
+    EXPECT_EQ(document.select_nodes("//direction[voice='1']/direction-type/words").size(), 5u);
+}
+
 TEST(MusicXmlChordFixture, ExportsChordsForInspection)
 {
     setupTestDataPaths();

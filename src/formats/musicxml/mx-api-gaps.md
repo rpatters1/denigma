@@ -36,9 +36,15 @@ Needed API shape: clef size/font controls on `mx::api::ClefData`, or another sup
 
 MusicXML separates sounding ties (`<tie>`) from notated ties (`<notations><tied>`). The `<tied>` element supports `start`, `stop`, `continue`, and `let-ring`. For visually one-ended ties that are not let-ring ties, the MusicXML guidance is to write both `<tied type="start"/>` and `<tied type="stop"/>` on the same note, in that order. This is used for ties into or out of repeats, endings, or codas. These visual ties should not necessarily produce a corresponding `<tie>` element, because `<tie>` represents playback semantics.
 
-`mx::api::NoteData` exposes `isTieStart` and `isTieStop`, and `NoteWriter` maps those booleans to both `<tie>` and `<tied>` together, only as normal start/stop ties. Denigma therefore cannot express notation-only ties or same-note start/stop visual ties through the public API.
+`mx::api::NoteData` exposes `isTieStart` and `isTieStop`, and `NoteWriter` maps those booleans to both `<tie>` and `<tied>` together, only as normal start/stop ties. The generic `CurveType::tie` attachment path can emit notation-only start, stop, and continue elements, so a simple visual tie can be represented by treating it as a generic curve. However, that path is separate from the semantic tie booleans and does not solve same-note start/stop ordering. Denigma therefore has no unified public API for independently controlling the playback and notation sides of a tie.
 
 Needed API shape: a tie-notation data model separate from playback tie booleans, with support for `start`, `stop`, `continue`, and same-note start/stop ordering. The API should also allow notation-only ties without writing `<tie>`, and should allow playback `<tie>` / `time-only` semantics to be modeled separately when Denigma can infer them.
+
+### Visual ties on cue and grace-cue notes
+
+MusicXML cue and grace-cue note groups cannot contain the playback `<tie>` element, but they can still contain a visual `<notations><tied>` element. `NoteWriter` currently ignores `NoteData::isTieStart` and `isTieStop` entirely when `isCue` is true. This correctly omits the invalid playback element, but it also drops the valid visual tie notation.
+
+Denigma intentionally does not work around this by translating cue ties to generic `CurveType::tie` attachments. Cue and non-cue ties should use the same semantic tie path. The tie-notation model requested above should let the writer omit playback `<tie>` for cue notes while retaining the independently modeled `<tied>` start or stop.
 
 ### Curve orientation on a regular (paired) tie
 

@@ -592,19 +592,19 @@ void createSequences(const MnxMusxMappingPtr& context,
     std::optional<int> mnxStaffNumber,
     const MusxInstance<others::Measure>& musxMeasure)
 {
-    if (!context->current.gfhold || !*context->current.gfhold) {
+    if (!context->current.staffMeasureContext || !*context->current.staffMeasureContext) {
         return; // nothing to do
     }
-    if (context->current.cueDiscardPlan.discardWholeHold) {
+    if (context->current.cuePlan.isDetectedCueOnly) {
         return;
     }
     const auto measureDuration = musxMeasure->calcDuration(context->current.staff);
     for (const auto& [layer, numV2] : context->current.layerVoices) {
-        if (context->current.cueDiscardPlan.skipsLayer(layer)) {
+        if (context->current.cuePlan.isCueLayer(layer)) {
             continue;
         }
         const int maxVoices = numV2 ? 2 : 1;
-        if (auto entryFrame = context->current.gfhold->createEntryFrame(layer)) {
+        if (auto entryFrame = context->current.staffMeasureContext->createEntryFrame(layer)) {
             const bool usesV1V2 = numV2 && entryFrame->getFirstInterpretedIterator(2); // ignore entries the iterator will skip
             auto entries = entryFrame->getEntries();
             if (!entries.empty()) {
