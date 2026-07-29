@@ -698,6 +698,99 @@ TEST(MusicXmlParts, MeasureNumberStaffOverrideUsesScrollViewPositions)
         EXPECT_EQ(measure.measureNumberingSystemRelation, expected[partIndex].relation) << "part " << partIndex + 1;
         EXPECT_EQ(measure.measureNumberingMultipleRestAlways, expected[partIndex].multipleRestAlways) << "part " << partIndex + 1;
         EXPECT_EQ(measure.measureNumberingMultipleRestRange, expected[partIndex].multipleRestRange) << "part " << partIndex + 1;
+        // Every part here has a single staff, so the reference staff is always the implied top one.
+        EXPECT_FALSE(measure.measureNumberingStaffIndex.has_value()) << "part " << partIndex + 1;
+    }
+}
+
+TEST(MusicXmlParts, MeasureNumberingStaffOmittedWhenTopStaffShowsNumbers)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("multistaff_inst.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    size_t multiStaffParts = 0;
+    for (size_t partIndex = 0; partIndex < actualScore->parts.size(); ++partIndex) {
+        const auto& part = actualScore->parts[partIndex];
+        ASSERT_FALSE(part.measures.empty()) << "part " << partIndex + 1;
+        const auto& measure = part.measures.front();
+        if (measure.staves.size() > 1) {
+            multiStaffParts++;
+        }
+        // These staves all display measure numbers, so the top staff is the reference staff and
+        // MusicXML infers it rather than spelling it out.
+        EXPECT_FALSE(measure.measureNumberingStaffIndex.has_value()) << "part " << partIndex + 1;
+    }
+    EXPECT_GT(multiStaffParts, 0u);
+}
+
+TEST(MusicXmlParts, MeasureNumberingStaffPointsAtLowerStaffThatShowsNumbers)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("measnums_topbottom.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto referenceScore = loadScoreData(getInputPath() / "musicxml/measnums_topbottom-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(referenceScore);
+    ASSERT_EQ(actualScore->parts.size(), 5u);
+    ASSERT_EQ(referenceScore->parts.size(), actualScore->parts.size());
+
+    for (size_t partIndex = 0; partIndex < actualScore->parts.size(); ++partIndex) {
+        const auto& actual = actualScore->parts[partIndex].measures.front();
+        const auto& reference = referenceScore->parts[partIndex].measures.front();
+        EXPECT_EQ(actual.measureNumbering, reference.measureNumbering) << "part " << partIndex + 1;
+        EXPECT_EQ(actual.measureNumberingSystemRelation, reference.measureNumberingSystemRelation) << "part " << partIndex + 1;
+        EXPECT_EQ(actual.measureNumberingMultipleRestAlways, reference.measureNumberingMultipleRestAlways) << "part " << partIndex + 1;
+        EXPECT_EQ(actual.measureNumberingMultipleRestRange, reference.measureNumberingMultipleRestRange) << "part " << partIndex + 1;
+    }
+
+    // Only the piano carries a second staff, and its numbers sit on that lower staff. Finale omits
+    // the staff attribute entirely, so this is the one field the reference cannot corroborate.
+    const auto& pianoMeasure = actualScore->parts.back().measures.front();
+    ASSERT_EQ(pianoMeasure.staves.size(), 2u);
+    ASSERT_TRUE(pianoMeasure.measureNumberingStaffIndex.has_value());
+    EXPECT_EQ(*pianoMeasure.measureNumberingStaffIndex, 1);
+    EXPECT_FALSE(referenceScore->parts.back().measures.front().measureNumberingStaffIndex.has_value());
+
+    for (size_t partIndex = 0; partIndex + 1 < actualScore->parts.size(); ++partIndex) {
+        EXPECT_FALSE(actualScore->parts[partIndex].measures.front().measureNumberingStaffIndex.has_value())
+            << "part " << partIndex + 1;
+    }
+}
+
+TEST(MusicXmlParts, MeasureNumberDisplayTextFollowsNumberRegion)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("rehearsal_marks.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    const auto& measures = actualScore->parts.front().measures;
+    ASSERT_GT(measures.size(), 16u);
+
+    // The region numbers measures 1-16 starting at 123, and hides the number on its first measure.
+    EXPECT_EQ(measures[0].implicit, mx::api::Bool::yes);
+    EXPECT_FALSE(measures[0].displayedNumber.has_value());
+
+    // MX drops the round-tripped `number` when it matches the measure's position, so only the
+    // displayed number is worth asserting here.
+    for (size_t measureIndex = 1; measureIndex < 16u; ++measureIndex) {
+        const auto& measure = measures[measureIndex];
+        ASSERT_TRUE(measure.displayedNumber.has_value()) << "measure " << measureIndex + 1;
+        EXPECT_EQ(*measure.displayedNumber, std::to_string(measureIndex + 123)) << "measure " << measureIndex + 1;
+    }
+
+    // The remaining measures are excluded from numbering altogether.
+    for (size_t measureIndex = 16u; measureIndex < measures.size(); ++measureIndex) {
+        const auto& measure = measures[measureIndex];
+        EXPECT_EQ(measure.implicit, mx::api::Bool::yes) << "measure " << measureIndex + 1;
+        EXPECT_FALSE(measure.displayedNumber.has_value()) << "measure " << measureIndex + 1;
     }
 }
 

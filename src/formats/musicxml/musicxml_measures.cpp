@@ -943,16 +943,25 @@ void addMeasureNumber(
             }
         }
         if (measureId == musxMeasureNumberRegion->calcFirstDisplayedMeasureId()) {
-            const bool partDisplaysMeasureNumbers = std::ranges::any_of(staves, [&](StaffCmper staffId) {
-                const auto staff = others::StaffComposite::createCurrent(
-                    context.document, context.forPartId, staffId, measureId, 0);
-                if (!staff) {
-                    context.logMessage(LogMsg() << "Cannot determine measure-number visibility for staff " << staffId
-                        << " in measure " << measureId << ".", MessageSeverity::Warning);
-                    return false;
+            // The topmost staff of the part that shows measure numbers. MusicXML positions the
+            // part's measure number against this staff, so it doubles as the display flag.
+            const auto displayingStaffIndex = [&]() -> std::optional<size_t> {
+                for (size_t staffIndex = 0; staffIndex < staves.size(); staffIndex++) {
+                    const StaffCmper staffId = staves[staffIndex];
+                    const auto staff = others::StaffComposite::createCurrent(
+                        context.document, context.forPartId, staffId, measureId, 0);
+                    if (!staff) {
+                        context.logMessage(LogMsg() << "Cannot determine measure-number visibility for staff " << staffId
+                            << " in measure " << measureId << ".", MessageSeverity::Warning);
+                        continue;
+                    }
+                    if (!staff->hideMeasNums) {
+                        return staffIndex;
+                    }
                 }
-                return !staff->hideMeasNums;
-            });
+                return std::nullopt;
+            }();
+            const bool partDisplaysMeasureNumbers = displayingStaffIndex.has_value();
 
             const bool partIsTopSystemStaff = !scoreStaves.empty()
                 && std::ranges::find(staves, scoreStaves.front()) != staves.end();
@@ -998,13 +1007,22 @@ void addMeasureNumber(
                     ? mx::api::Bool::yes
                     : mx::api::Bool::no;
                 measure.measureNumberingSystemRelation = systemRelation;
+                // An absent staff index means the top staff, which is what index 0 would say anyway.
+                if (displayingStaffIndex.value_or(0) > 0) {
+                    measure.measureNumberingStaffIndex = static_cast<int>(*displayingStaffIndex);
+                }
             }
         }
-        const auto displayNum = musxMeasureNumberRegion->calcDisplayNumberTextFor(measureId);
-        MUSX_ASSERT_IF(!displayNum) {
-            return;
+        // Absent for a measure excluded from numbering, which is already marked implicit above.
+        // An implicit measure prints no number at all, so an override would be dead weight.
+        if (const auto displayNum = musxMeasureNumberRegion->calcDisplayNumberTextFor(measureId);
+            displayNum && measure.implicit != mx::api::Bool::yes) {
+            // MusicXML infers the printed number from the measure's own number, so the override is
+            // only needed when Finale's numbering scheme prints something else.
+            if (*displayNum != measure.number) {
+                measure.displayedNumber = *displayNum;
+            }
         }
-        /// @todo Export displayNum once mx::api exposes a MeasureData field for measure-numbering element text.
     }
 }
 
