@@ -847,21 +847,25 @@ TEST(MusicXmlNotes, ArtificialHarmonicsExportSmoke)
     // Denigma's classifier identifies the pattern, so Denigma adds the mark as a semantic enrichment
     // beyond what Finale itself exports. See "Artificial-harmonic technical detail" in mx-api-gaps.md
     // for what mx::api still cannot express on it (natural/artificial, base/touching/sounding pitch).
+    // The touched notes are hollow diamonds on quarter notes, so they must override MusicXML's
+    // duration-based fill default. Finale's reference export writes the same filled="no".
     struct ExpectedNote
     {
         mx::api::Step step;
         int alter;
         int octave;
         mx::api::Notehead notehead;
+        mx::api::Bool noteheadFilled;
         bool expectHarmonicMark;
     };
+    using mx::api::Bool;
     const std::vector<ExpectedNote> expectedNotes = {
-        { mx::api::Step::e, -1, 3, mx::api::Notehead::normal, false },  // stopped (major third touch)
-        { mx::api::Step::g, 0, 3, mx::api::Notehead::diamond, true },   // touched
-        { mx::api::Step::b, 0, 3, mx::api::Notehead::normal, false },   // stopped (fourth touch)
-        { mx::api::Step::e, 0, 4, mx::api::Notehead::diamond, true },   // touched
-        { mx::api::Step::f, 0, 3, mx::api::Notehead::normal, false },   // stopped (fifth touch)
-        { mx::api::Step::c, 0, 4, mx::api::Notehead::diamond, true },   // touched
+        { mx::api::Step::e, -1, 3, mx::api::Notehead::normal, Bool::unspecified, false },   // stopped (major third touch)
+        { mx::api::Step::g, 0, 3, mx::api::Notehead::diamond, Bool::no, true },             // touched
+        { mx::api::Step::b, 0, 3, mx::api::Notehead::normal, Bool::unspecified, false },    // stopped (fourth touch)
+        { mx::api::Step::e, 0, 4, mx::api::Notehead::diamond, Bool::no, true },             // touched
+        { mx::api::Step::f, 0, 3, mx::api::Notehead::normal, Bool::unspecified, false },    // stopped (fifth touch)
+        { mx::api::Step::c, 0, 4, mx::api::Notehead::diamond, Bool::no, true },             // touched
     };
 
     ASSERT_FALSE(actualScore->parts.empty());
@@ -879,6 +883,7 @@ TEST(MusicXmlNotes, ArtificialHarmonicsExportSmoke)
         EXPECT_EQ(note.pitchData.alter, expected.alter) << "note " << noteIndex;
         EXPECT_EQ(note.pitchData.octave, expected.octave) << "note " << noteIndex;
         EXPECT_EQ(note.notehead, expected.notehead) << "note " << noteIndex;
+        EXPECT_EQ(note.noteheadFilled, expected.noteheadFilled) << "note " << noteIndex;
         const bool hasHarmonicMark = std::any_of(note.noteAttachmentData.marks.begin(), note.noteAttachmentData.marks.end(),
             [](const auto& mark) { return mark.markType == mx::api::MarkType::harmonic; });
         EXPECT_EQ(hasHarmonicMark, expected.expectHarmonicMark) << "note " << noteIndex;
@@ -1114,7 +1119,12 @@ TEST(MusicXmlNotes, ShapeNoteNoteheadsExportSmoke)
     // note_shapes.musx assigns Finale shape-note noteheads (square, triangle, ...) to some staves.
     // None of those shapes are in Denigma's specifically-recognized set (Regular/X/Diamond/Slash/Circle),
     // so they should come through as mx::api::Notehead::other rather than being silently dropped.
+    // Since "other" carries no visual information by itself, each one must also name its SMuFL glyph.
+    //
+    // The fixture also assigns the hollow half-note glyph as the quarter-note shape on some staves.
+    // MusicXML would otherwise draw those solid, from the duration, so they must say filled="no".
     size_t otherNoteheadCount = 0;
+    size_t hollowShortNoteCount = 0;
     for (const auto& part : actualScore->parts) {
         for (const auto& measure : part.measures) {
             for (const auto& staff : measure.staves) {
@@ -1123,6 +1133,17 @@ TEST(MusicXmlNotes, ShapeNoteNoteheadsExportSmoke)
                     for (const auto& note : voice.notes) {
                         if (note.notehead == mx::api::Notehead::other) {
                             ++otherNoteheadCount;
+                            ASSERT_TRUE(note.noteheadSmufl.has_value());
+                            EXPECT_TRUE(note.noteheadSmufl->starts_with("notehead")) << *note.noteheadSmufl;
+                        }
+                        const bool isShort = note.durationData.durationName >= mx::api::DurationName::quarter;
+                        if (isShort && note.noteheadFilled == mx::api::Bool::no) {
+                            ++hollowShortNoteCount;
+                        }
+                        // Wherever the glyph agrees with MusicXML's duration-based default, the
+                        // attribute stays out of the file.
+                        if (note.notehead == mx::api::Notehead::normal && note.noteheadFilled == mx::api::Bool::unspecified) {
+                            EXPECT_FALSE(note.noteheadSmufl.has_value());
                         }
                     }
                 }
@@ -1130,6 +1151,7 @@ TEST(MusicXmlNotes, ShapeNoteNoteheadsExportSmoke)
         }
     }
     EXPECT_GT(otherNoteheadCount, 0u) << "expected at least one shape-note notehead to export as mx::api::Notehead::other";
+    EXPECT_GT(hollowShortNoteCount, 0u) << "expected at least one hollow notehead on a quarter note or shorter";
 }
 
 TEST(MusicXmlNotes, MeasuredTremolosExportStartStopMarks)

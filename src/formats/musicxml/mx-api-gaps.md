@@ -60,16 +60,6 @@ Needed API shape: wavy-line start/stop data on `MarkData` (or a dedicated paired
 
 ## Notes
 
-### Notehead fill and SMuFL glyph refinement
-
-MusicXML `<notehead>` carries a shape value plus two independent refinements: a `filled="yes|no"` attribute (the spec's default is white for half notes and longer, filled otherwise, but Finale can override this per note), and a `smufl` attribute that selects a specific glyph when the base shape value is ambiguous (e.g. distinguishing a small rhythmic slash from a large chord-symbol slash, both of which share the `slash` shape value).
-
-`mx::core::Notehead` (the raw schema layer) supports both `filled` and `smufl` attributes, but `mx::api::NoteData::notehead` is a bare `Notehead` shape enum with no fill or glyph-refinement field, and `NoteWriter::setNotehead()` never calls the underlying `setFilled`/`setSmufl`. Denigma's notehead classifier (`classify::classifyNotehead`) tracks fill (filled/unfilled) as a first-class result, and further distinguishes `notehead::Shape::SmallSlash` from `notehead::Shape::LargeSlash`, but neither can be expressed through `mx::api`: both slash shapes collapse to `mx::api::Notehead::slash`, and fill is silently dropped, which can produce a wrong-looking notehead whenever Finale's explicit fill state disagrees with the MusicXML viewer's duration-based default.
-
-The `smufl` gap is more severe for `notehead::Shape::Other`: this is the classifier's catch-all for a real, recognized SMuFL notehead glyph (shape notes, cluster noteheads, arrow noteheads, etc.) that isn't one of Denigma's specifically-modeled shapes, and the classifier already records the exact glyph name (`NoteheadClassification::glyphName`). Today that glyph name is simply dropped and the note exports as a bare `<notehead>other</notehead>`, which by itself carries no visual information at all -- unlike the slash case, which at least renders as some kind of slash. A `smufl` field would let Denigma pass the real glyph name straight through for every `Shape::Other` note.
-
-Needed API shape: optional `filled` (yes/no) and `smufl` (glyph name) fields on `mx::api::NoteData` (or a richer notehead data struct), written through to `core::Notehead::setFilled`/`setSmufl`.
-
 ### Artificial-harmonic technical detail
 
 MusicXML's `<technical><harmonic>` element can specify `natural` or `artificial`, plus which pitch is displayed (`base-pitch`, `touching-pitch`, or `sounding-pitch`), in addition to the plain notehead shape used to notate the stopped and touched notes.
