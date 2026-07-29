@@ -70,6 +70,11 @@ mx::api::HarpPedalsData musicXmlHarpPedals(const classify::expression::HarpDiagr
     return result;
 }
 
+bool isTopStaffAssignment(const MusxInstance<others::MeasureExprAssign>& assignment)
+{
+    return assignment->staffAssign == static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
+}
+
 namespace {
 
 void appendTechniquePlayback(mx::api::DirectionData& direction, const classify::expression::TechniqueText& technique)
@@ -99,9 +104,11 @@ mx::api::DirectionData createExpressionDirection(
     auto direction = mx::api::DirectionData{};
     direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(Fraction::fromEdu(assignment->eduPosition));
     direction.placement = enumConvert<mx::api::Placement>(placement);
-    /// @todo When mx::api exposes MusicXML direction system relation, emit standalone
-    /// TOP assignments as system="only-top" instead of approximating them by omitting
-    /// the explicit staff value.
+    // A Finale TOP assignment draws the expression on the top staff of every system rather than on
+    // one part, which is what MusicXML system="only-top" means. The staff value is left off to match.
+    if (isTopStaffAssignment(assignment)) {
+        direction.systemRelation = mx::api::SystemRelation::onlyTop;
+    }
     direction.isStaffValueSpecified = isStaffValueSpecified;
     if (assignment->layer > 0 || assignment->voice2) {
         const LayerIndex layer = assignment->layer > 0 ? assignment->layer - 1 : 0;
@@ -110,36 +117,45 @@ mx::api::DirectionData createExpressionDirection(
     return direction;
 }
 
-bool isTopStaffAssignment(const MusxInstance<others::MeasureExprAssign>& assignment)
-{
-    return assignment->staffAssign == static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
-}
-
-mx::api::RehearsalEnclosure enclosureForTextExpression(
+/// The enclosure for a text expression's `<words>` or `<rehearsal>`. An absent or degenerate Finale
+/// enclosure yields an explicit `none` rather than `unspecified`, because `<rehearsal>` defaults to
+/// a square box when the attribute is omitted. See the note on the shape conversion table.
+mx::api::Enclosure enclosureForTextExpression(
     const MusxInstance<others::MeasureExprAssign>& assignment)
 {
     const auto textExpression = assignment ? assignment->getTextExpression() : nullptr;
     if (!textExpression || !textExpression->hasEnclosure) {
-        return mx::api::RehearsalEnclosure::none;
+        return mx::api::Enclosure::none;
     }
 
     const auto enclosure = textExpression->getEnclosure();
     if (!enclosure) {
-        return mx::api::RehearsalEnclosure::none;
+        return mx::api::Enclosure::none;
     }
     if (enclosure->lineWidth <= 0) {
-        return mx::api::RehearsalEnclosure::none;
+        return mx::api::Enclosure::none;
     }
 
     if (enclosure->shape == others::Enclosure::Shape::Rectangle) {
-        return enclosure->equalAspect ? mx::api::RehearsalEnclosure::square : mx::api::RehearsalEnclosure::rectangle;
+        return enclosure->equalAspect ? mx::api::Enclosure::square : mx::api::Enclosure::rectangle;
     }
     if (enclosure->shape == others::Enclosure::Shape::Ellipse) {
-        return enclosure->equalAspect ? mx::api::RehearsalEnclosure::circle : mx::api::RehearsalEnclosure::oval;
+        return enclosure->equalAspect ? mx::api::Enclosure::circle : mx::api::Enclosure::oval;
     }
-    /// @todo Replace the temporary MUSX pentagon-through-octagon fallback to square when mx::api
-    /// exposes matching direction text enclosure shapes.
-    return enumConvert<mx::api::RehearsalEnclosure>(enclosure->shape);
+    return enumConvert<mx::api::Enclosure>(enclosure->shape);
+}
+
+/// The `justify` attribute for a text expression's `<words>` or `<rehearsal>`: how the lines of a
+/// multi-line marking sit relative to each other. Finale keeps this separate from the alignment of
+/// the marking against its anchor, which `horzMeasExprAlign` supplies.
+mx::api::HorizontalAlignment justifyForTextExpression(
+    const MusxInstance<others::MeasureExprAssign>& assignment)
+{
+    const auto textExpression = assignment ? assignment->getTextExpression() : nullptr;
+    if (!textExpression) {
+        return mx::api::HorizontalAlignment::unspecified;
+    }
+    return enumConvert<mx::api::HorizontalAlignment>(textExpression->horzExprJustification);
 }
 
 std::optional<mx::api::DirectionData> createTempoExpressionDirection(
@@ -156,8 +172,10 @@ std::optional<mx::api::DirectionData> createTempoExpressionDirection(
         words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
     }
     const auto enclosure = enclosureForTextExpression(assignment);
+    const auto justify = justifyForTextExpression(assignment);
     for (auto& item : words) {
         item.enclosure = enclosure;
+        item.justify = justify;
     }
     appendMusicXmlWordsRun(direction, std::move(words));
 
@@ -187,8 +205,10 @@ std::optional<mx::api::DirectionData> createWordsExpressionDirection(
         words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
     }
     const auto enclosure = enclosureForTextExpression(assignment);
+    const auto justify = justifyForTextExpression(assignment);
     for (auto& item : words) {
         item.enclosure = enclosure;
+        item.justify = justify;
     }
     appendMusicXmlWordsRun(direction, std::move(words));
     if (mx::api::isDirectionDataEmpty(direction)) {
@@ -210,6 +230,7 @@ std::optional<mx::api::DirectionData> createRehearsalExpressionDirection(
     mx::api::RehearsalData rehearsal;
     rehearsal.text = classification.rehearsalMark().text;
     rehearsal.enclosure = enclosureForTextExpression(assignment);
+    rehearsal.justify = justifyForTextExpression(assignment);
     if (classification.enigmaCtx) {
         const auto chunks = classification.enigmaCtx->collectEnigmaTextChunks(
             EnigmaString::EnigmaParsingOptions(EnigmaString::AccidentalStyle::Unicode));
@@ -262,6 +283,52 @@ enum class GroupedDirectionAction
     Emit,
     ReplacePrior
 };
+
+/// Returns true if every staff of the measure contains nothing but a full-measure rest. The notes
+/// for all staves are built before any expression is processed, so this inspects finished data.
+bool measureHoldsOnlyFullMeasureRests(const mx::api::MeasureData& measure)
+{
+    if (measure.staves.empty()) {
+        return false;
+    }
+    for (const auto& staff : measure.staves) {
+        const mx::api::NoteData* onlyNote = nullptr;
+        for (const auto& voiceEntry : staff.voices) {
+            for (const auto& note : voiceEntry.second.notes) {
+                if (onlyNote) {
+                    return false;
+                }
+                onlyNote = &note;
+            }
+        }
+        if (!onlyNote || !onlyNote->isRest || !onlyNote->isMeasureRest) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// Decides what to do with an expression that carries a multimeasure rest number. Returns true when
+/// the expression has been accounted for and must not also be emitted as text.
+bool applyMultimeasureRestNumber(
+    mx::api::MeasureData& measure,
+    const classify::ExpressionClassification& classification)
+{
+    const int number = classification.multimeasureRestNumber().number;
+    if (measure.multiMeasureRest > 0) {
+        // The <multiple-rest> element already renders this number. A number that disagrees with it
+        // is not describing this rest, so let it through as text.
+        return number == measure.multiMeasureRest;
+    }
+    // A number over an otherwise empty measure stands in for a one-bar multimeasure rest. Symbol
+    // style keeps the measure's whole rest instead of turning it into an H-bar.
+    if (number == 1 && measureHoldsOnlyFullMeasureRests(measure)) {
+        measure.multiMeasureRest = 1;
+        measure.multiMeasureRestUseSymbols = mx::api::Bool::yes;
+        return true;
+    }
+    return false;
+}
 
 } // namespace
 
@@ -353,9 +420,6 @@ void processExpressions(
         const bool emittedFromTopStaffAssignment = isTopStaffAssignment(assignment);
         const bool isVoiceAttached = assignment->layer > 0 || assignment->voice2;
         const bool singleStaffPart = measure.staves.size() == 1;
-        /// @todo Once mx::api can write direction system="only-top|also-top", grouped
-        /// TOP/existing-staff combinations should keep both directions and upgrade the
-        /// TOP-owned one to also-top instead of replacing or suppressing entries here.
         const bool isStaffValueSpecified = !emittedFromTopStaffAssignment && (!singleStaffPart || isVoiceAttached);
         GroupedDirectionAction groupedDirectionAction = GroupedDirectionAction::Emit;
         DirectionGroupTracking* groupTracking = nullptr;
@@ -364,8 +428,16 @@ void processExpressions(
             if (groupIt == directionGroups.end()) {
                 groupedDirectionAction = GroupedDirectionAction::Emit;
             } else if (groupIt->second.emittedFromTopStaffAssignment && assignment->staffAssign >= 0) {
+                // A concrete assignment joins the group's TOP assignment on this same staff. One
+                // direction carries both roles: it owns the staff and is also drawn at the top of
+                // the system, which is MusicXML system="also-top".
                 groupedDirectionAction = GroupedDirectionAction::ReplacePrior;
                 groupTracking = &groupIt->second;
+            } else if (emittedFromTopStaffAssignment && !groupIt->second.emittedFromTopStaffAssignment) {
+                // The same pairing encountered the other way round: the concrete assignment is
+                // already emitted, so the TOP companion only upgrades it to also-top.
+                staff.directions[groupIt->second.directionIndex].systemRelation = mx::api::SystemRelation::alsoTop;
+                groupedDirectionAction = GroupedDirectionAction::None;
             } else {
                 groupedDirectionAction = GroupedDirectionAction::None;
             }
@@ -376,6 +448,7 @@ void processExpressions(
                 return;
             }
             if (groupedDirectionAction == GroupedDirectionAction::ReplacePrior) {
+                direction->systemRelation = mx::api::SystemRelation::alsoTop;
                 staff.directions[groupTracking->directionIndex] = std::move(*direction);
                 groupTracking->emittedFromTopStaffAssignment = false;
                 return;
@@ -385,7 +458,7 @@ void processExpressions(
                 directionGroups.emplace(assignment->staffGroup, DirectionGroupTracking{ staff.directions.size() - 1, emittedFromTopStaffAssignment });
             }
         };
-        
+
         switch (classification.type) {
         case classify::ExpressionType::Dynamic: {
             const auto directions = createDynamicExpressionDirections(
@@ -396,6 +469,7 @@ void processExpressions(
             bool firstDirectionHandled = false;
             for (auto direction : directions) {
                 if (groupedDirectionAction == GroupedDirectionAction::ReplacePrior && !firstDirectionHandled) {
+                    direction.systemRelation = mx::api::SystemRelation::alsoTop;
                     staff.directions[groupTracking->directionIndex] = std::move(direction);
                     groupTracking->emittedFromTopStaffAssignment = false;
                 } else {
@@ -414,6 +488,13 @@ void processExpressions(
                 context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
             break;
         }
+        case classify::ExpressionType::MultimeasureRestNumber:
+            // A number the <multiple-rest> element already accounts for is dropped; anything else
+            // falls through and is emitted as text.
+            if (applyMultimeasureRestNumber(measure, classification)) {
+                break;
+            }
+            [[fallthrough]];
         case classify::ExpressionType::KeyboardPedal:
             /// @todo Emit semantic pedal directions when mx::api can represent the complete
             /// keyboard-pedal vocabulary. Its current mark model would lose pedal 2, pedal 3,

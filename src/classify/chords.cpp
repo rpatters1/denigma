@@ -93,12 +93,20 @@ std::optional<std::string_view> unicodeTextForGlyph(std::string_view glyphName)
     return found == glyphText.end() ? std::nullopt : std::optional<std::string_view>(found->second);
 }
 
-chord::SuffixString::Position suffixStringPosition(musx::dom::Evpu verticalOffset)
+chord::SuffixString::Position suffixStringPosition(
+    musx::dom::Evpu verticalOffset,
+    const std::shared_ptr<musx::dom::FontInfo>& font)
 {
-    if (verticalOffset > 0) {
+    // Finale nudges parentheses and accidental glyphs a few Evpu off the baseline within a single
+    // logical string. Only a shift of at least half the em is a separately stacked line, such as the
+    // 9 under the 6 of a "6/9" chord or a stacked group of added degrees.
+    const auto threshold = font
+        ? static_cast<musx::dom::Evpu>((font->fontSize * musx::dom::EVPU_PER_POINT) / 2.0)
+        : musx::dom::Evpu{};
+    if (verticalOffset > threshold) {
         return chord::SuffixString::Position::Above;
     }
-    if (verticalOffset < 0) {
+    if (verticalOffset < -threshold) {
         return chord::SuffixString::Position::Below;
     }
     return chord::SuffixString::Position::Inline;
@@ -152,7 +160,7 @@ void addDegree(
     int value,
     chord::Degree::Type type,
     int alteration = 0,
-    bool printObject = true);
+    bool impliedByText = false);
 
 bool parseDegrees(std::string_view text, ChordSuffixClassification& result)
 {
@@ -189,15 +197,14 @@ bool parseDegrees(std::string_view text, ChordSuffixClassification& result)
     return true;
 }
 
-void addDegree(ChordSuffixClassification& result, int value, chord::Degree::Type type, int alteration, bool printObject)
+void addDegree(ChordSuffixClassification& result, int value, chord::Degree::Type type, int alteration, bool impliedByText)
 {
-    result.degrees.emplace_back(chord::Degree{ value, alteration, type, printObject });
+    result.degrees.emplace_back(chord::Degree{ value, alteration, type, impliedByText });
 }
 
 void classifyText(ChordSuffixClassification& result)
 {
     const auto text = result.calcText();
-    result.parenthesizeDegrees = text.find('(') != std::string::npos && !result.hasOuterParentheses;
     const auto parseText = normalizeForParsing(text);
     using Quality = chord::Quality;
     using DegreeType = chord::Degree::Type;
@@ -238,26 +245,25 @@ void classifyText(ChordSuffixClassification& result)
         if (parseText == prefix || parseText == std::string(prefix) + "-3") {
             result.quality = quality;
             if (prefix.starts_with("7") || prefix.starts_with("9") || prefix.starts_with("11") || prefix.starts_with("13")) {
-                addDegree(result, 7, DegreeType::Add, 0, false);
+                addDegree(result, 7, DegreeType::Add, 0, true);
             }
             if (prefix.starts_with("9") || prefix.starts_with("11") || prefix.starts_with("13")) {
-                addDegree(result, 9, DegreeType::Add, 0, false);
+                addDegree(result, 9, DegreeType::Add, 0, true);
             }
             if (prefix.starts_with("11") || prefix.starts_with("13")) {
-                addDegree(result, 11, DegreeType::Add, 0, false);
+                addDegree(result, 11, DegreeType::Add, 0, true);
             }
             if (prefix.starts_with("13")) {
-                addDegree(result, 13, DegreeType::Add, 0, false);
+                addDegree(result, 13, DegreeType::Add, 0, true);
             }
             if (prefix.starts_with("6")) {
-                addDegree(result, 6, DegreeType::Add, 0, false);
+                addDegree(result, 6, DegreeType::Add, 0, true);
             }
             return;
         }
     }
     if (parseText == "add9no3" || parseText == "add9omit3") {
         result.quality = Quality::Major;
-        result.stackDegrees = true;
         addDegree(result, 9, DegreeType::Add);
         addDegree(result, 3, DegreeType::Remove);
         return;
@@ -265,7 +271,6 @@ void classifyText(ChordSuffixClassification& result)
     if (parseText == "7b13") { result.quality = Quality::Dominant; addDegree(result, 13, DegreeType::Add, -1); return; }
     if (parseText == "+#9b9" || parseText == "+add#9addb9") {
         result.quality = Quality::Augmented;
-        result.stackDegrees = true;
         addDegree(result, 9, DegreeType::Add, 1);
         addDegree(result, 9, DegreeType::Add, -1);
         return;
@@ -312,7 +317,7 @@ ChordSuffixClassification classifyChordSuffix(
     ChordSuffixClassification result;
     std::optional<musx::dom::Evpu> previousVerticalOffset;
     for (const auto& element : suffix) {
-        const auto position = suffixStringPosition(element->ydisp);
+        const auto position = suffixStringPosition(element->ydisp, element->font);
         if (!previousVerticalOffset || *previousVerticalOffset != element->ydisp) {
             result.strings.emplace_back(chord::SuffixString{ {}, position });
         }
@@ -354,8 +359,17 @@ ChordSuffixClassification classifyChordSuffix(
         }
         string += musx::util::EnigmaString::toU8(element->symbol);
     }
-    result.hasOuterParentheses = hasOuterParentheses(result.calcText());
+    const auto text = result.calcText();
+    result.hasOuterParentheses = hasOuterParentheses(text);
     classifyText(result);
+    // Parentheses describe the degree layout only when the suffix actually produced degrees. In a
+    // suffix such as "m(maj7)" they belong to the chord kind itself, and Finale's own export agrees:
+    // it writes parentheses-degrees only where the parenthesized text is the degree group.
+    result.parenthesizeDegrees = !result.degrees.empty() && text.find('(') != std::string::npos;
+    result.stackDegrees = !result.degrees.empty()
+        && std::any_of(result.strings.begin(), result.strings.end(), [](const auto& string) {
+               return string.position != chord::SuffixString::Position::Inline;
+           });
     return result;
 }
 

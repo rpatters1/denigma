@@ -457,7 +457,9 @@ std::optional<mx::api::OttavaType> ottavaTypeFromOctaveShift(int octaveShift)
     case -1: return mx::api::OttavaType::o8vb;
     case 2: return mx::api::OttavaType::o15ma;
     case -2: return mx::api::OttavaType::o15mb;
-    default: return std::nullopt; // mx::api has no 22ma/22mb OttavaType. (See mx-api-gaps.md.)
+    case 3: return mx::api::OttavaType::o22ma;
+    case -3: return mx::api::OttavaType::o22mb;
+    default: return std::nullopt;
     }
 }
 
@@ -485,7 +487,7 @@ void appendOttava(
     if (!ottavaType) {
         context.logMessage(LogMsg() << "Skipping ottava smart shape " << shape->getCmper()
             << " with octave shift " << ottava.octaveShift
-            << " because mx::api cannot express octave shifts beyond two octaves.", MessageSeverity::Warning);
+            << " because mx::api cannot express this octave shift.", MessageSeverity::Warning);
         return;
     }
 
@@ -512,7 +514,9 @@ void appendOttava(
         ottavaStop.spannerStop.number = smartShapeSpannerNumber(shape);
         constexpr int kOttavaSize = 8;
         constexpr int k15maSize = 15;
-        ottavaStop.size = std::abs(ottava.octaveShift) == 1 ? kOttavaSize : k15maSize;
+        constexpr int k22maSize = 22;
+        const auto octaveCount = std::abs(ottava.octaveShift);
+        ottavaStop.size = octaveCount == 1 ? kOttavaSize : (octaveCount == 2 ? k15maSize : k22maSize);
         stopDirection.directionTypes.emplace_back(std::move(ottavaStop));
         stopStaff->directions.emplace_back(std::move(stopDirection));
     }

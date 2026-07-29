@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <unordered_map>
 
@@ -42,7 +43,7 @@ struct ComparableWordsDirection
     int tickTimePosition{};
     mx::api::Placement placement{mx::api::Placement::unspecified};
     std::vector<std::string> words;
-    std::vector<mx::api::RehearsalEnclosure> enclosures;
+    std::vector<mx::api::Enclosure> enclosures;
 };
 
 std::vector<ComparableWordsDirection> collectWordsOnlyDirections(
@@ -90,7 +91,7 @@ struct ComparableRehearsalDirection
     int tickTimePosition{};
     mx::api::Placement placement{mx::api::Placement::unspecified};
     std::string text;
-    mx::api::RehearsalEnclosure enclosure{mx::api::RehearsalEnclosure::unspecified};
+    mx::api::Enclosure enclosure{mx::api::Enclosure::unspecified};
     std::vector<std::string> fontFamilies;
     mx::api::FontStyle fontStyle{mx::api::FontStyle::unspecified};
     mx::api::FontWeight fontWeight{mx::api::FontWeight::unspecified};
@@ -188,7 +189,7 @@ struct ComparableExpressionEnclosure
     int tickTimePosition{};
     mx::api::Placement placement{mx::api::Placement::unspecified};
     std::string text;
-    mx::api::RehearsalEnclosure enclosure{mx::api::RehearsalEnclosure::unspecified};
+    mx::api::Enclosure enclosure{mx::api::Enclosure::unspecified};
 };
 
 std::vector<ComparableExpressionEnclosure> collectExpressionEnclosures(
@@ -317,7 +318,42 @@ TEST(MusicXmlExpressions, GenericTextDirectionsMatchReference)
     EXPECT_EQ(actualDirections.front().staffIndex, 0u);
     EXPECT_EQ(actualDirections.front().placement, mx::api::Placement::below);
     EXPECT_EQ(actualDirections.front().words, std::vector<std::string>{ "warm" });
-    EXPECT_EQ(actualDirections.front().enclosures, std::vector<mx::api::RehearsalEnclosure>{ mx::api::RehearsalEnclosure::none });
+    EXPECT_EQ(actualDirections.front().enclosures, std::vector<mx::api::Enclosure>{ mx::api::Enclosure::none });
+}
+
+TEST(MusicXmlExpressions, MultimeasureRestNumbersDoNotExportAsDirections)
+{
+    setupTestDataPaths();
+
+    // Measure 31 of each fixture carries its rest count in an expression rather than a multimeasure
+    // rest record. Finale exports that expression as a direction - words when the number is set in a
+    // text font, a SMuFL symbol when it is set in the music font - which would print the number a
+    // second time on top of the measure style. denigma folds it into the measure style instead, so
+    // no direction may survive.
+    constexpr size_t numberMeasureIndex = 30;
+    const std::array<std::pair<std::string, std::string>, 2> fixtures{ {
+        { "multimeas_rests.musx", "musicxml/multimeas_rests-ref.musicxml" },
+        { "multimeas_rests_musfont.musx", "musicxml/multimeas_rests_musfont-ref.musicxml" },
+    } };
+
+    for (const auto& [musxFile, referenceFile] : fixtures) {
+        SCOPED_TRACE(musxFile);
+
+        const auto expectedScore = loadScoreData(getInputPath() / referenceFile);
+        ASSERT_TRUE(expectedScore);
+        ASSERT_FALSE(expectedScore->parts.empty());
+        const auto& expectedMeasure = expectedScore->parts.front().measures.at(numberMeasureIndex);
+        ASSERT_FALSE(expectedMeasure.staves.empty());
+        // Guard the premise: Finale really does emit a direction here.
+        EXPECT_FALSE(expectedMeasure.staves.front().directions.empty());
+
+        const auto actualScore = loadScoreData(exportMusicXmlFixture(musxFile));
+        ASSERT_TRUE(actualScore);
+        ASSERT_FALSE(actualScore->parts.empty());
+        const auto& actualMeasure = actualScore->parts.front().measures.at(numberMeasureIndex);
+        ASSERT_FALSE(actualMeasure.staves.empty());
+        EXPECT_TRUE(actualMeasure.staves.front().directions.empty());
+    }
 }
 
 TEST(MusicXmlExpressions, TempoVariedStavesSmoke)
@@ -609,10 +645,10 @@ TEST(MusicXmlExpressions, ExpressionEnclosuresExportExpectedShapes)
     });
 
     const std::vector<ComparableExpressionEnclosure> expected = {
-        { 0u, 0, mx::api::Placement::above, "Tempo", mx::api::RehearsalEnclosure::square },
-        { 0u, 16, mx::api::Placement::below, "expressive", mx::api::RehearsalEnclosure::none },
-        { 1u, 8, mx::api::Placement::above, "pizz.", mx::api::RehearsalEnclosure::rectangle },
-        { 2u, 0, mx::api::Placement::above, "Reh. 1", mx::api::RehearsalEnclosure::oval }
+        { 0u, 0, mx::api::Placement::above, "Tempo", mx::api::Enclosure::hexagon },
+        { 0u, 16, mx::api::Placement::below, "expressive", mx::api::Enclosure::none },
+        { 1u, 8, mx::api::Placement::above, "pizz.", mx::api::Enclosure::rectangle },
+        { 2u, 0, mx::api::Placement::above, "Reh. 1", mx::api::Enclosure::oval }
     };
 
     ASSERT_EQ(actualEnclosures.size(), expected.size());
@@ -639,8 +675,8 @@ TEST(MusicXmlExpressions, MeasureTextEnclosuresUseStandardFrameRule)
     });
 
     const std::vector<ComparableExpressionEnclosure> expected = {
-        { 2u, 16, mx::api::Placement::below, "no enclosure", mx::api::RehearsalEnclosure::unspecified },
-        { 3u, 3, mx::api::Placement::above, "has enclosure", mx::api::RehearsalEnclosure::rectangle }
+        { 2u, 16, mx::api::Placement::below, "no enclosure", mx::api::Enclosure::unspecified },
+        { 3u, 3, mx::api::Placement::above, "has enclosure", mx::api::Enclosure::rectangle }
     };
 
     ASSERT_EQ(actualEnclosures.size(), expected.size());
@@ -651,6 +687,93 @@ TEST(MusicXmlExpressions, MeasureTextEnclosuresUseStandardFrameRule)
         EXPECT_EQ(actualEnclosures[index].text, expected[index].text) << "measure text " << index;
         EXPECT_EQ(actualEnclosures[index].enclosure, expected[index].enclosure) << "measure text " << index;
     }
+}
+
+TEST(MusicXmlExpressions, TextExpressionsExportSourceJustification)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("enclosures.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    // TextExpressionDef::horzExprJustification reaches both <words justify="..."> and
+    // <rehearsal justify="...">, independently of the halign that positions the marking.
+    std::unordered_map<std::string, mx::api::HorizontalAlignment> justifyByText;
+    for (const auto& measure : actualScore->parts.front().measures) {
+        for (const auto& staff : measure.staves) {
+            for (const auto& direction : staff.directions) {
+                for (const auto& word : directionWords(direction)) {
+                    justifyByText.emplace(word.text, word.justify);
+                }
+                for (const auto& rehearsal : directionRehearsals(direction)) {
+                    justifyByText.emplace(rehearsal.text, rehearsal.justify);
+                }
+            }
+        }
+    }
+
+    for (const auto& text : { "Tempo", "expressive", "pizz.", "Reh. 1" }) {
+        const auto found = justifyByText.find(text);
+        ASSERT_NE(found, justifyByText.end()) << text;
+        EXPECT_EQ(found->second, mx::api::HorizontalAlignment::left) << text;
+    }
+}
+
+TEST(MusicXmlExpressions, JumpTextExportsJustifyAndHalign)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("repeats.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    // Finale gives text repeats one justification setting and writes it as both attributes.
+    std::vector<mx::api::WordsData> jumpWords;
+    for (const auto& measure : actualScore->parts.front().measures) {
+        for (const auto& staff : measure.staves) {
+            for (const auto& direction : staff.directions) {
+                for (const auto& word : directionWords(direction)) {
+                    jumpWords.emplace_back(word);
+                }
+            }
+        }
+    }
+
+    ASSERT_EQ(jumpWords.size(), 1u);
+    EXPECT_EQ(jumpWords.front().text, "Segno");
+    EXPECT_EQ(jumpWords.front().justify, mx::api::HorizontalAlignment::right);
+    EXPECT_EQ(jumpWords.front().positionData.horizontalAlignment, mx::api::HorizontalAlignment::right);
+}
+
+TEST(MusicXmlExpressions, TopStaffExpressionsExportOnlyTopSystemRelation)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("rehearsal_marks.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    // Every rehearsal mark in this fixture is assigned to Finale's floating TOP staff, which is
+    // MusicXML system="only-top" with no staff of its own.
+    size_t rehearsalCount = 0;
+    for (const auto& measure : actualScore->parts.front().measures) {
+        for (const auto& staff : measure.staves) {
+            for (const auto& direction : staff.directions) {
+                if (directionRehearsals(direction).empty()) {
+                    continue;
+                }
+                ++rehearsalCount;
+                EXPECT_EQ(direction.systemRelation, mx::api::SystemRelation::onlyTop)
+                    << "rehearsal " << rehearsalCount;
+                EXPECT_FALSE(direction.isStaffValueSpecified) << "rehearsal " << rehearsalCount;
+            }
+        }
+    }
+    EXPECT_GT(rehearsalCount, 0u);
 }
 
 TEST(MusicXmlExpressions, TempoToolChanges)

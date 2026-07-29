@@ -50,6 +50,9 @@ mx::api::DirectionData createDynamicDirection(
     auto direction = mx::api::DirectionData{};
     direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(Fraction::fromEdu(assignment->eduPosition));
     direction.placement = enumConvert<mx::api::Placement>(placement);
+    if (isTopStaffAssignment(assignment)) {
+        direction.systemRelation = mx::api::SystemRelation::onlyTop;
+    }
     direction.isStaffValueSpecified = isStaffValueSpecified;
     if (assignment->layer > 0 || assignment->voice2) {
         const LayerIndex layer = assignment->layer > 0 ? assignment->layer - 1 : 0;
@@ -126,6 +129,7 @@ std::vector<mx::api::DirectionData> createDynamicExpressionDirections(
                         symbol.color = sourceWords->colorData;
                     }
                     symbol.enclosure = sourceWords->enclosure;
+                    symbol.justify = sourceWords->justify;
                     symbols.emplace_back(std::move(symbol));
                 }
                 direction.directionTypes.emplace_back(std::move(symbols));

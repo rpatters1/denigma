@@ -181,8 +181,19 @@ static void createClefs(
     const auto& musxDocument = musxMeasure->getDocument();
     const StaffCmper staffCmper = context->current.staff;
 
-    auto addClef = [&](ClefIndex clefIndex, musx::util::Fraction location) {
-        if (clefIndex == prevClefIndex) {
+    // MNX models a clef as a positioned, drawn clef rather than as a clef change, and its schema
+    // places no uniqueness requirement on a measure's clefs. Restating the prevailing clef is
+    // therefore valid MNX, and it is the only way to carry Finale's forced (ShowClefMode::Always)
+    // clef display: MNX has no counterpart to MusicXML's clef@additional, so a consumer that
+    // dedupes against the prevailing clef will still drop the restatement.
+    //
+    // ShowClefMode::Never has no MNX representation at all, because a clef carries no visibility
+    // flag. The clef cannot simply be omitted either, since it determines the staff positions of
+    // the following notes, so Finale's hidden clefs are exported as ordinary visible clefs.
+    auto addClef = [&](const others::Staff::ClefChange& clefChange) {
+        const auto clefIndex = clefChange.clefIndex;
+        const auto location = clefChange.position;
+        if (clefIndex == prevClefIndex && clefChange.showClefMode != ShowClefMode::Always) {
             return;
         }
         auto musxStaff = musx::dom::others::StaffComposite::createCurrent(
@@ -207,7 +218,7 @@ static void createClefs(
         musxMeasure->getCmper(),
         /*forWrittenPitch*/ true,
         [&](const others::Staff::ClefChange& clefChange) {
-            addClef(clefChange.clefIndex, clefChange.position);
+            addClef(clefChange);
             return true;
         });
 }

@@ -144,3 +144,46 @@ TEST(MusicXmlChordFixture, ExportsChordsForInspection)
     EXPECT_STREQ(firstKind.child_value(), "major");
     EXPECT_FALSE(firstKind.attribute("text"));
 }
+
+TEST(MusicXmlChordFixture, WritesDegreeLayoutAttributesFromTheSuffix)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = denigma::test::musicxml::exportMusicXmlFixture("chords.musx");
+    pugi::xml_document document;
+    ASSERT_TRUE(document.load_file(outputPath.c_str()));
+
+    // The parentheses in "m(maj7)" belong to the chord kind, not to a degree group, so the suffix
+    // must not claim parenthesized degrees. Finale's own export of this fixture agrees.
+    const auto majorMinor = document.select_node("//kind[@text='m(maj7)']").node();
+    ASSERT_TRUE(majorMinor);
+    EXPECT_FALSE(majorMinor.attribute("parentheses-degrees"));
+    EXPECT_FALSE(majorMinor.attribute("stack-degrees"));
+    EXPECT_FALSE(majorMinor.parent().child("degree"));
+
+    // A parenthesized alteration is a degree group, whether or not the parentheses wrap the whole
+    // suffix, but only vertically offset degrees are stacked.
+    const auto parenthesized = document.select_node("//kind[@parentheses-degrees='yes']").node();
+    ASSERT_TRUE(parenthesized);
+    EXPECT_TRUE(parenthesized.parent().child("degree"));
+
+    const auto stacked = document.select_node("//kind[@stack-degrees='yes']").node();
+    ASSERT_TRUE(stacked);
+    EXPECT_STREQ(stacked.attribute("parentheses-degrees").value(), "yes");
+    EXPECT_TRUE(stacked.parent().child("degree"));
+
+    const auto inlineDegrees = document.select_node("//kind[@text='+(add♯9add♭9)']").node();
+    ASSERT_TRUE(inlineDegrees);
+    EXPECT_STREQ(inlineDegrees.attribute("parentheses-degrees").value(), "yes");
+    EXPECT_FALSE(inlineDegrees.attribute("stack-degrees"));
+
+    // The seventh of "7sus4" sounds but is already spelled out by the kind text, so it must not
+    // print a second time. Degrees the suffix does show carry no print-object at all.
+    const auto suspended = document.select_node("//kind[@text='7sus4-3']").node();
+    ASSERT_TRUE(suspended);
+    const auto impliedDegree = suspended.parent().child("degree");
+    ASSERT_TRUE(impliedDegree);
+    EXPECT_STREQ(impliedDegree.child_value("degree-value"), "7");
+    EXPECT_STREQ(impliedDegree.attribute("print-object").value(), "no");
+    EXPECT_FALSE(parenthesized.parent().child("degree").attribute("print-object"));
+}

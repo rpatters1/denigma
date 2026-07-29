@@ -66,13 +66,33 @@ void applyNoteheadData(
     const NoteInfoPtr& noteInfo,
     const classify::EntryNoteheadClassification& entryNoteheads)
 {
+    using Fill = classify::notehead::Fill;
+    using Shape = classify::notehead::Shape;
     if (const auto classification = classify::classifyNotehead(noteInfo)) {
         note.notehead = enumConvert<mx::api::Notehead>(classification.shape);
-        /// @todo Export notehead fill (filled/unfilled) and, for Shape::Other, the specific SMuFL glyph
-        /// name, once mx::api exposes Notehead's `filled`/`smufl` attributes. Also note that
-        /// Shape::SmallSlash and Shape::LargeSlash both map to mx::api::Notehead::slash, since mx::api
-        /// has no way to select the SMuFL glyph that would distinguish them. See "Notehead fill and
-        /// SMuFL glyph refinement" in mx-api-gaps.md.
+
+        // Absent the filled attribute, MusicXML draws the notehead from the note's duration: hollow
+        // for a half note and longer, solid for a quarter note and shorter. Write the attribute only
+        // where Finale's glyph disagrees with that default, as Finale's own export does.
+        const bool defaultsToFilled = note.durationData.durationName >= mx::api::DurationName::quarter;
+        if (classification.fill == Fill::Filled && !defaultsToFilled) {
+            note.noteheadFilled = mx::api::Bool::yes;
+        } else if (classification.fill == Fill::Unfilled && defaultsToFilled) {
+            note.noteheadFilled = mx::api::Bool::no;
+        }
+
+        // The MusicXML value identifies the glyph for every shape Denigma models except these two:
+        // `other` carries no visual information at all, and both slash sizes share the `slash` value.
+        // Naming the glyph lets a consumer draw what Finale drew.
+        switch (classification.shape) {
+        case Shape::Other:
+        case Shape::SmallSlash:
+        case Shape::LargeSlash:
+            note.noteheadSmufl = classification.glyphName;
+            break;
+        default:
+            break;
+        }
     }
 
     applyArtificialHarmonicMark(note, noteInfo, entryNoteheads);

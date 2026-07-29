@@ -741,6 +741,136 @@ static std::optional<ExpressionClassification> classifyKeyboardPedalExpression(c
     return result;
 }
 
+/// Returns the document default font for multimeasure rest numbers, or null when unavailable.
+static musx::dom::MusxInstance<musx::dom::FontInfo> multimeasureRestNumberFont(const musx::dom::DocumentPtr& document)
+{
+    using musx::dom::options::FontOptions;
+
+    if (!document) {
+        return nullptr;
+    }
+    const auto& options = document->getOptions();
+    if (!options) {
+        return nullptr;
+    }
+    const auto fontOptions = options->get<FontOptions>();
+    if (!fontOptions) {
+        return nullptr;
+    }
+    // Indexed directly because FontOptions::getFontInfo throws when the type is absent.
+    const auto it = fontOptions->fontOptions.find(FontOptions::FontType::MultiMeasRest);
+    if (it == fontOptions->fontOptions.end()) {
+        return nullptr;
+    }
+    return it->second;
+}
+
+/// Returns true if the expression is horizontally centered on the measure.
+///
+/// The marking category is not consulted. Categories synchronize the positioning stored on each
+/// expression definition rather than overriding it, so the definition always carries its own
+/// effective values. Should the two ever disagree, the definition is what Finale draws.
+static bool hasCenteredHorizontalAlignment(const musx::dom::MusxInstance<musx::dom::others::TextExpressionDef>& def)
+{
+    using musx::dom::others::HorizontalMeasExprAlign;
+
+    return (def->horzMeasExprAlign == HorizontalMeasExprAlign::CenterOverMusic
+            || def->horzMeasExprAlign == HorizontalMeasExprAlign::CenterOverBarlines)
+        && def->horzExprJustification == musx::dom::AlignJustify::Center;
+}
+
+/// Returns the digit encoded by a SMuFL time-signature glyph name, if the name is one.
+static std::optional<char> timeSignatureDigitFromGlyphName(std::string_view glyphName)
+{
+    constexpr std::string_view prefix = "timeSig";
+    if (glyphName.size() != prefix.size() + 1 || glyphName.compare(0, prefix.size(), prefix) != 0) {
+        return std::nullopt;
+    }
+    const char digit = glyphName.back();
+    if (digit < '0' || digit > '9') {
+        return std::nullopt;
+    }
+    return digit;
+}
+
+/// Reads the chunks as a decimal number rendered in @p expectedFont, or returns nullopt when they
+/// are not entirely digits in that typeface. Music fonts render multimeasure rest numbers with their
+/// time-signature digits: SMuFL fonts encode them at U+E080-U+E089, while legacy fonts such as
+/// Maestro map them onto ASCII digits.
+static std::optional<int> parseMultimeasureRestNumber(
+    const std::vector<musx::util::EnigmaTextChunk>& chunks,
+    const musx::dom::FontInfo& expectedFont)
+{
+    constexpr size_t maxDigits = 4;
+
+    std::string digits;
+    for (const auto& chunk : chunks) {
+        const auto font = chunk.styles.font;
+        if (!font || !font->isSame(expectedFont)) {
+            return std::nullopt;
+        }
+        for (utils::Utf8Iterator iter(chunk.text); !iter.atEnd(); iter.next()) {
+            if (!iter.valid()) {
+                return std::nullopt;
+            }
+            const char32_t codepoint = iter->codepoint;
+            if (codepoint < 0x80 && utils::isSpace(static_cast<unsigned char>(codepoint))) {
+                continue;
+            }
+            if (codepoint >= U'0' && codepoint <= U'9') {
+                digits.push_back(static_cast<char>(codepoint));
+            } else if (const auto glyphName = detail::glyphNameForFont(font, codepoint)) {
+                const auto digit = timeSignatureDigitFromGlyphName(*glyphName);
+                if (!digit) {
+                    return std::nullopt;
+                }
+                digits.push_back(*digit);
+            } else {
+                return std::nullopt;
+            }
+            if (digits.size() > maxDigits) {
+                return std::nullopt;
+            }
+        }
+    }
+    if (digits.empty()) {
+        return std::nullopt;
+    }
+    return std::stoi(digits);
+}
+
+/// Recognizes an expression that carries the number of a multimeasure rest. Finale normally draws
+/// that number as part of the rest, but documents may place it in an expression so that it can be
+/// repositioned per staff or centered between staves. The marking category is deliberately not
+/// consulted: its name is user-defined and carries no reliable meaning.
+static std::optional<ExpressionClassification> classifyMultimeasureRestNumberExpression(const ResolvedTextExpression& resolved)
+{
+    if (!resolved.expressionDef || !resolved.rawTextCtx) {
+        return std::nullopt;
+    }
+    if (!hasCenteredHorizontalAlignment(resolved.expressionDef)) {
+        return std::nullopt;
+    }
+    const auto expectedFont = multimeasureRestNumberFont(resolved.expressionDef->getDocument());
+    if (!expectedFont) {
+        return std::nullopt;
+    }
+    const auto chunks = collectVisibleExpressionChunks(resolved.rawTextCtx);
+    if (chunks.empty()) {
+        return std::nullopt;
+    }
+    const auto number = parseMultimeasureRestNumber(chunks, *expectedFont);
+    if (!number) {
+        return std::nullopt;
+    }
+
+    ExpressionClassification result;
+    result.type = ExpressionType::MultimeasureRestNumber;
+    result.basis = ClassificationBasis::Heuristic;
+    result.value = MultimeasureRestNumber{ *number };
+    return result;
+}
+
 static ExpressionClassification withEnigmaCtx(ExpressionClassification result, const ResolvedTextExpression& resolved)
 {
     if (resolved.rawTextCtx) {
@@ -771,6 +901,11 @@ static std::optional<ExpressionClassification> classifyResolvedTextExpressionBef
     }
     if (categoryType == CategoryType::RehearsalMarks) {
         return withEnigmaCtx(*classifyRehearsalMark(resolved.text, categoryType), resolved);
+    }
+    // Must precede the generic-text and system-text paths, whose rehearsal-mark heuristic would
+    // otherwise claim a bare number such as "12".
+    if (const auto mmRestNumber = classifyMultimeasureRestNumberExpression(resolved)) {
+        return withEnigmaCtx(*mmRestNumber, resolved);
     }
     if (const auto dynamic = makeDynamicExpression(classifyExpressionRuns(resolved), categoryType)) {
         return withEnigmaCtx(*dynamic, resolved);

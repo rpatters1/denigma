@@ -614,7 +614,12 @@ void assignClefs(
     auto addClef = [&](const others::Staff::ClefChange& clefChange) {
         const auto clefIndex = clefChange.clefIndex;
         const auto location = clefChange.position;
-        if (clefIndex == prevClefIndex) {
+        // A clef that repeats the prevailing one is not a clef change, so MusicXML's normal
+        // clef sequence would not display it. Finale's ShowClefMode::Always forces it to show,
+        // and MusicXML expresses exactly that with clef@additional.
+        const bool isRestatement = clefIndex == prevClefIndex;
+        const bool isForcedRestatement = isRestatement && clefChange.showClefMode == ShowClefMode::Always;
+        if (isRestatement && !isForcedRestatement) {
             return;
         }
         auto musxStaff = measureStartStaff;
@@ -630,7 +635,19 @@ void assignClefs(
 
         auto clef = musicXmlClefFromMusxClef(context.finaleOptions.clefOptions->getClefDef(clefIndex), musxStaff);
         clef.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(location);
-        clef.location = location ? mx::api::ClefLocation::midMeasure : mx::api::ClefLocation::unspecified;
+        // MUSX only records "place clef after barline" for a measure-start clef, and MusicXML
+        // ignores after-barline on mid-measure clefs. Finale's default placement (before the
+        // barline) is also the notation default, so leave that case unspecified.
+        if (location) {
+            clef.location = mx::api::ClefLocation::midMeasure;
+        } else if (clefChange.afterBarline) {
+            clef.location = mx::api::ClefLocation::afterBarline;
+        } else {
+            clef.location = mx::api::ClefLocation::unspecified;
+        }
+        if (isForcedRestatement) {
+            clef.additional = mx::api::Bool::yes;
+        }
         if (clefChange.showClefMode == ShowClefMode::Never
             || (clefChange.showClefMode == ShowClefMode::WhenNeeded && musxStaff->hideClefs)) {
             clef.printObject = mx::api::Bool::no;
@@ -806,6 +823,9 @@ void processMeasureText(
         }
 
         const auto textBlock = assignment->getTextBlock();
+        // TextBlock::justify is the text block's own justification, the same field page text maps to
+        // MusicXML's justify attribute. It also stands in for the anchor alignment, which measure
+        // text assignments do not record separately.
         const auto horizontalAlignment = textBlock ? enumConvert<mx::api::HorizontalAlignment>(textBlock->justify)
                                                    : mx::api::HorizontalAlignment::unspecified;
         const bool useStandardFrameEnclosure = textBlock && textBlock->shapeId == 0 && textBlock->stdLineThickness > 0;
@@ -830,9 +850,10 @@ void processMeasureText(
             }
             if (horizontalAlignment != mx::api::HorizontalAlignment::unspecified) {
                 item.positionData.horizontalAlignment = horizontalAlignment;
+                item.justify = horizontalAlignment;
             }
             if (useStandardFrameEnclosure) {
-                item.enclosure = mx::api::RehearsalEnclosure::rectangle;
+                item.enclosure = mx::api::Enclosure::rectangle;
             }
         }
 
@@ -877,15 +898,17 @@ void processChords(
         chord.chordKind = suffix.quality
             ? enumConvert<mx::api::ChordKind>(*suffix.quality)
             : mx::api::ChordKind::other;
-        /// @todo Apply suffix.parenthesizeDegrees and suffix.stackDegrees when mx::api exposes the corresponding
-        /// MusicXML <kind> attributes. See "Parenthesized and stacked chord degrees" in mx-api-gaps.md.
         if (assignment->showSuffix) {
             chord.text = suffix.calcText();
             for (const auto& degree : suffix.degrees) {
                 auto extension = mx::api::Extension{};
                 extension.extensionType = enumConvert<mx::api::ExtensionType>(degree.type);
                 extension.setAlterValue(degree.alteration);
-                extension.printObject = mx::api::fromBool(degree.printObject);
+                // A degree the suffix text already spells out must not print a second time. Leave the
+                // rest unspecified rather than writing "yes", as Finale's own export does.
+                if (degree.impliedByText) {
+                    extension.printObject = mx::api::Bool::no;
+                }
                 switch (degree.value) {
                 case 1: extension.extensionNumber = mx::api::ExtensionNumber::first; break;
                 case 2: extension.extensionNumber = mx::api::ExtensionNumber::second; break;
@@ -900,6 +923,17 @@ void processChords(
                 default: continue;
                 }
                 chord.extensions.emplace_back(extension);
+            }
+            // These describe how the exported degrees are laid out, so they mean nothing without any.
+            // Leave them unspecified rather than writing "no", so that the layout is only constrained
+            // where Finale's suffix calls for it. Finale's own export does the same.
+            if (!chord.extensions.empty()) {
+                if (suffix.parenthesizeDegrees) {
+                    chord.parenthesesDegrees = mx::api::Bool::yes;
+                }
+                if (suffix.stackDegrees) {
+                    chord.stackDegrees = mx::api::Bool::yes;
+                }
             }
             if (suffix.hasUnrecognizedGlyphs) {
                 context.logMessage(LogMsg() << "Chord suffix " << assignment->suffixId << " in measure "
@@ -943,16 +977,25 @@ void addMeasureNumber(
             }
         }
         if (measureId == musxMeasureNumberRegion->calcFirstDisplayedMeasureId()) {
-            const bool partDisplaysMeasureNumbers = std::ranges::any_of(staves, [&](StaffCmper staffId) {
-                const auto staff = others::StaffComposite::createCurrent(
-                    context.document, context.forPartId, staffId, measureId, 0);
-                if (!staff) {
-                    context.logMessage(LogMsg() << "Cannot determine measure-number visibility for staff " << staffId
-                        << " in measure " << measureId << ".", MessageSeverity::Warning);
-                    return false;
+            // The topmost staff of the part that shows measure numbers. MusicXML positions the
+            // part's measure number against this staff, so it doubles as the display flag.
+            const auto displayingStaffIndex = [&]() -> std::optional<size_t> {
+                for (size_t staffIndex = 0; staffIndex < staves.size(); staffIndex++) {
+                    const StaffCmper staffId = staves[staffIndex];
+                    const auto staff = others::StaffComposite::createCurrent(
+                        context.document, context.forPartId, staffId, measureId, 0);
+                    if (!staff) {
+                        context.logMessage(LogMsg() << "Cannot determine measure-number visibility for staff " << staffId
+                            << " in measure " << measureId << ".", MessageSeverity::Warning);
+                        continue;
+                    }
+                    if (!staff->hideMeasNums) {
+                        return staffIndex;
+                    }
                 }
-                return !staff->hideMeasNums;
-            });
+                return std::nullopt;
+            }();
+            const bool partDisplaysMeasureNumbers = displayingStaffIndex.has_value();
 
             const bool partIsTopSystemStaff = !scoreStaves.empty()
                 && std::ranges::find(staves, scoreStaves.front()) != staves.end();
@@ -998,13 +1041,22 @@ void addMeasureNumber(
                     ? mx::api::Bool::yes
                     : mx::api::Bool::no;
                 measure.measureNumberingSystemRelation = systemRelation;
+                // An absent staff index means the top staff, which is what index 0 would say anyway.
+                if (displayingStaffIndex.value_or(0) > 0) {
+                    measure.measureNumberingStaffIndex = static_cast<int>(*displayingStaffIndex);
+                }
             }
         }
-        const auto displayNum = musxMeasureNumberRegion->calcDisplayNumberTextFor(measureId);
-        MUSX_ASSERT_IF(!displayNum) {
-            return;
+        // Absent for a measure excluded from numbering, which is already marked implicit above.
+        // An implicit measure prints no number at all, so an override would be dead weight.
+        if (const auto displayNum = musxMeasureNumberRegion->calcDisplayNumberTextFor(measureId);
+            displayNum && measure.implicit != mx::api::Bool::yes) {
+            // MusicXML infers the printed number from the measure's own number, so the override is
+            // only needed when Finale's numbering scheme prints something else.
+            if (*displayNum != measure.number) {
+                measure.displayedNumber = *displayNum;
+            }
         }
-        /// @todo Export displayNum once mx::api exposes a MeasureData field for measure-numbering element text.
     }
 }
 
@@ -1033,8 +1085,15 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         const auto& musxMeasure = musxMeasures[measureIndex];
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
-        /// @todo Export the matching part-scoped others::MultimeasureRest here by setting
-        /// MeasureData::multiMeasureRest once mx::api writes <measure-style><multiple-rest>.
+        if (const auto multimeasureRest = context.document->getOthers()->get<others::MultimeasureRest>(
+                context.forPartId, musxMeasure->getCmper())) {
+            if (const int measureCount = multimeasureRest->calcNumberOfMeasures(); measureCount > 0) {
+                measure.multiMeasureRest = measureCount;
+                if (multimeasureRest->calcUsesSymbols()) {
+                    measure.multiMeasureRestUseSymbols = mx::api::Bool::yes;
+                }
+            }
+        }
         /// @todo Export effective staff alternate-notation starts/stops here once mx::api exposes
         /// staff-scoped measure styles for measure repeats and slash notation.
         addMeasureNumber(context, measure, musxMeasure, stavesIt->second, scoreStaves);

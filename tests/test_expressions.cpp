@@ -83,7 +83,7 @@ static std::string categoryXmlName(ExpressionCategoryType categoryType)
     return {};
 }
 
-static std::string categoryXml(ExpressionCategoryType categoryType)
+static std::string categoryXml(ExpressionCategoryType categoryType, const std::string& extraCategoryXml = {})
 {
     const std::string xmlName = categoryXmlName(categoryType);
     if (xmlName.empty()) {
@@ -91,7 +91,34 @@ static std::string categoryXml(ExpressionCategoryType categoryType)
     }
     return "    <markingsCategory cmper=\"" + std::to_string(static_cast<int>(categoryType)) + "\">\n"
            "      <categoryType>" + xmlName + "</categoryType>\n"
+           + extraCategoryXml +
            "    </markingsCategory>\n";
+}
+
+/// Options block declaring the document default font for multimeasure rest numbers. The font is
+/// always font id 1, so expression text selects it with `^fontid(1)`.
+static std::string multimeasureRestFontOptionsXml()
+{
+    return R"xml(  <options>
+    <fontOptions>
+      <font type="multiMeasRest">
+        <fontID>1</fontID>
+        <fontSize>24</fontSize>
+      </font>
+    </fontOptions>
+  </options>
+)xml";
+}
+
+static std::string fontDefinitionXml(int cmper, const std::string& fontName, int charsetVal)
+{
+    return "    <fontName cmper=\"" + std::to_string(cmper) + "\">\n"
+           "      <charsetBank>Mac</charsetBank>\n"
+           "      <charsetVal>" + std::to_string(charsetVal) + "</charsetVal>\n"
+           "      <pitch>0</pitch>\n"
+           "      <family>0</family>\n"
+           "      <name>" + fontName + "</name>\n"
+           "    </fontName>\n";
 }
 
 static TextExpressionContext makeTextExpressionContext(
@@ -101,24 +128,24 @@ static TextExpressionContext makeTextExpressionContext(
     bool assignmentTopStaff = false,
     const std::string& fontName = "Times New Roman",
     int charsetVal = 0,
-    const std::string& expressionXml = {})
+    const std::string& expressionXml = {},
+    const std::string& mmRestFontName = {},
+    int mmRestCharsetVal = 0,
+    const std::string& extraCategoryXml = {})
 {
     std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
 <finale>
-  <others>
-    <fontName cmper="0">
-      <charsetBank>Mac</charsetBank>
-      <charsetVal>)xml";
-    xml += std::to_string(charsetVal);
-    xml += R"xml(</charsetVal>
-      <pitch>0</pitch>
-      <family>0</family>
-      <name>)xml";
-    xml += fontName;
-    xml += R"xml(</name>
-    </fontName>
 )xml";
-    xml += categoryXml(categoryType);
+    if (!mmRestFontName.empty()) {
+        xml += multimeasureRestFontOptionsXml();
+    }
+    xml += R"xml(  <others>
+)xml";
+    xml += fontDefinitionXml(0, fontName, charsetVal);
+    if (!mmRestFontName.empty()) {
+        xml += fontDefinitionXml(1, mmRestFontName, mmRestCharsetVal);
+    }
+    xml += categoryXml(categoryType, extraCategoryXml);
     xml += R"xml(    <textBlock cmper="1">
       <textID>1</textID>
       <textTag>expression</textTag>
@@ -221,7 +248,7 @@ static MusxInstance<others::MeasureExprAssign> makeStaffTextAssignment(
     return assignment;
 }
 
-static std::string makeHarpPedalDiagramText(std::u8string_view glyphs)
+static std::string makeGlyphText(std::u8string_view glyphs)
 {
     std::string result;
     utils::appendUtf8(result, glyphs);
@@ -283,7 +310,7 @@ TEST(ExpressionClassification, ClassifiesStringMuteGlyphExpressions)
 
     for (const auto& item : expected) {
         const auto context = makeTextExpressionContext(
-            "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(item.glyph),
+            "^fontid(0)^size(24)^nfx(0)" + makeGlyphText(item.glyph),
             ExpressionCategoryType::Misc, {}, false, "Finale Maestro", 4095);
         const auto result = classifyExpression(context.def);
         EXPECT_EQ(result.type, ExpressionType::StringMute);
@@ -295,7 +322,7 @@ TEST(ExpressionClassification, ClassifiesStringMuteGlyphExpressions)
 TEST(ExpressionClassification, ClassifiesHarpPedalDiagramGlyphSequence)
 {
     const auto context = makeTextExpressionContext(
-        "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(u8"\uE680\uE681\uE682\uE683\uE682\uE681\uE680\uE682"),
+        "^fontid(0)^size(24)^nfx(0)" + makeGlyphText(u8"\uE680\uE681\uE682\uE683\uE682\uE681\uE680\uE682"),
         ExpressionCategoryType::Misc,
         {},
         false,
@@ -316,7 +343,7 @@ TEST(ExpressionClassification, ClassifiesHarpPedalDiagramGlyphSequence)
 TEST(ExpressionClassification, RejectsIncompleteHarpPedalDiagramGlyphSequence)
 {
     const auto context = makeTextExpressionContext(
-        "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(u8"\uE680\uE681\uE682\uE683\uE682\uE681\uE680"),
+        "^fontid(0)^size(24)^nfx(0)" + makeGlyphText(u8"\uE680\uE681\uE682\uE683\uE682\uE681\uE680"),
         ExpressionCategoryType::Misc,
         {},
         false,
@@ -365,7 +392,7 @@ TEST(ExpressionClassification, ClassifiesKeyboardPedalGlyphs)
 {
     const auto classifyGlyphs = [](std::u8string_view glyphs) {
         return classifyExpression(makeTextExpressionContext(
-            "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(glyphs),
+            "^fontid(0)^size(24)^nfx(0)" + makeGlyphText(glyphs),
             ExpressionCategoryType::Misc, {}, false, "Bravura").def);
     };
     const auto expectPedal = [&](std::u8string_view glyphs, keyboardpedal::Type expected) {
@@ -399,7 +426,7 @@ TEST(ExpressionClassification, ClassifiesKeyboardPedalGlyphs)
 TEST(ExpressionClassification, DoesNotClassifyKeyboardPedalPictograms)
 {
     const auto result = classifyExpression(makeTextExpressionContext(
-        "^fontid(0)^size(24)^nfx(0)" + makeHarpPedalDiagramText(u8"\uE660"),
+        "^fontid(0)^size(24)^nfx(0)" + makeGlyphText(u8"\uE660"),
         ExpressionCategoryType::Misc, {}, false, "Bravura").def);
     EXPECT_EQ(result.type, ExpressionType::GenericText);
 }
@@ -738,4 +765,135 @@ TEST(ExpressionClassification, SuppressesUnrecognizedShapeExpression)
     const auto result = classifyExpression(context.def);
 
     EXPECT_EQ(result.type, ExpressionType::Suppress);
+}
+
+static std::string centeredExpressionXml()
+{
+    return "      <horzMeasExprAlign>centerOverMusic</horzMeasExprAlign>\n"
+           "      <horzExprAlign>center</horzExprAlign>\n";
+}
+
+static ExpressionClassification classifyMultimeasureRestNumberCandidate(
+    const std::string& text,
+    const std::string& expressionXml = centeredExpressionXml(),
+    const std::string& mmRestFontName = "Maestro",
+    ExpressionCategoryType categoryType = ExpressionCategoryType::ExpressiveText,
+    const std::string& extraCategoryXml = {})
+{
+    const auto context = makeTextExpressionContext(
+        text, categoryType, {}, false, "Times New Roman", 0, expressionXml,
+        mmRestFontName, 0, extraCategoryXml);
+    return classifyExpression(context.def);
+}
+
+TEST(ExpressionClassification, ClassifiesMultimeasureRestNumberFromAsciiDigits)
+{
+    const auto result = classifyMultimeasureRestNumberCandidate("^fontid(1)^size(24)^nfx(0)12");
+
+    ASSERT_EQ(result.type, ExpressionType::MultimeasureRestNumber);
+    EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(result.multimeasureRestNumber().number, 12);
+}
+
+TEST(ExpressionClassification, ClassifiesMultimeasureRestNumberFromTimeSignatureGlyphs)
+{
+    // Bravura encodes time-signature digits at U+E080-U+E089; U+E081 U+E082 spells "12".
+    const auto result = classifyMultimeasureRestNumberCandidate(
+        "^fontid(1)^size(24)^nfx(0)" + makeGlyphText(u8""),
+        centeredExpressionXml(),
+        "Bravura");
+
+    ASSERT_EQ(result.type, ExpressionType::MultimeasureRestNumber);
+    EXPECT_EQ(result.multimeasureRestNumber().number, 12);
+}
+
+TEST(ExpressionClassification, ClassifiesMultimeasureRestNumberCenteredOverBarlines)
+{
+    const auto result = classifyMultimeasureRestNumberCandidate(
+        "^fontid(1)^size(24)^nfx(0)7",
+        "      <horzMeasExprAlign>centerOverBarlines</horzMeasExprAlign>\n"
+        "      <horzExprAlign>center</horzExprAlign>\n");
+
+    ASSERT_EQ(result.type, ExpressionType::MultimeasureRestNumber);
+    EXPECT_EQ(result.multimeasureRestNumber().number, 7);
+}
+
+TEST(ExpressionClassification, ClassifiesMultimeasureRestNumberThatTracksItsCategory)
+{
+    // Marking categories synchronize the positioning stored on each expression definition rather
+    // than overriding it, so useCategoryPos accompanies the definition's own centered values. This
+    // is the shape Finale writes for a category-managed expression.
+    const auto result = classifyMultimeasureRestNumberCandidate(
+        "^fontid(1)^size(24)^nfx(0)23",
+        centeredExpressionXml() + "      <useCategoryPos/>\n",
+        "Maestro",
+        ExpressionCategoryType::ExpressiveText,
+        "      <horzAlign>centerOverMusic</horzAlign>\n"
+        "      <justification>center</justification>\n");
+
+    ASSERT_EQ(result.type, ExpressionType::MultimeasureRestNumber);
+    EXPECT_EQ(result.multimeasureRestNumber().number, 23);
+}
+
+TEST(ExpressionClassification, RejectsMultimeasureRestNumberWhenOnlyItsCategoryIsCentered)
+{
+    // If a corrupt file disagrees with its category, the definition is what Finale draws.
+    const auto result = classifyMultimeasureRestNumberCandidate(
+        "^fontid(1)^size(24)^nfx(0)23",
+        "      <useCategoryPos/>\n",
+        "Maestro",
+        ExpressionCategoryType::ExpressiveText,
+        "      <horzAlign>centerOverMusic</horzAlign>\n"
+        "      <justification>center</justification>\n");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMultimeasureRestNumberInOtherFont)
+{
+    // Font id 0 is Times New Roman here, not the document's multimeasure rest font.
+    const auto result = classifyMultimeasureRestNumberCandidate("^fontid(0)^size(24)^nfx(0)12");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMultimeasureRestNumberThatIsNotCentered)
+{
+    const auto result = classifyMultimeasureRestNumberCandidate(
+        "^fontid(1)^size(24)^nfx(0)12",
+        "      <horzMeasExprAlign>leftEdge</horzMeasExprAlign>\n"
+        "      <horzExprAlign>left</horzExprAlign>\n");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMultimeasureRestNumberWithNonNumericText)
+{
+    const auto result = classifyMultimeasureRestNumberCandidate("^fontid(1)^size(24)^nfx(0)12a");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, PrefersRehearsalMarkCategoryOverMultimeasureRestNumber)
+{
+    const auto result = classifyMultimeasureRestNumberCandidate(
+        "^fontid(1)^size(24)^nfx(0)12",
+        centeredExpressionXml(),
+        "Maestro",
+        ExpressionCategoryType::RehearsalMarks);
+
+    EXPECT_EQ(result.type, ExpressionType::RehearsalMark);
+}
+
+TEST(ExpressionClassification, ClassifiesMultimeasureRestNumberBeforeSystemTextRehearsalMark)
+{
+    // A top-staff assignment routes through the system-text path, whose rehearsal-mark heuristic
+    // would otherwise claim a bare two-digit number.
+    const auto context = makeTextExpressionContext(
+        "^fontid(1)^size(24)^nfx(0)12", ExpressionCategoryType::ExpressiveText, {}, true,
+        "Times New Roman", 0, centeredExpressionXml(), "Maestro");
+    const auto result = classifyExpression(context.def, context.assignment);
+
+    ASSERT_EQ(result.type, ExpressionType::MultimeasureRestNumber);
+    EXPECT_EQ(result.multimeasureRestNumber().number, 12);
 }

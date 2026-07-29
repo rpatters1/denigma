@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "core/denigma.h"
@@ -40,6 +41,12 @@ struct FontContext
     DocumentPtr document;
     std::shared_ptr<FontInfo> font;
 };
+
+// Chord suffixes are classified relative to their font size: a vertical offset of at least half the
+// em is a stacked line, and anything smaller is a glyph nudge within one line.
+constexpr int SUFFIX_FONT_SIZE = 12;
+constexpr Evpu STACKED_OFFSET = Evpu(SUFFIX_FONT_SIZE * musx::dom::EVPU_PER_POINT);
+constexpr Evpu NUDGE_OFFSET = Evpu(SUFFIX_FONT_SIZE * musx::dom::EVPU_PER_POINT / 4.0);
 
 FontContext makeFontContext(const std::string& fontName)
 {
@@ -62,6 +69,7 @@ FontContext makeFontContext(const std::string& fontName)
     const auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
     auto font = std::make_shared<FontInfo>(document);
     font->fontId = 1;
+    font->fontSize = SUFFIX_FONT_SIZE;
     return { document, font };
 }
 
@@ -80,12 +88,14 @@ void appendSuffixElement(
     MusxInstanceList<others::ChordSuffixElement>& suffix,
     const FontContext& context,
     char32_t symbol,
-    Inci index)
+    Inci index,
+    Evpu verticalOffset = 0)
 {
     auto element = std::make_shared<others::ChordSuffixElement>(
         context.document, SCORE_PARTID, CommonClassBase::ShareMode::All, Cmper(1), index);
     element->font = context.font;
     element->symbol = symbol;
+    element->ydisp = verticalOffset;
     suffix.push_back(element);
 }
 
@@ -148,7 +158,7 @@ TEST(ChordSuffixClassifier, SeparatesStackedSuffixStrings)
     stacked->font = context.font;
     stacked->symbol = 9;
     stacked->isNumber = true;
-    stacked->ydisp = 24;
+    stacked->ydisp = STACKED_OFFSET;
     suffix.push_back(stacked);
     auto trailing = std::make_shared<others::ChordSuffixElement>(
         context.document, SCORE_PARTID, CommonClassBase::ShareMode::All, Cmper(1), Inci(2));
@@ -193,6 +203,62 @@ TEST(ChordSuffixClassifier, DoesNotTreatInternalParenthesesAsOuter)
     EXPECT_FALSE(classification.hasOuterParentheses);
 }
 
+TEST(ChordSuffixClassifier, ParenthesizesDegreesOnlyWhenTheSuffixHasDegrees)
+{
+    const auto context = makeFontContext("Times New Roman");
+    auto majorMinor = makeSuffix(context, U'm');
+    appendSuffixElement(majorMinor, context, U'(', 1);
+    appendSuffixElement(majorMinor, context, U'M', 2);
+    appendSuffixElement(majorMinor, context, U'7', 3);
+    appendSuffixElement(majorMinor, context, U')', 4);
+
+    const auto withoutDegrees = denigma::classify::classifyChordSuffix(majorMinor);
+    ASSERT_TRUE(withoutDegrees.quality);
+    EXPECT_EQ(*withoutDegrees.quality, denigma::classify::chord::Quality::MajorMinor);
+    EXPECT_TRUE(withoutDegrees.degrees.empty());
+    EXPECT_FALSE(withoutDegrees.parenthesizeDegrees);
+
+    auto halfDiminished = makeSuffix(context, U'm');
+    appendSuffixElement(halfDiminished, context, U'7', 1);
+    appendSuffixElement(halfDiminished, context, U'(', 2);
+    appendSuffixElement(halfDiminished, context, U'b', 3);
+    appendSuffixElement(halfDiminished, context, U'5', 4);
+    appendSuffixElement(halfDiminished, context, U')', 5);
+
+    const auto withDegrees = denigma::classify::classifyChordSuffix(halfDiminished);
+    ASSERT_EQ(withDegrees.degrees.size(), 1);
+    EXPECT_TRUE(withDegrees.parenthesizeDegrees);
+}
+
+TEST(ChordSuffixClassifier, ParenthesizesDegreesWhenTheParenthesesEncloseTheWholeSuffix)
+{
+    const auto context = makeFontContext("Times New Roman");
+    const auto classifyDegreeGroup = [&context](Evpu addedDegreeOffset) {
+        auto suffix = makeSuffix(context, U'(');
+        Inci index = 1;
+        for (const auto character : std::u32string_view(U"add9")) {
+            appendSuffixElement(suffix, context, character, index++, addedDegreeOffset);
+        }
+        for (const auto character : std::u32string_view(U"omit3")) {
+            appendSuffixElement(suffix, context, character, index++);
+        }
+        appendSuffixElement(suffix, context, U')', index);
+        return denigma::classify::classifyChordSuffix(suffix);
+    };
+
+    const auto stacked = classifyDegreeGroup(STACKED_OFFSET);
+    EXPECT_TRUE(stacked.hasOuterParentheses);
+    ASSERT_EQ(stacked.degrees.size(), 2);
+    EXPECT_TRUE(stacked.parenthesizeDegrees);
+    EXPECT_TRUE(stacked.stackDegrees);
+
+    // Finale nudges glyphs off the baseline within one line of a suffix, which is not stacking.
+    const auto nudged = classifyDegreeGroup(NUDGE_OFFSET);
+    ASSERT_EQ(nudged.degrees.size(), 2);
+    EXPECT_TRUE(nudged.parenthesizeDegrees);
+    EXPECT_FALSE(nudged.stackDegrees);
+}
+
 TEST(ChordSuffixClassifier, RetainsTheSeventhInSeventhSuspensions)
 {
     const auto context = makeFontContext("Times New Roman");
@@ -208,7 +274,7 @@ TEST(ChordSuffixClassifier, RetainsTheSeventhInSeventhSuspensions)
     ASSERT_EQ(classification.degrees.size(), 1);
     EXPECT_EQ(classification.degrees.front().value, 7);
     EXPECT_EQ(classification.degrees.front().type, denigma::classify::chord::Degree::Type::Add);
-    EXPECT_FALSE(classification.degrees.front().printObject);
+    EXPECT_TRUE(classification.degrees.front().impliedByText);
 }
 
 TEST(ChordSuffixClassifier, TreatsPlainSuspensionResolutionsAsDisplayOnly)
@@ -255,10 +321,11 @@ TEST(ChordSuffixClassifierFixture, RetainsInternalParenthesesAndStackedStrings)
     EXPECT_FALSE(majorMinor->hasOuterParentheses);
 
     const auto stacked = std::find_if(classifications.begin(), classifications.end(), [](const auto& classification) {
-        return classification.strings.size() > 1;
+        return std::any_of(classification.strings.begin(), classification.strings.end(), [](const auto& string) {
+            return string.position != denigma::classify::chord::SuffixString::Position::Inline;
+        });
     });
     ASSERT_NE(stacked, classifications.end());
-    EXPECT_TRUE(std::any_of(stacked->strings.begin(), stacked->strings.end(), [](const auto& string) {
-        return string.position != denigma::classify::chord::SuffixString::Position::Inline;
-    }));
+    EXPECT_GT(stacked->strings.size(), 1);
+    EXPECT_TRUE(stacked->stackDegrees) << stacked->calcText();
 }
