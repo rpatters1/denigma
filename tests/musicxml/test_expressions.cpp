@@ -18,6 +18,7 @@
  */
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <unordered_map>
 
@@ -318,6 +319,41 @@ TEST(MusicXmlExpressions, GenericTextDirectionsMatchReference)
     EXPECT_EQ(actualDirections.front().placement, mx::api::Placement::below);
     EXPECT_EQ(actualDirections.front().words, std::vector<std::string>{ "warm" });
     EXPECT_EQ(actualDirections.front().enclosures, std::vector<mx::api::RehearsalEnclosure>{ mx::api::RehearsalEnclosure::none });
+}
+
+TEST(MusicXmlExpressions, MultimeasureRestNumbersDoNotExportAsDirections)
+{
+    setupTestDataPaths();
+
+    // Measure 31 of each fixture carries its rest count in an expression rather than a multimeasure
+    // rest record. Finale exports that expression as a direction - words when the number is set in a
+    // text font, a SMuFL symbol when it is set in the music font - which would print the number a
+    // second time on top of the measure style. denigma folds it into the measure style instead, so
+    // no direction may survive.
+    constexpr size_t numberMeasureIndex = 30;
+    const std::array<std::pair<std::string, std::string>, 2> fixtures{ {
+        { "multimeas_rests.musx", "musicxml/multimeas_rests-ref.musicxml" },
+        { "multimeas_rests_musfont.musx", "musicxml/multimeas_rests_musfont-ref.musicxml" },
+    } };
+
+    for (const auto& [musxFile, referenceFile] : fixtures) {
+        SCOPED_TRACE(musxFile);
+
+        const auto expectedScore = loadScoreData(getInputPath() / referenceFile);
+        ASSERT_TRUE(expectedScore);
+        ASSERT_FALSE(expectedScore->parts.empty());
+        const auto& expectedMeasure = expectedScore->parts.front().measures.at(numberMeasureIndex);
+        ASSERT_FALSE(expectedMeasure.staves.empty());
+        // Guard the premise: Finale really does emit a direction here.
+        EXPECT_FALSE(expectedMeasure.staves.front().directions.empty());
+
+        const auto actualScore = loadScoreData(exportMusicXmlFixture(musxFile));
+        ASSERT_TRUE(actualScore);
+        ASSERT_FALSE(actualScore->parts.empty());
+        const auto& actualMeasure = actualScore->parts.front().measures.at(numberMeasureIndex);
+        ASSERT_FALSE(actualMeasure.staves.empty());
+        EXPECT_TRUE(actualMeasure.staves.front().directions.empty());
+    }
 }
 
 TEST(MusicXmlExpressions, TempoVariedStavesSmoke)

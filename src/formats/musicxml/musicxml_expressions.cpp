@@ -263,6 +263,52 @@ enum class GroupedDirectionAction
     ReplacePrior
 };
 
+/// Returns true if every staff of the measure contains nothing but a full-measure rest. The notes
+/// for all staves are built before any expression is processed, so this inspects finished data.
+bool measureHoldsOnlyFullMeasureRests(const mx::api::MeasureData& measure)
+{
+    if (measure.staves.empty()) {
+        return false;
+    }
+    for (const auto& staff : measure.staves) {
+        const mx::api::NoteData* onlyNote = nullptr;
+        for (const auto& voiceEntry : staff.voices) {
+            for (const auto& note : voiceEntry.second.notes) {
+                if (onlyNote) {
+                    return false;
+                }
+                onlyNote = &note;
+            }
+        }
+        if (!onlyNote || !onlyNote->isRest || !onlyNote->isMeasureRest) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// Decides what to do with an expression that carries a multimeasure rest number. Returns true when
+/// the expression has been accounted for and must not also be emitted as text.
+bool applyMultimeasureRestNumber(
+    mx::api::MeasureData& measure,
+    const classify::ExpressionClassification& classification)
+{
+    const int number = classification.multimeasureRestNumber().number;
+    if (measure.multiMeasureRest > 0) {
+        // The <multiple-rest> element already renders this number. A number that disagrees with it
+        // is not describing this rest, so let it through as text.
+        return number == measure.multiMeasureRest;
+    }
+    // A number over an otherwise empty measure stands in for a one-bar multimeasure rest. Symbol
+    // style keeps the measure's whole rest instead of turning it into an H-bar.
+    if (number == 1 && measureHoldsOnlyFullMeasureRests(measure)) {
+        measure.multiMeasureRest = 1;
+        measure.multiMeasureRestUseSymbols = mx::api::Bool::yes;
+        return true;
+    }
+    return false;
+}
+
 } // namespace
 
 double musicXmlQuarterNotesPerMinute(const classify::expression::TempoInfo& tempo)
@@ -414,6 +460,13 @@ void processExpressions(
                 context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
             break;
         }
+        case classify::ExpressionType::MultimeasureRestNumber:
+            // A number the <multiple-rest> element already accounts for is dropped; anything else
+            // falls through and is emitted as text.
+            if (applyMultimeasureRestNumber(measure, classification)) {
+                break;
+            }
+            [[fallthrough]];
         case classify::ExpressionType::KeyboardPedal:
             /// @todo Emit semantic pedal directions when mx::api can represent the complete
             /// keyboard-pedal vocabulary. Its current mark model would lose pedal 2, pedal 3,

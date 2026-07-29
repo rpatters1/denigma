@@ -58,6 +58,7 @@ enum class ExpressionType
     TempoAlteration, ///< A relative tempo alteration.
     TechniqueText, ///< Text identifying a performance technique.
     RehearsalMark, ///< A rehearsal mark.
+    MultimeasureRestNumber, ///< A numeric label for a multimeasure rest.
     Error, ///< An expression that could not be classified because of invalid source data.
     Suppress ///< An expression that should not be exported.
 };
@@ -209,6 +210,19 @@ struct RehearsalMark
     std::string text;
 };
 
+/// @struct MultimeasureRestNumber
+/// @brief Classified numeric label for a multimeasure rest.
+///
+/// Finale draws the multimeasure rest number as part of the rest itself. Some documents instead
+/// carry the number in a text expression so that it can be repositioned per staff or centered
+/// between staves. Such an expression is recognized by its display properties rather than by its
+/// marking category, whose name carries no reliable meaning.
+struct MultimeasureRestNumber
+{
+    /// @brief Measure count displayed by the marking.
+    int number{};
+};
+
 /// @struct GenericText
 /// @brief Expression text without a more specific semantic classification.
 struct GenericText
@@ -272,8 +286,8 @@ using ExpressionValue = std::variant<
     std::monostate, dynamics::Mark, expression::Fermata, expression::BreathMark,
     articulation::StringMute, expression::HarpDiagram, keyboardpedal::Type, PseudoTie,
     expression::NonArpeggio, expression::TempoText, expression::TempoAlteration,
-    expression::TechniqueText, expression::RehearsalMark, expression::GenericText,
-    expression::Error, expression::Suppress>;
+    expression::TechniqueText, expression::RehearsalMark, expression::MultimeasureRestNumber,
+    expression::GenericText, expression::Error, expression::Suppress>;
 
 /// @struct ExpressionClassification
 /// @brief Exporter-neutral semantic classification of one Finale expression.
@@ -369,6 +383,11 @@ public:
     /// @throws std::logic_error if #type is not ExpressionType::RehearsalMark.
     const expression::RehearsalMark& rehearsalMark() const
     { return checkedPayload<expression::RehearsalMark, ExpressionType::RehearsalMark>("RehearsalMark"); }
+
+    /// @brief Returns the classified multimeasure rest number.
+    /// @throws std::logic_error if #type is not ExpressionType::MultimeasureRestNumber.
+    const expression::MultimeasureRestNumber& multimeasureRestNumber() const
+    { return checkedPayload<expression::MultimeasureRestNumber, ExpressionType::MultimeasureRestNumber>("MultimeasureRestNumber"); }
 
     /// @brief Returns the unclassified expression text.
     /// @throws std::logic_error if #type is not ExpressionType::GenericText.

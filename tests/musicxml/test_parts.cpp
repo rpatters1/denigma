@@ -466,13 +466,23 @@ TEST(MusicXmlParts, RepeatsExportSmoke)
     EXPECT_TRUE(foundBackward);
 }
 
-TEST(MusicXmlParts, MultimeasureRestsMatchFinale)
+/// Compares exported multimeasure rest attributes against a Finale reference export.
+///
+/// @p singleMeasureRestFromExpressionIndex identifies the one measure that deliberately diverges:
+/// it carries its rest count in a centered expression rather than a multimeasure rest record.
+/// Finale does not recognize its own expression and exports the number as a direction with no
+/// measure style, while denigma classifies it and exports a single-measure rest instead. Symbol
+/// style keeps the measure's whole rest rather than turning it into an H-bar.
+static void expectMultimeasureRestsMatchFinale(
+    const std::string& musxFile,
+    const std::string& referenceFile,
+    size_t singleMeasureRestFromExpressionIndex)
 {
     setupTestDataPaths();
 
-    const auto outputPath = exportMusicXmlFixture("multimeas_rests.musx");
+    const auto outputPath = exportMusicXmlFixture(musxFile);
     const auto actualScore = loadScoreData(outputPath);
-    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/multimeas_rests-ref.musicxml");
+    const auto expectedScore = loadScoreData(getInputPath() / referenceFile);
     ASSERT_TRUE(actualScore);
     ASSERT_TRUE(expectedScore);
     ASSERT_EQ(actualScore->parts.size(), expectedScore->parts.size());
@@ -484,11 +494,31 @@ TEST(MusicXmlParts, MultimeasureRestsMatchFinale)
         ASSERT_EQ(actualMeasures.size(), expectedMeasures.size());
         for (size_t measureIndex = 0; measureIndex < expectedMeasures.size(); ++measureIndex) {
             SCOPED_TRACE("measure " + std::to_string(measureIndex + 1));
+            if (measureIndex == singleMeasureRestFromExpressionIndex) {
+                EXPECT_EQ(actualMeasures[measureIndex].multiMeasureRest, 1);
+                EXPECT_EQ(actualMeasures[measureIndex].multiMeasureRestUseSymbols, mx::api::Bool::yes);
+                continue;
+            }
             EXPECT_EQ(actualMeasures[measureIndex].multiMeasureRest, expectedMeasures[measureIndex].multiMeasureRest);
             EXPECT_EQ(actualMeasures[measureIndex].multiMeasureRestUseSymbols,
                 expectedMeasures[measureIndex].multiMeasureRestUseSymbols);
         }
     }
+}
+
+TEST(MusicXmlParts, MultimeasureRestsMatchFinale)
+{
+    expectMultimeasureRestsMatchFinale(
+        "multimeas_rests.musx", "musicxml/multimeas_rests-ref.musicxml", 30);
+}
+
+TEST(MusicXmlParts, MultimeasureRestsInMusicFontMatchFinale)
+{
+    // Same score with the rest numbers set in the default music font. The number is a SMuFL
+    // timeSig glyph rather than an ASCII digit, and the multimeasure rest font option is stored as
+    // the default music font id rather than a concrete id.
+    expectMultimeasureRestsMatchFinale(
+        "multimeas_rests_musfont.musx", "musicxml/multimeas_rests_musfont-ref.musicxml", 30);
 }
 
 TEST(MusicXmlParts, RepeatsExportJumpSound)
