@@ -1104,7 +1104,7 @@ TEST(MusicXmlNotes, VoicesKeyboardUsesStaffQualifiedVoiceNumbers)
     constexpr size_t positionedMeasureRestBar = 6;
     const auto bar6Rests = measureRestsInBar(*actualScore, positionedMeasureRestBar);
     ASSERT_EQ(bar6Rests.size(), 2);
-    expectMeasureRestPosition(*bar6Rests[0], std::pair{mx::api::Step::b, 5});
+    expectMeasureRestPosition(*bar6Rests[0], std::pair{mx::api::Step::g, 5});
     expectMeasureRestPosition(*bar6Rests[1], std::nullopt);
 }
 

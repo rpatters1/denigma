@@ -221,9 +221,15 @@ void applyRestPositionIfNeeded(mx::api::NoteData& rest, const EntryInfoPtr& entr
     if (restNoteInfo->getNoteId() != Note::RESTID) {
         return;
     }
-    const auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
+    auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
     (void)alteration;
     (void)staffPosition;
+    const int diatonicAdjustment =
+        calcFinaleToW3cRestPositionOffset(std::get<0>(entry->calcDurationInfo()));
+    int octaveAdjustment{};
+    noteName = music_theory::NoteName(music_theory::positiveModulus(
+        int(noteName) + diatonicAdjustment, music_theory::STANDARD_DIATONIC_STEPS, &octaveAdjustment));
+    octave += octaveAdjustment;
     rest.isDisplayStepOctaveSpecified = true;
     rest.pitchData = mx::api::PitchData(enumConvert<mx::api::Step>(noteName), 0, octave);
 }
