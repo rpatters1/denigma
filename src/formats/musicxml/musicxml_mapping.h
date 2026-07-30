@@ -148,7 +148,7 @@ struct MusicXmlMusxMapping
     MusicXmlMusxMapping(const DenigmaContext& context, const musx::dom::DocumentPtr& doc, musx::dom::Cmper partId)
         : denigmaContext(&context),
           document(doc),
-          finaleOptions(loadFinaleOptions(doc)),
+          finaleOptions(loadFinaleOptions(doc, partId)),
           forPartId(partId)
     {
     }

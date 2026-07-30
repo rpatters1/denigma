@@ -79,7 +79,7 @@ using json = nlohmann::ordered_json;
 struct MnxMusxMapping
 {
     MnxMusxMapping(const DenigmaContext& context, const DocumentPtr& doc)
-        : denigmaContext(&context), document(doc), finaleOptions(loadFinaleOptions(doc)), mnxDocument(), musxParts(doc, SCORE_PARTID) {}
+        : denigmaContext(&context), document(doc), finaleOptions(loadFinaleOptions(doc, SCORE_PARTID)), mnxDocument(), musxParts(doc, SCORE_PARTID) {}
 
     const DenigmaContext* denigmaContext;
     musx::dom::DocumentPtr document;

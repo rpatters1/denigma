@@ -28,6 +28,8 @@
 
 #include "gtest/gtest.h"
 #include "core/denigma.h"
+#include "core/musx_reader.h"
+#include "formats/musicxml/musicxml.h"
 #include "mx/api/ScoreData.h"
 #include "musicxml_test.h"
 #include "test_utils.h"
@@ -383,6 +385,48 @@ TEST(MusicXmlParts, LargeOrchestraExportsInitialTranspositions)
     expectInitialTransposition(actualScore->parts.at(0), 12, 7, "piccolo");
     expectInitialTransposition(actualScore->parts.at(9), -2, -1, "clarinet in Bb");
     expectInitialTransposition(actualScore->parts.at(15), -7, -4, "horn in F");
+}
+
+TEST(MusicXmlParts, LinkedPartUsesPartTranspositionView)
+{
+    setupTestDataPaths();
+
+    Buffer buffer;
+    const auto inputPath = getInputPath() / "reference" / utils::utf8ToPath("notAscii-其れ.enigmaxml");
+    readFile(inputPath, buffer);
+    std::string xml(buffer.begin(), buffer.end());
+
+    const std::string scoreGlobals = "<partGlobals cmper=\"65534\">";
+    const auto scoreGlobalsPos = xml.find(scoreGlobals);
+    ASSERT_NE(scoreGlobalsPos, std::string::npos);
+    const std::string scoreTransposed = "<showTransposed/>";
+    const auto scoreTransposedPos = xml.find(scoreTransposed, scoreGlobalsPos);
+    ASSERT_NE(scoreTransposedPos, std::string::npos);
+    const auto scoreGlobalsEnd = xml.find("</partGlobals>", scoreGlobalsPos);
+    ASSERT_LT(scoreTransposedPos, scoreGlobalsEnd);
+    xml.erase(scoreTransposedPos, scoreTransposed.size());
+
+    const std::string staffNeedle = "<staffSpec cmper=\"1\">";
+    const auto staffPos = xml.find(staffNeedle);
+    ASSERT_NE(staffPos, std::string::npos);
+    xml.insert(staffPos + staffNeedle.size(),
+        "<transposition><setToClef/><keysig><interval>3</interval><adjust>-1</adjust></keysig></transposition>");
+
+    CommandInputData inputData;
+    inputData.primaryBuffer.assign(xml.begin(), xml.end());
+    auto sourceDocument = musx::factory::DocumentFactory::create<MusxReader>(inputData.primaryBuffer);
+    const auto linkedPart = sourceDocument->getOthers()->get<musx::dom::others::PartDefinition>(musx::dom::SCORE_PARTID, 1);
+    ASSERT_TRUE(linkedPart);
+
+    DenigmaContext context(DENIGMA_NAME);
+    context.inputFilePath = inputPath;
+    const auto scoreView = formats::musicxml::detail::createMusicXmlDocument(inputData, context);
+    ASSERT_EQ(scoreView.parts.size(), 1u);
+    EXPECT_FALSE(scoreView.parts.front().transposition);
+
+    const auto partView = formats::musicxml::detail::createMusicXmlDocument(inputData, context, linkedPart);
+    ASSERT_EQ(partView.parts.size(), 1u);
+    expectInitialTransposition(partView.parts.front(), -5, -3, "alto flute in G linked part");
 }
 
 TEST(MusicXmlParts, BarlinesOverrideCorrectTypes)
