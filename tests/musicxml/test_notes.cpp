@@ -814,6 +814,26 @@ void expectMeasureRestPosition(const mx::api::NoteData& note, std::optional<std:
     }
 }
 
+std::vector<std::pair<mx::api::Step, int>> positionedRestDisplayPitches(const mx::api::ScoreData& score)
+{
+    std::vector<std::pair<mx::api::Step, int>> result;
+    for (const auto& part : score.parts) {
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    (void)voiceIndex;
+                    for (const auto& note : voice.notes) {
+                        if (note.isRest && note.isDisplayStepOctaveSpecified) {
+                            result.emplace_back(note.pitchData.step, note.pitchData.octave);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
 } // namespace
 
 TEST(MusicXmlNotes, ChangingTimeSignaturesNotesMatchFinale)
@@ -827,6 +847,29 @@ TEST(MusicXmlNotes, ChangingTimeSignaturesNotesMatchFinale)
     ASSERT_TRUE(expectedScore);
 
     compareNoteEvents(*actualScore, *expectedScore);
+}
+
+TEST(MusicXmlNotes, WholeRestPositionsMatchFinale)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("whole_rests.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/whole_rests-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(expectedScore);
+
+    const std::vector<std::pair<mx::api::Step, int>> expectedPositions{
+        { mx::api::Step::f, 5 },
+        { mx::api::Step::d, 5 },
+        { mx::api::Step::b, 4 },
+        { mx::api::Step::g, 4 },
+        { mx::api::Step::e, 4 },
+        { mx::api::Step::c, 4 },
+        { mx::api::Step::g, 4 },
+    };
+    EXPECT_EQ(positionedRestDisplayPitches(*expectedScore), expectedPositions);
+    EXPECT_EQ(positionedRestDisplayPitches(*actualScore), expectedPositions);
 }
 
 TEST(MusicXmlNotes, ArtificialHarmonicsExportSmoke)
@@ -1104,7 +1147,7 @@ TEST(MusicXmlNotes, VoicesKeyboardUsesStaffQualifiedVoiceNumbers)
     constexpr size_t positionedMeasureRestBar = 6;
     const auto bar6Rests = measureRestsInBar(*actualScore, positionedMeasureRestBar);
     ASSERT_EQ(bar6Rests.size(), 2);
-    expectMeasureRestPosition(*bar6Rests[0], std::pair{mx::api::Step::g, 5});
+    expectMeasureRestPosition(*bar6Rests[0], std::pair{mx::api::Step::b, 5});
     expectMeasureRestPosition(*bar6Rests[1], std::nullopt);
 }
 

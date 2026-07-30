@@ -176,7 +176,7 @@ TEST(MnxParts, ForcedClef)
     ASSERT_TRUE(layer1.fullMeasure().has_value());
     auto fullMeasure = layer1.fullMeasure().value();
     ASSERT_TRUE(fullMeasure.staffPosition().has_value());
-    EXPECT_EQ(fullMeasure.staffPosition().value(), 0);
+    EXPECT_EQ(fullMeasure.staffPosition().value(), 4);
 
     /// check clefs
     ASSERT_TRUE(measure2.clefs().has_value()) << measure2.dump(4);

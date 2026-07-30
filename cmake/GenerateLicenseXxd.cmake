@@ -13,6 +13,7 @@ set(LICENSE_FILES
     "${PROJECT_SOURCE_DIR}/LICENSE"
     "${musx_SOURCE_DIR}/LICENSE"
     "${mnxdom_SOURCE_DIR}/LICENSE"
+    "${mx_SOURCE_DIR}/LICENSE"
     "${smufl_mapping_SOURCE_DIR}/LICENSE"
     "${pugixml_SOURCE_DIR}/LICENSE.md"
     "${zlib_SOURCE_DIR}/LICENSE"
@@ -26,6 +27,7 @@ set(LICENSE_PREFIXES
     denigma
     musx
     mnxdom
+    mx
     smufl_mapping
     pugixml
     zlib

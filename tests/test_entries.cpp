@@ -29,10 +29,10 @@ using namespace denigma;
 using namespace denigma::classify;
 using namespace musx::dom;
 
-TEST(RestPosition, FinaleToW3cOffset)
+TEST(RestPosition, FinaleToSmuflOffset)
 {
-    EXPECT_EQ(calcFinaleToW3cRestPositionOffset(NoteType::Whole), -2);
-    EXPECT_EQ(calcFinaleToW3cRestPositionOffset(NoteType::Half), 0);
+    EXPECT_EQ(calcFinaleToSmuflRestPositionOffset(NoteType::Whole), 2);
+    EXPECT_EQ(calcFinaleToSmuflRestPositionOffset(NoteType::Half), 0);
 }
 
 /// @todo Add a positive-path fixture-based test once a .musx/.enigmaxml fixture with an

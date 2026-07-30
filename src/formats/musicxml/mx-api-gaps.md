@@ -40,12 +40,6 @@ MusicXML separates sounding ties (`<tie>`) from notated ties (`<notations><tied>
 
 Needed API shape: a tie-notation data model separate from playback tie booleans, with support for `start`, `stop`, `continue`, and same-note start/stop ordering. The API should also allow notation-only ties without writing `<tie>`, and should allow playback `<tie>` / `time-only` semantics to be modeled separately when Denigma can infer them.
 
-### Visual ties on cue and grace-cue notes
-
-MusicXML cue and grace-cue note groups cannot contain the playback `<tie>` element, but they can still contain a visual `<notations><tied>` element. `NoteWriter` currently ignores `NoteData::isTieStart` and `isTieStop` entirely when `isCue` is true. This correctly omits the invalid playback element, but it also drops the valid visual tie notation.
-
-Denigma intentionally does not work around this by translating cue ties to generic `CurveType::tie` attachments. Cue and non-cue ties should use the same semantic tie path. The tie-notation model requested above should let the writer omit playback `<tie>` for cue notes while retaining the independently modeled `<tied>` start or stop.
-
 ### Curve orientation on a regular (paired) tie
 
 Finale can freeze a tie's curvature direction on a per-note basis (`details::TieAlterStart`), and its own MusicXML export writes this as `<tied orientation="over|under" type="start"/>` even on an ordinary paired tie (one with a matching `<tie>`/`<tied type="stop">` elsewhere).

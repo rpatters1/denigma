@@ -60,12 +60,12 @@ namespace denigma {
 
 const char* gitCommit();
 
-/// @brief Returns the additive offset that converts a Finale rest position to the W3C rest-position convention.
+/// @brief Returns the additive offset that converts a Finale rest position to the SMuFL glyph-origin convention.
 /// @return The signed offset in Finale half-space staff-position units, where negative moves downward.
-constexpr int calcFinaleToW3cRestPositionOffset(musx::dom::NoteType restType)
+constexpr int calcFinaleToSmuflRestPositionOffset(musx::dom::NoteType restType)
 {
     constexpr int staffPositionsPerSpace = 2;
-    return restType == musx::dom::NoteType::Whole ? -staffPositionsPerSpace : 0;
+    return restType == musx::dom::NoteType::Whole ? staffPositionsPerSpace : 0;
 }
 
 #ifdef _WIN32

@@ -339,7 +339,7 @@ static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnxdom
     if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
         auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
         auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView());
-        staffPosition += calcFinaleToW3cRestPositionOffset(std::get<0>(musxEntry->calcDurationInfo()));
+        staffPosition += calcFinaleToSmuflRestPositionOffset(std::get<0>(musxEntry->calcDurationInfo()));
         mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
     }
 }
@@ -362,7 +362,7 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnxdom::sequ
         if (const auto musxStaff = musxEntryInfo.createCurrentStaff()) {
             auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
             auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView())
-                + calcFinaleToW3cRestPositionOffset(NoteType::Whole);
+                + calcFinaleToSmuflRestPositionOffset(NoteType::Whole);
             fullMeasure.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
         }
     }

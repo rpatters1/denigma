@@ -221,15 +221,11 @@ void applyRestPositionIfNeeded(mx::api::NoteData& rest, const EntryInfoPtr& entr
     if (restNoteInfo->getNoteId() != Note::RESTID) {
         return;
     }
-    auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
+    const auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
     (void)alteration;
     (void)staffPosition;
-    const int diatonicAdjustment =
-        calcFinaleToW3cRestPositionOffset(std::get<0>(entry->calcDurationInfo()));
-    int octaveAdjustment{};
-    noteName = music_theory::NoteName(music_theory::positiveModulus(
-        int(noteName) + diatonicAdjustment, music_theory::STANDARD_DIATONIC_STEPS, &octaveAdjustment));
-    octave += octaveAdjustment;
+    /// @todo Add a MusicXML option that applies calcFinaleToSmuflRestPositionOffset to the display pitch.
+    /// MusicXML does not specify whether rest display position is the nominal position or the SMuFL glyph origin.
     rest.isDisplayStepOctaveSpecified = true;
     rest.pitchData = mx::api::PitchData(enumConvert<mx::api::Step>(noteName), 0, octave);
 }

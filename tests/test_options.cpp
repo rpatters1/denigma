@@ -130,7 +130,7 @@ TEST(Options, ParseOptions)
         EXPECT_EQ(newArgs.size(), 0);
         EXPECT_TRUE(ctx.showAbout);
         EXPECT_FALSE(ctx.logFilePath.has_value());
-        checkStdout("MIT License", [&]() {
+        checkStdout({ "MIT License", "mx MusicXML library", "Matthew James Briggs" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "show help";
         });
     }
