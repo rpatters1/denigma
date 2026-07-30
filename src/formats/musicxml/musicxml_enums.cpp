@@ -13,6 +13,7 @@
 #include "mx/api/ChordData.h"
 #include "mx/api/CurveData.h"
 #include "mx/api/DurationData.h"
+#include "mx/api/KeyData.h"
 #include "mx/api/MarkData.h"
 #include "mx/api/NoteData.h"
 #include "mx/api/OttavaData.h"
@@ -146,6 +147,16 @@ BEGIN_ENUM_CONVERSION(CurveContourDirection, mx::api::CurveOrientation)
     case CurveContourDirection::Unspecified: return mx::api::CurveOrientation::unspecified;
     case CurveContourDirection::Up: return mx::api::CurveOrientation::overhand;
     case CurveContourDirection::Down: return mx::api::CurveOrientation::underhand;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(music_theory::DiatonicMode, mx::api::KeyMode)
+    case music_theory::DiatonicMode::Ionian: return mx::api::KeyMode::ionian;
+    case music_theory::DiatonicMode::Dorian: return mx::api::KeyMode::dorian;
+    case music_theory::DiatonicMode::Phrygian: return mx::api::KeyMode::phrygian;
+    case music_theory::DiatonicMode::Lydian: return mx::api::KeyMode::lydian;
+    case music_theory::DiatonicMode::Mixolydian: return mx::api::KeyMode::mixolydian;
+    case music_theory::DiatonicMode::Aeolian: return mx::api::KeyMode::aeolian;
+    case music_theory::DiatonicMode::Locrian: return mx::api::KeyMode::locrian;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(classify::dynamics::Dynamic, mx::api::MarkType)

@@ -662,6 +662,73 @@ TEST(MusicXmlParts, IndependentKeySignaturesMatchFinale)
     compareKeySignatures(*actualScore, *expectedScore);
 }
 
+TEST(MusicXmlParts, StandardDiatonicModesUseMusicXmlModes)
+{
+    const std::array expected{
+        std::pair{ music_theory::DiatonicMode::Ionian, mx::api::KeyMode::ionian },
+        std::pair{ music_theory::DiatonicMode::Dorian, mx::api::KeyMode::dorian },
+        std::pair{ music_theory::DiatonicMode::Phrygian, mx::api::KeyMode::phrygian },
+        std::pair{ music_theory::DiatonicMode::Lydian, mx::api::KeyMode::lydian },
+        std::pair{ music_theory::DiatonicMode::Mixolydian, mx::api::KeyMode::mixolydian },
+        std::pair{ music_theory::DiatonicMode::Aeolian, mx::api::KeyMode::aeolian },
+        std::pair{ music_theory::DiatonicMode::Locrian, mx::api::KeyMode::locrian }
+    };
+    for (const auto& [musxMode, musicXmlMode] : expected) {
+        EXPECT_EQ(formats::musicxml::detail::enumConvert<mx::api::KeyMode>(musxMode), musicXmlMode);
+    }
+}
+
+TEST(MusicXmlParts, CustomLinearKeySignaturesExportDiatonicModes)
+{
+    setupTestDataPaths();
+
+    const auto score = createScoreDataFromMusxPath(std::filesystem::path(MUSX_TEST_DATA_PATH) / "keysigs.musx");
+    ASSERT_TRUE(score);
+    ASSERT_EQ(score->parts.size(), 1);
+
+    const auto& measures = score->parts.front().measures;
+    const std::array expectedModes{
+        mx::api::KeyMode::major,
+        mx::api::KeyMode::minor,
+        mx::api::KeyMode::lydian,
+        mx::api::KeyMode::phrygian
+    };
+    ASSERT_GE(measures.size(), expectedModes.size());
+    for (size_t measureIndex = 0; measureIndex < expectedModes.size(); ++measureIndex) {
+        SCOPED_TRACE("measure " + std::to_string(measureIndex + 1));
+        ASSERT_EQ(measures[measureIndex].keys.size(), 1);
+        EXPECT_EQ(measures[measureIndex].keys.front().mode, expectedModes[measureIndex]);
+    }
+}
+
+TEST(MusicXmlParts, KeylessAndHiddenKeySignaturesExportNone)
+{
+    setupTestDataPaths();
+
+    const auto score = createScoreDataFromMusxPath(std::filesystem::path(MUSX_TEST_DATA_PATH) / "hidden_keysigs.musx");
+    ASSERT_TRUE(score);
+    ASSERT_EQ(score->parts.size(), 5);
+
+    const auto keyTracks = createEffectiveKeySignatureTracks(*score);
+    ASSERT_EQ(keyTracks.size(), score->parts.size());
+    constexpr size_t keyChangeMeasureIndex = 2;
+    constexpr size_t hiddenKeySignaturePartIndex = 3;
+    for (size_t partIndex = 0; partIndex < keyTracks.size(); ++partIndex) {
+        SCOPED_TRACE("part " + std::to_string(partIndex + 1));
+        ASSERT_GT(keyTracks[partIndex].size(), keyChangeMeasureIndex);
+        EXPECT_EQ(keyTracks[partIndex][0].fifths, 0);
+        EXPECT_EQ(keyTracks[partIndex][0].mode, mx::api::KeyMode::none);
+
+        if (partIndex == hiddenKeySignaturePartIndex) {
+            EXPECT_EQ(keyTracks[partIndex][keyChangeMeasureIndex].fifths, 0);
+            EXPECT_EQ(keyTracks[partIndex][keyChangeMeasureIndex].mode, mx::api::KeyMode::none);
+        } else {
+            EXPECT_NE(keyTracks[partIndex][keyChangeMeasureIndex].fifths, 0);
+            EXPECT_EQ(keyTracks[partIndex][keyChangeMeasureIndex].mode, mx::api::KeyMode::major);
+        }
+    }
+}
+
 TEST(MusicXmlParts, IndependentTranspositionsMatchFinale)
 {
     setupTestDataPaths();

@@ -201,13 +201,21 @@ void assignRepeatEndings(
     }
 }
 
-mx::api::KeyMode musicXmlKeyModeFromMusxKeySignature(const MusxInstance<KeySignature>& keySignature)
+mx::api::KeyMode musicXmlKeyModeFromMusxKeySignature(
+    const MusxInstance<KeySignature>& keySignature,
+    bool staffHidesKeySignature)
 {
+    if (keySignature->keyless || keySignature->hideKeySigShowAccis || staffHidesKeySignature) {
+        return mx::api::KeyMode::none;
+    }
     if (keySignature->isMajor()) {
         return mx::api::KeyMode::major;
     }
     if (keySignature->isMinor()) {
         return mx::api::KeyMode::minor;
+    }
+    if (const auto mode = keySignature->calcDiatonicMode()) {
+        return enumConvert<mx::api::KeyMode>(*mode);
     }
     return mx::api::KeyMode::unspecified;
 }
@@ -354,8 +362,12 @@ int musicXmlKeyFifths(
     const MusicXmlMusxMapping& context,
     const MusxInstance<KeySignature>& keySignature,
     MeasCmper measureId,
-    MusicXmlPitchContext pitchContext)
+    MusicXmlPitchContext pitchContext,
+    bool staffHidesKeySignature)
 {
+    if (keySignature->keyless || keySignature->hideKeySigShowAccis || staffHidesKeySignature) {
+        return 0;
+    }
     if (keySignature->calcEDODivisions() != music_theory::STANDARD_12EDO_STEPS) {
         context.logMessage(LogMsg() << "Skipping unsupported microtonal key signature in measure " << measureId << ".", MessageSeverity::Info);
         return 0;
@@ -365,9 +377,6 @@ int musicXmlKeyFifths(
             << " in measure " << measureId << ".", MessageSeverity::Info);
         return 0;
     }
-    if (keySignature->keyless || keySignature->hideKeySigShowAccis) {
-        return 0;
-    }
     return keySignature->getAlteration(enumConvert<KeySignature::KeyContext>(pitchContext));
 }
 
@@ -375,11 +384,12 @@ mx::api::KeyData createKeyData(
     const MusicXmlMusxMapping& context,
     const MusxInstance<KeySignature>& keySignature,
     MeasCmper measureId,
-    MusicXmlPitchContext pitchContext)
+    MusicXmlPitchContext pitchContext,
+    bool staffHidesKeySignature)
 {
     auto key = mx::api::KeyData{};
-    key.fifths = musicXmlKeyFifths(context, keySignature, measureId, pitchContext);
-    key.mode = musicXmlKeyModeFromMusxKeySignature(keySignature);
+    key.fifths = musicXmlKeyFifths(context, keySignature, measureId, pitchContext, staffHidesKeySignature);
+    key.mode = musicXmlKeyModeFromMusxKeySignature(keySignature, staffHidesKeySignature);
     return key;
 }
 
@@ -452,11 +462,14 @@ void assignKeySignatures(
     std::vector<mx::api::KeyData> currentKeyData;
     currentKeyData.reserve(staves.size());
     for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
+        const auto staff = others::StaffComposite::createCurrent(
+            context.document, context.forPartId, staves[staffIndex], musxMeasure->getCmper(), 0);
         auto key = createKeyData(
             context,
             musxMeasure->createKeySignature(staves[staffIndex]),
             musxMeasure->getCmper(),
-            pitchContext);
+            pitchContext,
+            staff && staff->hideKeySigsShowAccis);
         key.staffIndex = static_cast<int>(staffIndex);
         currentKeyData.emplace_back(key);
     }

@@ -28,7 +28,21 @@ MusicXML `<clef>` supports size-related attributes such as symbolic `size` and f
 
 `mx::api::ClefData` does not expose clef size or font-size controls. Denigma cannot currently export Finale's per-clef percentage setting through `mx::api`.
 
-Needed API shape: clef size/font controls on `mx::api::ClefData`, or another supported mapping for MusicXML clef sizing that can represent Finale's percent value.
+The shared symbolic `size` attribute belongs to the cross-element gap below. The remaining clef-specific need is a font-size control, or another supported mapping that can represent Finale's arbitrary percentage value.
+
+## Symbol Sizes
+
+### Consistent `symbol-size` support across applicable elements
+
+MusicXML uses the shared `symbol-size` values `full`, `cue`, `grace-cue`, and `large` on several elements, including note `<type>`, `<accidental>`, `<accidental-mark>`, `<clef>`, and `<level>`. This visual sizing is distinct from the semantic meaning of the element.
+
+`mx::api` does not expose this attribute consistently. In particular, `mx::api::DurationData` carries the note type but not its `size`, while `mx::api::NoteData::isCue` only requests the semantic `<cue/>` element. The writer therefore cannot emit an explicit `<type size="cue">` or `<type size="grace-cue">`.
+
+MusicXML defines an implicit cue size for a note containing `<cue/>`, and an implicit grace-cue size when `<grace>` and `<cue/>` are both present. However, importers do not all honor those defaults consistently. Denigma should retain `<cue/>` for cue semantics and also explicitly set `<type size="cue">` on ordinary cue notes and rests and `<type size="grace-cue">` on cue grace notes. The size must remain independently controllable so that the API can also represent visually cue-sized notes that are not semantic cues.
+
+Needed API shape: one public symbol-size enum, exposed by each API data type whose MusicXML element supports the shared `size` attribute, with complete reader, writer, and comparison support. For notes, the field should belong to the data that writes `<type>` and remain independent of `NoteData::isCue` and grace state.
+
+This should be addressed as one cross-element MX API feature after the pending MX API pull requests have merged, rather than as a cue-note-only field. Once available, Denigma should explicitly populate it for both cue notes and cue grace notes.
 
 ## Ties
 
