@@ -25,6 +25,7 @@
 
 #include "gtest/gtest.h"
 
+#include "core/ottavas.h"
 #include "core/musx_reader.h"
 #include "denigma/classify/octaves.h"
 #include "denigma/classify/smartshapes.h"
@@ -337,4 +338,45 @@ TEST(OctaveLineClassification, VisibleBuiltInOttavaIsUnchanged)
     EXPECT_TRUE(ottava->calcIsSemanticCarrier());
     EXPECT_FALSE(ottava->hasVisualProxy);
     EXPECT_FALSE(ottava->line);
+}
+
+TEST(OctaveLineCollection, LinkedPartUsesPartVisibility)
+{
+    constexpr std::string_view xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
+<finale>
+  <others>
+    <measSpec cmper="1"><hasSmartShape/></measSpec>
+    <staffSpec cmper="1"><staffLines>5</staffLines><lineSpace>24</lineSpace></staffSpec>
+    <smartShape cmper="1">
+      <shapeType>octaveDown</shapeType>
+      <startTermSeg><endPt><inst>1</inst><meas>1</meas></endPt></startTermSeg>
+      <endTermSeg><endPt><inst>1</inst><meas>1</meas><edu>2048</edu></endPt></endTermSeg>
+      <hidden/>
+    </smartShape>
+    <smartShape cmper="1" part="1" shared="true">
+      <shapeType>octaveDown</shapeType>
+      <startTermSeg><endPt><edu>0</edu></endPt></startTermSeg>
+      <endTermSeg><endPt><edu>2048</edu></endPt></endTermSeg>
+      <hidden><offInPart/></hidden>
+    </smartShape>
+    <smartShapeMeasMark cmper="1" inci="0"><shapeNum>1</shapeNum></smartShapeMeasMark>
+    <partDef cmper="1"><partOrder>1</partOrder><extractPart/></partDef>
+  </others>
+</finale>
+)xml";
+    const std::vector<char> buffer(xml.begin(), xml.end());
+    const auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
+    const auto partMeasure = document->getOthers()->get<others::Measure>(1, 1);
+    ASSERT_TRUE(partMeasure);
+    EXPECT_EQ(partMeasure->getRequestedPartId(), 1);
+
+    const auto ottavas = denigma::collectOttavasForMeasureStaff(document, 1, partMeasure, 1);
+    ASSERT_EQ(ottavas.size(), 1u);
+    EXPECT_EQ(ottavas.begin()->second.shape->getRequestedPartId(), 1);
+    EXPECT_FALSE(ottavas.begin()->second.shape->hidden);
+    EXPECT_EQ(ottavas.begin()->second.shape->startTermSeg->endPoint->staffId, 1);
+    EXPECT_EQ(ottavas.begin()->second.shape->startTermSeg->endPoint->measId, 1);
+    EXPECT_EQ(ottavas.begin()->second.shape->endTermSeg->endPoint->staffId, 1);
+    EXPECT_EQ(ottavas.begin()->second.shape->endTermSeg->endPoint->measId, 1);
+    EXPECT_EQ(ottavas.begin()->second.classification.octaveShift, -1);
 }
