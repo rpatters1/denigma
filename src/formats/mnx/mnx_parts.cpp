@@ -47,8 +47,8 @@ static void createBeams(
     const auto& musxDocument = musxMeasure->getDocument();
     const auto mnxMeasures = mnxMeasure.parent<mnxdom::Array<mnxdom::part::Measure>>();
     const auto partId = musxMeasure->getRequestedPartId();
-    if (context->current.gfhold) {
-        if (context->current.cueDiscardPlan.discardWholeHold) {
+    if (context->current.staffMeasureContext) {
+        if (context->current.cuePlan.isDetectedCueOnly) {
             return; // skip cues until MNX spec includes them
         }
         auto processEntry = [&](const EntryInfoPtr& entryInfo) -> bool {
@@ -113,10 +113,10 @@ static void createBeams(
             return true;
         };
         for (const auto& [layer, _] : context->current.layerVoices) {
-            if (context->current.cueDiscardPlan.skipsLayer(layer)) {
+            if (context->current.cuePlan.isCueLayer(layer)) {
                 continue;
             }
-            if (auto entryFrame = context->current.gfhold->createEntryFrame(layer)) {
+            if (auto entryFrame = context->current.staffMeasureContext->createEntryFrame(layer)) {
                 entryFrame->iterateEntries(processEntry);
             }
         }

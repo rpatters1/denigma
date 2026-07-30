@@ -27,7 +27,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/cue_layers.h"
+#include "core/cue_plan.h"
 #include "core/denigma.h"
 #include "core/finale_options.h"
 #include "core/ottavas.h"
@@ -148,7 +148,7 @@ struct MusicXmlMusxMapping
     MusicXmlMusxMapping(const DenigmaContext& context, const musx::dom::DocumentPtr& doc, musx::dom::Cmper partId)
         : denigmaContext(&context),
           document(doc),
-          finaleOptions(loadFinaleOptions(doc)),
+          finaleOptions(loadFinaleOptions(doc, partId)),
           forPartId(partId)
     {
     }
@@ -170,7 +170,7 @@ struct MusicXmlMusxMapping
     std::unordered_map<std::string, MusicXmlPitchContext> partIdToPitchContext;
     std::unordered_map<musx::dom::EntryNumber, MusicXmlNoteLocation> entryNumberToFirstNote;
     std::unordered_map<std::uint64_t, MusicXmlNoteLocation> noteLocations;
-    std::unordered_map<std::uint64_t, CueLayerPlan> cueDiscardPlansByMeasureStaff;
+    std::unordered_map<std::uint64_t, CueStaffMeasurePlan> cuePlansByMeasureStaff;
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;
     std::unordered_set<std::uint64_t> pendingTieStopKeys;
     std::unordered_set<musx::dom::EntryNumber> processedPseudoLvTieEntries;
@@ -186,7 +186,8 @@ struct MusicXmlMusxMapping
         layout.clear();
         entryNumberToFirstNote.clear();
         noteLocations.clear();
-        cueDiscardPlansByMeasureStaff.clear();
+        cuePlansByMeasureStaff.clear();
+        pendingTieStopKeys.clear();
         processedPseudoLvTieEntries.clear();
         deferredPseudoLvTieEntries.clear();
         deferredPseudoLvTieEntryNumbers.clear();

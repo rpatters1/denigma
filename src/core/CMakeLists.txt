@@ -1,5 +1,5 @@
 set(DENIGMA_CORE_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/cue_layers.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/cue_plan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/denigma.cpp
     ${CMAKE_CURRENT_LIST_DIR}/finale_options.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ottavas.cpp

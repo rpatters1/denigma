@@ -236,7 +236,7 @@ std::pair<std::optional<mnxdom::DynamicValue>, std::optional<mnxdom::DynamicValu
 void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
     const MusxInstance<others::MeasureExprAssign>& asgn, const classify::ExpressionClassification& classification, VerticalPlacement placement)
 {
-    if (asgn->layer > 0 && context->current.cueDiscardPlan.discardLayers.contains(asgn->layer - 1)) {
+    if (asgn->layer > 0 && context->current.cuePlan.isCueLayer(asgn->layer - 1)) {
         return;
     }
 
@@ -299,7 +299,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
         } else if (entryInfo.calcHasGraceNote()) {
             mnxDynamic.position().set_graceIndex(0);
         }
-    } else if (context->current.gfhold) {
+    } else if (context->current.staffMeasureContext) {
         if (const auto measure = context->document->getOthers()->get<others::Measure>(asgn->getRequestedPartId(), context->current.meas)) {
             if (musx::util::Fraction::fromEdu(asgn->eduPosition) >= measure->calcDuration(context->current.staff)) {
                 // if we are at the end of a measure, explicitly require main position to ignore any grace

@@ -8,6 +8,12 @@ Export standards-compliant compressed MusicXML in addition to uncompressed `.mus
 
 Initially, write one `.mxl` archive for each score or part document that Denigma currently emits separately. Packaging the score and all linked parts into one MusicXML 4.0 archive through `<part-link>` can be considered as a later extension rather than a prerequisite for basic compressed output.
 
+## Whole-rest position convention
+
+Add a MusicXML export option that selects whether an explicitly positioned whole rest preserves Finale's nominal rest position or shifts upward one staff space to the SMuFL glyph origin. MusicXML does not define which interpretation `<display-step>` and `<display-octave>` require; see [MusicXML issue #681](https://github.com/w3c-cg/musicxml/issues/681) and its predecessor, [issue #5](https://github.com/w3c-cg/musicxml/issues/5).
+
+The default should remain Finale-compatible and apply no adjustment, matching round trips through Finale and MuseScore. The optional SMuFL-origin behavior should use `calcFinaleToSmuflRestPositionOffset`, matching Dorico's current interpretation. Apply the selected convention consistently to ordinary and complete-measure whole rests; other rest durations are unaffected.
+
 ## Nontraditional and microtonal key signatures
 
 Export Finale nontraditional key signatures through MusicXML's ordered `<key-step>`, `<key-alter>`, and optional `<key-accidental>` values instead of degrading them to zero fifths. Begin with custom 12-EDO signatures, for which MUSX DOM can provide the key map and `mx::api::KeyData::nonTraditional` already provides a writer path.
@@ -18,7 +24,7 @@ Extend the same mapping to microtonal key signatures by converting Finale's EDO 
 
 Export cue material that is visible in the target score or part as MusicXML `<cue/>` notes and rests. Skip cue material hidden in that target context. `mx::api::NoteData::isCue` already writes and reads cue, grace-cue, and cue-rest forms, so this is a Denigma policy and mapping task rather than an MX API feature.
 
-The implementation needs to identify cue material per entry, resolve target-context hiding from entry visibility and effective staff-style alternate notation, set `isCue` in the note and rest creation paths, and retain visible cue-layer expressions. MNX keeps its current cue-discard behavior because it does not yet support cues. MusicXML cannot carry sound-level ties on cue or grace-cue notes; those ties will be omitted.
+MusicXML export identifies cue layers, suppresses cue entries and their associated expressions when hidden in the requested context, and sends visible cue entries and expressions through their normal mapping paths. Notes and rests set `isCue`. Cue ties remain blocked on the visual-tie API limitation documented in [mx-api-gaps.md](mx-api-gaps.md); Denigma does not maintain a separate workaround path. MNX keeps its current cue-discard behavior because it does not yet support cues.
 
 ## MIDI channels
 

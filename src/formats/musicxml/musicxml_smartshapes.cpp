@@ -784,7 +784,8 @@ void processSmartShapesForStaff(
         if (assign->centerShapeNum != 0) {
             continue;
         }
-        const auto shape = context.document->getOthers()->get<others::SmartShape>(SCORE_PARTID, assign->shapeNum);
+        const auto shape = context.document->getOthers()->get<others::SmartShape>(
+            musxMeasure->getRequestedPartId(), assign->shapeNum);
         ASSERT_IF(!shape) {
             continue;
         }

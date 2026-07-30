@@ -37,6 +37,8 @@ struct Options final : public IOptions
     /// Options common to all converters.
     CommonOptions common;
     bool includeTempoTool{ false };
+    /// Optional 1-based Finale layer to treat as cue material in addition to automatically detected cues.
+    std::optional<int> cueLayer;
     /// Emit the score plus all linked parts for multi-output conversion.
     bool allPartsAndScore{ false };
     /// Optional part-name prefix for multi-output conversion.

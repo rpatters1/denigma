@@ -25,19 +25,28 @@
 
 namespace denigma {
 
-struct CueLayerPlan
+struct CueStaffMeasurePlan
 {
-    bool discardWholeHold{};
-    std::unordered_set<musx::dom::LayerIndex> discardLayers;
-    std::unordered_set<musx::dom::LayerIndex> heuristicCueLayers;
-    std::optional<musx::dom::LayerIndex> explicitCueLayer;
+    bool isDetectedCueOnly{}; ///< Every significant source layer was detected as cue material.
+    std::unordered_set<musx::dom::LayerIndex> cueLayers; ///< Union of detected and forced cue layers.
+    std::unordered_set<musx::dom::LayerIndex> visibleCueLayers; ///< Cue layers visible in the requested context.
+    std::unordered_set<musx::dom::LayerIndex> detectedCueLayers; ///< Cue layers reported by musxdom analysis.
+    std::optional<musx::dom::LayerIndex> forcedCueLayer; ///< 0-based layer selected by the caller, when present.
 
-    bool skipsLayer(musx::dom::LayerIndex layer) const
+    bool isCueLayer(musx::dom::LayerIndex layer) const
     {
-        return discardWholeHold || discardLayers.contains(layer);
+        return cueLayers.contains(layer);
+    }
+
+    bool isVisibleCueLayer(musx::dom::LayerIndex layer) const
+    {
+        return isCueLayer(layer) && visibleCueLayers.contains(layer);
     }
 };
 
-CueLayerPlan createCueLayerPlan(const musx::dom::details::GFrameHoldContext& gfHold, std::optional<int> explicitCueLayer);
+/// Creates exporter-neutral cue classification and requested-context visibility for one staff and measure.
+CueStaffMeasurePlan createCueStaffMeasurePlan(
+    const musx::dom::details::GFrameHoldContext& staffMeasureContext,
+    std::optional<int> forcedCueLayer);
 
 } // namespace denigma

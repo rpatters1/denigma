@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/cue_layers.h"
+#include "core/cue_plan.h"
 #include "musicxml_formatted_text.h"
 #include "mx/api/DurationData.h"
 #include "mx/api/MarkData.h"
@@ -224,6 +224,8 @@ void applyRestPositionIfNeeded(mx::api::NoteData& rest, const EntryInfoPtr& entr
     const auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
     (void)alteration;
     (void)staffPosition;
+    /// @todo Add a MusicXML option that applies calcFinaleToSmuflRestPositionOffset to the display pitch.
+    /// MusicXML does not specify whether rest display position is the nominal position or the SMuFL glyph origin.
     rest.isDisplayStepOctaveSpecified = true;
     rest.pitchData = mx::api::PitchData(enumConvert<mx::api::Step>(noteName), 0, octave);
 }
@@ -412,12 +414,14 @@ mx::api::NoteData createRestData(
     const MusxInstance<others::Measure>& musxMeasure,
     const MusxInstance<others::StaffComposite>& measureStartStaff,
     int userVoiceNumber,
+    bool isCue,
     bool isStaffValueSpecified)
 {
     const auto& entryInfo = entryIt.getEntryInfo();
 
     auto rest = mx::api::NoteData{};
     rest.isRest = true;
+    rest.isCue = isCue;
     rest.userRequestedVoiceNumber = userVoiceNumber;
 
     if (entryInfo) {
@@ -462,7 +466,7 @@ void addSyntheticFullMeasureRest(
     const int userVoiceNumber = musicXmlVoiceNumber(staffIndex, 0, 1);
     const auto measureStartStaff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, musxMeasure->getCmper(), 0);
     auto rest = createRestData(
-        context, staff, EntryInfoPtr::InterpretedIterator{}, musxMeasure, measureStartStaff, userVoiceNumber, false);
+        context, staff, EntryInfoPtr::InterpretedIterator{}, musxMeasure, measureStartStaff, userVoiceNumber, false, false);
 
     auto& voice = staff.voices[userVoiceNumber - 1];
     voice.notes.emplace_back(rest);
@@ -479,6 +483,7 @@ void appendEntryNotes(
     size_t staffIndex,
     bool hasMultipleLayers,
     bool hasVoice1Voice2,
+    bool isCue,
     bool isStaffValueSpecified,
     MusicXmlPitchContext pitchContext)
 {
@@ -503,7 +508,7 @@ void appendEntryNotes(
             });
     };
     if (entryInfo.calcIsFullMeasureRest() || entryInfo.calcDisplaysAsRest()) {
-        auto rest = createRestData(context, staff, entryIt, musxMeasure, nullptr, userVoiceNumber, isStaffValueSpecified);
+        auto rest = createRestData(context, staff, entryIt, musxMeasure, nullptr, userVoiceNumber, isCue, isStaffValueSpecified);
         rememberFirstNote(voice.notes.size());
         voice.notes.emplace_back(rest);
         return;
@@ -524,6 +529,7 @@ void appendEntryNotes(
         const size_t noteIndex = includedNoteIndices[includedPosition];
         NoteInfoPtr noteInfo(entryInfo, noteIndex);
         auto note = mx::api::NoteData{};
+        note.isCue = isCue;
         // MX uses this as "is in a chord group"; it suppresses <chord/> on the first note internally.
         note.isChord = includedNoteIndices.size() > 1;
         note.isGrace = entry->graceNote;
@@ -645,27 +651,25 @@ void createNotesForMeasureStaff(
     context.current.ottavasApplicableInMeasure = collectOttavasForMeasureStaff(
         context.document, context.forPartId, musxMeasure, staffId);
     const Fraction legacyPickupSpacer = musxMeasure->calcMinLegacyPickupSpacer(staffId);
-    musx::dom::details::GFrameHoldContext gfHold(context.document, context.forPartId, staffId, musxMeasure->getCmper(), legacyPickupSpacer);
-    if (!gfHold) {
+    musx::dom::details::GFrameHoldContext staffMeasureContext(
+        context.document, context.forPartId, staffId, musxMeasure->getCmper(), legacyPickupSpacer);
+    if (!staffMeasureContext) {
         addSyntheticFullMeasureRest(context, staff, musxMeasure, staffId, staffIndex);
         return;
     }
 
     bool emittedNotes = false;
     const auto pitchContext = pitchContextForStaff(context, staffId);
-    /// @todo Export cue notes/rests instead of omitting cue layers.
     /// @todo Honor Blank/BlankWithRests alternate notation by suppressing the affected entries and
     /// their attachments with print-object once its layer semantics have been mapped to MusicXML.
-    const auto cueLayerPlan = createCueLayerPlan(gfHold, context.denigmaContext->cueLayer);
-    context.cueDiscardPlansByMeasureStaff.emplace(musicXmlMeasureStaffKey(musxMeasure->getCmper(), staffId), cueLayerPlan);
-    const auto layerVoices = gfHold.calcVoices();
+    const auto cuePlan = createCueStaffMeasurePlan(staffMeasureContext, context.denigmaContext->cueLayer);
+    context.cuePlansByMeasureStaff.emplace(musicXmlMeasureStaffKey(musxMeasure->getCmper(), staffId), cuePlan);
+    const auto layerVoices = staffMeasureContext.calcVoices();
     const bool hasMultipleLayers = layerVoices.size() > 1;
     for (const auto& [layer, numVoice2Entries] : layerVoices) {
-        if (cueLayerPlan.skipsLayer(layer)) {
-            continue;
-        }
+        const bool isCue = cuePlan.isCueLayer(layer);
         const int maxVoice = numVoice2Entries ? 2 : 1;
-        const auto entryFrame = gfHold.createEntryFrame(layer);
+        const auto entryFrame = staffMeasureContext.createEntryFrame(layer);
         ASSERT_IF(!entryFrame) {
             continue;
         }
@@ -677,8 +681,11 @@ void createNotesForMeasureStaff(
                 if (entryIt.calcIsPastLogicalEndOfFrame()) {
                     break;
                 }
+                if (isCue && !musx::util::Cue::calcIsVisibleInRequestedContext(entryIt.getEntryInfo())) {
+                    continue;
+                }
                 appendEntryNotes(context, staff, voice, entryIt, musxMeasure, userVoiceNumber, measureIndex, staffIndex,
-                    hasMultipleLayers, usesV1V2, measure.staves.size() > 1, pitchContext);
+                    hasMultipleLayers, usesV1V2, isCue, measure.staves.size() > 1, pitchContext);
                 emittedNotes = true;
             }
         }

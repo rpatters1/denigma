@@ -53,7 +53,7 @@ OttavaShapeMap collectOttavasForMeasureStaff(
         if (!assignment) {
             continue;
         }
-        const auto shape = document->getOthers()->get<musx::dom::others::SmartShape>(assignment->getRequestedPartId(), assignment->shapeNum);
+        const auto shape = document->getOthers()->get<musx::dom::others::SmartShape>(partId, assignment->shapeNum);
         if (!shape || result.contains(shape->getCmper())) {
             continue;
         }

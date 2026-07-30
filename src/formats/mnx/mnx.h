@@ -31,7 +31,7 @@
 #include <vector>
 
 #include "core/denigma.h"
-#include "core/cue_layers.h"
+#include "core/cue_plan.h"
 #include "core/finale_options.h"
 #include "core/ottavas.h"
 #include "musx/musx.h"
@@ -79,7 +79,7 @@ using json = nlohmann::ordered_json;
 struct MnxMusxMapping
 {
     MnxMusxMapping(const DenigmaContext& context, const DocumentPtr& doc)
-        : denigmaContext(&context), document(doc), finaleOptions(loadFinaleOptions(doc)), mnxDocument(), musxParts(doc, SCORE_PARTID) {}
+        : denigmaContext(&context), document(doc), finaleOptions(loadFinaleOptions(doc, SCORE_PARTID)), mnxDocument(), musxParts(doc, SCORE_PARTID) {}
 
     const DenigmaContext* denigmaContext;
     musx::dom::DocumentPtr document;
@@ -116,18 +116,18 @@ struct MnxMusxMapping
         MeasCmper meas{};
         StaffCmper staff{};
         std::string voice;
-        std::optional<details::GFrameHoldContext> gfhold;
+        std::optional<details::GFrameHoldContext> staffMeasureContext;
         std::map<LayerIndex, int> layerVoices;
-        CueLayerPlan cueDiscardPlan;
+        CueStaffMeasurePlan cuePlan;
         OttavaShapeMap ottavasApplicableInMeasure;
 
         void clear()
         {
             meas = staff = 0;
             voice.clear();
-            gfhold.reset();
+            staffMeasureContext.reset();
             layerVoices.clear();
-            cueDiscardPlan = {};
+            cuePlan = {};
             ottavasApplicableInMeasure.clear();
         }
     };
@@ -146,7 +146,7 @@ struct MnxMusxMapping
 
     void setCurrentMeasureStaff(const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper);
     void logMessage(LogMsg&& msg, MessageSeverity severity = MessageSeverity::Info);
-    void logDiscardedHeuristicCueHold();
+    void logDiscardedHeuristicCueStaffMeasure();
     void logDiscardedCueLayerFrame(LayerIndex layer);
 };
 

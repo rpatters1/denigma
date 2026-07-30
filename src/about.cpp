@@ -35,6 +35,10 @@ namespace mnxdom {
 #include "mnxdom_license.xxd"
 }
 
+namespace mx {
+#include "mx_license.xxd"
+}
+
 namespace musx {
 #include "musx_license.xxd"
 }
@@ -56,6 +60,7 @@ namespace freetype {
 constexpr std::span<const unsigned char> denigmaLicense(denigma::LICENSE, sizeof(denigma::LICENSE));
 constexpr std::span<const unsigned char> zlibLicense(zlib::LICENSE, sizeof(zlib::LICENSE));
 constexpr std::span<const unsigned char> mnxLicense(mnxdom::LICENSE, sizeof(mnxdom::LICENSE));
+constexpr std::span<const unsigned char> mxLicense(mx::LICENSE, sizeof(mx::LICENSE));
 constexpr std::span<const unsigned char> musxLicense(musx::LICENSE, sizeof(musx::LICENSE));
 constexpr std::span<const unsigned char> smuflLicense(smufl_mapping::LICENSE, sizeof(smufl_mapping::LICENSE));
 constexpr std::span<const unsigned char> pugixmlLicense(pugixml::LICENSE_md, sizeof(pugixml::LICENSE_md));
@@ -67,6 +72,7 @@ constexpr auto licenses = std::to_array<std::pair<std::string_view, std::span<co
     { DENIGMA_NAME, denigmaLicense },
     { "musx object model", musxLicense },
     { "mnx object model", mnxLicense },
+    { "mx MusicXML library", mxLicense },
     { "SMuFL mapping", smuflLicense },
     { "zlib", zlibLicense },
     { "pugixml", pugixmlLicense }

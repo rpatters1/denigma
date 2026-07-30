@@ -395,7 +395,7 @@ void processExpressions(
 
     const auto exprAssigns = context.document->getOthers()->getArray<others::MeasureExprAssign>(
         musxMeasure->getRequestedPartId(), musxMeasure->getCmper());
-    const auto cuePlanIt = context.cueDiscardPlansByMeasureStaff.find(musicXmlMeasureStaffKey(musxMeasure->getCmper(), staffId));
+    const auto cuePlanIt = context.cuePlansByMeasureStaff.find(musicXmlMeasureStaffKey(musxMeasure->getCmper(), staffId));
     std::unordered_map<int, DirectionGroupTracking> directionGroups;
     for (const auto& assignment : exprAssigns) {
         if (assignment->hidden) {
@@ -409,10 +409,22 @@ void processExpressions(
         if (assignedStaffId != staffId) {
             continue;
         }
-        if (cuePlanIt != context.cueDiscardPlansByMeasureStaff.end()
-            && assignment->layer > 0
-            && cuePlanIt->second.skipsLayer(assignment->layer - 1)) {
-            continue;
+        if (cuePlanIt != context.cuePlansByMeasureStaff.end()) {
+            const auto associatedEntry = assignment->calcAssociatedEntry();
+            const auto assignedLayer = assignment->layer > 0
+                ? std::make_optional<LayerIndex>(assignment->layer - 1)
+                : std::nullopt;
+            const auto cueLayer = assignedLayer && cuePlanIt->second.isCueLayer(*assignedLayer)
+                ? assignedLayer
+                : associatedEntry && cuePlanIt->second.isCueLayer(associatedEntry.getLayerIndex())
+                    ? std::make_optional(associatedEntry.getLayerIndex())
+                    : std::nullopt;
+            if (cueLayer
+                && (!cuePlanIt->second.isVisibleCueLayer(*cueLayer)
+                    || (associatedEntry
+                        && !context.entryNumberToFirstNote.contains(associatedEntry->getEntry()->getEntryNumber())))) {
+                continue;
+            }
         }
 
         const auto classification = classify::classifyExpression(assignment);

@@ -18,6 +18,7 @@
  */
 #include <cstddef>
 #include <cstring>
+#include <sstream>
 #include <span>
 #include <string>
 #include <vector>
@@ -128,6 +129,173 @@ TEST(ConverterApi, MusxToMusicXmlInvokesOutputCallbackForParts)
         foundNamedPart = foundNamedPart || output.suggestedName == "オボえ";
     }
     EXPECT_TRUE(foundNamedPart);
+}
+
+TEST(ConverterApi, MusxToMusicXmlEmitsCuesOnlyWhereVisible)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::musicxml::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::MusicXml);
+    ASSERT_NE(converter, nullptr);
+
+    std::vector<std::string> outputs;
+    denigma::FileRandomAccessReader input(getInputPath() / "multimeas_cue.musx");
+    denigma::formats::musicxml::Options options;
+    options.common.sourceName = "multimeas_cue.musx";
+    options.allPartsAndScore = true;
+    const auto result = converter->convert(input, [&](std::string_view, std::span<const std::byte> data) {
+        outputs.emplace_back(reinterpret_cast<const char*>(data.data()), data.size());
+    }, denigma::ConversionRequest{ &options });
+
+    EXPECT_TRUE(result.diagnostics().empty());
+    ASSERT_EQ(outputs.size(), 3u);
+
+    size_t outputsWithCues{};
+    for (size_t outputIndex = 0; outputIndex < outputs.size(); ++outputIndex) {
+        pugi::xml_document document;
+        const auto parseResult = document.load_string(outputs[outputIndex].c_str());
+        ASSERT_TRUE(parseResult) << parseResult.description();
+        const auto cueNotes = document.select_nodes("//note[cue]");
+        if (outputIndex == 0) {
+            EXPECT_TRUE(cueNotes.empty()) << "Cues hidden in the score context must be suppressed.";
+        }
+        if (!cueNotes.empty()) {
+            ++outputsWithCues;
+            EXPECT_EQ(cueNotes.size(), 8u);
+            EXPECT_EQ(document.select_nodes("//note[cue and rest]").size(), 1u);
+            EXPECT_EQ(document.select_nodes("//note[cue and pitch]").size(), 7u);
+            const auto cueNoteSize = document.select_node("//defaults/appearance/note-size[@type='cue']").node();
+            ASSERT_TRUE(cueNoteSize);
+            EXPECT_EQ(cueNoteSize.text().as_int(), 81);
+        }
+    }
+    EXPECT_EQ(outputsWithCues, 1u);
+}
+
+TEST(ConverterApi, MusxToMusicXmlPlumbsForcedCueLayer)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::musicxml::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::MusicXml);
+    ASSERT_NE(converter, nullptr);
+
+    std::string xmlText;
+    denigma::FileRandomAccessReader input(getInputPath() / "forced_bass_clef.musx");
+    denigma::formats::musicxml::Options options;
+    options.common.sourceName = "forced_bass_clef.musx";
+    options.cueLayer = 1;
+    const auto result = converter->convert(input, [&](std::string_view, std::span<const std::byte> data) {
+        xmlText.assign(reinterpret_cast<const char*>(data.data()), data.size());
+    }, denigma::ConversionRequest{ &options });
+
+    EXPECT_TRUE(result.diagnostics().empty());
+    pugi::xml_document document;
+    const auto parseResult = document.load_string(xmlText.c_str());
+    ASSERT_TRUE(parseResult) << parseResult.description();
+    EXPECT_EQ(document.select_nodes("//note[cue]").size(), 1u);
+    EXPECT_EQ(document.select_nodes("//note[cue and rest]").size(), 1u);
+}
+
+TEST(ConverterApi, MusxToMusicXmlRetainsForcedCueLayerExpressions)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::musicxml::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::MusicXml);
+    ASSERT_NE(converter, nullptr);
+
+    std::string xmlText;
+    denigma::FileRandomAccessReader input(getInputPath() / "techniques.musx");
+    denigma::formats::musicxml::Options options;
+    options.common.sourceName = "techniques.musx";
+    options.cueLayer = 1;
+    const auto result = converter->convert(input, [&](std::string_view, std::span<const std::byte> data) {
+        xmlText.assign(reinterpret_cast<const char*>(data.data()), data.size());
+    }, denigma::ConversionRequest{ &options });
+
+    EXPECT_TRUE(result.diagnostics().empty());
+    pugi::xml_document document;
+    const auto parseResult = document.load_string(xmlText.c_str());
+    ASSERT_TRUE(parseResult) << parseResult.description();
+    EXPECT_EQ(document.select_nodes("//note[cue]").size(), 27u);
+    EXPECT_EQ(document.select_nodes("//direction[voice='1']").size(), 5u);
+    EXPECT_EQ(document.select_nodes("//direction[voice='1']/direction-type/words").size(), 5u);
+}
+
+TEST(ConverterApi, MusxToMusicXmlRetainsForcedCueLayerTiesAsNotationOnly)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::musicxml::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::MusicXml);
+    ASSERT_NE(converter, nullptr);
+
+    std::string xmlText;
+    denigma::FileRandomAccessReader input(getInputPath() / "tie_target_types.musx");
+    denigma::formats::musicxml::Options options;
+    options.common.sourceName = "tie_target_types.musx";
+    options.cueLayer = 1;
+    const auto result = converter->convert(input, [&](std::string_view, std::span<const std::byte> data) {
+        xmlText.assign(reinterpret_cast<const char*>(data.data()), data.size());
+    }, denigma::ConversionRequest{ &options });
+
+    EXPECT_TRUE(result.diagnostics().empty());
+    pugi::xml_document document;
+    const auto parseResult = document.load_string(xmlText.c_str());
+    ASSERT_TRUE(parseResult) << parseResult.description();
+    EXPECT_FALSE(document.select_nodes("//note[cue]/notations/tied[@type='start']").empty());
+    EXPECT_FALSE(document.select_nodes("//note[cue]/notations/tied[@type='stop']").empty());
+    EXPECT_TRUE(document.select_nodes("//note[cue]/tie").empty());
+}
+
+TEST(ConverterApi, EnigmaXmlToMusicXmlRetainsForcedGraceCueTieAsNotationOnly)
+{
+    setupTestDataPaths();
+
+    std::vector<char> input;
+    readFile(getInputPath() / "reference" / utils::utf8ToPath("notAscii-其れ.enigmaxml"), input);
+
+    pugi::xml_document inputDocument;
+    const auto inputParseResult = inputDocument.load_buffer(input.data(), input.size());
+    ASSERT_TRUE(inputParseResult) << inputParseResult.description();
+    auto graceTieStartNote = inputDocument.select_node("//entry[@entnum='17']/note").node();
+    auto tieEndNote = inputDocument.select_node("//entry[@entnum='5']/note").node();
+    ASSERT_TRUE(graceTieStartNote);
+    ASSERT_TRUE(tieEndNote);
+    graceTieStartNote.append_child("tieStart");
+    tieEndNote.append_child("tieEnd");
+
+    std::ostringstream modifiedInput;
+    inputDocument.save(modifiedInput);
+    const auto modifiedInputText = modifiedInput.str();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::musicxml::registerConverters(registry);
+    const auto* converter = registry.findMultiOutput(denigma::FormatId::EnigmaXml, denigma::FormatId::MusicXml);
+    ASSERT_NE(converter, nullptr);
+
+    std::string xmlText;
+    denigma::formats::musicxml::Options options;
+    options.common.sourceName = "grace-cue-tie.enigmaxml";
+    options.cueLayer = 1;
+    const auto result = converter->convert(std::as_bytes(std::span<const char>(modifiedInputText.data(), modifiedInputText.size())),
+                                           [&](std::string_view, std::span<const std::byte> data) {
+                                               xmlText.assign(reinterpret_cast<const char*>(data.data()), data.size());
+                                           },
+                                           denigma::ConversionRequest{ &options });
+
+    EXPECT_TRUE(result.diagnostics().empty());
+    pugi::xml_document document;
+    const auto parseResult = document.load_string(xmlText.c_str());
+    ASSERT_TRUE(parseResult) << parseResult.description();
+    EXPECT_EQ(document.select_nodes("//note[grace and cue]/notations/tied[@type='start']").size(), 1u);
+    EXPECT_TRUE(document.select_nodes("//note[grace and cue]/tie").empty());
 }
 
 TEST(MusicXmlChordFixture, ExportsChordsForInspection)

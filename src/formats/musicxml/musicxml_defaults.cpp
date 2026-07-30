@@ -23,6 +23,7 @@
 #include <array>
 #include <string_view>
 
+#include "musx/util/Cue.h"
 #include "utils/font_names.h"
 
 using namespace musx::dom;
@@ -172,7 +173,16 @@ void createAppearance(const MusicXmlMusxMapping& context)
     addLineWidth("enclosure", options.lineCurveOptions->enclosureWidth);
     addLineWidth("tuplet bracket", options.tupletOptions->tupLineWidth);
     addNoteSize("grace", options.graceOptions->gracePerc);
-    addNoteSize("cue", options.graceOptions->gracePerc);
+    int cuePercent = options.graceOptions->gracePerc;
+    context.document->iterateEntries(context.forPartId, [&](const EntryInfoPtr& entryInfo) {
+        const auto analysis = musx::util::Cue::calcEntryAnalysis(entryInfo);
+        if (!analysis.isCue()) {
+            return true;
+        }
+        cuePercent = analysis.entrySizePercent;
+        return false;
+    });
+    addNoteSize("cue", cuePercent);
     addDistance("hyphen", options.lyricOptions->maxHyphenSeparation);
     addDistance("beam", options.beamOptions->beamSepar);
 }

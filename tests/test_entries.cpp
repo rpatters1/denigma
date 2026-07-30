@@ -21,11 +21,19 @@
  */
 #include "gtest/gtest.h"
 
+#include "core/denigma.h"
 #include "denigma/classify/entries.h"
 #include "musx/musx.h"
 
+using namespace denigma;
 using namespace denigma::classify;
 using namespace musx::dom;
+
+TEST(RestPosition, FinaleToSmuflOffset)
+{
+    EXPECT_EQ(calcFinaleToSmuflRestPositionOffset(NoteType::Whole), 2);
+    EXPECT_EQ(calcFinaleToSmuflRestPositionOffset(NoteType::Half), 0);
+}
 
 /// @todo Add a positive-path fixture-based test once a .musx/.enigmaxml fixture with an
 /// artificial-harmonic chord (a Regular-notehead note and a Diamond-notehead note a fourth,

@@ -64,6 +64,6 @@ struct FinaleOptions
     musx::dom::MusxInstance<musx::dom::others::PartGlobals> effectivePartGlobals;
 };
 
-FinaleOptions loadFinaleOptions(const musx::dom::DocumentPtr& document, musx::dom::Cmper forPartId = musx::dom::SCORE_PARTID);
+FinaleOptions loadFinaleOptions(const musx::dom::DocumentPtr& document, musx::dom::Cmper forPartId);
 
 } // namespace denigma
