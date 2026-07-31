@@ -258,6 +258,72 @@ TEST(MnxParts, CueLayer)
     });
 }
 
+TEST(MnxParts, MeasureRepeats)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("measure_repeats.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({
+        "Processing", pathString(inputPath.filename()), "!validation error",
+        // A 2-bar repeat in measure 2 would repeat measures 0 and 1, and one in measure 14 would
+        // occupy a measure 15 that does not exist. Both are semantic violations in MNX.
+        "has a 2-bar repeat in measure 2 that would reach back before the first measure",
+        "has a 2-bar repeat in measure 14 that would extend past the last measure",
+        // Measure 8 asks for a 1-bar repeat while already covered by the 2-bar repeat in measure 7.
+        "has a 1-bar repeat in measure 8 that falls inside the 2-bar repeat beginning in measure 7"
+    }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "measure_repeats.mnx");
+    auto parts = doc.parts();
+    ASSERT_GE(parts.size(), 1);
+    auto measures = parts[0].measures();
+    ASSERT_EQ(measures.size(), 14);
+
+    // Finale flags every measure a repeat region covers, but MNX declares a repeat only on the first
+    // measure of each group. The 2-bar region over measures 2..4 is an odd number of measures, so its
+    // second group begins in measure 4 and takes measure 5, which carries no alternate notation, as
+    // its second measure.
+    const std::array<std::optional<int>, 14> expectedRepeats = {
+        std::nullopt,       // m1
+        std::nullopt,       // m2: dropped, reaches back before the start
+        std::nullopt,       // m3: second measure of the group beginning in m2
+        2,                  // m4
+        std::nullopt,       // m5: second measure of the m4 group, unflagged in Finale
+        std::nullopt,       // m6
+        2,                  // m7
+        std::nullopt,       // m8: its own 1-bar repeat is dropped, see above
+        1,                  // m9
+        2,                  // m10
+        std::nullopt,       // m11
+        2,                  // m12
+        std::nullopt,       // m13
+        std::nullopt        // m14: dropped, extends past the end
+    };
+    for (size_t x = 0; x < expectedRepeats.size(); x++) {
+        const auto measureRepeat = measures[x].measureRepeat();
+        const std::string label = "measure " + std::to_string(x + 1);
+        if (!expectedRepeats[x]) {
+            EXPECT_FALSE(measureRepeat.has_value()) << label << " should have no measure repeat";
+            continue;
+        }
+        ASSERT_TRUE(measureRepeat.has_value()) << label << " should have a measure repeat";
+        EXPECT_EQ(measureRepeat->number(), expectedRepeats[x].value()) << label;
+    }
+
+    // Alternate notation replaces the entries of the layers it hides, so those layers are not
+    // exported. The fixture applies repeat styles both with and without "hide other layers", so a
+    // measure is either emptied entirely or keeps the layers the style leaves alone. Measures 1
+    // through 3 hold no entries in the source at all.
+    const std::array<size_t, 14> expectedSequenceCounts = { 0, 0, 0, 0, 1, 2, 1, 1, 0, 1, 1, 0, 0, 0 };
+    for (size_t x = 0; x < expectedSequenceCounts.size(); x++) {
+        EXPECT_EQ(measures[x].sequences().size(), expectedSequenceCounts[x])
+            << "measure " << (x + 1) << " sequence count";
+    }
+}
+
 TEST(MnxParts, DynamicAccentAffixes)
 {
     setupTestDataPaths();

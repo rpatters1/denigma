@@ -602,6 +602,14 @@ void createSequences(const MnxMusxMappingPtr& context,
         if (context->current.cuePlan.isCueLayer(layer)) {
             continue;
         }
+        // Finale's alternate notation draws something else in place of these entries, so exporting them
+        // would duplicate music that the source does not show.
+        /// @todo Measure repeats are exported in place of the omitted entries, and blank notation shows
+        /// nothing, but slash notation has no MNX representation, so those measures lose their music
+        /// entirely. Export the slashes here if MNX gains a way to encode them.
+        if (context->current.layersHiddenByAltNotation.contains(layer)) {
+            continue;
+        }
         const int maxVoices = numV2 ? 2 : 1;
         if (auto entryFrame = context->current.staffMeasureContext->createEntryFrame(layer)) {
             const bool usesV1V2 = numV2 && entryFrame->getFirstInterpretedIterator(2); // ignore entries the iterator will skip

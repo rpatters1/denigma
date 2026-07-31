@@ -118,6 +118,8 @@ struct MnxMusxMapping
         std::string voice;
         std::optional<details::GFrameHoldContext> staffMeasureContext;
         std::map<LayerIndex, int> layerVoices;
+        /// @brief Layers whose entries Finale replaces with alternate notation, so they are not exported.
+        std::unordered_set<LayerIndex> layersHiddenByAltNotation;
         CueStaffMeasurePlan cuePlan;
         OttavaShapeMap ottavasApplicableInMeasure;
 
@@ -127,6 +129,7 @@ struct MnxMusxMapping
             voice.clear();
             staffMeasureContext.reset();
             layerVoices.clear();
+            layersHiddenByAltNotation.clear();
             cuePlan = {};
             ottavasApplicableInMeasure.clear();
         }
