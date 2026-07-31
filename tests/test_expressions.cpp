@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  */
 #include <algorithm>
+#include <functional>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -131,7 +132,8 @@ static TextExpressionContext makeTextExpressionContext(
     const std::string& expressionXml = {},
     const std::string& mmRestFontName = {},
     int mmRestCharsetVal = 0,
-    const std::string& extraCategoryXml = {})
+    const std::string& extraCategoryXml = {},
+    const std::string& extraOthersXml = {})
 {
     std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
 <finale>
@@ -141,6 +143,7 @@ static TextExpressionContext makeTextExpressionContext(
     }
     xml += R"xml(  <others>
 )xml";
+    xml += extraOthersXml;
     xml += fontDefinitionXml(0, fontName, charsetVal);
     if (!mmRestFontName.empty()) {
         xml += fontDefinitionXml(1, mmRestFontName, mmRestCharsetVal);
@@ -896,4 +899,157 @@ TEST(ExpressionClassification, ClassifiesMultimeasureRestNumberBeforeSystemTextR
 
     ASSERT_EQ(result.type, ExpressionType::MultimeasureRestNumber);
     EXPECT_EQ(result.multimeasureRestNumber().number, 12);
+}
+
+static std::string staffXml(const std::string& altNotation)
+{
+    std::string result = "    <staffSpec cmper=\"1\">\n"
+                         "      <staffLines>5</staffLines>\n";
+    if (!altNotation.empty()) {
+        result += "      <altNotation>" + altNotation + "</altNotation>\n";
+    }
+    result += "    </staffSpec>\n";
+    return result;
+}
+
+/// Classifies @p text as it would appear on staff 1, which displays measure 1 with @p altNotation.
+/// @p configureAssignment adjusts the assignment before it is classified.
+static ExpressionClassification classifyMeasureRepeatCountCandidate(
+    const std::string& text,
+    const std::string& altNotation = "oneBarRepeat",
+    const std::string& expressionXml = centeredExpressionXml(),
+    ExpressionCategoryType categoryType = ExpressionCategoryType::Misc,
+    const std::function<void(others::MeasureExprAssign&)>& configureAssignment = {})
+{
+    const auto context = makeTextExpressionContext(
+        text, categoryType, {}, false, "Times New Roman", 0, expressionXml,
+        {}, 0, {}, staffXml(altNotation));
+    auto assignment = std::make_shared<others::MeasureExprAssign>(
+        context.document, SCORE_PARTID, EnigmaBase::ShareMode::All, Cmper{ 1 }, Inci{ 1 });
+    assignment->textExprId = 1;
+    assignment->staffAssign = StaffCmper{ 1 };
+    if (configureAssignment) {
+        configureAssignment(*assignment);
+    }
+    return classifyExpression(assignment);
+}
+
+TEST(ExpressionClassification, ClassifiesMeasureRepeatCountOverOneBarRepeat)
+{
+    const auto result = classifyMeasureRepeatCountCandidate("2");
+
+    ASSERT_EQ(result.type, ExpressionType::MeasureRepeatCount);
+    EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(result.measureRepeatCount().count, 2);
+}
+
+TEST(ExpressionClassification, ClassifiesMeasureRepeatCountOverTwoBarRepeat)
+{
+    const auto result = classifyMeasureRepeatCountCandidate("14", "twoBarRepeat");
+
+    ASSERT_EQ(result.type, ExpressionType::MeasureRepeatCount);
+    EXPECT_EQ(result.measureRepeatCount().count, 14);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountWithoutAlternateNotation)
+{
+    // The number is what a counter looks like, but the staff draws its own notation here, so there
+    // is nothing for the number to be counting.
+    const auto result = classifyMeasureRepeatCountCandidate("2", {});
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountUnderOtherAlternateNotation)
+{
+    // Slash notation repeats nothing, so a number over it is not counting iterations.
+    const auto result = classifyMeasureRepeatCountCandidate("2", "slashBeats");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountThatIsNotCentered)
+{
+    const auto result = classifyMeasureRepeatCountCandidate(
+        "2",
+        "oneBarRepeat",
+        "      <horzMeasExprAlign>leftEdge</horzMeasExprAlign>\n"
+        "      <horzExprAlign>left</horzExprAlign>\n");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountWithNonNumericText)
+{
+    const auto result = classifyMeasureRepeatCountCandidate("2x");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountOfZero)
+{
+    // MNX and convention alike start the count at the first repeated bar, so zero counts nothing.
+    const auto result = classifyMeasureRepeatCountCandidate("0");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, PrefersRehearsalMarkCategoryOverMeasureRepeatCount)
+{
+    const auto result = classifyMeasureRepeatCountCandidate(
+        "2", "oneBarRepeat", centeredExpressionXml(), ExpressionCategoryType::RehearsalMarks);
+
+    EXPECT_EQ(result.type, ExpressionType::RehearsalMark);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountAssignedThroughStaffList)
+{
+    // One assignment covering a list of staves marks the passage rather than the notation of the
+    // staff it happens to resolve to.
+    const auto result = classifyMeasureRepeatCountCandidate(
+        "2", "oneBarRepeat", centeredExpressionXml(), ExpressionCategoryType::Misc,
+        [](others::MeasureExprAssign& assignment) { assignment.staffList = 1; });
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, ClassifiesMeasureRepeatCountOnHiddenAssignment)
+{
+    // Whether a marking is drawn is the consumer's business, so a hidden assignment is still
+    // classified as what it is.
+    const auto result = classifyMeasureRepeatCountCandidate(
+        "2", "oneBarRepeat", centeredExpressionXml(), ExpressionCategoryType::Misc,
+        [](others::MeasureExprAssign& assignment) { assignment.hidden = true; });
+
+    ASSERT_EQ(result.type, ExpressionType::MeasureRepeatCount);
+    EXPECT_EQ(result.measureRepeatCount().count, 2);
+}
+
+TEST(ExpressionClassification, ClassifiesMeasureRepeatCountNotAssignedInRequestedPart)
+{
+    // A part-only assignment is drawn in no part here, which again is for the consumer to filter.
+    const auto result = classifyMeasureRepeatCountCandidate(
+        "2", "oneBarRepeat", centeredExpressionXml(), ExpressionCategoryType::Misc,
+        [](others::MeasureExprAssign& assignment) {
+            assignment.showStaffList = others::MeasureExprAssign::ShowStaffList::PartOnly;
+        });
+
+    ASSERT_EQ(result.type, ExpressionType::MeasureRepeatCount);
+    EXPECT_EQ(result.measureRepeatCount().count, 2);
+}
+
+TEST(ExpressionClassification, ClassifiesMeasureRepeatCountBeforeSystemTextRehearsalMark)
+{
+    // A top-staff assignment routes through the system-text path, whose rehearsal-mark heuristic
+    // would otherwise claim a bare number. Scroll view resolves the top staff to staff 1.
+    const auto context = makeTextExpressionContext(
+        "2", ExpressionCategoryType::ExpressiveText, {}, true, "Times New Roman", 0,
+        centeredExpressionXml(), {}, 0, {},
+        staffXml("oneBarRepeat") + "    <instUsed cmper=\"0\" inci=\"0\">\n"
+                                   "      <inst>1</inst>\n"
+                                   "    </instUsed>\n");
+    const auto result = classifyExpression(context.def, context.assignment);
+
+    ASSERT_EQ(result.type, ExpressionType::MeasureRepeatCount);
+    EXPECT_EQ(result.measureRepeatCount().count, 2);
 }

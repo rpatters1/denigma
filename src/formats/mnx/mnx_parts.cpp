@@ -346,7 +346,12 @@ static void createMeasureRepeats(const MnxMusxMappingPtr& context, mnxdom::Part&
                 << " that would " << (reachesBackTooFar ? "reach back before the first measure" : "extend past the last measure")
                 << "; it is not exported.", MessageSeverity::Warning);
         } else {
-            mnxMeasures.at(index).ensure_measureRepeat(span);
+            auto mnxRepeat = mnxMeasures.at(index).ensure_measureRepeat(span);
+            // A counter belongs to the repeat, so only one found on the measure that declares the
+            // repeat can be attached. Counters on the measures a group covers are reported below.
+            if (const auto counter = context->measureRepeatCounts.extract(musxMeasures[index]->getCmper())) {
+                mnxRepeat.ensure_counter(counter.mapped());
+            }
         }
         // Finale flags every measure a repeat region covers, so a covered measure repeating the same
         // number of bars is the continuation of this group and needs no comment. A covered measure
@@ -363,6 +368,15 @@ static void createMeasureRepeats(const MnxMusxMappingPtr& context, mnxdom::Part&
         }
         index += static_cast<size_t>(span);
     }
+    // Whatever is left counts a repeat that was not exported, or a measure that a repeat covers
+    // rather than declares. MNX has nowhere to put either, and the count is no longer available to
+    // the expression export that would otherwise have carried its text.
+    for (const auto& [measureId, count] : context->measureRepeatCounts) {
+        context->logMessage(LogMsg() << mnxPartDisplayName(context, part) << " has measure repeat counter "
+            << count << " in measure " << measureId << ", which does not begin an exported measure repeat;"
+            " the counter is not exported.", MessageSeverity::Warning);
+    }
+    context->measureRepeatCounts.clear();
 }
 
 static void createMeasures(const MnxMusxMappingPtr& context, mnxdom::Part& part)

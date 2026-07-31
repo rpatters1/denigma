@@ -59,6 +59,7 @@ enum class ExpressionType
     TechniqueText, ///< Text identifying a performance technique.
     RehearsalMark, ///< A rehearsal mark.
     MultimeasureRestNumber, ///< A numeric label for a multimeasure rest.
+    MeasureRepeatCount, ///< A count of the iterations of a measure repeat.
     Error, ///< An expression that could not be classified because of invalid source data.
     Suppress ///< An expression that should not be exported.
 };
@@ -223,6 +224,19 @@ struct MultimeasureRestNumber
     int number{};
 };
 
+/// @struct MeasureRepeatCount
+/// @brief Classified count of the iterations of a measure repeat.
+///
+/// Finale draws one- and two-bar repeats as staff alternate notation and has no counter of its own,
+/// so documents number the iterations with a text expression centered over each repeated measure.
+/// Such an expression is recognized by the alternate notation on its staff, because neither its text
+/// nor its marking category distinguishes it from any other number.
+struct MeasureRepeatCount
+{
+    /// @brief Iteration number displayed by the marking.
+    int count{};
+};
+
 /// @struct GenericText
 /// @brief Expression text without a more specific semantic classification.
 struct GenericText
@@ -287,7 +301,7 @@ using ExpressionValue = std::variant<
     articulation::StringMute, expression::HarpDiagram, keyboardpedal::Type, PseudoTie,
     expression::NonArpeggio, expression::TempoText, expression::TempoAlteration,
     expression::TechniqueText, expression::RehearsalMark, expression::MultimeasureRestNumber,
-    expression::GenericText, expression::Error, expression::Suppress>;
+    expression::MeasureRepeatCount, expression::GenericText, expression::Error, expression::Suppress>;
 
 /// @struct ExpressionClassification
 /// @brief Exporter-neutral semantic classification of one Finale expression.
@@ -388,6 +402,11 @@ public:
     /// @throws std::logic_error if #type is not ExpressionType::MultimeasureRestNumber.
     const expression::MultimeasureRestNumber& multimeasureRestNumber() const
     { return checkedPayload<expression::MultimeasureRestNumber, ExpressionType::MultimeasureRestNumber>("MultimeasureRestNumber"); }
+
+    /// @brief Returns the classified measure repeat count.
+    /// @throws std::logic_error if #type is not ExpressionType::MeasureRepeatCount.
+    const expression::MeasureRepeatCount& measureRepeatCount() const
+    { return checkedPayload<expression::MeasureRepeatCount, ExpressionType::MeasureRepeatCount>("MeasureRepeatCount"); }
 
     /// @brief Returns the unclassified expression text.
     /// @throws std::logic_error if #type is not ExpressionType::GenericText.

@@ -305,6 +305,28 @@ void attachBreathMark(const MnxMusxMappingPtr& context, const ExpressionAttachme
         mnxdom::sequence::Event(context->mnxDocument->root(), attachment.entryTarget->pointer).ensure_markings().set_breath(breathMark);
     }
 };
+
+/// @brief Records a measure repeat counter for the measure, to be attached once the repeats are known.
+///
+/// MNX gives a part measure one measure repeat shared by every staff, so it has one counter as well.
+/// Finale numbers each staff separately, and the staves of a part normally agree; where they do not,
+/// only one count can be kept.
+void recordMeasureRepeatCount(const MnxMusxMappingPtr& context, const MusxInstance<others::MeasureExprAssign>& asgn,
+    const MusxInstance<others::Measure>& musxMeasure, int count)
+{
+    // The repeat notation that identifies this expression as a counter can also hide it. A counter
+    // Finale does not draw is not counting anything the reader can see.
+    if (asgn->calcIsHiddenByAlternateNotation()) {
+        return;
+    }
+    const auto [it, inserted] = context->measureRepeatCounts.emplace(musxMeasure->getCmper(), count);
+    if (!inserted && it->second != count) {
+        context->logMessage(LogMsg() << "Measure repeat counter " << count
+            << " disagrees with counter " << it->second << " on another staff of the same part;"
+            " MNX has one counter per part measure, so only the first is exported.",
+            MessageSeverity::Warning);
+    }
+}
 } // namespace
 
 void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
@@ -339,6 +361,9 @@ void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 break;
             case classify::ExpressionType::NonArpeggio:
                 appendArpeggioCandidate(context, mnxMeasure, classification.nonArpeggio().candidate);
+                break;
+            case classify::ExpressionType::MeasureRepeatCount:
+                recordMeasureRepeatCount(context, asgn, musxMeasure, classification.measureRepeatCount().count);
                 break;
             case classify::ExpressionType::PseudoTie:
                 break;

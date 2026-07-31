@@ -324,6 +324,55 @@ TEST(MnxParts, MeasureRepeats)
     }
 }
 
+TEST(MnxParts, MeasureRepeatCounters)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("measure_repeat_counters.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({
+        "Processing", pathString(inputPath.filename()), "!validation error",
+        // Every counter in the fixture belongs to a measure that declares a repeat, so none is dropped.
+        "!measure repeat counter"
+    }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "measure_repeat_counters.mnx");
+    auto parts = doc.parts();
+    ASSERT_GE(parts.size(), 1);
+    auto measures = parts[0].measures();
+    ASSERT_EQ(measures.size(), 31);
+
+    // Finale supplies no counter of its own, so the fixture numbers the iterations with text
+    // expressions centered over the repeated measures. Two runs of one-bar repeats, each counting
+    // from 2 because the measure holding the music being repeated is iteration 1.
+    const auto expectedCount = [](size_t measureNumber) -> std::optional<int> {
+        if (measureNumber >= 2 && measureNumber <= 11) {
+            return static_cast<int>(measureNumber);         // m1 is the music, m2..m11 count 2..11
+        }
+        if (measureNumber >= 13 && measureNumber <= 19) {
+            return static_cast<int>(measureNumber) - 11;    // m12 is the music, m13..m19 count 2..8
+        }
+        return std::nullopt;
+    };
+    for (size_t x = 0; x < measures.size(); x++) {
+        const size_t measureNumber = x + 1;
+        const auto expected = expectedCount(measureNumber);
+        const auto measureRepeat = measures[x].measureRepeat();
+        const std::string label = "measure " + std::to_string(measureNumber);
+        if (!expected) {
+            EXPECT_FALSE(measureRepeat.has_value()) << label << " should have no measure repeat";
+            continue;
+        }
+        ASSERT_TRUE(measureRepeat.has_value()) << label << " should have a measure repeat";
+        EXPECT_EQ(measureRepeat->number(), 1) << label;
+        const auto counter = measureRepeat->counter();
+        ASSERT_TRUE(counter.has_value()) << label << " should have a counter";
+        EXPECT_EQ(counter->count(), expected.value()) << label;
+    }
+}
+
 TEST(MnxParts, DynamicAccentAffixes)
 {
     setupTestDataPaths();
