@@ -281,10 +281,21 @@ static void assignTimeSignature(
     const MnxMusxMappingPtr& context,
     mnxdom::global::Measure& mnxMeasure,
     const MusxInstance<others::Measure>& musxMeasure,
-    MusxInstance<TimeSignature>& prevTimeSig)
+    MusxInstance<TimeSignature>& prevTimeSig,
+    std::optional<mnxdom::TimeSignatureDisplay>& prevTimeSigDisplay)
 {
     auto timeSig = musxMeasure->createTimeSignature();
-    if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get())) {
+    auto timeSigDisplay = [&]() -> std::optional<mnxdom::TimeSignatureDisplay> {
+        auto dispTimeSig = musxMeasure->createDisplayTimeSignature();
+        if (dispTimeSig->isCutTime()) {
+            return mnxdom::TimeSignatureDisplay::Cut;
+        }
+        if (dispTimeSig->isCommonTime()) {
+            return mnxdom::TimeSignatureDisplay::Common;
+        }
+        return std::nullopt;
+    }();
+    if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get()) || prevTimeSigDisplay != timeSigDisplay) {
         auto [count, noteType] = timeSig->calcSimplified();
         /// @todo if MNX adds fractional meter, support that here instead of error message or further reduction
         if (count.remainder()) {
@@ -296,8 +307,12 @@ static void assignTimeSignature(
                     << " has fractional portion that could not be reduced.", MessageSeverity::Warning);
             }
         }
-        mnxMeasure.ensure_time(count.quotient(), enumConvert<mnxdom::TimeSignatureUnit>(noteType));
+        auto mnxTimeSig = mnxMeasure.ensure_time(count.quotient(), enumConvert<mnxdom::TimeSignatureUnit>(noteType));
+        if (timeSigDisplay.has_value()) {
+            mnxTimeSig.set_display(timeSigDisplay.value());
+        }
         prevTimeSig = timeSig;
+        prevTimeSigDisplay = timeSigDisplay;
     }
 }
 
@@ -332,6 +347,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     const auto musxBarlineOptions = context->finaleOptions.barlineOptions;
     std::optional<int> prevKeyFifths;
     MusxInstance<TimeSignature> prevTimeSig;
+    std::optional<mnxdom::TimeSignatureDisplay> prevTimeSigDisplay;
     for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxDocument->global().measures().append();
         mnxMeasure.set_id(calcGlobalMeasureId(musxMeasure->getCmper()));
@@ -345,7 +361,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
         assignRepeats(mnxMeasure, musxMeasure);
         createSegno(mnxMeasure, musxMeasure);
         createTempos(context, mnxMeasure, musxMeasure);
-        assignTimeSignature(context, mnxMeasure, musxMeasure, prevTimeSig);
+        assignTimeSignature(context, mnxMeasure, musxMeasure, prevTimeSig, prevTimeSigDisplay);
     }
 }
 
