@@ -258,6 +258,35 @@ TEST(MnxParts, CueLayer)
     });
 }
 
+TEST(MnxParts, DynamicAccentAffixes)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("slurs_2voices.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    auto doc = mnx::Document::create(inputPath.parent_path() / "slurs_2voices.mnx");
+    auto parts = doc.parts();
+    ASSERT_GE(parts.size(), 1);
+    auto measures = parts[0].measures();
+    ASSERT_GE(measures.size(), 2);
+
+    // Measure 2 carries an "fz". MNX defaults accentPrefix to "s" and accentSuffix to "z", so an
+    // accent that leaves them out reads as "sfz". Both must be written for this to say "fz".
+    ASSERT_TRUE(measures[1].dynamics().has_value());
+    auto dynamics = measures[1].dynamics().value();
+    ASSERT_GE(dynamics.size(), 1);
+    ASSERT_EQ(dynamics[0].type(), mnx::part::DynamicAccent::ContentTypeValue) << "the fz should export as an accent";
+    auto accent = dynamics[0].get<mnx::part::DynamicAccent>();
+    EXPECT_EQ(accent.value(), mnx::DynamicValue::f);
+    EXPECT_EQ(accent.accentPrefix(), mnx::DynamicPrefix::None);
+    EXPECT_EQ(accent.accentSuffix(), mnx::DynamicSuffix::z);
+    EXPECT_FALSE(accent.residualValue().has_value());
+}
+
 TEST(MnxParts, DynamicsGraceIndices)
 {
     setupTestDataPaths();

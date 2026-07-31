@@ -34,7 +34,8 @@
 #include "utils/stringutils.h"
 #include "utils/utf8_iterator.h"
 
-namespace denigma::classify {
+namespace denigma {
+namespace classify {
 
 using namespace dynamics;
 
@@ -368,10 +369,11 @@ std::optional<Mark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk,
 
     if (const Dynamic exact = classifyExactDynamicToken(normalizedText.text); exact != Dynamic::None) {
         DynamicTokenMatch match{ exact, 0, normalizedText.text.size() };
-        return Mark{ exact, matchedGlyphNames(normalizedText, match) };
+        // Decompose the canonical spelling, not the source text, which may be a word such as "sforzando".
+        return Mark{ exact, dynamicComposition(exact), matchedGlyphNames(normalizedText, match) };
     }
     if (isDynamicLikeText(normalizedText.text) || forceOther) {
-        return Mark{ Dynamic::Other, knownGlyphNames(normalizedText) };
+        return Mark{ Dynamic::Other, dynamicCompositionFromLetters(normalizedText.text), knownGlyphNames(normalizedText) };
     }
     return std::nullopt;
 }
@@ -389,13 +391,118 @@ std::vector<DynamicSpan> findDynamicSpans(const musx::util::EnigmaTextChunk& chu
     for (const auto& match : findDynamicTokens(normalizedText)) {
         result.push_back({
             sourceSpanForMatch(chunk, normalizedText, match),
-            Mark{ match.dynamic, matchedGlyphNames(normalizedText, match) }
+            Mark{ match.dynamic, dynamicComposition(match.dynamic), matchedGlyphNames(normalizedText, match) }
         });
     }
     return result;
 }
 
 } // namespace detail
+
+Composition dynamicCompositionFromLetters(std::string_view letters)
+{
+    static const std::unordered_map<std::string_view, Level> levelSpellings = {
+        { "n", Level::n },
+        { "mp", Level::mp },
+        { "mf", Level::mf },
+        { "p", Level::p },
+        { "pp", Level::pp },
+        { "ppp", Level::ppp },
+        { "pppp", Level::pppp },
+        { "ppppp", Level::ppppp },
+        { "pppppp", Level::pppppp },
+        { "f", Level::f },
+        { "ff", Level::ff },
+        { "fff", Level::fff },
+        { "ffff", Level::ffff },
+        { "fffff", Level::fffff },
+        { "ffffff", Level::ffffff }
+    };
+
+    // Consumes one level from the front of the remaining letters: "n", "mp", "mf", or a run of "p"
+    // or "f". A run too long to name still consumes and yields Level::Other, so that the rest of
+    // the marking is still parsed and the affixes around it can be reported.
+    auto takeLevel = [](std::string_view& remaining) -> Level {
+        size_t length = 0;
+        if (remaining.starts_with('n')) {
+            length = 1;
+        } else if (remaining.starts_with("mp") || remaining.starts_with("mf")) {
+            length = 2;
+        } else if (remaining.starts_with('p') || remaining.starts_with('f')) {
+            length = (std::min)(remaining.find_first_not_of(remaining.front()), remaining.size());
+        }
+        if (length == 0) {
+            return Level::None;
+        }
+        const auto levelIt = levelSpellings.find(remaining.substr(0, length));
+        remaining.remove_prefix(length);
+        return levelIt == levelSpellings.end() ? Level::Other : levelIt->second;
+    };
+
+    static constexpr std::string_view dynamicLetters = "pmfsrzn";
+    const bool lettersOnly = !letters.empty() && std::all_of(letters.begin(), letters.end(),
+        [](char ch) { return dynamicLetters.find(ch) != std::string_view::npos; });
+    if (!lettersOnly) {
+        return {};
+    }
+
+    Composition result;
+    std::string_view remaining = letters;
+    if (remaining.starts_with('s')) {
+        result.reinforcement = Reinforcement::Sforzando;
+        remaining.remove_prefix(1);
+    } else if (remaining.starts_with('r')) {
+        result.reinforcement = Reinforcement::Rinforzando;
+        remaining.remove_prefix(1);
+    }
+    result.level = takeLevel(remaining);
+    if (result.level == Level::None) {
+        // Affixes alone, such as "s" or "z", do not spell a dynamic.
+        return {};
+    }
+    if (remaining.starts_with('z')) {
+        result.forzato = true;
+        remaining.remove_prefix(1);
+    }
+    result.subsequent = takeLevel(remaining);
+    if (!remaining.empty()) {
+        // Letters this decomposition does not describe. Report no structure rather than a
+        // structure drawn from only part of the marking.
+        return {};
+    }
+    return result;
+}
+
+Composition dynamicComposition(Dynamic dynamic)
+{
+    // The canonical spelling is the definition of a dynamic's structure, so decomposing it keeps
+    // the two in step instead of restating the structure in a second table.
+    return dynamicCompositionFromLetters(dynamicCanonicalText(dynamic));
+}
+
+Dynamic dynamicFromLevel(Level level)
+{
+    switch (level) {
+    case Level::None: break;
+    case Level::Other: return Dynamic::Other;
+    case Level::pppppp: return Dynamic::pppppp;
+    case Level::ppppp: return Dynamic::ppppp;
+    case Level::pppp: return Dynamic::pppp;
+    case Level::ppp: return Dynamic::ppp;
+    case Level::pp: return Dynamic::pp;
+    case Level::p: return Dynamic::p;
+    case Level::mp: return Dynamic::mp;
+    case Level::mf: return Dynamic::mf;
+    case Level::f: return Dynamic::f;
+    case Level::ff: return Dynamic::ff;
+    case Level::fff: return Dynamic::fff;
+    case Level::ffff: return Dynamic::ffff;
+    case Level::fffff: return Dynamic::fffff;
+    case Level::ffffff: return Dynamic::ffffff;
+    case Level::n: return Dynamic::n;
+    }
+    return Dynamic::None;
+}
 
 std::string dynamicCanonicalText(Dynamic dynamic)
 {
@@ -537,4 +644,5 @@ std::string dynamicGlyphsToLetters(const std::vector<std::string>& glyphs)
     return result;
 }
 
-} // namespace denigma::classify
+} // namespace classify
+} // namespace denigma
