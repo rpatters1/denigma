@@ -140,7 +140,7 @@ std::pair<std::optional<mnxdom::DynamicValue>, std::optional<mnxdom::DynamicValu
     classify::dynamics::Dynamic dynamic, bool& copyGlyphs, bool& isAccent)
 {
     std::optional<mnxdom::DynamicValue> dynValue;
-    std::optional<mnxdom::DynamicValue> attackValue;
+    std::optional<mnxdom::DynamicValue> residualValue;
     copyGlyphs = false;
     isAccent = false;
 
@@ -183,12 +183,14 @@ std::pair<std::optional<mnxdom::DynamicValue>, std::optional<mnxdom::DynamicValu
             copyGlyphs = true;
             break;
         case DynType::fp:
-            attackValue = mnxdom::DynamicValue::f;
-            dynValue = mnxdom::DynamicValue::p;
+            dynValue = mnxdom::DynamicValue::f;
+            residualValue = mnxdom::DynamicValue::p;
+            isAccent = true;
             break;
         case DynType::ffp:
-            attackValue = mnxdom::DynamicValue::ff;
-            dynValue = mnxdom::DynamicValue::p;
+            dynValue = mnxdom::DynamicValue::ff;
+            residualValue = mnxdom::DynamicValue::p;
+            isAccent = true;
             break;
         case DynType::fz:
         case DynType::sf:
@@ -206,19 +208,19 @@ std::pair<std::optional<mnxdom::DynamicValue>, std::optional<mnxdom::DynamicValu
             copyGlyphs = true;
             break;
         case DynType::pf:
-            attackValue = mnxdom::DynamicValue::p;
-            dynValue = mnxdom::DynamicValue::f;
+            dynValue = mnxdom::DynamicValue::p;
+            residualValue = mnxdom::DynamicValue::f;
             break;
         case DynType::sfp:
         case DynType::sfzp:
-            attackValue = mnxdom::DynamicValue::f;
-            dynValue = mnxdom::DynamicValue::p;
+            dynValue = mnxdom::DynamicValue::f;
+            residualValue = mnxdom::DynamicValue::p;
             isAccent = true;
             copyGlyphs = true;
             break;
         case DynType::sfpp:
-            attackValue = mnxdom::DynamicValue::f;
-            dynValue = mnxdom::DynamicValue::pp;
+            dynValue = mnxdom::DynamicValue::f;
+            residualValue = mnxdom::DynamicValue::pp;
             isAccent = true;
             copyGlyphs = true;
             break;
@@ -230,7 +232,7 @@ std::pair<std::optional<mnxdom::DynamicValue>, std::optional<mnxdom::DynamicValu
             break;
     }
 
-    return std::make_pair(dynValue, attackValue);
+    return std::make_pair(dynValue, residualValue);
 }
 
 void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
@@ -247,7 +249,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
 
     bool isAccent{};
     bool copyGlyphs{};
-    const auto [dynValue, attackValue] = calcDynamicType(dynamicClass->dynamic, copyGlyphs, isAccent);
+    const auto [dynValue, residualValue] = calcDynamicType(dynamicClass->dynamic, copyGlyphs, isAccent);
     if (!dynValue && (dynamicClass->change == classify::dynamics::Change::Absolute || !dynamicClass->containsText())) {
         return;
     }
@@ -269,14 +271,15 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
             }
             return dyn;
         } else if (isAccent) {
-            return mnxMeasure.ensure_dynamics().appendAccent(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
+            auto dyn = mnxMeasure.ensure_dynamics().appendAccent(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
+            if (residualValue) {
+                dyn.set_residualValue(residualValue.value());
+            }
+            return dyn;
         } else {
             return mnxMeasure.ensure_dynamics().appendImmediate(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
         }
     }();
-    if (attackValue) {
-        mnxDynamic.set_attackValue(attackValue.value());
-    }
     if (!dynamicClass->prefixText.empty()) {
         mnxDynamic.set_prefix(dynamicClass->prefixText);
     }

@@ -284,16 +284,23 @@ static void assignTimeSignature(
     MusxInstance<TimeSignature>& prevTimeSig,
     std::optional<mnxdom::TimeSignatureDisplay>& prevTimeSigDisplay)
 {
+    /// @todo if MNX adds per-staff time signatures, export Finale's independent time signatures here.
+    /// A measure in MNX has exactly one time signature, shared by every part, so the score-level meter is
+    /// the only one we can emit. Staves that carry their own meter still get their own entries, which then
+    /// do not add up to the global measure duration and fail semantic validation.
     auto timeSig = musxMeasure->createTimeSignature();
+    /// @todo if MNX adds a general display time signature, use the display time signature's count and unit here
+    /// instead of only its abbreviated symbol. (Finale can display any meter in place of the actual meter.)
     auto timeSigDisplay = [&]() -> std::optional<mnxdom::TimeSignatureDisplay> {
         auto dispTimeSig = musxMeasure->createDisplayTimeSignature();
-        if (dispTimeSig->isCutTime()) {
-            return mnxdom::TimeSignatureDisplay::Cut;
+        // getAbbreviatedSymbol accounts for the measure's abbreviation setting and the document-wide
+        // abbreviation options. It returns a value only for cut time or common time.
+        if (!dispTimeSig->getAbbreviatedSymbol().has_value()) {
+            return std::nullopt;
         }
-        if (dispTimeSig->isCommonTime()) {
-            return mnxdom::TimeSignatureDisplay::Common;
-        }
-        return std::nullopt;
+        return dispTimeSig->isCutTime()
+             ? mnxdom::TimeSignatureDisplay::Cut
+             : mnxdom::TimeSignatureDisplay::Common;
     }();
     if (!prevTimeSig || !timeSig->isSame(*prevTimeSig.get()) || prevTimeSigDisplay != timeSigDisplay) {
         auto [count, noteType] = timeSig->calcSimplified();

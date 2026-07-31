@@ -142,6 +142,119 @@ TEST(MnxGlobal, CompositeTime)
     EXPECT_EQ(time.value().unit(), mnxdom::TimeSignatureUnit::Value32nd);
 }
 
+namespace {
+
+struct ExpectedTime
+{
+    int count;
+    mnxdom::TimeSignatureUnit unit;
+    std::optional<mnxdom::TimeSignatureDisplay> display;
+};
+
+/// @brief Verifies the `time` object of each global measure. A `std::nullopt` entry means the measure
+/// carries the previous measure's time signature forward and must not emit a `time` object of its own.
+/// @param expectCleanValidation Pass false for a document with a known, unrelated semantic validation error.
+void checkGlobalTimes(const std::string& fileName, const std::vector<std::optional<ExpectedTime>>& expected,
+    bool expectCleanValidation = true)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput(fileName + ".musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    std::vector<std::string> expectedMessages = { "Processing", pathString(inputPath.filename()) };
+    if (expectCleanValidation) {
+        expectedMessages.emplace_back("!validation error");
+    }
+    checkStderr(expectedMessages, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    auto displayName = [](const std::optional<mnxdom::TimeSignatureDisplay>& display) -> std::string {
+        if (!display) {
+            return "(none)";
+        }
+        return mnxdom::EnumStringMapping<mnxdom::TimeSignatureDisplay>::enumToString().at(display.value());
+    };
+
+    auto doc = mnxdom::Document::create(inputPath.parent_path() / (fileName + ".mnx"));
+    auto measures = doc.global().measures();
+    ASSERT_EQ(measures.size(), expected.size()) << fileName << ": unexpected number of global measures";
+
+    for (size_t x = 0; x < expected.size(); x++) {
+        const std::string label = fileName + " measure " + std::to_string(x + 1);
+        const auto time = measures[x].time();
+        if (!expected[x]) {
+            EXPECT_FALSE(time.has_value()) << label << ": should not repeat the previous time signature";
+            continue;
+        }
+        ASSERT_TRUE(time.has_value()) << label << ": should have a time signature";
+        EXPECT_EQ(time->count(), expected[x]->count) << label << ": count";
+        EXPECT_EQ(time->unit(), expected[x]->unit) << label << ": unit";
+        EXPECT_EQ(displayName(time->display()), displayName(expected[x]->display)) << label << ": display";
+    }
+}
+
+} // namespace
+
+TEST(MnxGlobal, TimeSignatureDisplaySymbols)
+{
+    using Unit = mnxdom::TimeSignatureUnit;
+    using Display = mnxdom::TimeSignatureDisplay;
+
+    // In this document "Abbreviate Cut Time" is on and "Abbreviate Common Time" is off, so only a measure
+    // that abbreviates its own display time signature can produce a common-time symbol.
+    //
+    // MNX gives a measure exactly one time signature, shared by every part, so it cannot represent the
+    // independent (per-staff) time signatures this document uses. The expectations below are therefore all
+    // score-level meters, and the export emits a semantic validation error unrelated to time signature
+    // display: entries on a staff with its own meter overfill the global measure duration.
+    checkGlobalTimes("timesigs_independent", {
+        ExpectedTime{ 4, Unit::Quarter, std::nullopt },  // 4/4, but common time is not abbreviated document-wide
+        std::nullopt,
+        ExpectedTime{ 3, Unit::Quarter, std::nullopt },
+        std::nullopt,
+        std::nullopt,
+        ExpectedTime{ 4, Unit::Quarter, Display::Common }, // abbreviated 4/4 display time signature
+        ExpectedTime{ 2, Unit::Half, Display::Cut },       // 2/2 abbreviated by the document-wide cut time option
+        ExpectedTime{ 6, Unit::Eighth, std::nullopt },     // 2/4 display time signature: not representable in MNX
+        ExpectedTime{ 5, Unit::Eighth, std::nullopt },
+        std::nullopt,
+        ExpectedTime{ 3, Unit::Quarter, std::nullopt },
+        std::nullopt,
+        std::nullopt
+    }, /*expectCleanValidation*/ false);
+}
+
+TEST(MnxGlobal, TimeSignatureDisplayNotAbbreviated)
+{
+    using Unit = mnxdom::TimeSignatureUnit;
+
+    // Measure 1 is a 1/4 pickup whose display time signature is 4/4, and measure 2 is an actual 4/4.
+    // Neither may emit a common-time symbol, because "Abbreviate Common Time" is off in this document.
+    checkGlobalTimes("timesigs_changing", {
+        ExpectedTime{ 1, Unit::Quarter, std::nullopt },
+        ExpectedTime{ 4, Unit::Quarter, std::nullopt },
+        ExpectedTime{ 5, Unit::Eighth, std::nullopt },
+        ExpectedTime{ 7, Unit::Eighth, std::nullopt },
+        ExpectedTime{ 3, Unit::Quarter, std::nullopt }
+    });
+}
+
+TEST(MnxGlobal, TimeSignatureDisplayChange)
+{
+    using Unit = mnxdom::TimeSignatureUnit;
+    using Display = mnxdom::TimeSignatureDisplay;
+
+    // Every measure is 4/4, but measure 4 turns on an abbreviated display time signature. A new `time`
+    // object must be emitted there even though the count and unit are unchanged.
+    constexpr size_t numMeasures = 29;
+    constexpr size_t measureThatAbbreviates = 3; // zero-based index of measure 4
+    std::vector<std::optional<ExpectedTime>> expected(numMeasures, std::nullopt);
+    expected.front() = ExpectedTime{ 4, Unit::Quarter, std::nullopt };
+    expected[measureThatAbbreviates] = ExpectedTime{ 4, Unit::Quarter, Display::Common };
+    checkGlobalTimes("repeats", expected);
+}
+
 TEST(MnxGlobal, BarlineTypes)
 {
     setupTestDataPaths();
