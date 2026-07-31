@@ -188,21 +188,16 @@ static void appendGenericRun(std::vector<RunClassification>& runs, const musx::u
     }
 }
 
-static std::vector<RunClassification> classifyExpressionRuns(const ResolvedTextExpression& resolved)
+static std::vector<RunClassification> classifyChunkRuns(
+    const std::vector<musx::util::EnigmaTextChunk>& chunks,
+    CategoryType categoryType)
 {
-    if (!resolved.rawTextCtx) {
-        return {};
-    }
-
     std::vector<RunClassification> result;
-    const bool forceDynamicOther = resolved.categoryType == CategoryType::Dynamics;
-    for (const auto& chunk : collectVisibleExpressionChunks(resolved.rawTextCtx)) {
+    for (const auto& chunk : chunks) {
         const auto dynamicSpans = detail::findDynamicSpans(chunk);
         if (dynamicSpans.empty()) {
-            if (auto dynamic = classifyDynamicRun(chunk, forceDynamicOther)) {
-                result.push_back({ chunk, dynamic->dynamic == Dynamic::Other
-                    ? ClassificationBasis::FinaleCategory
-                    : basisForRecognition(resolved.categoryType, CategoryType::Dynamics), *dynamic });
+            if (auto dynamic = classifyDynamicRun(chunk)) {
+                result.push_back({ chunk, basisForRecognition(categoryType, CategoryType::Dynamics), *dynamic });
             } else {
                 appendGenericRun(result, chunk);
             }
@@ -217,7 +212,7 @@ static std::vector<RunClassification> classifyExpressionRuns(const ResolvedTextE
             }
             result.push_back({
                 sliceChunk(chunk, dynamicSpan.sourceText),
-                basisForRecognition(resolved.categoryType, CategoryType::Dynamics),
+                basisForRecognition(categoryType, CategoryType::Dynamics),
                 dynamicSpan.mark
             });
             cursor = dynamicStart + dynamicSpan.sourceText.size();
@@ -227,6 +222,20 @@ static std::vector<RunClassification> classifyExpressionRuns(const ResolvedTextE
         }
     }
     return result;
+}
+
+/// @brief Classifies the runs of an expression.
+///
+/// A marking is a dynamic because its text or its glyphs spell one, never because Finale files the
+/// expression under the Dynamics category. The category once promoted any text it covered, which
+/// made expressive directions such as "dolce espr." dynamics and, where a real dynamic stood beside
+/// words, as in "più f", produced a second dynamic out of the words.
+static std::vector<RunClassification> classifyExpressionRuns(const ResolvedTextExpression& resolved)
+{
+    if (!resolved.rawTextCtx) {
+        return {};
+    }
+    return classifyChunkRuns(collectVisibleExpressionChunks(resolved.rawTextCtx), resolved.categoryType);
 }
 
 static std::optional<ExpressionClassification> makeDynamicExpression(
@@ -244,9 +253,9 @@ static std::optional<ExpressionClassification> makeDynamicExpression(
 
     ExpressionClassification result;
     result.type = ExpressionType::Dynamic;
-    result.basis = dynamicMark.dynamic == Dynamic::Other
-        ? ClassificationBasis::FinaleCategory
-        : basisForRecognition(categoryType, CategoryType::Dynamics);
+    // Dynamic::Other is reached only through text that spells a dynamic, so the evidence is the
+    // content either way; the category no longer stands in for it.
+    result.basis = basisForRecognition(categoryType, CategoryType::Dynamics);
     result.value = dynamicMark;
     result.runs = std::move(runs);
     return result;

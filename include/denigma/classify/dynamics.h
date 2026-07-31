@@ -160,8 +160,10 @@ struct Mark
 
 } // namespace dynamics
 
-/// Classifies a source text chunk as a single plain dynamic mark.
-std::optional<dynamics::Mark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk, bool forceOther = false);
+/// Classifies a source text chunk as a single plain dynamic mark. Recognition is driven by the text
+/// and its glyphs alone: a marking is a dynamic because it is spelled as one, not because Finale
+/// files it under the Dynamics category.
+std::optional<dynamics::Mark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk);
 /// Decomposes a dynamic into its constituent parts. Returns an empty dynamics::Composition for
 /// dynamics::Dynamic::None and dynamics::Dynamic::Other, whose spelling is not known from the
 /// enumerator alone; use dynamicCompositionFromLetters or dynamics::Mark::composition for those.

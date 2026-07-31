@@ -51,21 +51,32 @@ struct ShapeExpressionContext
     MusxInstance<others::MeasureExprAssign> assignment;
 };
 
+// These report a missing run and yield an empty value rather than dereferencing the end iterator,
+// so an expression that stops being classified as a dynamic fails the assertion that cares instead
+// of crashing the whole binary.
 static const dynamics::Mark& firstDynamicMark(const ExpressionClassification& classification)
 {
+    static const dynamics::Mark noMark{};
     const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::RunClassification& run) {
         return run.as<dynamics::Mark>() != nullptr;
     });
-    EXPECT_NE(dynamicIt, classification.runs.end());
+    if (dynamicIt == classification.runs.end()) {
+        ADD_FAILURE() << "expression has no dynamic run";
+        return noMark;
+    }
     return *dynamicIt->as<dynamics::Mark>();
 }
 
 static const expression::DynamicQualifier& firstDynamicQualifier(const ExpressionClassification& classification)
 {
+    static const expression::DynamicQualifier noQualifier{};
     const auto qualifierIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::RunClassification& run) {
         return run.as<expression::DynamicQualifier>() != nullptr;
     });
-    EXPECT_NE(qualifierIt, classification.runs.end());
+    if (qualifierIt == classification.runs.end()) {
+        ADD_FAILURE() << "expression has no dynamic qualifier run";
+        return noQualifier;
+    }
     return *qualifierIt->as<expression::DynamicQualifier>();
 }
 
@@ -465,13 +476,37 @@ TEST(ExpressionClassification, ClassifiesRelativeDynamicQualifiers)
     }), true);
 }
 
-TEST(ExpressionClassification, ClassifiesDynamicCategoryTextAsDynamicOther)
+TEST(ExpressionClassification, DoesNotClassifyDynamicCategoryTextAsADynamic)
 {
-    const auto result = classifyTextExpression("dolce", ExpressionCategoryType::Dynamics);
+    // The Dynamics category does not make expressive text a dynamic. Only the spelling does, so
+    // "dolce espr." stays text while a level written out as a word is still recognized.
+    for (const std::string_view text : { "dolce", "dolce espr.", "cantabile" }) {
+        const auto result = classifyTextExpression(std::string(text), ExpressionCategoryType::Dynamics);
+        EXPECT_EQ(result.type, ExpressionType::GenericText) << text;
+        EXPECT_EQ(result.genericText().text, text) << text;
+    }
 
-    EXPECT_EQ(result.type, ExpressionType::Dynamic);
-    EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategory);
-    EXPECT_EQ(firstDynamicMark(result).dynamic, dynamics::Dynamic::Other);
+    const auto spelledOut = classifyTextExpression("forte", ExpressionCategoryType::Dynamics);
+    EXPECT_EQ(spelledOut.type, ExpressionType::Dynamic);
+    EXPECT_EQ(firstDynamicMark(spelledOut).dynamic, dynamics::Dynamic::f);
+}
+
+TEST(ExpressionClassification, DoesNotFindWordDynamicsInsideALongerPhrase)
+{
+    // "piano" and "forte" are ordinary words as well as dynamics. A level spelled out names the
+    // whole marking; a phrase that merely contains one is a performance instruction.
+    for (const std::string_view text : {
+        "inside the piano", "muted piano", "forte only", "col forte", "senza piano"
+    }) {
+        const auto result = classifyTextExpression(std::string(text), ExpressionCategoryType::TechniqueText);
+        EXPECT_EQ(result.type, ExpressionType::GenericText) << text;
+        EXPECT_EQ(result.genericText().text, text) << text;
+    }
+
+    // The same phrases stay text even when Finale files them under Dynamics.
+    const auto inDynamicsCategory = classifyTextExpression("inside the piano", ExpressionCategoryType::Dynamics);
+    EXPECT_EQ(inDynamicsCategory.type, ExpressionType::GenericText);
+    EXPECT_EQ(inDynamicsCategory.genericText().text, "inside the piano");
 }
 
 TEST(ExpressionClassification, UsesCategoryForTempoTechniqueAndRehearsalText)
@@ -504,10 +539,9 @@ TEST(ExpressionClassification, StrongCategoriesOverrideTextHeuristics)
     EXPECT_EQ(rehearsal.type, ExpressionType::RehearsalMark);
     EXPECT_EQ(rehearsal.basis, ClassificationBasis::FinaleCategory);
 
+    // The Dynamics category is not one of the strong ones: it cannot make "Allegro" a dynamic.
     const auto dynamic = classifyTextExpression("Allegro", ExpressionCategoryType::Dynamics);
-    EXPECT_EQ(dynamic.type, ExpressionType::Dynamic);
-    EXPECT_EQ(dynamic.basis, ClassificationBasis::FinaleCategory);
-    EXPECT_EQ(firstDynamicMark(dynamic).dynamic, dynamics::Dynamic::Other);
+    EXPECT_EQ(dynamic.type, ExpressionType::GenericText);
 
     const auto tempoMark = classifyTextExpression("rit.", ExpressionCategoryType::TempoMarks);
     EXPECT_EQ(tempoMark.type, ExpressionType::TempoAlteration);

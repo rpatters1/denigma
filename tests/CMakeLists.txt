@@ -43,6 +43,7 @@ endfunction()
         test_jumps.cpp
         mnx/test_beams.cpp
         mnx/test_converter.cpp
+        mnx/test_dynamics.cpp
         mnx/test_formatted_text.cpp
         mnx/test_global.cpp
         mnx/test_layouts.cpp

@@ -97,7 +97,7 @@ static std::vector<musx::util::EnigmaTextChunk> collectChunks(const TextExpressi
     return chunks;
 }
 
-static std::optional<dynamics::Mark> classifyTestDynamic(const std::string& text, bool forceOther = false)
+static std::optional<dynamics::Mark> classifyTestDynamic(const std::string& text)
 {
     const auto context = makeTextExpressionContext(text);
     const auto chunks = collectChunks(context);
@@ -105,7 +105,7 @@ static std::optional<dynamics::Mark> classifyTestDynamic(const std::string& text
         ADD_FAILURE() << "Expected one chunk but got " << chunks.size();
         return std::nullopt;
     }
-    return classifyDynamicRun(chunks.front(), forceOther);
+    return classifyDynamicRun(chunks.front());
 }
 
 static std::string smuflGlyphText(const std::vector<std::string>& glyphs)
@@ -196,6 +196,25 @@ TEST(DynamicRunClassification, ClassifiesAliases)
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rinf.")->dynamic, dynamics::Dynamic::rf);
 }
 
+TEST(DynamicRunClassification, ClassifiesLevelsSpelledAsWords)
+{
+    // Nothing but the spelling identifies these, now that Finale's Dynamics category no longer
+    // promotes the text it covers.
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)piano")->dynamic, dynamics::Dynamic::p);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pianissimo")->dynamic, dynamics::Dynamic::pp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)forte")->dynamic, dynamics::Dynamic::f);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fortissimo")->dynamic, dynamics::Dynamic::ff);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)mezzo forte")->dynamic, dynamics::Dynamic::mf);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)mezzo piano")->dynamic, dynamics::Dynamic::mp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fortepiano")->dynamic, dynamics::Dynamic::fp);
+
+    // A word alias decomposes to the structure of the dynamic it names, not to its own letters.
+    const auto forte = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)forte");
+    ASSERT_TRUE(forte);
+    EXPECT_EQ(forte->composition.level, dynamics::Level::f);
+    EXPECT_TRUE(forte->glyphs.empty());
+}
+
 TEST(DynamicRunClassification, ClassifiesLegacyGlyphs)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)p")->dynamic, dynamics::Dynamic::p);
@@ -253,8 +272,10 @@ TEST(DynamicRunClassification, DistinguishesOtherAndNone)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffffff")->dynamic, dynamics::Dynamic::Other);
     EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)nn"));
+    // Expressive text is not a dynamic, whatever category Finale files it under.
     EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)dolce"));
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)dolce", true)->dynamic, dynamics::Dynamic::Other);
+    EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)espr."));
+    EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)cantabile"));
 }
 
 TEST(DynamicRunClassification, PreservesGlyphsForOtherDynamics)
@@ -264,16 +285,15 @@ TEST(DynamicRunClassification, PreservesGlyphsForOtherDynamics)
     EXPECT_EQ(glyphOther->dynamic, dynamics::Dynamic::Other);
     EXPECT_EQ(glyphOther->glyphs, (std::vector<std::string>{ "dynamicFF", "dynamicFF", "dynamicFF", "dynamicForte" }));
 
-    const auto categoryOther = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)dolce", true);
-    ASSERT_TRUE(categoryOther);
-    EXPECT_EQ(categoryOther->dynamic, dynamics::Dynamic::Other);
-    EXPECT_TRUE(categoryOther->glyphs.empty());
+    const auto letterOther = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffffff");
+    ASSERT_TRUE(letterOther);
+    EXPECT_EQ(letterOther->dynamic, dynamics::Dynamic::Other);
+    EXPECT_TRUE(letterOther->glyphs.empty());
 }
 
 TEST(DynamicRunClassification, RequiresSpaceDelimitersForNonGlyphTokens)
 {
     EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)G.P."));
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)G.P.", true)->dynamic, dynamics::Dynamic::Other);
     EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)cresc.mf"));
 }
 

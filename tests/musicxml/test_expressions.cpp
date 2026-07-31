@@ -31,6 +31,7 @@
 #include "musx/musx.h"
 #include "pugixml.hpp"
 #include "test_utils.h"
+#include "utils/stringutils.h"
 
 namespace denigma::test::musicxml {
 
@@ -874,6 +875,42 @@ TEST(MusicXmlExpressions, TempoToolChanges)
             EXPECT_EQ(soundPositions[i], expectedPosition) << "measure " << (measureIndex + 1);
         }
     }
+}
+
+TEST(MusicXmlExpressions, DynamicsKeepTheWordsAroundThem)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("dynamics_hairpins.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    // Measures 4 and 5 spell each dynamic with a word beside its glyph, so every direction must
+    // carry both the mark and the word: "più f", "sub. p", "ff sempre", "menos f".
+    const std::vector<std::pair<std::string, mx::api::MarkType>> expected = {
+        { "più", mx::api::MarkType::f },
+        { "sub.", mx::api::MarkType::p },
+        { "sempre", mx::api::MarkType::ff },
+        { "menos", mx::api::MarkType::f },
+    };
+
+    const auto& measures = actualScore->parts.front().measures;
+    ASSERT_GE(measures.size(), 5u);
+    std::vector<std::pair<std::string, mx::api::MarkType>> actual;
+    for (size_t measureIndex = 3; measureIndex <= 4; ++measureIndex) {
+        for (const auto& staff : measures.at(measureIndex).staves) {
+            for (const auto& direction : staff.directions) {
+                const auto marks = directionMarks(direction);
+                const auto words = directionWords(direction);
+                ASSERT_EQ(marks.size(), 1u) << "measure " << (measureIndex + 1);
+                ASSERT_EQ(words.size(), 1u) << "measure " << (measureIndex + 1);
+                actual.emplace_back(utils::trimAscii(words.front().text), marks.front().markType);
+            }
+        }
+    }
+
+    EXPECT_EQ(actual, expected);
 }
 
 } // namespace denigma::test::musicxml

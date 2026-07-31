@@ -240,6 +240,35 @@ static Dynamic classifyExactDynamicToken(std::string_view text)
     return tokenIt == dynamicTokens.end() ? Dynamic::None : tokenIt->second;
 }
 
+/// @brief Classifies text that makes up a complete marking, accepting levels spelled as words in
+/// addition to the tokens classifyExactDynamicToken recognizes.
+///
+/// "piano" and "forte" name dynamics, but they are also ordinary words, so they may only be read as
+/// dynamics when they are the whole marking. Were they tokens, the delimited-token search would find
+/// a dynamic inside instructions such as "inside the piano" or "col forte".
+static Dynamic classifyCompleteDynamicText(std::string_view text)
+{
+    if (const Dynamic token = classifyExactDynamicToken(text); token != Dynamic::None) {
+        return token;
+    }
+    static const std::unordered_map<std::string_view, Dynamic> wordSpellings = {
+        { "piano", Dynamic::p },
+        { "pianissimo", Dynamic::pp },
+        { "pianississimo", Dynamic::ppp },
+        { "mezzo piano", Dynamic::mp },
+        { "mezzopiano", Dynamic::mp },
+        { "mezzo forte", Dynamic::mf },
+        { "mezzoforte", Dynamic::mf },
+        { "forte", Dynamic::f },
+        { "fortissimo", Dynamic::ff },
+        { "fortississimo", Dynamic::fff },
+        { "forte piano", Dynamic::fp },
+        { "fortepiano", Dynamic::fp }
+    };
+    const auto spellingIt = wordSpellings.find(text);
+    return spellingIt == wordSpellings.end() ? Dynamic::None : spellingIt->second;
+}
+
 static bool isDynamicLikeText(std::string_view text)
 {
     const bool dynamicLettersOnly = !text.empty() && std::all_of(text.begin(), text.end(), [](unsigned char ch) {
@@ -307,7 +336,7 @@ static std::vector<std::string> knownGlyphNames(const DynamicText& text)
 
 static std::vector<DynamicTokenMatch> findDynamicTokens(const DynamicText& text)
 {
-    if (const Dynamic exact = classifyExactDynamicToken(text.text); exact != Dynamic::None) {
+    if (const Dynamic exact = classifyCompleteDynamicText(text.text); exact != Dynamic::None) {
         return { DynamicTokenMatch{ exact, 0, text.text.size() } };
     }
 
@@ -356,7 +385,7 @@ static std::span<const char> sourceSpanForMatch(const musx::util::EnigmaTextChun
 
 } // namespace
 
-std::optional<Mark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk, bool forceOther)
+std::optional<Mark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk)
 {
     if (!chunk.styles.font || chunk.styles.font->hidden) {
         return std::nullopt;
@@ -367,12 +396,12 @@ std::optional<Mark> classifyDynamicRun(const musx::util::EnigmaTextChunk& chunk,
         return std::nullopt;
     }
 
-    if (const Dynamic exact = classifyExactDynamicToken(normalizedText.text); exact != Dynamic::None) {
+    if (const Dynamic exact = classifyCompleteDynamicText(normalizedText.text); exact != Dynamic::None) {
         DynamicTokenMatch match{ exact, 0, normalizedText.text.size() };
         // Decompose the canonical spelling, not the source text, which may be a word such as "sforzando".
         return Mark{ exact, dynamicComposition(exact), matchedGlyphNames(normalizedText, match) };
     }
-    if (isDynamicLikeText(normalizedText.text) || forceOther) {
+    if (isDynamicLikeText(normalizedText.text)) {
         return Mark{ Dynamic::Other, dynamicCompositionFromLetters(normalizedText.text), knownGlyphNames(normalizedText) };
     }
     return std::nullopt;
