@@ -449,6 +449,112 @@ TEST(Export, ReverseDefaultOutputMusx)
     ASSERT_TRUE(std::filesystem::exists(inputEnigmaxmlPath));
 }
 
+TEST(Export, ZippedEnigmaXmlInput)
+{
+    setupTestDataPaths();
+    const std::string inputFile = "notAscii-其れ";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".enigmaxml.zip", inputPath);
+
+    const std::filesystem::path enigmaFilename = utils::utf8ToPath(inputFile + ".enigmaxml");
+    const std::filesystem::path referencePath = getInputPath() / "reference" / enigmaFilename;
+    const std::filesystem::path outputPath = std::filesystem::current_path() / "-exports" / enigmaFilename;
+    {
+        ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--enigmaxml", "-exports" };
+        checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "unzip " << pathString(inputPath);
+        });
+    }
+    // the ".zip" wrapper must not survive into the output name
+    ASSERT_TRUE(std::filesystem::exists(outputPath)) << "expected " << pathString(outputPath);
+    EXPECT_FALSE(std::filesystem::exists(std::filesystem::current_path() / "-exports" / utils::utf8ToPath(inputFile + ".enigmaxml.enigmaxml")));
+    compareFiles(referencePath, outputPath);
+}
+
+TEST(Export, ZippedEnigmaXmlMnxSourceMetadataIgnoresWrapper)
+{
+    setupTestDataPaths();
+    const std::string inputFile = "notAscii-其れ";
+    std::filesystem::path inputPath;
+    copyInputToOutput(inputFile + ".enigmaxml.zip", inputPath);
+
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    const std::filesystem::path mnxOutput = getOutputPath() / utils::utf8ToPath(inputFile + ".mnx");
+    ASSERT_TRUE(std::filesystem::exists(mnxOutput));
+    nlohmann::json mnxJson;
+    openJson(mnxOutput, mnxJson);
+    // provenance records the content format, so regenerating from a zip matches regenerating from the plain file
+    const auto& source = mnxJson.at("mnx").at("_x").at("mnxdom").at("source");
+    EXPECT_EQ(source.at("format").get<std::string>(), "enigmaxml");
+    EXPECT_EQ(source.at("filename").get<std::string>(), inputFile + ".enigmaxml");
+}
+
+TEST(Export, OutputNeverClobbersAnotherInput)
+{
+    setupTestDataPaths();
+    const std::string inputFile = "notAscii-其れ";
+    std::filesystem::path musxPath;
+    std::filesystem::path enigmaXmlPath;
+    copyInputToOutput(inputFile + ".musx", musxPath);
+    copyInputToOutput("reference/" + inputFile + ".enigmaxml", enigmaXmlPath);
+    // put the enigmaxml beside the musx so the two are each other's default output
+    enigmaXmlPath = getOutputPath() / utils::utf8ToPath(inputFile + ".enigmaxml");
+    std::filesystem::rename(getOutputPath() / "reference" / utils::utf8ToPath(inputFile + ".enigmaxml"), enigmaXmlPath);
+
+    std::vector<char> musxBefore;
+    readFile(musxPath, musxBefore);
+
+    // a bare directory scan queues both; neither may overwrite the other, even with --force
+    ArgList args = { DENIGMA_NAME, "export", pathString(getOutputPath()), "--force" };
+    checkStderr({ pathString(musxPath) + " is also an input for this run. No action taken.",
+                  pathString(enigmaXmlPath) + " is also an input for this run. No action taken." }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "scan " << pathString(getOutputPath());
+    });
+
+    std::vector<char> musxAfter;
+    readFile(musxPath, musxAfter);
+    EXPECT_EQ(musxBefore, musxAfter) << "the original musx must survive a round-trip scan";
+}
+
+TEST(Export, DirectoryScanIncludesEveryDefaultInputFormat)
+{
+    setupTestDataPaths();
+    const std::string inputFile = "notAscii-其れ";
+    std::filesystem::path zipPath;
+    std::filesystem::path musxPath;
+    std::filesystem::path enigmaXmlPath;
+    copyInputToOutput(inputFile + ".enigmaxml.zip", zipPath);
+    copyInputToOutput(inputFile + ".musx", musxPath);
+    copyInputToOutput("reference/" + inputFile + ".enigmaxml", enigmaXmlPath);
+
+    // a bare directory scans every default input format, not just musx
+    ArgList args = { DENIGMA_NAME, "--testing", "export", pathString(getOutputPath()), "--mnx", "-exports", "--recursive" };
+    checkStderr({ "Extracting " + pathString(musxPath), "Reading " + pathString(enigmaXmlPath), "Reading " + pathString(zipPath) }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "scan " << pathString(getOutputPath());
+    });
+}
+
+TEST(ZipUtils, ReadSoleFileWithExtension)
+{
+    setupTestDataPaths();
+    std::filesystem::path zipPath;
+    copyInputToOutput("notAscii-其れ.enigmaxml.zip", zipPath);
+
+    const auto enigmaXml = utils::readSoleFileWithExtension(zipPath, ENIGMAXML_EXTENSION, DenigmaContext(DENIGMA_NAME));
+    std::vector<char> referenceBytes;
+    readFile(getInputPath() / "reference" / utils::utf8ToPath("notAscii-其れ.enigmaxml"), referenceBytes);
+    EXPECT_EQ(enigmaXml, std::string(referenceBytes.begin(), referenceBytes.end()));
+
+    std::filesystem::path musxPath;
+    copyInputToOutput("pageDiffThanOpts.musx", musxPath);
+    EXPECT_THROW(utils::readSoleFileWithExtension(musxPath, ENIGMAXML_EXTENSION, DenigmaContext(DENIGMA_NAME)), std::runtime_error)
+        << "a musx archive contains no enigmaxml entry";
+}
+
 TEST(ZipUtils, ReadMusxArchiveFiles)
 {
     setupTestDataPaths();

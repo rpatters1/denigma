@@ -85,6 +85,18 @@ TEST(Options, IncorrectOptions)
         });
     }
     {
+        ArgList args = { DENIGMA_NAME, "--testing", "export", "input.musx.zip", "--mnx" };
+        checkStderr("Unsupported format: musx.zip", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "zip wrapper is only supported around enigmaxml";
+        });
+    }
+    {
+        ArgList args = { DENIGMA_NAME, "--testing", "export", "input.zip", "--mnx" };
+        checkStderr("Unsupported format: zip", [&]() {
+            EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "a bare zip is not an input format";
+        });
+    }
+    {
         ArgList args = { DENIGMA_NAME, "--testing", "export", "input.musx", "--svg", "--svg-unit", "yards" };
         checkStderr("Invalid value for --svg-unit: yards", [&]() {
             EXPECT_NE(denigmaTestMain(args.argc(), args.argv()), 0) << "invalid svg unit";
@@ -214,6 +226,15 @@ TEST(Options, ParseOptions)
         EXPECT_FALSE(ctx.logFilePath.has_value());
         checkStderr({ "Reading " + fileName + ".enigmaxml", "Writing", fileName + ".musx" }, [&]() {
             EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "default enigmaxml output format";
+        });
+    }
+    {
+        static const std::string fileName = "notAscii-其れ";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".enigmaxml.zip" };
+        // the zip wrapper resolves to enigmaxml, so the default output is musx under the unwrapped name
+        checkStderr({ "Reading " + fileName + ".enigmaxml.zip", "Writing", fileName + ".musx",
+                      "!" + fileName + ".enigmaxml.musx" }, [&]() {
+            EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "default zipped enigmaxml output format";
         });
     }
     {

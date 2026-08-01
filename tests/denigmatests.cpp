@@ -134,7 +134,10 @@ void copyInputToOutput(const std::string& fileName, std::filesystem::path& outpu
 {
     auto inputPath = getInputPath() / utils::utf8ToPath(fileName);
     ASSERT_TRUE(std::filesystem::exists(inputPath));
+    // fileName may name a subdirectory ("reference/foo.enigmaxml"); hand back the native form so
+    // callers can match the result against logged paths, which always use the preferred separator
     outputPath = getOutputPath() / utils::utf8ToPath(fileName);
+    outputPath.make_preferred();
     ASSERT_NO_THROW({
         std::filesystem::create_directories(outputPath.parent_path());
         std::filesystem::copy(inputPath, outputPath, std::filesystem::copy_options::overwrite_existing);

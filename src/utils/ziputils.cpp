@@ -439,6 +439,44 @@ std::string readFile(const IRandomAccessReader& reader, const std::string& fileN
     }
 }
 
+std::string readSoleFileWithExtension(const std::filesystem::path& zipFilePath, std::u8string_view extension, const DenigmaContext& denigmaContext)
+{
+    FileRandomAccessReader reader(zipFilePath);
+    return readSoleFileWithExtension(reader, extension, denigmaContext);
+}
+
+std::string readSoleFileWithExtension(const IRandomAccessReader& reader, std::u8string_view extension, const DenigmaContext& denigmaContext)
+{
+    const std::string extensionForMessages = utils::utf8ToString(extension);
+
+    unzFile zip = openZipForRead(reader, denigmaContext);
+    try {
+        std::optional<std::string> result;
+        std::string foundName;
+        iterateFiles(zip, std::nullopt, [&](const ZipEntryInfo& fileInfo) {
+            if (!fileInfo.isFile || !utils::pathExtensionEquals(utils::utf8ToPath(fileInfo.filename), extension)) {
+                return true;
+            }
+            if (result.has_value()) {
+                throw std::runtime_error("zip archive contains more than one ." + extensionForMessages
+                    + " entry (" + foundName + " and " + fileInfo.filename + ")");
+            }
+            foundName = fileInfo.filename;
+            result = readCurrentFile(zip);
+            return true;
+        });
+
+        if (!result.has_value()) {
+            throw std::runtime_error("unable to locate a ." + extensionForMessages + " entry in zip archive");
+        }
+        unzClose(zip);
+        return std::move(result).value();
+    } catch (...) {
+        unzClose(zip);
+        throw;
+    }
+}
+
 MusxArchiveFiles readMusxArchiveFiles(const std::filesystem::path& zipFilePath, const DenigmaContext& denigmaContext)
 {
     FileRandomAccessReader reader(zipFilePath);

@@ -388,6 +388,14 @@ bool DenigmaContext::validatePathsAndOptions(const std::filesystem::path& output
         return false;
     }
 
+    // Refuse to clobber a file that is itself queued as an input: it may not have been read yet,
+    // so writing it would silently change what a later conversion in this run sees.
+    if (scheduledInputPaths.count(comparablePath(outputFilePath)) > 0) {
+        logMessage(LogMsg() << utils::asUtf8Bytes(outputFilePath) << " is also an input for this run. No action taken.",
+            MessageSeverity::Warning);
+        return false;
+    }
+
     if (std::filesystem::exists(outputFilePath)) {
         if (overwriteExisting) {
             logMessage(LogMsg() << "Overwriting " << utils::asUtf8Bytes(outputFilePath));
@@ -499,7 +507,7 @@ void DenigmaContext::processFile(const std::shared_ptr<ICommand>& currentCommand
             }
             if (createDirectoryIfNeeded(retval)) {
                 outputIsFilename = false;
-                std::filesystem::path outputFileName = inputFilePath.filename();
+                std::filesystem::path outputFileName = unwrappedInputPath(inputFilePath).filename();
                 outputFileName.replace_extension(format);
                 retval = retval / outputFileName;
             } else {

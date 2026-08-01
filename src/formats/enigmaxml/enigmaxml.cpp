@@ -289,6 +289,23 @@ CommandInputData readEnigmaXmlInputData(const std::filesystem::path& inputPath, 
     };
 }
 
+CommandInputData readZippedEnigmaXmlInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
+{
+    MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
+    if (denigmaContext.forTestOutput()) {
+        denigmaContext.logMessage(LogMsg() << "Reading " << utils::asUtf8Bytes(inputPath));
+        return {};
+    }
+    try {
+        const std::string enigmaXml = utils::readSoleFileWithExtension(inputPath, ENIGMAXML_EXTENSION, denigmaContext);
+        return CommandInputData{ Buffer(enigmaXml.begin(), enigmaXml.end()), std::nullopt, {} };
+    } catch (const std::exception& ex) {
+        denigmaContext.logMessage(LogMsg() << "unable to read enigmaxml from archive " << utils::asUtf8Bytes(inputPath), MessageSeverity::Error);
+        denigmaContext.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
+        throw;
+    }
+}
+
 CommandInputData extractMusxInputData(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext)
 {
     MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));

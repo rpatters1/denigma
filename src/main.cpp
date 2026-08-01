@@ -19,8 +19,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <algorithm>
 #include <iostream>
 #include <map>
+#include <vector>
 #include <unordered_set>
 #include <optional>
 #include <memory>
@@ -165,17 +167,9 @@ int _MAIN(int argc, arg_char* argv[])
 
     MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
 
-    // stupid omission from C++17 standard
-    // see https://stackoverflow.com/questions/73555606/stdunordered-setstdfilesystempath-compile-error-on-clang-and-g-below
-    struct PathHash
-    {
-        auto operator()(const std::filesystem::path& p) const noexcept {
-            return std::filesystem::hash_value(p);
-        }
-    };
     // collect files to process first
     // this avoids potential infinite recursion if input and output are the same format
-    std::unordered_set<std::filesystem::path, PathHash> pathsToProcess;
+    PathSet pathsToProcess;
     std::optional<std::filesystem::path> defaultLogPath;
 
     try {
@@ -193,15 +187,20 @@ int _MAIN(int argc, arg_char* argv[])
             const auto inputPatternUtf8 = inputFilePattern.u8string();
             const bool isSpecificFileOrDirectory = inputPatternUtf8.find(u8'*') == std::u8string::npos && inputPatternUtf8.find(u8'?') == std::u8string::npos;
             bool isSpecificFile = isSpecificFileOrDirectory && inputFilePattern.has_filename();
+            std::vector<std::filesystem::path> wildcardPatterns;
             if (std::filesystem::is_directory(inputFilePattern)) {
                 isSpecificFile = false;
-                if (currentCommand->defaultInputFormat().has_value()) {
+                for (const auto& format : currentCommand->defaultInputFormats()) {
                     std::u8string wildcardPattern = u8"*.";
-                    wildcardPattern.append(currentCommand->defaultInputFormat().value());
-                    inputFilePattern /= std::filesystem::path(wildcardPattern);
-                } else {
-                    inputFilePattern /= ""; // assure parent_path returns inputFilePattern
+                    wildcardPattern.append(format);
+                    wildcardPatterns.emplace_back(wildcardPattern);
                 }
+                if (wildcardPatterns.empty()) {
+                    wildcardPatterns.emplace_back(std::u8string(u8"*"));
+                }
+                inputFilePattern /= ""; // assure parent_path returns inputFilePattern
+            } else {
+                wildcardPatterns.emplace_back(inputFilePattern.filename());
             }
             std::filesystem::path inputDir = inputFilePattern.parent_path();
             if (inputDir.is_relative()) {
@@ -211,17 +210,28 @@ int _MAIN(int argc, arg_char* argv[])
             if (inputDirectoryExists && !defaultLogPath.has_value()) {
                 defaultLogPath = inputDir;
             }
-            // convert wildcard pattern to regex
-            auto wildcardPattern = inputFilePattern.filename().native(); // native format avoids encoding issues
+            // convert each wildcard pattern to regex
 #ifdef _WIN32
-            auto regexPattern = std::regex_replace(wildcardPattern, std::wregex(LR"(\*)"), L".*");
-            regexPattern = std::regex_replace(regexPattern, std::wregex(LR"(\?)"), L".");
-            std::wregex regex(regexPattern);
+            std::vector<std::wregex> regexes;
 #else
-            auto regexPattern = std::regex_replace(wildcardPattern, std::regex(R"(\*)"), R"(.*)");
-            regexPattern = std::regex_replace(regexPattern, std::regex(R"(\?)"), R"(.)");
-            std::regex regex(regexPattern);
+            std::vector<std::regex> regexes;
 #endif
+            for (const auto& pattern : wildcardPatterns) {
+                auto wildcardPattern = pattern.native(); // native format avoids encoding issues
+#ifdef _WIN32
+                auto regexPattern = std::regex_replace(wildcardPattern, std::wregex(LR"(\*)"), L".*");
+                regexPattern = std::regex_replace(regexPattern, std::wregex(LR"(\?)"), L".");
+#else
+                auto regexPattern = std::regex_replace(wildcardPattern, std::regex(R"(\*)"), R"(.*)");
+                regexPattern = std::regex_replace(regexPattern, std::regex(R"(\?)"), R"(.)");
+#endif
+                regexes.emplace_back(regexPattern);
+            }
+            const auto matchesAnyPattern = [&regexes](const std::filesystem::path& path) {
+                return std::any_of(regexes.begin(), regexes.end(), [&path](const auto& regex) {
+                    return std::regex_match(path.filename().native(), regex);
+                });
+            };
 
             auto iterate = [&](auto& iterator) {
                 for (auto it = iterator; it != std::filesystem::end(iterator); ++it) {
@@ -237,7 +247,7 @@ int _MAIN(int argc, arg_char* argv[])
                     if (!entry.is_directory()) {
                         denigmaContext.logMessage(LogMsg() << "considered file " << utils::asUtf8Bytes(entry.path()), MessageSeverity::Verbose);
                     }
-                    if (entry.is_regular_file() && std::regex_match(entry.path().filename().native(), regex)) {
+                    if (entry.is_regular_file() && matchesAnyPattern(entry.path())) {
                         auto inputFilePath = entry.path();
                         if (currentCommand->canProcess(inputFilePath)) {
                             pathsToProcess.emplace(inputFilePath);
@@ -263,6 +273,10 @@ int _MAIN(int argc, arg_char* argv[])
         denigmaContext.startLogging(defaultLogPath.value_or(std::filesystem::current_path()), argc, argv);
         if (denigmaContext.mnxSchemaPath.has_value() && !denigmaContext.mnxSchema.has_value()) {
             denigmaContext.mnxSchema = fileToString(denigmaContext.mnxSchemaPath.value());
+        }
+        // no conversion may overwrite a file that another conversion in this run still has to read
+        for (const auto& path : pathsToProcess) {
+            denigmaContext.scheduledInputPaths.emplace(comparablePath(path));
         }
         // process files
         for (const auto& path : pathsToProcess) {
