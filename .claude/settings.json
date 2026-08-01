@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake --build *)",
+      "Bash(cmake -P build.cmake)",
+      "Bash(./build.cmake)",
+      "Bash(ctest *)",
+      "Bash(../../build/tests/denigma_tests)",
+      "Bash(../../build/tests/denigma_tests *)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git show*)"
+    ]
+  }
+}

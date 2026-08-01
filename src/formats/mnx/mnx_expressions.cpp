@@ -54,6 +54,7 @@ ExpressionAttachmentContext calcAttachmentContext(const MnxMusxMappingPtr& conte
 struct MnxDynamicProjection
 {
     classify::dynamics::Dynamic dynamic{};
+    classify::dynamics::Composition composition;
     std::string prefixText;
     std::string suffixText;
     std::vector<std::string> glyphs;
@@ -89,6 +90,7 @@ std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::
             }
             sawDynamic = true;
             result.dynamic = dynamicMark->dynamic;
+            result.composition = dynamicMark->composition;
             result.glyphs = dynamicMark->glyphs;
             afterDynamic = true;
             continue;
@@ -136,101 +138,48 @@ std::optional<MnxDynamicProjection> projectPrimaryDynamicForMnx(const classify::
     return result;
 }
 
-std::pair<std::optional<mnxdom::DynamicValue>, std::optional<mnxdom::DynamicValue>> calcDynamicType(
-    classify::dynamics::Dynamic dynamic, bool& copyGlyphs, bool& isAccent)
+/// @brief MNX projection of a classified dynamic's structure.
+struct MnxDynamicShape
 {
-    std::optional<mnxdom::DynamicValue> dynValue;
-    std::optional<mnxdom::DynamicValue> attackValue;
-    copyGlyphs = false;
-    isAccent = false;
+    /// @brief The sounding level. Absent when the source dynamic has no MNX equivalent.
+    std::optional<mnxdom::DynamicValue> value;
+    /// @brief The level that remains after the attack, e.g. "p" for "fp".
+    std::optional<mnxdom::DynamicValue> residualValue;
+    /// @brief The leading syllable. MNX defaults this to "s", so it must be set explicitly
+    /// for every accent that is not sforzando.
+    mnxdom::DynamicPrefix accentPrefix{ mnxdom::DynamicPrefix::None };
+    /// @brief The trailing syllable. MNX defaults this to "z", so it must be set explicitly
+    /// for every accent that is not forzato.
+    mnxdom::DynamicSuffix accentSuffix{ mnxdom::DynamicSuffix::None };
+    /// @brief Whether MNX represents the dynamic as an accent rather than an immediate value.
+    bool isAccent{};
+};
 
-    using DynType = classify::dynamics::Dynamic;
-    switch (dynamic) {
-        case DynType::pppppp:
-        case DynType::ppppp:
-        case DynType::pppp:
-            dynValue = mnxdom::DynamicValue::ppp;
-            copyGlyphs = true;
-            break;
-        case DynType::ppp:
-            dynValue = mnxdom::DynamicValue::ppp;
-            break;
-        case DynType::pp:
-            dynValue = mnxdom::DynamicValue::pp;
-            break;
-        case DynType::p:
-            dynValue = mnxdom::DynamicValue::p;
-            break;
-        case DynType::mp:
-            dynValue = mnxdom::DynamicValue::mp;
-            break;
-        case DynType::mf:
-            dynValue = mnxdom::DynamicValue::mf;
-            break;
-        case DynType::f:
-            dynValue = mnxdom::DynamicValue::f;
-            break;
-        case DynType::ff:
-            dynValue = mnxdom::DynamicValue::ff;
-            break;
-        case DynType::fff:
-            dynValue = mnxdom::DynamicValue::fff;
-            break;
-        case DynType::ffff:
-        case DynType::fffff:
-        case DynType::ffffff:
-            dynValue = mnxdom::DynamicValue::fff;
-            copyGlyphs = true;
-            break;
-        case DynType::fp:
-            attackValue = mnxdom::DynamicValue::f;
-            dynValue = mnxdom::DynamicValue::p;
-            break;
-        case DynType::ffp:
-            attackValue = mnxdom::DynamicValue::ff;
-            dynValue = mnxdom::DynamicValue::p;
-            break;
-        case DynType::fz:
-        case DynType::sf:
-        case DynType::sfz:
-        case DynType::rf:
-        case DynType::rfz:
-            dynValue = mnxdom::DynamicValue::f;
-            isAccent = true;
-            copyGlyphs = true;
-            break;
-        case DynType::ffz:
-        case DynType::sffz:
-            dynValue = mnxdom::DynamicValue::ff;
-            isAccent = true;
-            copyGlyphs = true;
-            break;
-        case DynType::pf:
-            attackValue = mnxdom::DynamicValue::p;
-            dynValue = mnxdom::DynamicValue::f;
-            break;
-        case DynType::sfp:
-        case DynType::sfzp:
-            attackValue = mnxdom::DynamicValue::f;
-            dynValue = mnxdom::DynamicValue::p;
-            isAccent = true;
-            copyGlyphs = true;
-            break;
-        case DynType::sfpp:
-            attackValue = mnxdom::DynamicValue::f;
-            dynValue = mnxdom::DynamicValue::pp;
-            isAccent = true;
-            copyGlyphs = true;
-            break;
-        case DynType::n:
-            dynValue = mnxdom::DynamicValue::n;
-            break;
-        case DynType::Other:
-        case DynType::None:
-            break;
+/// @brief Maps a level to its MNX value, or std::nullopt for a level MNX cannot name.
+std::optional<mnxdom::DynamicValue> calcDynamicValue(classify::dynamics::Level level)
+{
+    using Level = classify::dynamics::Level;
+    if (level == Level::None || level == Level::Other) {
+        return std::nullopt;
     }
+    return enumConvert<mnxdom::DynamicValue>(level);
+}
 
-    return std::make_pair(dynValue, attackValue);
+/// @brief Projects a classified dynamic's structure onto MNX. Driven by the composition rather than
+/// the dynamics::Dynamic enumerator, so a marking outside that vocabulary, such as "sffffffz",
+/// exports in full as long as MNX has a value for each of its levels.
+MnxDynamicShape calcDynamicShape(const classify::dynamics::Composition& composition)
+{
+    MnxDynamicShape result;
+    result.value = calcDynamicValue(composition.level);
+    result.residualValue = calcDynamicValue(composition.subsequent);
+    result.accentPrefix = enumConvert<mnxdom::DynamicPrefix>(composition.reinforcement);
+    result.accentSuffix = composition.forzato ? mnxdom::DynamicSuffix::z : mnxdom::DynamicSuffix::None;
+    const bool hasAffix = composition.reinforcement != classify::dynamics::Reinforcement::None
+        || composition.forzato
+        || composition.subsequent != classify::dynamics::Level::None;
+    result.isAccent = hasAffix && result.value.has_value();
+    return result;
 }
 
 void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
@@ -245,17 +194,15 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
         return;
     }
 
-    bool isAccent{};
-    bool copyGlyphs{};
-    const auto [dynValue, attackValue] = calcDynamicType(dynamicClass->dynamic, copyGlyphs, isAccent);
-    if (!dynValue && (dynamicClass->change == classify::dynamics::Change::Absolute || !dynamicClass->containsText())) {
+    const auto shape = calcDynamicShape(dynamicClass->composition);
+    if (!shape.value && (dynamicClass->change == classify::dynamics::Change::Absolute || !dynamicClass->containsText())) {
         return;
     }
 
+    // MNX now spells out every dynamic the classifier recognizes, so the source glyphs no longer have
+    // to stand in for a value MNX cannot express. They are still passed through, because they describe
+    // the appearance the document actually uses and override the default rendering of the value.
     std::vector<std::string> glyphs = std::move(dynamicClass->glyphs);
-    if (copyGlyphs && !glyphs.empty()) {
-        glyphs = classify::dynamicCanonicalLetterGlyphs(dynamicClass->dynamic);
-    }
 
     auto mnxDynamic = [&]() -> mnxdom::part::DynamicGroupBase {
         using DynRelType = classify::dynamics::Change;
@@ -264,19 +211,23 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
                 ? mnxdom::DynamicRelativeValue::Louder
                 : mnxdom::DynamicRelativeValue::Softer;
             auto dyn = mnxMeasure.ensure_dynamics().appendRelative(relValue, mnxFractionFromEdu(asgn->eduPosition));
-            if (dynValue) {
-                dyn.set_value(dynValue.value());
+            if (shape.value) {
+                dyn.set_value(shape.value.value());
             }
             return dyn;
-        } else if (isAccent) {
-            return mnxMeasure.ensure_dynamics().appendAccent(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
+        } else if (shape.isAccent) {
+            auto dyn = mnxMeasure.ensure_dynamics().appendAccent(shape.value.value(), mnxFractionFromEdu(asgn->eduPosition));
+            // Both affixes have non-empty defaults in MNX, so an accent that omits them reads as "sfz".
+            dyn.set_accentPrefix(shape.accentPrefix);
+            dyn.set_accentSuffix(shape.accentSuffix);
+            if (shape.residualValue) {
+                dyn.set_residualValue(shape.residualValue.value());
+            }
+            return dyn;
         } else {
-            return mnxMeasure.ensure_dynamics().appendImmediate(dynValue.value(), mnxFractionFromEdu(asgn->eduPosition));
+            return mnxMeasure.ensure_dynamics().appendImmediate(shape.value.value(), mnxFractionFromEdu(asgn->eduPosition));
         }
     }();
-    if (attackValue) {
-        mnxDynamic.set_attackValue(attackValue.value());
-    }
     if (!dynamicClass->prefixText.empty()) {
         mnxDynamic.set_prefix(dynamicClass->prefixText);
     }
@@ -354,6 +305,28 @@ void attachBreathMark(const MnxMusxMappingPtr& context, const ExpressionAttachme
         mnxdom::sequence::Event(context->mnxDocument->root(), attachment.entryTarget->pointer).ensure_markings().set_breath(breathMark);
     }
 };
+
+/// @brief Records a measure repeat counter for the measure, to be attached once the repeats are known.
+///
+/// MNX gives a part measure one measure repeat shared by every staff, so it has one counter as well.
+/// Finale numbers each staff separately, and the staves of a part normally agree; where they do not,
+/// only one count can be kept.
+void recordMeasureRepeatCount(const MnxMusxMappingPtr& context, const MusxInstance<others::MeasureExprAssign>& asgn,
+    const MusxInstance<others::Measure>& musxMeasure, int count)
+{
+    // The repeat notation that identifies this expression as a counter can also hide it. A counter
+    // Finale does not draw is not counting anything the reader can see.
+    if (asgn->calcIsHiddenByAlternateNotation()) {
+        return;
+    }
+    const auto [it, inserted] = context->measureRepeatCounts.emplace(musxMeasure->getCmper(), count);
+    if (!inserted && it->second != count) {
+        context->logMessage(LogMsg() << "Measure repeat counter " << count
+            << " disagrees with counter " << it->second << " on another staff of the same part;"
+            " MNX has one counter per part measure, so only the first is exported.",
+            MessageSeverity::Warning);
+    }
+}
 } // namespace
 
 void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<others::Measure>& musxMeasure,
@@ -388,6 +361,9 @@ void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 break;
             case classify::ExpressionType::NonArpeggio:
                 appendArpeggioCandidate(context, mnxMeasure, classification.nonArpeggio().candidate);
+                break;
+            case classify::ExpressionType::MeasureRepeatCount:
+                recordMeasureRepeatCount(context, asgn, musxMeasure, classification.measureRepeatCount().count);
                 break;
             case classify::ExpressionType::PseudoTie:
                 break;

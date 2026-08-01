@@ -112,12 +112,20 @@ struct MnxMusxMapping
     std::unordered_set<EntryNumber> beamedEntries;
     size_t discardedCueFrames{};
 
+    /// @brief Measure repeat counts found on the current part's staves, keyed by measure.
+    ///
+    /// Collected while the staves are exported and consumed once the measure repeats themselves are
+    /// known, because MNX attaches a counter to the repeat rather than to the measure.
+    std::map<MeasCmper, int> measureRepeatCounts;
+
     struct CurrentMeasureStaff {
         MeasCmper meas{};
         StaffCmper staff{};
         std::string voice;
         std::optional<details::GFrameHoldContext> staffMeasureContext;
         std::map<LayerIndex, int> layerVoices;
+        /// @brief Layers whose entries Finale replaces with alternate notation, so they are not exported.
+        std::unordered_set<LayerIndex> layersHiddenByAltNotation;
         CueStaffMeasurePlan cuePlan;
         OttavaShapeMap ottavasApplicableInMeasure;
 
@@ -127,6 +135,7 @@ struct MnxMusxMapping
             voice.clear();
             staffMeasureContext.reset();
             layerVoices.clear();
+            layersHiddenByAltNotation.clear();
             cuePlan = {};
             ottavasApplicableInMeasure.clear();
         }
@@ -141,6 +150,7 @@ struct MnxMusxMapping
         currSplitInstrumentUuid.reset();
         currPartStaves.clear();
         beamedEntries.clear();
+        measureRepeatCounts.clear();
         current.clear();
     }
 

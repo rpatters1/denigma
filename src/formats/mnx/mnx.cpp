@@ -107,6 +107,15 @@ void MnxMusxMapping::setCurrentMeasureStaff(const MusxInstance<others::Measure>&
     }
 
     current.layerVoices = current.staffMeasureContext->calcVoices();
+    if (const auto musxStaff = others::StaffComposite::createCurrent(
+            musxMeasure->getDocument(), musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper(), 0)) {
+        for (const auto& [layer, numV2] : current.layerVoices) {
+            static_cast<void>(numV2);
+            if (musxStaff->calcAlternateNotationHidesEntries(layer)) {
+                current.layersHiddenByAltNotation.insert(layer);
+            }
+        }
+    }
     current.cuePlan = createCueStaffMeasurePlan(*current.staffMeasureContext, denigmaContext->cueLayer);
     if (!current.cuePlan.detectedCueLayers.empty()) {
         logDiscardedHeuristicCueStaffMeasure();

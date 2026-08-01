@@ -116,6 +116,10 @@ static void createBeams(
             if (context->current.cuePlan.isCueLayer(layer)) {
                 continue;
             }
+            // The entries these beams belong to are not exported, so neither are the beams.
+            if (context->current.layersHiddenByAltNotation.contains(layer)) {
+                continue;
+            }
             if (auto entryFrame = context->current.staffMeasureContext->createEntryFrame(layer)) {
                 entryFrame->iterateEntries(processEntry);
             }
@@ -275,6 +279,106 @@ static bool createFirstClefForInactiveInstrument(
     return false;
 }
 
+/// @brief Number of measures repeated by the alternate notation on a staff, or 0 for no repeat.
+static int calcRepeatSpan(others::Staff::AlternateNotation altNotation)
+{
+    switch (altNotation) {
+        case others::Staff::AlternateNotation::OneBarRepeat: return 1;
+        case others::Staff::AlternateNotation::TwoBarRepeat: return 2;
+        default: return 0;
+    }
+}
+
+/// @brief Returns the measure repeat span that applies to an entire part at a measure, or 0 for none.
+///
+/// MNX gives a part measure a single measure repeat shared by every staff, so a repeat that applies
+/// to only some of a part's staves cannot be expressed and is skipped.
+static int calcPartRepeatSpan(const MnxMusxMappingPtr& context, mnxdom::Part& part,
+    const MusxInstance<others::Measure>& musxMeasure)
+{
+    std::optional<int> partSpan;
+    for (const StaffCmper staffCmper : context->currPartStaves) {
+        const auto musxStaff = others::StaffComposite::createCurrent(
+            context->document, musxMeasure->getRequestedPartId(), staffCmper, musxMeasure->getCmper(), 0);
+        const int staffSpan = musxStaff ? calcRepeatSpan(musxStaff->altNotation) : 0;
+        if (partSpan && partSpan.value() != staffSpan) {
+            context->logMessage(LogMsg() << mnxPartDisplayName(context, part) << " has a measure repeat in measure "
+                << musxMeasure->getCmper() << " that does not apply to every staff of the part;"
+                " MNX has no per-staff measure repeat, so it is not exported.", MessageSeverity::Warning);
+            return 0;
+        }
+        partSpan = staffSpan;
+    }
+    return partSpan.value_or(0);
+}
+
+/// @brief Exports Finale's one- and two-bar repeat alternate notation as MNX measure repeats.
+///
+/// A measure repeat occupies the `number` measures beginning with the one that declares it, and
+/// repeats the `number` measures before that, so only the first measure of a group carries the
+/// marking. Finale instead flags every measure the notation covers, and when a two-bar region spans
+/// an odd number of measures its last group still occupies two measures, the second of which falls
+/// outside the region and carries no flag. Pairing therefore advances from the first flagged measure
+/// of a region rather than following the flags measure by measure.
+///
+/// Sequence content is left in place. The measure repeat object permits a marking and notation in
+/// the same bar, and Finale's alternate notation likewise hides the content without removing it.
+static void createMeasureRepeats(const MnxMusxMappingPtr& context, mnxdom::Part& part,
+    mnxdom::Array<mnxdom::part::Measure>& mnxMeasures, const MusxInstanceList<others::Measure>& musxMeasures)
+{
+    // Measure repeats are a property of the part rather than of any one measure and staff, so the
+    // current measure and staff no longer apply to messages logged from here.
+    context->current.clear();
+    const size_t measureCount = musxMeasures.size();
+    for (size_t index = 0; index < measureCount;) {
+        const int span = calcPartRepeatSpan(context, part, musxMeasures[index]);
+        if (span <= 0) {
+            index++;
+            continue;
+        }
+        // Skip repeats that would reach back before the first measure or past the last one. Both are
+        // semantic violations in MNX, and neither can be represented by a shorter repeat.
+        const bool reachesBackTooFar = static_cast<size_t>(span) > index;
+        const bool extendsPastEnd = index + static_cast<size_t>(span) > measureCount;
+        if (reachesBackTooFar || extendsPastEnd) {
+            context->logMessage(LogMsg() << mnxPartDisplayName(context, part) << " has a " << span
+                << "-bar repeat in measure " << musxMeasures[index]->getCmper()
+                << " that would " << (reachesBackTooFar ? "reach back before the first measure" : "extend past the last measure")
+                << "; it is not exported.", MessageSeverity::Warning);
+        } else {
+            auto mnxRepeat = mnxMeasures.at(index).ensure_measureRepeat(span);
+            // A counter belongs to the repeat, so only one found on the measure that declares the
+            // repeat can be attached. Counters on the measures a group covers are reported below.
+            if (const auto counter = context->measureRepeatCounts.extract(musxMeasures[index]->getCmper())) {
+                mnxRepeat.ensure_counter(counter.mapped());
+            }
+        }
+        // Finale flags every measure a repeat region covers, so a covered measure repeating the same
+        // number of bars is the continuation of this group and needs no comment. A covered measure
+        // asking for a different number of bars is a conflict, and MNX can only keep one of them,
+        // because it allows only the first measure of a group to declare a repeat.
+        for (size_t covered = index + 1; covered < index + static_cast<size_t>(span) && covered < measureCount; covered++) {
+            const int coveredSpan = calcPartRepeatSpan(context, part, musxMeasures[covered]);
+            if (coveredSpan > 0 && coveredSpan != span) {
+                context->logMessage(LogMsg() << mnxPartDisplayName(context, part) << " has a " << coveredSpan
+                    << "-bar repeat in measure " << musxMeasures[covered]->getCmper() << " that falls inside the "
+                    << span << "-bar repeat beginning in measure " << musxMeasures[index]->getCmper()
+                    << "; only the repeat that begins the group is exported.", MessageSeverity::Warning);
+            }
+        }
+        index += static_cast<size_t>(span);
+    }
+    // Whatever is left counts a repeat that was not exported, or a measure that a repeat covers
+    // rather than declares. MNX has nowhere to put either, and the count is no longer available to
+    // the expression export that would otherwise have carried its text.
+    for (const auto& [measureId, count] : context->measureRepeatCounts) {
+        context->logMessage(LogMsg() << mnxPartDisplayName(context, part) << " has measure repeat counter "
+            << count << " in measure " << measureId << ", which does not begin an exported measure repeat;"
+            " the counter is not exported.", MessageSeverity::Warning);
+    }
+    context->measureRepeatCounts.clear();
+}
+
 static void createMeasures(const MnxMusxMappingPtr& context, mnxdom::Part& part)
 {
     auto& musxDocument = context->document;
@@ -329,6 +433,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnxdom::Part& part)
             processSmartShapes(context, musxMeasure, mnxMeasure, staffNumber);
         }
     }
+    createMeasureRepeats(context, part, mnxMeasures, musxMeasures);
     context->clearCounts();
 }
 

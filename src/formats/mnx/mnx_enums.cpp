@@ -27,6 +27,7 @@
 #include "mnx.h"
 #include "denigma/classify/barlines.h"
 #include "denigma/classify/classifier_common.h"
+#include "denigma/classify/dynamics.h"
 #include "formats/enum_conversion_macros.h"
 
 namespace denigma {
@@ -71,6 +72,27 @@ BEGIN_ENUM_CONVERSION(classify::GlyphStyle::Placement, mnxdom::MarkingUpDownAuto
     case classify::GlyphStyle::Placement::Below: return mnxdom::MarkingUpDownAuto::Down;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(classify::dynamics::Level, mnxdom::DynamicValue)
+    case classify::dynamics::Level::pppppp: return mnxdom::DynamicValue::pppppp;
+    case classify::dynamics::Level::ppppp: return mnxdom::DynamicValue::ppppp;
+    case classify::dynamics::Level::pppp: return mnxdom::DynamicValue::pppp;
+    case classify::dynamics::Level::ppp: return mnxdom::DynamicValue::ppp;
+    case classify::dynamics::Level::pp: return mnxdom::DynamicValue::pp;
+    case classify::dynamics::Level::p: return mnxdom::DynamicValue::p;
+    case classify::dynamics::Level::mp: return mnxdom::DynamicValue::mp;
+    case classify::dynamics::Level::mf: return mnxdom::DynamicValue::mf;
+    case classify::dynamics::Level::f: return mnxdom::DynamicValue::f;
+    case classify::dynamics::Level::ff: return mnxdom::DynamicValue::ff;
+    case classify::dynamics::Level::fff: return mnxdom::DynamicValue::fff;
+    case classify::dynamics::Level::ffff: return mnxdom::DynamicValue::ffff;
+    case classify::dynamics::Level::fffff: return mnxdom::DynamicValue::fffff;
+    case classify::dynamics::Level::ffffff: return mnxdom::DynamicValue::ffffff;
+    case classify::dynamics::Level::n: return mnxdom::DynamicValue::n;
+    case classify::dynamics::Level::None:
+    case classify::dynamics::Level::Other:
+        break; // causes a throw; MNX cannot name these, so callers must check first
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(music_theory::NoteName, mnxdom::NoteStep)
     case music_theory::NoteName::C: return mnxdom::NoteStep::C;
     case music_theory::NoteName::D: return mnxdom::NoteStep::D;
@@ -109,6 +131,12 @@ BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnxdom::TimeSignatureUnit)
     case NoteType::Half: return mnxdom::TimeSignatureUnit::Half;
     case NoteType::Whole: return mnxdom::TimeSignatureUnit::Whole;
     default: break; // causes a throw
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::dynamics::Reinforcement, mnxdom::DynamicPrefix)
+    case classify::dynamics::Reinforcement::None: return mnxdom::DynamicPrefix::None;
+    case classify::dynamics::Reinforcement::Sforzando: return mnxdom::DynamicPrefix::s;
+    case classify::dynamics::Reinforcement::Rinforzando: return mnxdom::DynamicPrefix::r;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(VerticalPlacement, mnxdom::Orientation)

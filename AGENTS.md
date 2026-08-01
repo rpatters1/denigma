@@ -2,6 +2,20 @@
 
 Repository guidance for agents working in `denigma`.
 
+## Skills
+
+This repository's conventions live in `.agents/skills/<name>/SKILL.md`. They are not
+stored under any single agent's own directory, so read them from `.agents/skills`
+regardless of which agent you are. A skill overrides general practice for the work it
+covers, so read the relevant one before starting that kind of work rather than after.
+
+- `classifier-design` — creating or editing classifiers in `src/classify`, or shared classification helpers used by exporters.
+- `denigma-test-harness` — building, running tests, interpreting test failures, or choosing the test executable's working directory.
+- `enum-mappings` — adding or modifying enum conversions in any `<exporter>_enums.cpp`.
+- `nested-namespaces` — any C++ namespace declaration.
+- `optional-usage` — `std::optional` fields or return values, especially for enum or bool state.
+- `windows-minmax` — any call to `std::min`, `std::max`, `std::clamp`, or `numeric_limits<T>::min`/`max`.
+
 ## Purpose
 
 `denigma` is a C++23 CMake project that converts Finale MUSX content into Enigma XML and related formats.

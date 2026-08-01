@@ -188,21 +188,16 @@ static void appendGenericRun(std::vector<RunClassification>& runs, const musx::u
     }
 }
 
-static std::vector<RunClassification> classifyExpressionRuns(const ResolvedTextExpression& resolved)
+static std::vector<RunClassification> classifyChunkRuns(
+    const std::vector<musx::util::EnigmaTextChunk>& chunks,
+    CategoryType categoryType)
 {
-    if (!resolved.rawTextCtx) {
-        return {};
-    }
-
     std::vector<RunClassification> result;
-    const bool forceDynamicOther = resolved.categoryType == CategoryType::Dynamics;
-    for (const auto& chunk : collectVisibleExpressionChunks(resolved.rawTextCtx)) {
+    for (const auto& chunk : chunks) {
         const auto dynamicSpans = detail::findDynamicSpans(chunk);
         if (dynamicSpans.empty()) {
-            if (auto dynamic = classifyDynamicRun(chunk, forceDynamicOther)) {
-                result.push_back({ chunk, dynamic->dynamic == Dynamic::Other
-                    ? ClassificationBasis::FinaleCategory
-                    : basisForRecognition(resolved.categoryType, CategoryType::Dynamics), *dynamic });
+            if (auto dynamic = classifyDynamicRun(chunk)) {
+                result.push_back({ chunk, basisForRecognition(categoryType, CategoryType::Dynamics), *dynamic });
             } else {
                 appendGenericRun(result, chunk);
             }
@@ -217,7 +212,7 @@ static std::vector<RunClassification> classifyExpressionRuns(const ResolvedTextE
             }
             result.push_back({
                 sliceChunk(chunk, dynamicSpan.sourceText),
-                basisForRecognition(resolved.categoryType, CategoryType::Dynamics),
+                basisForRecognition(categoryType, CategoryType::Dynamics),
                 dynamicSpan.mark
             });
             cursor = dynamicStart + dynamicSpan.sourceText.size();
@@ -227,6 +222,20 @@ static std::vector<RunClassification> classifyExpressionRuns(const ResolvedTextE
         }
     }
     return result;
+}
+
+/// @brief Classifies the runs of an expression.
+///
+/// A marking is a dynamic because its text or its glyphs spell one, never because Finale files the
+/// expression under the Dynamics category. The category once promoted any text it covered, which
+/// made expressive directions such as "dolce espr." dynamics and, where a real dynamic stood beside
+/// words, as in "più f", produced a second dynamic out of the words.
+static std::vector<RunClassification> classifyExpressionRuns(const ResolvedTextExpression& resolved)
+{
+    if (!resolved.rawTextCtx) {
+        return {};
+    }
+    return classifyChunkRuns(collectVisibleExpressionChunks(resolved.rawTextCtx), resolved.categoryType);
 }
 
 static std::optional<ExpressionClassification> makeDynamicExpression(
@@ -244,9 +253,9 @@ static std::optional<ExpressionClassification> makeDynamicExpression(
 
     ExpressionClassification result;
     result.type = ExpressionType::Dynamic;
-    result.basis = dynamicMark.dynamic == Dynamic::Other
-        ? ClassificationBasis::FinaleCategory
-        : basisForRecognition(categoryType, CategoryType::Dynamics);
+    // Dynamic::Other is reached only through text that spells a dynamic, so the evidence is the
+    // content either way; the category no longer stands in for it.
+    result.basis = basisForRecognition(categoryType, CategoryType::Dynamics);
     result.value = dynamicMark;
     result.runs = std::move(runs);
     return result;
@@ -871,6 +880,102 @@ static std::optional<ExpressionClassification> classifyMultimeasureRestNumberExp
     return result;
 }
 
+/// Returns true if the assignment's staff displays its measure as a one- or two-bar repeat.
+static bool staffShowsMeasureRepeat(const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+{
+    using musx::dom::others::Staff;
+
+    const auto staff = assignment->createCurrentStaff();
+    if (!staff) {
+        return false;
+    }
+    return staff->altNotation == Staff::AlternateNotation::OneBarRepeat
+        || staff->altNotation == Staff::AlternateNotation::TwoBarRepeat;
+}
+
+/// Reads the chunks as a decimal iteration count, or returns nullopt when they contain anything
+/// else. Counters are ordinary text in whatever typeface the document uses, so no font is expected.
+/// A count needs only enough digits to number the iterations of one passage.
+static std::optional<int> parseMeasureRepeatCount(const std::vector<musx::util::EnigmaTextChunk>& chunks)
+{
+    constexpr size_t maxDigits = 3;
+
+    std::string digits;
+    for (const auto& chunk : chunks) {
+        for (utils::Utf8Iterator iter(chunk.text); !iter.atEnd(); iter.next()) {
+            if (!iter.valid()) {
+                return std::nullopt;
+            }
+            const char32_t codepoint = iter->codepoint;
+            if (codepoint < 0x80 && utils::isSpace(static_cast<unsigned char>(codepoint))) {
+                continue;
+            }
+            if (codepoint < U'0' || codepoint > U'9') {
+                return std::nullopt;
+            }
+            digits.push_back(static_cast<char>(codepoint));
+            if (digits.size() > maxDigits) {
+                return std::nullopt;
+            }
+        }
+    }
+    if (digits.empty()) {
+        return std::nullopt;
+    }
+    const int count = std::stoi(digits);
+    if (count <= 0) {
+        return std::nullopt;
+    }
+    return count;
+}
+
+/// Recognizes an expression that counts the iterations of a measure repeat. Finale draws one- and
+/// two-bar repeats as staff alternate notation and supplies no counter, so documents number the
+/// iterations with an expression centered over each repeated measure. The alternate notation on the
+/// staff is what identifies the expression: a bare number is otherwise indistinguishable from a
+/// rehearsal mark or a multimeasure rest number, and the marking category is user-defined and
+/// carries no reliable meaning.
+///
+/// Whether the counter is drawn is left to the consumer, which decides what to do about an
+/// assignment that is hidden, that belongs to a view other than the one being exported, or that the
+/// alternate notation itself suppresses. Note that the last of those is the same alternate notation
+/// this function reads to identify the counter, so it argues for the classification rather than
+/// against it.
+static std::optional<ExpressionClassification> classifyMeasureRepeatCountExpression(
+    const ResolvedTextExpression& resolved,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment)
+{
+    if (!resolved.expressionDef || !resolved.rawTextCtx || !assignment) {
+        return std::nullopt;
+    }
+    // A counter numbers the notation of one staff, so an assignment spread over a list of staves is
+    // unlikely to be one. Neither plugin known to create counters uses a staff list, and a plugin is
+    // the likeliest source of them.
+    if (assignment->calcIsPartOfStaffListAssignment()) {
+        return std::nullopt;
+    }
+    if (!hasCenteredHorizontalAlignment(resolved.expressionDef)) {
+        return std::nullopt;
+    }
+    if (!staffShowsMeasureRepeat(assignment)) {
+        return std::nullopt;
+    }
+    const auto chunks = collectVisibleExpressionChunks(resolved.rawTextCtx);
+    if (chunks.empty()) {
+        return std::nullopt;
+    }
+    const auto count = parseMeasureRepeatCount(chunks);
+    if (!count) {
+        return std::nullopt;
+    }
+
+    ExpressionClassification result;
+    result.type = ExpressionType::MeasureRepeatCount;
+    result.basis = ClassificationBasis::Heuristic;
+    result.value = MeasureRepeatCount{ *count };
+    return result;
+}
+
 static ExpressionClassification withEnigmaCtx(ExpressionClassification result, const ResolvedTextExpression& resolved)
 {
     if (resolved.rawTextCtx) {
@@ -949,6 +1054,11 @@ static ExpressionClassification classifyAssignedTextExpression(
 
     if (const auto classification = classifyResolvedTextExpressionBeforeAssignment(resolved)) {
         return *classification;
+    }
+    // Must precede the system-text path, whose rehearsal-mark heuristic would otherwise claim a bare
+    // number such as "12".
+    if (const auto repeatCount = classifyMeasureRepeatCountExpression(resolved, assignment)) {
+        return withEnigmaCtx(*repeatCount, resolved);
     }
     if (assignmentUsesTopStaff(assignment)) {
         return withEnigmaCtx(classifySystemTextExpression(def, resolved.text, normalizedText, categoryType), resolved);

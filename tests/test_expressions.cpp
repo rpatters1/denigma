@@ -20,6 +20,7 @@
  * THE SOFTWARE.
  */
 #include <algorithm>
+#include <functional>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -50,21 +51,32 @@ struct ShapeExpressionContext
     MusxInstance<others::MeasureExprAssign> assignment;
 };
 
+// These report a missing run and yield an empty value rather than dereferencing the end iterator,
+// so an expression that stops being classified as a dynamic fails the assertion that cares instead
+// of crashing the whole binary.
 static const dynamics::Mark& firstDynamicMark(const ExpressionClassification& classification)
 {
+    static const dynamics::Mark noMark{};
     const auto dynamicIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::RunClassification& run) {
         return run.as<dynamics::Mark>() != nullptr;
     });
-    EXPECT_NE(dynamicIt, classification.runs.end());
+    if (dynamicIt == classification.runs.end()) {
+        ADD_FAILURE() << "expression has no dynamic run";
+        return noMark;
+    }
     return *dynamicIt->as<dynamics::Mark>();
 }
 
 static const expression::DynamicQualifier& firstDynamicQualifier(const ExpressionClassification& classification)
 {
+    static const expression::DynamicQualifier noQualifier{};
     const auto qualifierIt = std::find_if(classification.runs.begin(), classification.runs.end(), [](const expression::RunClassification& run) {
         return run.as<expression::DynamicQualifier>() != nullptr;
     });
-    EXPECT_NE(qualifierIt, classification.runs.end());
+    if (qualifierIt == classification.runs.end()) {
+        ADD_FAILURE() << "expression has no dynamic qualifier run";
+        return noQualifier;
+    }
     return *qualifierIt->as<expression::DynamicQualifier>();
 }
 
@@ -131,7 +143,8 @@ static TextExpressionContext makeTextExpressionContext(
     const std::string& expressionXml = {},
     const std::string& mmRestFontName = {},
     int mmRestCharsetVal = 0,
-    const std::string& extraCategoryXml = {})
+    const std::string& extraCategoryXml = {},
+    const std::string& extraOthersXml = {})
 {
     std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
 <finale>
@@ -141,6 +154,7 @@ static TextExpressionContext makeTextExpressionContext(
     }
     xml += R"xml(  <others>
 )xml";
+    xml += extraOthersXml;
     xml += fontDefinitionXml(0, fontName, charsetVal);
     if (!mmRestFontName.empty()) {
         xml += fontDefinitionXml(1, mmRestFontName, mmRestCharsetVal);
@@ -462,13 +476,37 @@ TEST(ExpressionClassification, ClassifiesRelativeDynamicQualifiers)
     }), true);
 }
 
-TEST(ExpressionClassification, ClassifiesDynamicCategoryTextAsDynamicOther)
+TEST(ExpressionClassification, DoesNotClassifyDynamicCategoryTextAsADynamic)
 {
-    const auto result = classifyTextExpression("dolce", ExpressionCategoryType::Dynamics);
+    // The Dynamics category does not make expressive text a dynamic. Only the spelling does, so
+    // "dolce espr." stays text while a level written out as a word is still recognized.
+    for (const std::string_view text : { "dolce", "dolce espr.", "cantabile" }) {
+        const auto result = classifyTextExpression(std::string(text), ExpressionCategoryType::Dynamics);
+        EXPECT_EQ(result.type, ExpressionType::GenericText) << text;
+        EXPECT_EQ(result.genericText().text, text) << text;
+    }
 
-    EXPECT_EQ(result.type, ExpressionType::Dynamic);
-    EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategory);
-    EXPECT_EQ(firstDynamicMark(result).dynamic, dynamics::Dynamic::Other);
+    const auto spelledOut = classifyTextExpression("forte", ExpressionCategoryType::Dynamics);
+    EXPECT_EQ(spelledOut.type, ExpressionType::Dynamic);
+    EXPECT_EQ(firstDynamicMark(spelledOut).dynamic, dynamics::Dynamic::f);
+}
+
+TEST(ExpressionClassification, DoesNotFindWordDynamicsInsideALongerPhrase)
+{
+    // "piano" and "forte" are ordinary words as well as dynamics. A level spelled out names the
+    // whole marking; a phrase that merely contains one is a performance instruction.
+    for (const std::string_view text : {
+        "inside the piano", "muted piano", "forte only", "col forte", "senza piano"
+    }) {
+        const auto result = classifyTextExpression(std::string(text), ExpressionCategoryType::TechniqueText);
+        EXPECT_EQ(result.type, ExpressionType::GenericText) << text;
+        EXPECT_EQ(result.genericText().text, text) << text;
+    }
+
+    // The same phrases stay text even when Finale files them under Dynamics.
+    const auto inDynamicsCategory = classifyTextExpression("inside the piano", ExpressionCategoryType::Dynamics);
+    EXPECT_EQ(inDynamicsCategory.type, ExpressionType::GenericText);
+    EXPECT_EQ(inDynamicsCategory.genericText().text, "inside the piano");
 }
 
 TEST(ExpressionClassification, UsesCategoryForTempoTechniqueAndRehearsalText)
@@ -501,10 +539,9 @@ TEST(ExpressionClassification, StrongCategoriesOverrideTextHeuristics)
     EXPECT_EQ(rehearsal.type, ExpressionType::RehearsalMark);
     EXPECT_EQ(rehearsal.basis, ClassificationBasis::FinaleCategory);
 
+    // The Dynamics category is not one of the strong ones: it cannot make "Allegro" a dynamic.
     const auto dynamic = classifyTextExpression("Allegro", ExpressionCategoryType::Dynamics);
-    EXPECT_EQ(dynamic.type, ExpressionType::Dynamic);
-    EXPECT_EQ(dynamic.basis, ClassificationBasis::FinaleCategory);
-    EXPECT_EQ(firstDynamicMark(dynamic).dynamic, dynamics::Dynamic::Other);
+    EXPECT_EQ(dynamic.type, ExpressionType::GenericText);
 
     const auto tempoMark = classifyTextExpression("rit.", ExpressionCategoryType::TempoMarks);
     EXPECT_EQ(tempoMark.type, ExpressionType::TempoAlteration);
@@ -896,4 +933,157 @@ TEST(ExpressionClassification, ClassifiesMultimeasureRestNumberBeforeSystemTextR
 
     ASSERT_EQ(result.type, ExpressionType::MultimeasureRestNumber);
     EXPECT_EQ(result.multimeasureRestNumber().number, 12);
+}
+
+static std::string staffXml(const std::string& altNotation)
+{
+    std::string result = "    <staffSpec cmper=\"1\">\n"
+                         "      <staffLines>5</staffLines>\n";
+    if (!altNotation.empty()) {
+        result += "      <altNotation>" + altNotation + "</altNotation>\n";
+    }
+    result += "    </staffSpec>\n";
+    return result;
+}
+
+/// Classifies @p text as it would appear on staff 1, which displays measure 1 with @p altNotation.
+/// @p configureAssignment adjusts the assignment before it is classified.
+static ExpressionClassification classifyMeasureRepeatCountCandidate(
+    const std::string& text,
+    const std::string& altNotation = "oneBarRepeat",
+    const std::string& expressionXml = centeredExpressionXml(),
+    ExpressionCategoryType categoryType = ExpressionCategoryType::Misc,
+    const std::function<void(others::MeasureExprAssign&)>& configureAssignment = {})
+{
+    const auto context = makeTextExpressionContext(
+        text, categoryType, {}, false, "Times New Roman", 0, expressionXml,
+        {}, 0, {}, staffXml(altNotation));
+    auto assignment = std::make_shared<others::MeasureExprAssign>(
+        context.document, SCORE_PARTID, EnigmaBase::ShareMode::All, Cmper{ 1 }, Inci{ 1 });
+    assignment->textExprId = 1;
+    assignment->staffAssign = StaffCmper{ 1 };
+    if (configureAssignment) {
+        configureAssignment(*assignment);
+    }
+    return classifyExpression(assignment);
+}
+
+TEST(ExpressionClassification, ClassifiesMeasureRepeatCountOverOneBarRepeat)
+{
+    const auto result = classifyMeasureRepeatCountCandidate("2");
+
+    ASSERT_EQ(result.type, ExpressionType::MeasureRepeatCount);
+    EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
+    EXPECT_EQ(result.measureRepeatCount().count, 2);
+}
+
+TEST(ExpressionClassification, ClassifiesMeasureRepeatCountOverTwoBarRepeat)
+{
+    const auto result = classifyMeasureRepeatCountCandidate("14", "twoBarRepeat");
+
+    ASSERT_EQ(result.type, ExpressionType::MeasureRepeatCount);
+    EXPECT_EQ(result.measureRepeatCount().count, 14);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountWithoutAlternateNotation)
+{
+    // The number is what a counter looks like, but the staff draws its own notation here, so there
+    // is nothing for the number to be counting.
+    const auto result = classifyMeasureRepeatCountCandidate("2", {});
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountUnderOtherAlternateNotation)
+{
+    // Slash notation repeats nothing, so a number over it is not counting iterations.
+    const auto result = classifyMeasureRepeatCountCandidate("2", "slashBeats");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountThatIsNotCentered)
+{
+    const auto result = classifyMeasureRepeatCountCandidate(
+        "2",
+        "oneBarRepeat",
+        "      <horzMeasExprAlign>leftEdge</horzMeasExprAlign>\n"
+        "      <horzExprAlign>left</horzExprAlign>\n");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountWithNonNumericText)
+{
+    const auto result = classifyMeasureRepeatCountCandidate("2x");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountOfZero)
+{
+    // MNX and convention alike start the count at the first repeated bar, so zero counts nothing.
+    const auto result = classifyMeasureRepeatCountCandidate("0");
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, PrefersRehearsalMarkCategoryOverMeasureRepeatCount)
+{
+    const auto result = classifyMeasureRepeatCountCandidate(
+        "2", "oneBarRepeat", centeredExpressionXml(), ExpressionCategoryType::RehearsalMarks);
+
+    EXPECT_EQ(result.type, ExpressionType::RehearsalMark);
+}
+
+TEST(ExpressionClassification, RejectsMeasureRepeatCountAssignedThroughStaffList)
+{
+    // One assignment covering a list of staves marks the passage rather than the notation of the
+    // staff it happens to resolve to.
+    const auto result = classifyMeasureRepeatCountCandidate(
+        "2", "oneBarRepeat", centeredExpressionXml(), ExpressionCategoryType::Misc,
+        [](others::MeasureExprAssign& assignment) { assignment.staffList = 1; });
+
+    EXPECT_EQ(result.type, ExpressionType::GenericText);
+}
+
+TEST(ExpressionClassification, ClassifiesMeasureRepeatCountOnHiddenAssignment)
+{
+    // Whether a marking is drawn is the consumer's business, so a hidden assignment is still
+    // classified as what it is.
+    const auto result = classifyMeasureRepeatCountCandidate(
+        "2", "oneBarRepeat", centeredExpressionXml(), ExpressionCategoryType::Misc,
+        [](others::MeasureExprAssign& assignment) { assignment.hidden = true; });
+
+    ASSERT_EQ(result.type, ExpressionType::MeasureRepeatCount);
+    EXPECT_EQ(result.measureRepeatCount().count, 2);
+}
+
+TEST(ExpressionClassification, ClassifiesMeasureRepeatCountNotAssignedInRequestedPart)
+{
+    // A part-only assignment is drawn in no part here, which again is for the consumer to filter.
+    const auto result = classifyMeasureRepeatCountCandidate(
+        "2", "oneBarRepeat", centeredExpressionXml(), ExpressionCategoryType::Misc,
+        [](others::MeasureExprAssign& assignment) {
+            assignment.showStaffList = others::MeasureExprAssign::ShowStaffList::PartOnly;
+        });
+
+    ASSERT_EQ(result.type, ExpressionType::MeasureRepeatCount);
+    EXPECT_EQ(result.measureRepeatCount().count, 2);
+}
+
+TEST(ExpressionClassification, ClassifiesMeasureRepeatCountBeforeSystemTextRehearsalMark)
+{
+    // A top-staff assignment routes through the system-text path, whose rehearsal-mark heuristic
+    // would otherwise claim a bare number. Scroll view resolves the top staff to staff 1.
+    const auto context = makeTextExpressionContext(
+        "2", ExpressionCategoryType::ExpressiveText, {}, true, "Times New Roman", 0,
+        centeredExpressionXml(), {}, 0, {},
+        staffXml("oneBarRepeat") + "    <instUsed cmper=\"0\" inci=\"0\">\n"
+                                   "      <inst>1</inst>\n"
+                                   "    </instUsed>\n");
+    const auto result = classifyExpression(context.def, context.assignment);
+
+    ASSERT_EQ(result.type, ExpressionType::MeasureRepeatCount);
+    EXPECT_EQ(result.measureRepeatCount().count, 2);
 }

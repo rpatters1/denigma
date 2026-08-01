@@ -507,6 +507,9 @@ void processExpressions(
                 break;
             }
             [[fallthrough]];
+        case classify::ExpressionType::MeasureRepeatCount:
+            // MusicXML's <measure-repeat> carries no counter, so the count stays text.
+            [[fallthrough]];
         case classify::ExpressionType::KeyboardPedal:
             /// @todo Emit semantic pedal directions when mx::api can represent the complete
             /// keyboard-pedal vocabulary. Its current mark model would lose pedal 2, pedal 3,

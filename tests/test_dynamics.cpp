@@ -97,7 +97,7 @@ static std::vector<musx::util::EnigmaTextChunk> collectChunks(const TextExpressi
     return chunks;
 }
 
-static std::optional<dynamics::Mark> classifyTestDynamic(const std::string& text, bool forceOther = false)
+static std::optional<dynamics::Mark> classifyTestDynamic(const std::string& text)
 {
     const auto context = makeTextExpressionContext(text);
     const auto chunks = collectChunks(context);
@@ -105,7 +105,7 @@ static std::optional<dynamics::Mark> classifyTestDynamic(const std::string& text
         ADD_FAILURE() << "Expected one chunk but got " << chunks.size();
         return std::nullopt;
     }
-    return classifyDynamicRun(chunks.front(), forceOther);
+    return classifyDynamicRun(chunks.front());
 }
 
 static std::string smuflGlyphText(const std::vector<std::string>& glyphs)
@@ -196,6 +196,25 @@ TEST(DynamicRunClassification, ClassifiesAliases)
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)rinf.")->dynamic, dynamics::Dynamic::rf);
 }
 
+TEST(DynamicRunClassification, ClassifiesLevelsSpelledAsWords)
+{
+    // Nothing but the spelling identifies these, now that Finale's Dynamics category no longer
+    // promotes the text it covers.
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)piano")->dynamic, dynamics::Dynamic::p);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)pianissimo")->dynamic, dynamics::Dynamic::pp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)forte")->dynamic, dynamics::Dynamic::f);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fortissimo")->dynamic, dynamics::Dynamic::ff);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)mezzo forte")->dynamic, dynamics::Dynamic::mf);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)mezzo piano")->dynamic, dynamics::Dynamic::mp);
+    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fortepiano")->dynamic, dynamics::Dynamic::fp);
+
+    // A word alias decomposes to the structure of the dynamic it names, not to its own letters.
+    const auto forte = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)forte");
+    ASSERT_TRUE(forte);
+    EXPECT_EQ(forte->composition.level, dynamics::Level::f);
+    EXPECT_TRUE(forte->glyphs.empty());
+}
+
 TEST(DynamicRunClassification, ClassifiesLegacyGlyphs)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(2)^size(24)^nfx(0)p")->dynamic, dynamics::Dynamic::p);
@@ -253,8 +272,10 @@ TEST(DynamicRunClassification, DistinguishesOtherAndNone)
 {
     EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffffff")->dynamic, dynamics::Dynamic::Other);
     EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)nn"));
+    // Expressive text is not a dynamic, whatever category Finale files it under.
     EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)dolce"));
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)dolce", true)->dynamic, dynamics::Dynamic::Other);
+    EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)espr."));
+    EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)cantabile"));
 }
 
 TEST(DynamicRunClassification, PreservesGlyphsForOtherDynamics)
@@ -264,16 +285,15 @@ TEST(DynamicRunClassification, PreservesGlyphsForOtherDynamics)
     EXPECT_EQ(glyphOther->dynamic, dynamics::Dynamic::Other);
     EXPECT_EQ(glyphOther->glyphs, (std::vector<std::string>{ "dynamicFF", "dynamicFF", "dynamicFF", "dynamicForte" }));
 
-    const auto categoryOther = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)dolce", true);
-    ASSERT_TRUE(categoryOther);
-    EXPECT_EQ(categoryOther->dynamic, dynamics::Dynamic::Other);
-    EXPECT_TRUE(categoryOther->glyphs.empty());
+    const auto letterOther = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)fffffff");
+    ASSERT_TRUE(letterOther);
+    EXPECT_EQ(letterOther->dynamic, dynamics::Dynamic::Other);
+    EXPECT_TRUE(letterOther->glyphs.empty());
 }
 
 TEST(DynamicRunClassification, RequiresSpaceDelimitersForNonGlyphTokens)
 {
     EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)G.P."));
-    EXPECT_EQ(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)G.P.", true)->dynamic, dynamics::Dynamic::Other);
     EXPECT_FALSE(classifyTestDynamic("^fontid(1)^size(12)^nfx(0)cresc.mf"));
 }
 
@@ -345,4 +365,154 @@ TEST(DynamicRunClassification, ConvertsDynamicLettersToLetterGlyphs)
         "dynamicPiano", "dynamicPiano", "dynamicForte"
     }));
     EXPECT_TRUE(dynamicLettersToLetterGlyphs("abc").empty());
+}
+
+namespace {
+
+using dynamics::Level;
+using dynamics::Reinforcement;
+
+/// @brief Reassembles the letters a composition describes, so that a decomposition can be checked
+/// against the spelling it came from.
+static std::string spellComposition(const dynamics::Composition& composition)
+{
+    std::string result;
+    if (composition.reinforcement == Reinforcement::Sforzando) {
+        result += "s";
+    } else if (composition.reinforcement == Reinforcement::Rinforzando) {
+        result += "r";
+    }
+    result += dynamicCanonicalText(dynamicFromLevel(composition.level));
+    if (composition.forzato) {
+        result += "z";
+    }
+    result += dynamicCanonicalText(dynamicFromLevel(composition.subsequent));
+    return result;
+}
+
+static void expectComposition(std::string_view letters, Reinforcement reinforcement, Level level,
+    bool forzato, Level subsequent)
+{
+    const auto composition = dynamicCompositionFromLetters(letters);
+    EXPECT_EQ(composition.reinforcement, reinforcement) << letters << ": reinforcement";
+    EXPECT_EQ(composition.level, level) << letters << ": level";
+    EXPECT_EQ(composition.forzato, forzato) << letters << ": forzato";
+    EXPECT_EQ(composition.subsequent, subsequent) << letters << ": subsequent";
+}
+
+static void expectNoComposition(std::string_view letters)
+{
+    const auto composition = dynamicCompositionFromLetters(letters);
+    EXPECT_EQ(composition.reinforcement, Reinforcement::None) << letters << ": reinforcement";
+    EXPECT_EQ(composition.level, Level::None) << letters << ": level";
+    EXPECT_FALSE(composition.forzato) << letters << ": forzato";
+    EXPECT_EQ(composition.subsequent, Level::None) << letters << ": subsequent";
+}
+
+} // namespace
+
+TEST(DynamicComposition, DecomposesPlainLevels)
+{
+    expectComposition("pppppp", Reinforcement::None, Level::pppppp, false, Level::None);
+    expectComposition("ppp", Reinforcement::None, Level::ppp, false, Level::None);
+    expectComposition("mp", Reinforcement::None, Level::mp, false, Level::None);
+    expectComposition("mf", Reinforcement::None, Level::mf, false, Level::None);
+    expectComposition("ffffff", Reinforcement::None, Level::ffffff, false, Level::None);
+    expectComposition("n", Reinforcement::None, Level::n, false, Level::None);
+}
+
+TEST(DynamicComposition, DecomposesCompoundDynamics)
+{
+    expectComposition("fz", Reinforcement::None, Level::f, true, Level::None);
+    expectComposition("ffz", Reinforcement::None, Level::ff, true, Level::None);
+    expectComposition("sf", Reinforcement::Sforzando, Level::f, false, Level::None);
+    expectComposition("sfz", Reinforcement::Sforzando, Level::f, true, Level::None);
+    expectComposition("sffz", Reinforcement::Sforzando, Level::ff, true, Level::None);
+    expectComposition("rf", Reinforcement::Rinforzando, Level::f, false, Level::None);
+    expectComposition("rfz", Reinforcement::Rinforzando, Level::f, true, Level::None);
+    expectComposition("fp", Reinforcement::None, Level::f, false, Level::p);
+    expectComposition("ffp", Reinforcement::None, Level::ff, false, Level::p);
+    expectComposition("pf", Reinforcement::None, Level::p, false, Level::f);
+    expectComposition("sfp", Reinforcement::Sforzando, Level::f, false, Level::p);
+    expectComposition("sfzp", Reinforcement::Sforzando, Level::f, true, Level::p);
+    expectComposition("sfpp", Reinforcement::Sforzando, Level::f, false, Level::pp);
+}
+
+TEST(DynamicComposition, ReassemblesEveryDynamicFromItsDecomposition)
+{
+    // Guards the decomposition against drifting from the canonical spellings it describes.
+    for (int value = 0; value <= static_cast<int>(dynamics::Dynamic::n); ++value) {
+        const auto dynamic = static_cast<dynamics::Dynamic>(value);
+        const auto canonicalText = dynamicCanonicalText(dynamic);
+        EXPECT_EQ(spellComposition(dynamicComposition(dynamic)), canonicalText) << "for " << canonicalText;
+    }
+}
+
+TEST(DynamicComposition, DecomposesMarkingsOutsideTheDynamicVocabulary)
+{
+    // MNX and other formats can spell these even though Dynamic has no enumerator for them.
+    expectComposition("sffffffz", Reinforcement::Sforzando, Level::ffffff, true, Level::None);
+    expectComposition("rfffz", Reinforcement::Rinforzando, Level::fff, true, Level::None);
+    expectComposition("ffffp", Reinforcement::None, Level::ffff, false, Level::p);
+    expectComposition("pppf", Reinforcement::None, Level::ppp, false, Level::f);
+    expectComposition("mfp", Reinforcement::None, Level::mf, false, Level::p);
+}
+
+TEST(DynamicComposition, ReportsAffixesAroundALevelItCannotName)
+{
+    // The level is louder than Level can name, but the affixes are still usable, and a consumer
+    // can take the level itself from the mark's glyphs.
+    expectComposition("sffffffffz", Reinforcement::Sforzando, Level::Other, true, Level::None);
+    expectComposition("rfffffffz", Reinforcement::Rinforzando, Level::Other, true, Level::None);
+    expectComposition("sffffffffp", Reinforcement::Sforzando, Level::Other, false, Level::p);
+    expectComposition("fffffff", Reinforcement::None, Level::Other, false, Level::None);
+}
+
+TEST(DynamicComposition, RejectsLettersThatDoNotSpellADynamic)
+{
+    expectNoComposition("");
+    expectNoComposition("s");      // an affix with no level
+    expectNoComposition("z");
+    expectNoComposition("sz");
+    expectNoComposition("m");      // "m" only names a level as part of "mp" or "mf"
+    expectNoComposition("ss");
+    expectNoComposition("pfz");    // the forzato may not follow the level the passage settles to
+    expectNoComposition("sforzando");
+    expectNoComposition("abc");
+}
+
+TEST(DynamicComposition, ConvertsLevelsToDynamics)
+{
+    EXPECT_EQ(dynamicFromLevel(Level::None), dynamics::Dynamic::None);
+    EXPECT_EQ(dynamicFromLevel(Level::Other), dynamics::Dynamic::Other);
+    EXPECT_EQ(dynamicFromLevel(Level::pppppp), dynamics::Dynamic::pppppp);
+    EXPECT_EQ(dynamicFromLevel(Level::mf), dynamics::Dynamic::mf);
+    EXPECT_EQ(dynamicFromLevel(Level::ffffff), dynamics::Dynamic::ffffff);
+    EXPECT_EQ(dynamicFromLevel(Level::n), dynamics::Dynamic::n);
+}
+
+TEST(DynamicRunClassification, PopulatesCompositionOnClassifiedMarks)
+{
+    const auto sfzp = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sfzp");
+    ASSERT_TRUE(sfzp);
+    EXPECT_EQ(sfzp->composition.reinforcement, Reinforcement::Sforzando);
+    EXPECT_EQ(sfzp->composition.level, Level::f);
+    EXPECT_TRUE(sfzp->composition.forzato);
+    EXPECT_EQ(sfzp->composition.subsequent, Level::p);
+
+    // A word alias decomposes to the structure of the dynamic it names, not to its own letters.
+    const auto sforzando = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sforzando");
+    ASSERT_TRUE(sforzando);
+    EXPECT_EQ(sforzando->dynamic, dynamics::Dynamic::sf);
+    EXPECT_EQ(sforzando->composition.reinforcement, Reinforcement::Sforzando);
+    EXPECT_EQ(sforzando->composition.level, Level::f);
+    EXPECT_FALSE(sforzando->composition.forzato);
+
+    // A marking outside the Dynamic vocabulary still reports its structure.
+    const auto unnamed = classifyTestDynamic("^fontid(1)^size(12)^nfx(0)sffffffz");
+    ASSERT_TRUE(unnamed);
+    EXPECT_EQ(unnamed->dynamic, dynamics::Dynamic::Other);
+    EXPECT_EQ(unnamed->composition.reinforcement, Reinforcement::Sforzando);
+    EXPECT_EQ(unnamed->composition.level, Level::ffffff);
+    EXPECT_TRUE(unnamed->composition.forzato);
 }
