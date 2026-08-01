@@ -45,6 +45,16 @@ struct MusxArchiveFiles
  */
 std::string readFile(const std::filesystem::path& zipFilePath, const std::string& fileName, const denigma::DenigmaContext& denigmaContext);
 std::string readFile(const denigma::IRandomAccessReader& reader, const std::string& fileName, const denigma::DenigmaContext& denigmaContext);
+
+/**
+ * @brief Reads the one file entry in a zip archive that has the specified extension.
+ * @param zipFilePath [in] the zip archive to search.
+ * @param extension [in] the extension (without leading dot) that identifies the entry.
+ * @param denigmaContext [in] the DenigmaContext (for logging).
+ * @throws std::runtime_error if the archive does not contain exactly one matching entry.
+ */
+std::string readSoleFileWithExtension(const std::filesystem::path& zipFilePath, std::u8string_view extension, const denigma::DenigmaContext& denigmaContext);
+std::string readSoleFileWithExtension(const denigma::IRandomAccessReader& reader, std::u8string_view extension, const denigma::DenigmaContext& denigmaContext);
 MusxArchiveFiles readMusxArchiveFiles(const std::filesystem::path& zipFilePath, const denigma::DenigmaContext& denigmaContext);
 MusxArchiveFiles readMusxArchiveFiles(const denigma::IRandomAccessReader& reader, const denigma::DenigmaContext& denigmaContext);
 

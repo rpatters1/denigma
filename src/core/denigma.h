@@ -29,6 +29,8 @@
 #include <fstream>
 #include <functional>
 #include <cassert>
+#include <span>
+#include <unordered_set>
 #include <utility>
 
 #include "denigma/conversion.h"
@@ -43,6 +45,10 @@ constexpr char8_t MSS_EXTENSION[]       = u8"mss";
 constexpr char8_t SVG_EXTENSION[]       = u8"svg";
 constexpr char8_t MXL_EXTENSION[]       = u8"mxl";
 constexpr char8_t MUSICXML_EXTENSION[]  = u8"musicxml";
+constexpr char8_t ZIP_EXTENSION[]       = u8"zip";
+
+/// @brief Compound extension for an EnigmaXML file stored as the sole entry of a zip archive.
+constexpr char8_t ENIGMAXML_ZIP_EXTENSION[] = u8"enigmaxml.zip";
 
 constexpr int JSON_INDENT_SPACES     = 4;
 
@@ -132,6 +138,65 @@ struct CommandInputData
     std::vector<EmbeddedGraphicFile> embeddedGraphics;
 };
 
+// stupid omission from C++17 standard
+// see https://stackoverflow.com/questions/73555606/stdunordered-setstdfilesystempath-compile-error-on-clang-and-g-below
+struct PathHash
+{
+    auto operator()(const std::filesystem::path& p) const noexcept {
+        return std::filesystem::hash_value(p);
+    }
+};
+using PathSet = std::unordered_set<std::filesystem::path, PathHash>;
+
+/// @brief Returns a normalized form of @p path for comparing paths that may be spelled differently.
+/// Returns @p path unchanged when the filesystem cannot resolve it.
+inline std::filesystem::path comparablePath(const std::filesystem::path& path)
+{
+    try {
+        return std::filesystem::weakly_canonical(path);
+    } catch (...) {}
+    return path;
+}
+
+/// @brief Returns the format key used to look up an input processor for @p path.
+/// A zip wrapping another extension yields the compound key ("foo.enigmaxml.zip" produces "enigmaxml.zip").
+/// Every other path yields its normalized final extension.
+inline std::u8string inputFormatKey(const std::filesystem::path& path)
+{
+    std::u8string extension = utils::normalizedPathExtension(path);
+    if (extension == ZIP_EXTENSION) {
+        const std::u8string wrapped = utils::normalizedExtension(path.stem().extension().u8string());
+        if (!wrapped.empty()) {
+            return wrapped + u8'.' + extension;
+        }
+    }
+    return extension;
+}
+
+/// @brief Returns @p path with an outer zip wrapper removed ("foo.enigmaxml.zip" produces "foo.enigmaxml").
+/// Paths without a compound archive extension are returned unchanged.
+inline std::filesystem::path unwrappedInputPath(const std::filesystem::path& path)
+{
+    if (utils::normalizedPathExtension(path) != ZIP_EXTENSION || !path.stem().has_extension()) {
+        return path;
+    }
+    std::filesystem::path retval = path;
+    retval.replace_filename(path.stem());
+    return retval;
+}
+
+/// @brief Returns the help-page annotation for @p extension given a command's default input formats.
+/// The first default format is the command's default; any others are additionally scanned in directory searches.
+inline std::string describeDefaultInputFormat(std::span<const std::u8string_view> defaultFormats, std::u8string_view extension)
+{
+    for (size_t x = 0; x < defaultFormats.size(); x++) {
+        if (defaultFormats[x] == extension) {
+            return x == 0 ? " (default input format)" : " (also scanned by default)";
+        }
+    }
+    return {};
+}
+
 // Function to find the appropriate processor
 template <typename Processors>
 inline decltype(Processors::value_type::processor) findProcessor(const Processors& processors, std::u8string_view extension)
@@ -191,6 +256,9 @@ public:
     std::optional<std::filesystem::path> logFilePath;
     std::shared_ptr<std::ofstream> logFile;
     std::filesystem::path inputFilePath;
+    /// @brief Every input queued for this run, in comparable form. An output that would
+    /// land on one of these is skipped, because that file may not have been read yet.
+    PathSet scheduledInputPaths;
     std::function<void(MessageSeverity severity, std::string_view message)> logCallback;
     ConversionResult* conversionResult{};
 
@@ -284,7 +352,10 @@ public:
     virtual bool canProcess(const std::filesystem::path& inputPath) const = 0;
     virtual CommandInputData processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
     virtual void processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const = 0;
-    virtual std::optional<std::u8string_view> defaultInputFormat() const { return std::nullopt; }
+    /// @brief The input formats searched when the input pattern names a bare directory.
+    /// The first entry is reported as the command's default input format. An empty span
+    /// means every file in the directory is considered.
+    virtual std::span<const std::u8string_view> defaultInputFormats() const { return {}; }
     virtual std::optional<std::u8string> defaultOutputFormat(const std::filesystem::path&) const { return std::nullopt; }
 
     virtual const std::string_view commandName() const = 0;

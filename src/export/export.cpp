@@ -346,6 +346,7 @@ constexpr auto inputProcessors = []() {
     return std::to_array<InputProcessor>({
             { MUSX_EXTENSION, formats::enigmaxml::detail::extractMusxInputData },
             { ENIGMAXML_EXTENSION, formats::enigmaxml::detail::readEnigmaXmlInputData },
+            { ENIGMAXML_ZIP_EXTENSION, formats::enigmaxml::detail::readZippedEnigmaXmlInputData },
         });
     }();
 
@@ -402,9 +403,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "Supported input formats:" << std::endl;
     for (const auto& input : inputProcessors) {
         std::cout << indentSpaces << "  *." << utils::utf8ToString(input.extension);
-        if (input.extension == defaultInputFormat()) {
-            std::cout << " (default input format)";
-        }
+        std::cout << describeDefaultInputFormat(defaultInputFormats(), input.extension);
         std::cout << std::endl;
     }
     std::cout << indentSpaces << std::endl;
@@ -426,6 +425,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "  " << fullCommand << " input.musx --enigmaxml output.enigmaxml -mss" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mss --part" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " myfolder --mss exports/mss --all-parts --recursive" << std::endl;
+    std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml.zip --mnx exports" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --mnx --mss" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.enigmaxml --musicxml" << std::endl;
     std::cout << indentSpaces << "  " << fullCommand << " input.musx --svg --shape-def 3,7 --svg-unit px" << std::endl;
@@ -436,7 +436,7 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
 bool ExportCommand::canProcess(const std::filesystem::path& inputPath) const
 {
     try {
-        findProcessor(inputProcessors, inputPath.extension().u8string());
+        findProcessor(inputProcessors, inputFormatKey(inputPath));
         return true;
     } catch (...) {}
     return false;
@@ -445,7 +445,7 @@ bool ExportCommand::canProcess(const std::filesystem::path& inputPath) const
 CommandInputData ExportCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
     MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
-    auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
+    auto inputProcessor = findProcessor(inputProcessors, inputFormatKey(inputPath));
     return inputProcessor(inputPath, denigmaContext);
 }
 

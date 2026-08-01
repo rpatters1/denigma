@@ -35,7 +35,11 @@ struct MassageCommand : public ICommand
     CommandInputData processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
     void processOutput(const CommandInputData& inputData, const std::filesystem::path& outputPath, const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const override;
 
-    std::optional<std::u8string_view> defaultInputFormat() const override { return MXL_EXTENSION; };
+    std::span<const std::u8string_view> defaultInputFormats() const override
+    {
+        static constexpr std::u8string_view formats[] = { MXL_EXTENSION };
+        return formats;
+    };
     std::optional<std::u8string> defaultOutputFormat(const std::filesystem::path& inputPath) const override
     {
         auto ext = inputPath.extension().u8string();

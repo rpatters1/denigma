@@ -36,6 +36,7 @@ namespace detail {
 CommandInputData extractMusxInputData(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
 CommandInputData extractMusxInputData(const IRandomAccessReader& reader, const DenigmaContext& denigmaContext);
 CommandInputData readEnigmaXmlInputData(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
+CommandInputData readZippedEnigmaXmlInputData(const std::filesystem::path& inputFile, const DenigmaContext& denigmaContext);
 void writeEnigmaXml(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 void writeMusxForCli(const std::filesystem::path& outputPath, const CommandInputData& inputData, const DenigmaContext& denigmaContext);
 

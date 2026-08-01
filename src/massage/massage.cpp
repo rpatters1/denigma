@@ -102,9 +102,7 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
     std::cout << indentSpaces << "Supported input formats:" << std::endl;
     for (const auto& input : inputProcessors) {
         std::cout << indentSpaces << "  *." << utils::utf8ToString(input.extension);
-        if (input.extension == defaultInputFormat()) {
-            std::cout << " (default input format)";
-        }
+        std::cout << describeDefaultInputFormat(defaultInputFormats(), input.extension);
         std::cout << std::endl;
     }
     std::cout << std::endl;
@@ -128,7 +126,7 @@ int MassageCommand::showHelpPage(const std::string_view& programName, const std:
 bool MassageCommand::canProcess(const std::filesystem::path& inputPath) const
 {
     try {
-        findProcessor(inputProcessors, inputPath.extension().u8string());
+        findProcessor(inputProcessors, inputFormatKey(inputPath));
         return true;
     } catch (...) {}
     return false;
@@ -137,7 +135,7 @@ bool MassageCommand::canProcess(const std::filesystem::path& inputPath) const
 CommandInputData MassageCommand::processInput(const std::filesystem::path& inputPath, const DenigmaContext& denigmaContext) const
 {
     MusxLoggerScope musxLogger(makeMusxLogCallback(denigmaContext));
-    auto inputProcessor = findProcessor(inputProcessors, inputPath.extension().u8string());
+    auto inputProcessor = findProcessor(inputProcessors, inputFormatKey(inputPath));
     return inputProcessor(inputPath, denigmaContext);
 }
 
