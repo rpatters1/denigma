@@ -29,6 +29,11 @@
 #include "mnxdom.h"
 #include "test_utils.h"
 
+// winapi defines RELATIVE macro. >eye-roll<
+#ifdef RELATIVE
+#undef RELATIVE
+#endif
+
 using namespace denigma;
 
 namespace {
