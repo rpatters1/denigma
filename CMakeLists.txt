@@ -146,7 +146,14 @@ FetchContent_Declare(
     URL_HASH SHA256=9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
+# zlib 1.3.1 always declares a SHARED target, which CMake warns about on
+# platforms without shared library support such as Emscripten. Only zlibstatic
+# is used below, so scope the developer warning to zlib's own configure rather
+# than suppressing it for the whole project.
+set(_denigma_saved_dev_warnings "${CMAKE_SUPPRESS_DEVELOPER_WARNINGS}")
+set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE INTERNAL "")
 FetchContent_MakeAvailable(zlib)
+set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS "${_denigma_saved_dev_warnings}" CACHE INTERNAL "")
 
 if(TARGET zlib)
     set_target_properties(zlib PROPERTIES
