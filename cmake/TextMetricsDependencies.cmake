@@ -44,7 +44,11 @@ if(DEFINED freetype_SOURCE_DIR AND EXISTS "${freetype_SOURCE_DIR}/docs/FTL.TXT")
     set_property(GLOBAL PROPERTY DENIGMA_FREETYPE_LICENSE_FILE "${freetype_SOURCE_DIR}/docs/FTL.TXT")
 endif()
 
-if(UNIX AND NOT APPLE)
+if(EMSCRIPTEN)
+    # Emscripten reports UNIX, but WebAssembly has no system font database, so
+    # fontconfig can never apply and advising its installation would mislead.
+    message(STATUS "Text metrics resolver: FreeType directory-index lookup (WebAssembly has no system font database)")
+elseif(UNIX AND NOT APPLE)
     find_path(DENIGMA_FONTCONFIG_INCLUDE_DIR fontconfig/fontconfig.h)
     find_library(DENIGMA_FONTCONFIG_LIBRARY NAMES fontconfig)
 
