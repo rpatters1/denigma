@@ -66,6 +66,12 @@ Use `OtherDirectionData` only for recognized direction semantics that lack a ded
 
 Export measure-attached Finale graphics from `details::MeasureGraphicAssign` as MusicXML `<image>` directions. Resolve embedded and external graphic sources, emit required image files through the multi-output callback, determine MIME types, and convert Finale position and size values to MusicXML tenths. Page graphics and graphics embedded in Shape Designer objects remain separate mapping tasks.
 
+## Compound dynamics
+
+Export dynamics outside MusicXML's dedicated element vocabulary as `mx::api::MarkType::compoundDynamics` with an ordered `CompoundDynamicsData`, so that a marking such as `ffz` or `sffffz` writes one `<dynamics>` element whose children spell it out and whose non-standard components keep their own SMuFL glyph names. Denigma currently flattens these to a single text-valued `<other-dynamics>` child, and only carries the `smufl` attribute when the marking resolves to exactly one glyph.
+
+`classify::dynamics::Mark::composition` already reports the reinforcement syllable, level, forzato, and residual level of a marking, and `Mark::glyphs` gives the source glyph for each letter, so this is a Denigma mapping task rather than an MX API feature.
+
 ## Text and custom-line fidelity
 
 Convert eligible music-font characters in expression text to `SymbolData` within the ordered `DirectionChoice::wordsRun` model, particularly for legacy symbol fonts that may not be installed on the receiving system. Preserve unknown or intentionally font-specific characters as `WordsData`.

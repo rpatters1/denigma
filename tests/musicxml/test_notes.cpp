@@ -1074,6 +1074,40 @@ TEST(MusicXmlNotes, CaesuraVariantsMapToMusicXml)
     EXPECT_EQ(convert(CaesuraType::Chant), mx::api::MarkType::caesura);
 }
 
+TEST(MusicXmlNotes, UnmappedTechniquesCarryTheirSmuflGlyph)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("techniques.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+
+    std::vector<std::pair<std::string, std::optional<std::string>>> otherMarks;
+    for (const auto& part : actualScore->parts) {
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& voice : staff.voices) {
+                    for (const auto& note : voice.second.notes) {
+                        for (const auto& mark : note.noteAttachmentData.marks) {
+                            if (mark.markType == mx::api::MarkType::otherArticulation
+                                    || mark.markType == mx::api::MarkType::otherTechnical) {
+                                otherMarks.emplace_back(mark.name, mark.choice.otherMark().smufl);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // A technique with no MusicXML element of its own keeps its identity in the `smufl` attribute
+    // and leaves the element text empty, rather than displaying the glyph name.
+    const std::vector<std::pair<std::string, std::optional<std::string>>> expected = {
+        { "", std::optional<std::string>{ "brassMuteClosed" } }
+    };
+    EXPECT_EQ(otherMarks, expected);
+}
+
 TEST(MusicXmlNotes, PseudoLaissezVibrerTiesMatchMnxAfterMusicXmlRoundTrip)
 {
     setupTestDataPaths();

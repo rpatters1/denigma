@@ -74,6 +74,11 @@ std::optional<mx::api::MarkData> createDynamicMark(const classify::dynamics::Mar
         if (mark.name.empty()) {
             return std::nullopt;
         }
+        if (dynamic.glyphs.size() == 1) {
+            mark.choice = mx::api::OtherMarkData{ dynamic.glyphs.front() };
+        }
+        /// @todo Spell multi-glyph dynamics as mx::api::MarkType::compoundDynamics with an ordered
+        /// mx::api::CompoundDynamicsData, so that each component keeps its own SMuFL glyph.
     }
     return mark;
 }

@@ -72,20 +72,17 @@ mx::api::MarkType musicXmlHarmonMuteType(const classify::articulation::HarmonMut
     return mx::api::MarkType::harmonMute;
 }
 
-std::string fallbackNameForClassification(const classify::ArticulationClassification& classification, std::string_view fallbackName)
-{
-    if (classification.glyphName && !classification.glyphName->empty()) {
-        return classification.glyphName.value();
-    }
-    return std::string(fallbackName);
-}
-
 mx::api::MarkData fallbackMarkData(
     mx::api::MarkType fallbackType, const classify::ArticulationClassification& classification, std::string_view fallbackName)
 {
     auto markData = musicXmlMark(fallbackType, classification.placement);
-    /// @todo Switch from MarkData.name to a dedicated SMuFL glyph-name field once mx::api exposes it for other-* mark payloads.
-    markData.name = fallbackNameForClassification(classification, fallbackName);
+    if (classification.glyphName && !classification.glyphName->empty()) {
+        // A recognized glyph identifies the symbol exactly, so it belongs in the other-* `smufl`
+        // attribute rather than in the element's display text.
+        markData.choice = mx::api::OtherMarkData{ classification.glyphName };
+    } else {
+        markData.name = std::string(fallbackName);
+    }
     return markData;
 }
 
