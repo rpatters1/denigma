@@ -23,12 +23,17 @@
 #include "musicxml.h"
 
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "denigma/classify/dynamics.h"
 #include "musicxml_formatted_text.h"
+#include "mx/api/DynamicsData.h"
 #include "mx/api/MarkData.h"
 #include "mx/api/SymbolData.h"
+#include "utils/stringutils.h"
 
 using namespace musx::dom;
 using namespace musx::util;
@@ -61,7 +66,77 @@ mx::api::DirectionData createDynamicDirection(
     return direction;
 }
 
-std::optional<mx::api::MarkData> createDynamicMark(const classify::dynamics::Mark& dynamic, mx::api::Placement placement)
+/// @brief Returns the MusicXML dynamic element that spells these letters, or nullopt when
+/// MusicXML has no element for them.
+///
+/// MusicXML names its dynamic elements after the letters they draw, so a glyph maps to an element
+/// exactly when the glyph's letters name one. The bare affix letters "m", "r", "s", and "z" have
+/// no element of their own.
+std::optional<mx::api::StandardDynamic> musicXmlStandardDynamic(std::string_view letters)
+{
+    static const std::unordered_map<std::string_view, mx::api::StandardDynamic> elements = {
+        { "p", mx::api::StandardDynamic::p },
+        { "pp", mx::api::StandardDynamic::pp },
+        { "ppp", mx::api::StandardDynamic::ppp },
+        { "pppp", mx::api::StandardDynamic::pppp },
+        { "ppppp", mx::api::StandardDynamic::ppppp },
+        { "pppppp", mx::api::StandardDynamic::pppppp },
+        { "f", mx::api::StandardDynamic::f },
+        { "ff", mx::api::StandardDynamic::ff },
+        { "fff", mx::api::StandardDynamic::fff },
+        { "ffff", mx::api::StandardDynamic::ffff },
+        { "fffff", mx::api::StandardDynamic::fffff },
+        { "ffffff", mx::api::StandardDynamic::ffffff },
+        { "mp", mx::api::StandardDynamic::mp },
+        { "mf", mx::api::StandardDynamic::mf },
+        { "sf", mx::api::StandardDynamic::sf },
+        { "sfp", mx::api::StandardDynamic::sfp },
+        { "sfpp", mx::api::StandardDynamic::sfpp },
+        { "fp", mx::api::StandardDynamic::fp },
+        { "rf", mx::api::StandardDynamic::rf },
+        { "rfz", mx::api::StandardDynamic::rfz },
+        { "sfz", mx::api::StandardDynamic::sfz },
+        { "sffz", mx::api::StandardDynamic::sffz },
+        { "fz", mx::api::StandardDynamic::fz },
+        { "n", mx::api::StandardDynamic::n },
+        { "pf", mx::api::StandardDynamic::pf },
+        { "sfzp", mx::api::StandardDynamic::sfzp }
+    };
+    const auto found = elements.find(letters);
+    return found != elements.end() ? std::optional{ found->second } : std::nullopt;
+}
+
+/// @brief Decomposes a marking with no dedicated MusicXML dynamic element into the ordered
+/// components of one `<dynamics>` element, one component per source glyph.
+///
+/// The glyph sequence is how the source spells the marking, and MusicXML says the same thing the
+/// same way: Finale draws "sfmp" either as the composite `dynamicSforzando1` and `dynamicMP`
+/// glyphs or as four separate letters, and each spelling exports as itself. A glyph whose letters
+/// name a MusicXML dynamic element writes that element; every other glyph writes an
+/// `<other-dynamics>` carrying its letters and its own SMuFL name.
+std::optional<mx::api::CompoundDynamicsData> createCompoundDynamics(const std::vector<std::string>& glyphs)
+{
+    if (glyphs.size() < 2) {
+        return std::nullopt; // a lone glyph is the plain other-dynamics case
+    }
+
+    auto result = mx::api::CompoundDynamicsData{};
+    for (const auto& glyph : glyphs) {
+        auto letters = classify::dynamicGlyphsToLetters({ glyph });
+        if (letters.empty()) {
+            return std::nullopt; // an unmapped glyph would silently drop part of the spelling
+        }
+        if (const auto standard = musicXmlStandardDynamic(letters)) {
+            result.components.emplace_back(*standard);
+        } else {
+            result.components.emplace_back(mx::api::OtherDynamicsData{ std::move(letters), glyph });
+        }
+    }
+    return result;
+}
+
+std::optional<mx::api::MarkData> createDynamicMark(
+    const classify::dynamics::Mark& dynamic, std::string_view sourceText, mx::api::Placement placement)
 {
     const auto markType = enumConvert<mx::api::MarkType>(dynamic.dynamic);
     if (markType == mx::api::MarkType::unspecified) {
@@ -70,15 +145,27 @@ std::optional<mx::api::MarkData> createDynamicMark(const classify::dynamics::Mar
 
     auto mark = mx::api::MarkData(placement, markType);
     if (mark.markType == mx::api::MarkType::otherDynamics) {
-        mark.name = classify::dynamicGlyphsToLetters(dynamic.glyphs);
-        if (mark.name.empty()) {
-            return std::nullopt;
-        }
-        if (dynamic.glyphs.size() == 1) {
+        if (auto compound = createCompoundDynamics(dynamic.glyphs)) {
+            mark.markType = mx::api::MarkType::compoundDynamics;
+            mark.choice = std::move(*compound);
+        } else if (auto letters = classify::dynamicGlyphsToLetters(dynamic.glyphs); !letters.empty()) {
+            mark.name = std::move(letters); // one glyph spells the whole marking
             mark.choice = mx::api::OtherMarkData{ dynamic.glyphs.front() };
+        } else {
+            // No glyphs to follow, so the marking can only be spelled with its letters. The
+            // classifier reports a glyphless dynamic only when the source text is dynamic letters,
+            // so normalize that text the way the classifier did before matching it.
+            auto sourceLetters = std::string{};
+            for (const char ch : sourceText) {
+                if (!utils::isSpace(static_cast<unsigned char>(ch))) {
+                    sourceLetters.push_back(utils::toLowerCase(ch));
+                }
+            }
+            if (sourceLetters.empty()) {
+                return std::nullopt;
+            }
+            mark.name = std::move(sourceLetters);
         }
-        /// @todo Spell multi-glyph dynamics as mx::api::MarkType::compoundDynamics with an ordered
-        /// mx::api::CompoundDynamicsData, so that each component keeps its own SMuFL glyph.
     }
     return mark;
 }
@@ -110,7 +197,7 @@ std::vector<mx::api::DirectionData> createDynamicExpressionDirections(
 
     for (const auto& run : classification.runs) {
         if (const auto* dynamic = run.as<classify::dynamics::Mark>()) {
-            auto mark = createDynamicMark(*dynamic, enumConvert<mx::api::Placement>(placement));
+            auto mark = createDynamicMark(*dynamic, run.chunk.text, enumConvert<mx::api::Placement>(placement));
             if (!mark) {
                 if (dynamic->glyphs.empty()) {
                     appendWords(run.chunk);
