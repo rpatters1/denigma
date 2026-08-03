@@ -885,11 +885,11 @@ TEST(MusicXmlNotes, ArtificialHarmonicsExportSmoke)
     // Notated pitches, durations, and chord structure should match Finale's own reference export exactly.
     compareNoteEvents(*actualScore, *expectedScore);
 
-    // Each touched (diamond) note should carry a <harmonic> technical mark. Finale's own MusicXML export
-    // (the reference file) does not emit this -- it relies on notehead shape and interval alone -- but
-    // Denigma's classifier identifies the pattern, so Denigma adds the mark as a semantic enrichment
-    // beyond what Finale itself exports. See "Artificial-harmonic technical detail" in mx-api-gaps.md
-    // for what mx::api still cannot express on it (natural/artificial, base/touching/sounding pitch).
+    // Both notes of each pair should carry a <harmonic> technical mark naming the pitch that note's own
+    // notehead states: base pitch on the stopped note, touching pitch on the diamond note. Finale's own
+    // MusicXML export (the reference file) emits no <harmonic> at all -- it relies on notehead shape and
+    // interval alone -- but Denigma's classifier identifies the pattern, so Denigma adds the marks as a
+    // semantic enrichment beyond what Finale itself exports.
     // The touched notes are hollow diamonds on quarter notes, so they must override MusicXML's
     // duration-based fill default. Finale's reference export writes the same filled="no".
     struct ExpectedNote
@@ -899,16 +899,17 @@ TEST(MusicXmlNotes, ArtificialHarmonicsExportSmoke)
         int octave;
         mx::api::Notehead notehead;
         mx::api::Bool noteheadFilled;
-        bool expectHarmonicMark;
+        mx::api::HarmonicPitch harmonicPitch;
     };
     using mx::api::Bool;
+    using mx::api::HarmonicPitch;
     const std::vector<ExpectedNote> expectedNotes = {
-        { mx::api::Step::e, -1, 3, mx::api::Notehead::normal, Bool::unspecified, false },   // stopped (major third touch)
-        { mx::api::Step::g, 0, 3, mx::api::Notehead::diamond, Bool::no, true },             // touched
-        { mx::api::Step::b, 0, 3, mx::api::Notehead::normal, Bool::unspecified, false },    // stopped (fourth touch)
-        { mx::api::Step::e, 0, 4, mx::api::Notehead::diamond, Bool::no, true },             // touched
-        { mx::api::Step::f, 0, 3, mx::api::Notehead::normal, Bool::unspecified, false },    // stopped (fifth touch)
-        { mx::api::Step::c, 0, 4, mx::api::Notehead::diamond, Bool::no, true },             // touched
+        { mx::api::Step::e, -1, 3, mx::api::Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },      // stopped (major third touch)
+        { mx::api::Step::g, 0, 3, mx::api::Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
+        { mx::api::Step::b, 0, 3, mx::api::Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },       // stopped (fourth touch)
+        { mx::api::Step::e, 0, 4, mx::api::Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
+        { mx::api::Step::f, 0, 3, mx::api::Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },       // stopped (fifth touch)
+        { mx::api::Step::c, 0, 4, mx::api::Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
     };
 
     ASSERT_FALSE(actualScore->parts.empty());
@@ -927,9 +928,13 @@ TEST(MusicXmlNotes, ArtificialHarmonicsExportSmoke)
         EXPECT_EQ(note.pitchData.octave, expected.octave) << "note " << noteIndex;
         EXPECT_EQ(note.notehead, expected.notehead) << "note " << noteIndex;
         EXPECT_EQ(note.noteheadFilled, expected.noteheadFilled) << "note " << noteIndex;
-        const bool hasHarmonicMark = std::any_of(note.noteAttachmentData.marks.begin(), note.noteAttachmentData.marks.end(),
-            [](const auto& mark) { return mark.markType == mx::api::MarkType::harmonic; });
-        EXPECT_EQ(hasHarmonicMark, expected.expectHarmonicMark) << "note " << noteIndex;
+        const auto& marks = note.noteAttachmentData.marks;
+        const auto isHarmonicMark = [](const auto& mark) { return mark.markType == mx::api::MarkType::harmonic; };
+        ASSERT_EQ(std::count_if(marks.begin(), marks.end(), isHarmonicMark), 1) << "note " << noteIndex;
+        const auto harmonicMark = std::find_if(marks.begin(), marks.end(), isHarmonicMark);
+        ASSERT_TRUE(harmonicMark->choice.isHarmonic()) << "note " << noteIndex;
+        const auto expectedHarmonic = mx::api::HarmonicMarkData{ mx::api::HarmonicKind::artificial, expected.harmonicPitch };
+        EXPECT_EQ(harmonicMark->choice.harmonic(), expectedHarmonic) << "note " << noteIndex;
     }
 }
 

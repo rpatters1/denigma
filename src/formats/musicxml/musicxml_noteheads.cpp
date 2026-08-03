@@ -22,6 +22,9 @@
 
 #include "musicxml.h"
 
+#include <optional>
+#include <utility>
+
 #include "denigma/classify/entries.h"
 #include "denigma/classify/noteheads.h"
 #include "mx/api/MarkData.h"
@@ -36,9 +39,10 @@ namespace detail {
 
 namespace {
 
-// Attaches a <harmonic> technical mark to the touched (node) note of an artificial harmonic, if
-// noteInfo is that note. This is the note conventionally marked in engraved MusicXML, since it is
-// already visually distinguished by its diamond notehead.
+// Attaches a <harmonic> technical mark stating noteInfo's role in an artificial harmonic, if noteInfo
+// is one of its notes. MusicXML's <harmonic> is a per-note notation whose pitch child names the pitch
+// that this note's own notehead states, so every note of the pattern carries its own mark rather than
+// depending on its neighbor for meaning.
 void applyArtificialHarmonicMark(
     mx::api::NoteData& note,
     const NoteInfoPtr& noteInfo,
@@ -48,15 +52,32 @@ void applyArtificialHarmonicMark(
     if (!harmonics) {
         return;
     }
-    for (const auto& harmonic : harmonics->harmonics) {
-        if (noteInfo.isSameNote(harmonic.touchedNote)) {
-            note.noteAttachmentData.marks.emplace_back(musicXmlMark(mx::api::MarkType::harmonic, VerticalPlacement::NotApplicable));
-            /// @todo Distinguish natural vs. artificial harmonic type and emit base-pitch/touching-pitch/
-            /// sounding-pitch once mx::api exposes Harmonic's choice/choice2 sub-elements. See
-            /// "Artificial-harmonic technical detail" in mx-api-gaps.md.
-            return;
+    const auto harmonicPitch = [&]() -> std::optional<mx::api::HarmonicPitch> {
+        for (const auto& harmonic : harmonics->harmonics) {
+            // The stopped note is played before touching, so its notehead states the base pitch. The
+            // touched note is the lightly touched node. A sounding note is present only where the
+            // source explicitly writes out the pitch that is heard.
+            if (noteInfo.isSameNote(harmonic.stoppedNote)) {
+                return mx::api::HarmonicPitch::basePitch;
+            }
+            if (noteInfo.isSameNote(harmonic.touchedNote)) {
+                return mx::api::HarmonicPitch::touchingPitch;
+            }
+            if (harmonic.soundingNote && noteInfo.isSameNote(harmonic.soundingNote)) {
+                return mx::api::HarmonicPitch::soundingPitch;
+            }
         }
+        return std::nullopt;
+    }();
+    if (!harmonicPitch) {
+        return;
     }
+    auto mark = musicXmlMark(mx::api::MarkType::harmonic, VerticalPlacement::NotApplicable);
+    // The <harmonic> attributes govern the circular harmonic symbol, which Finale does not draw for
+    // these chords. Leave print-object unspecified rather than writing print-object="no": the
+    // <artificial/> child already tells a consumer this is not the circle case.
+    mark.choice = mx::api::HarmonicMarkData{ mx::api::HarmonicKind::artificial, *harmonicPitch };
+    note.noteAttachmentData.marks.emplace_back(std::move(mark));
 }
 
 } // namespace
