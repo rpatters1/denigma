@@ -115,7 +115,9 @@ void applyTremoloData(mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
         }
 
         auto mark = mx::api::MarkData(markType);
-        mark.choice = mx::api::TremoloMarkData{ .tremoloMarks = calcTremoloMarks(entryInfo, tupletInfo) };
+        auto tremoloData = mx::api::TremoloMarkData{};
+        tremoloData.tremoloMarks = calcTremoloMarks(entryInfo, tupletInfo);
+        mark.choice = std::move(tremoloData);
         note.noteAttachmentData.marks.emplace_back(std::move(mark));
     }
 }

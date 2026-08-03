@@ -254,7 +254,9 @@ void processArticulations(
                     if (classification.glyphName && !classification.glyphName->empty()) {
                         // The recognized glyph is the only thing that distinguishes a buzz roll from a
                         // Penderecki, Wieniawski, or Stockhausen tremolo, all of which write the same element.
-                        markData.choice = mx::api::TremoloMarkData{ .smufl = classification.glyphName };
+                        auto tremoloData = mx::api::TremoloMarkData{};
+                        tremoloData.smufl = classification.glyphName;
+                        markData.choice = std::move(tremoloData);
                     }
                     note.noteAttachmentData.marks.emplace_back(std::move(markData));
                     return;
