@@ -72,6 +72,8 @@ The repository builds a CLI plus reusable libraries for classification, massage,
 - Prefer horizontal function calls up to about 135 columns. When wrapping is needed, keep as much of the call as practical on the next indented line.
 - Strongly prefer named constants, existing domain constants, or computed values over hardcoded numeric literals other than `0`.
 - Do not place project-internal design notes in top-level `docs`; that directory is primarily for Doxygen/external-library documentation. Keep implementation notes near the relevant source area unless asked otherwise.
+- Record deferred feature work in the relevant `roadmap.md`, and concrete third-party API limitations in the matching gaps document, such as `src/formats/musicxml/mx-api-gaps.md`.
+- Do not leave a `/// @todo` comment pointing at a roadmap item. Roadmap work may never be done, and the comment becomes clutter. Reserve `/// @todo` for a specific limitation local to the code it sits in.
 
 ## Verification
 

@@ -115,7 +115,9 @@ void applyTremoloData(mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
         }
 
         auto mark = mx::api::MarkData(markType);
-        mark.choice = mx::api::TremoloMarkData{ .tremoloMarks = calcTremoloMarks(entryInfo, tupletInfo) };
+        auto tremoloData = mx::api::TremoloMarkData{};
+        tremoloData.tremoloMarks = calcTremoloMarks(entryInfo, tupletInfo);
+        mark.choice = std::move(tremoloData);
         note.noteAttachmentData.marks.emplace_back(std::move(mark));
     }
 }
@@ -568,12 +570,17 @@ void appendEntryNotes(
             applyTremoloData(note, entryInfo);
         }
         if (entry->hasStem()) {
-            const auto [freezeStem, upStem] = entryInfo.calcEntryStemSettings();
-            if (freezeStem) {
-                note.stem = upStem ? mx::api::Stem::up : mx::api::Stem::down;
-            } else if (hasVoice1Voice2 || hasMultipleLayers) {
-                /// @todo Ideally importers would infer these from independent voices, but explicit stems currently import better.
-                note.stem = entryInfo.calcUpStem() ? mx::api::Stem::up : mx::api::Stem::down;
+            const auto customStem = details::CustomStem::getForStem(entryInfo);
+            if (customStem && customStem->calcIsHiddenStem()) {
+                note.stem = mx::api::Stem::none;
+            } else {
+                const auto [freezeStem, upStem] = entryInfo.calcEntryStemSettings();
+                if (freezeStem) {
+                    note.stem = upStem ? mx::api::Stem::up : mx::api::Stem::down;
+                } else if (hasVoice1Voice2 || hasMultipleLayers) {
+                    /// @todo Ideally importers would infer these from independent voices, but explicit stems currently import better.
+                    note.stem = entryInfo.calcUpStem() ? mx::api::Stem::up : mx::api::Stem::down;
+                }
             }
         }
         applyMusicXmlTies(context, note, noteInfo);

@@ -195,25 +195,15 @@ Needed API shape: extend `PedalLineData` with `sign`, `abbreviated`, and `number
 pedal-aware number resolution. Correct `SpannerNumberResolver`'s MusicXML-3.0-era claim that `<pedal>` has no
 `number` attribute. `SoundData` should also expose MusicXML's `soft-pedal` playback attribute.
 
-### Other dynamics SMuFL glyphs
+### Direction-level technique playback
 
-MusicXML 4.0 defines `other-dynamics` as `other-text`, so it can carry a `smufl` attribute for preserving a specific SMuFL glyph name in addition to optional text content.
-
-`mx::api::MarkData` exposes `name` for the text content of `other-dynamics`, and `mx::impl::DynamicsWriter` writes that value into the element body. It does not expose the `smufl` attribute. Denigma can therefore emit text-valued fallback dynamics such as `<other-dynamics>ffp</other-dynamics>`, but cannot preserve a single source glyph as `<other-dynamics smufl="dynamicNiente"/>` through `mx::api`.
-
-Needed API shape: an other-dynamics payload in `MarkDataChoice` with a SMuFL glyph-name field, with dynamics reader/writer support for threading it through `core::OtherText::smufl`.
-
-## Tuplets and Tremolos
-
-### Other notation SMuFL glyphs
-
-MusicXML's `other-articulation`, `other-technical`, `other-ornament`, and `other-notation` elements use the `other-placement-text` type, which can carry a `smufl` attribute for preserving a specific SMuFL glyph name.
-
-`mx::api::MarkData` exposes `name` for the text content of `other-articulation`, `other-technical`, and `other-ornament`, but does not expose the `smufl` attribute. Denigma can therefore emit semantic marks and text-valued `other-*` fallbacks, but cannot preserve the source glyph name through `mx::api` when a Finale articulation is only representable as an `other-*` MusicXML notation.
-
-Needed API shape: `MarkDataChoice` payloads with a SMuFL glyph-name field for `other-articulation`, `other-technical`, and `other-ornament`, and a corresponding public model for `other-notation` if MX intends to expose that notation category through `mx::api`.
+Finale technique text such as `pizz.`, `arco`, and `mute` carries playback meaning as well as visible text.
 
 Denigma keeps technique text as a words direction. Only the playback-style `arco`/`pizzicato` values are copied into `DirectionData::soundData.pizzicato`; the rest remain textual until `mx::api` grows richer playback or direction-technical modeling.
+
+Needed API shape: direction-level playback or technical modeling for the remaining technique vocabulary, so a recognized technique can carry its playback effect alongside its words.
+
+## Tuplets
 
 ### Nested tuplet time-modification
 
@@ -222,11 +212,3 @@ MusicXML uses `<time-modification>` on notes for the cumulative timing effect of
 `mx::api::NoteData` can store multiple `TupletStart` and `TupletStop` objects, and `mx::api::DurationData` has the single cumulative time-modification slot that MusicXML requires. However, `mx::impl::NoteWriter` currently searches sibling notes for exactly one tuplet start and exactly one tuplet stop while writing a note's `<time-modification>` normal-type data. Denigma can compute the cumulative ratio, but nested tuplets may still be unreliable through the current writer path.
 
 Needed API shape: writer support for nested tuplets, probably by matching `TupletStart` / `TupletStop` by `numberLevel` and allowing `DurationData` to express cumulative time modification independently of the visual tuplet-start search.
-
-### Unmeasured tremolos
-
-MusicXML represents unmeasured tremolos with `<tremolo type="unmeasured">0</tremolo>`, optionally using the `smufl` attribute to name a specific tremolo glyph.
-
-`mx::api` supports measured single- and multi-note tremolos, but does not expose the MusicXML `unmeasured` type or its optional SMuFL glyph. Denigma therefore cannot express Finale unmeasured tremolo glyphs through the public API. For now, Denigma emits a visible 3-slash single-note tremolo and logs the downgrade.
-
-Needed API shape: a tremolo payload in `MarkDataChoice` that exposes MusicXML tremolo type (`single`, `start`, `stop`, `unmeasured`), mark count, and optional SMuFL glyph for unmeasured tremolos.

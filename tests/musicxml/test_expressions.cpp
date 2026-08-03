@@ -235,6 +235,45 @@ std::vector<ComparableExpressionEnclosure> collectExpressionEnclosures(
     return result;
 }
 
+/// @brief One child of a MusicXML `<dynamics>` element: either a dynamic element named after the
+/// letters it draws, or an other-dynamics fallback carrying its letters and SMuFL glyph name.
+struct ComparableDynamicsComponent
+{
+    std::optional<mx::api::StandardDynamic> standard;
+    std::string text;
+    std::optional<std::string> smufl;
+
+    bool operator==(const ComparableDynamicsComponent&) const = default;
+};
+
+std::vector<std::vector<ComparableDynamicsComponent>> collectCompoundDynamics(const mx::api::ScoreData& score)
+{
+    std::vector<std::vector<ComparableDynamicsComponent>> result;
+    for (const auto& part : score.parts) {
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& direction : staff.directions) {
+                    for (const auto& mark : directionMarks(direction)) {
+                        if (mark.markType != mx::api::MarkType::compoundDynamics) {
+                            continue;
+                        }
+                        std::vector<ComparableDynamicsComponent> components;
+                        for (const auto& component : mark.choice.compoundDynamics().components) {
+                            if (component.isStandard()) {
+                                components.emplace_back(component.standard(), std::string{}, std::nullopt);
+                            } else {
+                                components.emplace_back(std::nullopt, component.other().text, component.other().smufl);
+                            }
+                        }
+                        result.emplace_back(std::move(components));
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
 } // namespace
 
 TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
@@ -911,6 +950,103 @@ TEST(MusicXmlExpressions, DynamicsKeepTheWordsAroundThem)
     }
 
     EXPECT_EQ(actual, expected);
+}
+
+TEST(MusicXmlExpressions, CompoundDynamicsSpellOutTheirComponents)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("dynamics_hairpins.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    // A marking outside MusicXML's dynamic vocabulary writes one <dynamics> element whose children
+    // spell it out, instead of being flattened into one text-valued <other-dynamics>.
+    const std::vector<std::vector<ComparableDynamicsComponent>> expected = {
+        { // "sffffz", drawn as the glyphs s, ffff, z
+            { std::nullopt, "s", "dynamicSforzando" },
+            { mx::api::StandardDynamic::ffff, "", std::nullopt },
+            { std::nullopt, "z", "dynamicZ" }
+        },
+        { // "ffz", drawn as the glyphs ff, z
+            { mx::api::StandardDynamic::ff, "", std::nullopt },
+            { std::nullopt, "z", "dynamicZ" }
+        },
+    };
+
+    EXPECT_EQ(collectCompoundDynamics(*actualScore), expected);
+}
+
+TEST(MusicXmlExpressions, CompoundDynamicsFollowTheSourceGlyphSequence)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("ffz.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    // The fixture spells "sfmp" twice, first with the composite dynamicSforzando1 ("sf") and
+    // dynamicMP ("mp") glyphs and then with four separate letters. Each spelling exports as
+    // itself: one component per source glyph, using a MusicXML dynamic element whenever the
+    // glyph's letters name one.
+    const std::vector<std::vector<ComparableDynamicsComponent>> expected = {
+        { // "sfmp" as two composite glyphs
+            { mx::api::StandardDynamic::sf, "", std::nullopt },
+            { mx::api::StandardDynamic::mp, "", std::nullopt }
+        },
+        { // "sfmp" as four letter glyphs; "s" and "m" have no element of their own
+            { std::nullopt, "s", "dynamicSforzando" },
+            { mx::api::StandardDynamic::f, "", std::nullopt },
+            { std::nullopt, "m", "dynamicMezzo" },
+            { mx::api::StandardDynamic::p, "", std::nullopt }
+        },
+        { // "ffz" as the glyphs ff, z
+            { mx::api::StandardDynamic::ff, "", std::nullopt },
+            { std::nullopt, "z", "dynamicZ" }
+        },
+    };
+
+    EXPECT_EQ(collectCompoundDynamics(*actualScore), expected);
+}
+
+TEST(MusicXmlExpressions, GlyphlessDynamicsFallBackToTheirLetters)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("ffz.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    // Bar 2, beat 3 spells "sfmp" as plain ASCII in a text font, so it resolves to no SMuFL
+    // glyphs and there is no glyph sequence to follow. A marking is a dynamic because of how it
+    // is spelled rather than because of its font, so it still exports as a dynamic, falling back
+    // to its letters with no glyph name. Finale's own export demotes this marking to
+    // <words font-family="Times New Roman">sfmp</words>.
+    const auto& measures = actualScore->parts.front().measures;
+    ASSERT_GE(measures.size(), 2u);
+
+    std::vector<std::tuple<mx::api::MarkType, std::string, std::optional<std::string>>> marks;
+    size_t wordsCount = 0;
+    for (const auto& staff : measures.at(1).staves) {
+        for (const auto& direction : staff.directions) {
+            for (const auto& mark : directionMarks(direction)) {
+                marks.emplace_back(mark.markType, mark.name, mark.choice.otherMark().smufl);
+            }
+            wordsCount += directionWords(direction).size();
+        }
+    }
+
+    const std::vector<std::tuple<mx::api::MarkType, std::string, std::optional<std::string>>> expected = {
+        // "ffz", drawn as the glyphs ff and z, keeps its glyph sequence.
+        { mx::api::MarkType::compoundDynamics, "", std::nullopt },
+        // "sfmp", typed as ASCII letters, carries its letters and no glyph name.
+        { mx::api::MarkType::otherDynamics, "sfmp", std::nullopt }
+    };
+    EXPECT_EQ(marks, expected);
+    EXPECT_EQ(wordsCount, 0u);
 }
 
 } // namespace denigma::test::musicxml
