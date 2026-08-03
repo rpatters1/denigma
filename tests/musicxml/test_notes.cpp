@@ -834,6 +834,54 @@ std::vector<std::pair<mx::api::Step, int>> positionedRestDisplayPitches(const mx
     return result;
 }
 
+// One note of an artificial-harmonic chord, with the <harmonic> detail Denigma should attach to it.
+struct ExpectedHarmonicNote
+{
+    mx::api::Step step;
+    int alter;
+    int octave;
+    mx::api::Notehead notehead;
+    mx::api::Bool noteheadFilled;
+    mx::api::HarmonicPitch harmonicPitch;
+};
+
+// Checks the first measure's pitched notes against expectedNotes, requiring each to carry exactly one
+// artificial <harmonic> mark naming the pitch that note's own notehead states. Rests are skipped, so
+// expectedNotes lists only the harmonic chords' notes even when rests separate the chords.
+void expectArtificialHarmonicNotes(const mx::api::ScoreData& score, const std::vector<ExpectedHarmonicNote>& expectedNotes)
+{
+    ASSERT_FALSE(score.parts.empty());
+    ASSERT_FALSE(score.parts.front().measures.empty());
+    const auto& measure = score.parts.front().measures.front();
+    ASSERT_FALSE(measure.staves.empty());
+    ASSERT_FALSE(measure.staves.front().voices.empty());
+
+    std::vector<const mx::api::NoteData*> pitchedNotes;
+    for (const auto& note : measure.staves.front().voices.begin()->second.notes) {
+        if (!note.isRest) {
+            pitchedNotes.push_back(&note);
+        }
+    }
+
+    ASSERT_EQ(pitchedNotes.size(), expectedNotes.size());
+    for (size_t noteIndex = 0; noteIndex < expectedNotes.size(); ++noteIndex) {
+        const auto& expected = expectedNotes[noteIndex];
+        const auto& note = *pitchedNotes[noteIndex];
+        EXPECT_EQ(note.pitchData.step, expected.step) << "note " << noteIndex;
+        EXPECT_EQ(note.pitchData.alter, expected.alter) << "note " << noteIndex;
+        EXPECT_EQ(note.pitchData.octave, expected.octave) << "note " << noteIndex;
+        EXPECT_EQ(note.notehead, expected.notehead) << "note " << noteIndex;
+        EXPECT_EQ(note.noteheadFilled, expected.noteheadFilled) << "note " << noteIndex;
+        const auto& marks = note.noteAttachmentData.marks;
+        const auto isHarmonicMark = [](const auto& mark) { return mark.markType == mx::api::MarkType::harmonic; };
+        ASSERT_EQ(std::count_if(marks.begin(), marks.end(), isHarmonicMark), 1) << "note " << noteIndex;
+        const auto harmonicMark = std::find_if(marks.begin(), marks.end(), isHarmonicMark);
+        ASSERT_TRUE(harmonicMark->choice.isHarmonic()) << "note " << noteIndex;
+        const auto expectedHarmonic = mx::api::HarmonicMarkData{ mx::api::HarmonicKind::artificial, expected.harmonicPitch };
+        EXPECT_EQ(harmonicMark->choice.harmonic(), expectedHarmonic) << "note " << noteIndex;
+    }
+}
+
 } // namespace
 
 TEST(MusicXmlNotes, ChangingTimeSignaturesNotesMatchFinale)
@@ -892,50 +940,54 @@ TEST(MusicXmlNotes, ArtificialHarmonicsExportSmoke)
     // semantic enrichment beyond what Finale itself exports.
     // The touched notes are hollow diamonds on quarter notes, so they must override MusicXML's
     // duration-based fill default. Finale's reference export writes the same filled="no".
-    struct ExpectedNote
-    {
-        mx::api::Step step;
-        int alter;
-        int octave;
-        mx::api::Notehead notehead;
-        mx::api::Bool noteheadFilled;
-        mx::api::HarmonicPitch harmonicPitch;
-    };
     using mx::api::Bool;
     using mx::api::HarmonicPitch;
-    const std::vector<ExpectedNote> expectedNotes = {
-        { mx::api::Step::e, -1, 3, mx::api::Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },      // stopped (major third touch)
-        { mx::api::Step::g, 0, 3, mx::api::Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
-        { mx::api::Step::b, 0, 3, mx::api::Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },       // stopped (fourth touch)
-        { mx::api::Step::e, 0, 4, mx::api::Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
-        { mx::api::Step::f, 0, 3, mx::api::Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },       // stopped (fifth touch)
-        { mx::api::Step::c, 0, 4, mx::api::Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
+    using mx::api::Notehead;
+    using mx::api::Step;
+    const std::vector<ExpectedHarmonicNote> expectedNotes = {
+        { Step::e, -1, 3, Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },      // stopped (major third touch)
+        { Step::g, 0, 3, Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
+        { Step::b, 0, 3, Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },       // stopped (fourth touch)
+        { Step::e, 0, 4, Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
+        { Step::f, 0, 3, Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },       // stopped (fifth touch)
+        { Step::c, 0, 4, Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
     };
 
-    ASSERT_FALSE(actualScore->parts.empty());
-    ASSERT_FALSE(actualScore->parts.front().measures.empty());
-    const auto& measure = actualScore->parts.front().measures.front();
-    ASSERT_FALSE(measure.staves.empty());
-    ASSERT_FALSE(measure.staves.front().voices.empty());
-    const auto& notes = measure.staves.front().voices.begin()->second.notes;
+    expectArtificialHarmonicNotes(*actualScore, expectedNotes);
+}
 
-    ASSERT_GE(notes.size(), expectedNotes.size());
-    for (size_t noteIndex = 0; noteIndex < expectedNotes.size(); ++noteIndex) {
-        const auto& expected = expectedNotes[noteIndex];
-        const auto& note = notes[noteIndex];
-        EXPECT_EQ(note.pitchData.step, expected.step) << "note " << noteIndex;
-        EXPECT_EQ(note.pitchData.alter, expected.alter) << "note " << noteIndex;
-        EXPECT_EQ(note.pitchData.octave, expected.octave) << "note " << noteIndex;
-        EXPECT_EQ(note.notehead, expected.notehead) << "note " << noteIndex;
-        EXPECT_EQ(note.noteheadFilled, expected.noteheadFilled) << "note " << noteIndex;
-        const auto& marks = note.noteAttachmentData.marks;
-        const auto isHarmonicMark = [](const auto& mark) { return mark.markType == mx::api::MarkType::harmonic; };
-        ASSERT_EQ(std::count_if(marks.begin(), marks.end(), isHarmonicMark), 1) << "note " << noteIndex;
-        const auto harmonicMark = std::find_if(marks.begin(), marks.end(), isHarmonicMark);
-        ASSERT_TRUE(harmonicMark->choice.isHarmonic()) << "note " << noteIndex;
-        const auto expectedHarmonic = mx::api::HarmonicMarkData{ mx::api::HarmonicKind::artificial, expected.harmonicPitch };
-        EXPECT_EQ(harmonicMark->choice.harmonic(), expectedHarmonic) << "note " << noteIndex;
-    }
+TEST(MusicXmlNotes, ArtificialHarmonicsWithWrittenSoundingPitch)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("harmonics_sounding.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/harmonics_sounding-ref.musicxml");
+    ASSERT_TRUE(expectedScore);
+
+    // Notated pitches, durations, and chord structure should match Finale's own reference export exactly.
+    compareNoteEvents(*actualScore, *expectedScore);
+
+    // Both chords write the theoretical sounding pitch as an explicit third note, so all three notes
+    // carry a mark: G4 stopped under a C5 diamond sounds G6 (fourth touch, two octaves up), and G4
+    // stopped under a D5 diamond sounds D6 (fifth touch, an octave and a fifth up). Finale writes the
+    // sounding note cue-sized; Denigma cannot yet express that (see the symbol-size entry in
+    // mx-api-gaps.md), which is why only its pitch and harmonic detail are asserted here.
+    using mx::api::Bool;
+    using mx::api::HarmonicPitch;
+    using mx::api::Notehead;
+    using mx::api::Step;
+    const std::vector<ExpectedHarmonicNote> expectedNotes = {
+        { Step::g, 0, 4, Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },       // stopped (fourth touch)
+        { Step::c, 0, 5, Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
+        { Step::g, 0, 6, Notehead::normal, Bool::unspecified, HarmonicPitch::soundingPitch },   // written sounding pitch
+        { Step::g, 0, 4, Notehead::normal, Bool::unspecified, HarmonicPitch::basePitch },       // stopped (fifth touch)
+        { Step::d, 0, 5, Notehead::diamond, Bool::no, HarmonicPitch::touchingPitch },           // touched
+        { Step::d, 0, 6, Notehead::normal, Bool::unspecified, HarmonicPitch::soundingPitch },   // written sounding pitch
+    };
+
+    expectArtificialHarmonicNotes(*actualScore, expectedNotes);
 }
 
 TEST(MusicXmlNotes, LargeOrchestraTiesMatchFinale)

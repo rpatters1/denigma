@@ -23,6 +23,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -39,13 +40,42 @@ using namespace musx::dom;
 
 namespace {
 
-DocumentPtr loadHarmonicsFixture()
+DocumentPtr loadFixture(const std::string& fileName)
 {
-    const auto inputPath = getInputPath() / "harmonics_artificial.musx";
+    const auto inputPath = getInputPath() / fileName;
     denigma::DenigmaContext denigmaContext(DENIGMA_NAME);
     denigmaContext.inputFilePath = inputPath;
     const auto inputData = denigma::formats::enigmaxml::detail::extractMusxInputData(inputPath, denigmaContext);
     return denigma::createMusxDocument<denigma::MusxReader>(inputData, denigmaContext);
+}
+
+// Collects every artificial-harmonic pair the classifier finds, in score order.
+std::vector<entry::ArtificialHarmonic> classifyFixtureHarmonics(const DocumentPtr& document)
+{
+    std::vector<entry::ArtificialHarmonic> result;
+    document->iterateEntries(SCORE_PARTID, [&](const EntryInfoPtr& entryInfo) -> bool {
+        const auto classification = classifyEntryNoteheads(entryInfo);
+        if (const auto* harmonics = classification.as<entry::ArtificialHarmonics>()) {
+            result.insert(result.end(), harmonics->harmonics.begin(), harmonics->harmonics.end());
+        }
+        return true;
+    });
+    return result;
+}
+
+struct ExpectedPitch
+{
+    music_theory::NoteName noteName;
+    int octave;
+    int alteration;
+};
+
+void expectPitch(const NoteInfoPtr& note, const ExpectedPitch& expected, size_t index)
+{
+    const auto properties = note.calcNoteProperties();
+    EXPECT_EQ(std::get<0>(properties), expected.noteName) << "harmonic " << index;
+    EXPECT_EQ(std::get<1>(properties), expected.octave) << "harmonic " << index;
+    EXPECT_EQ(std::get<2>(properties), expected.alteration) << "harmonic " << index;
 }
 
 } // namespace
@@ -62,34 +92,19 @@ TEST(EntryNoteheadClassification, ReturnsUnrecognizedForInvalidEntry)
 }
 
 // The fixture's three chords cover every touch interval the classifier recognizes: Eb3 under a G3
-// diamond (major third), B3 under an E4 diamond (fourth), and F3 under a C4 diamond (fifth).
-// No fixture writes the theoretical sounding pitch as an explicit third note, so
-// ArtificialHarmonic::soundingNote is covered here only on its negative path. Exercising it positively
-// needs a new Finale-authored fixture containing such a chord.
+// diamond (major third), B3 under an E4 diamond (fourth), and F3 under a C4 diamond (fifth). None of
+// them writes the theoretical sounding pitch, so soundingNote is checked here on its negative path.
+// ClassifiesWrittenSoundingPitch covers the positive path.
 TEST(EntryNoteheadClassification, ClassifiesArtificialHarmonicChords)
 {
     setupTestDataPaths();
 
-    const auto document = loadHarmonicsFixture();
+    const auto document = loadFixture("harmonics_artificial.musx");
     ASSERT_TRUE(document);
-
-    std::vector<entry::ArtificialHarmonic> found;
-    document->iterateEntries(SCORE_PARTID, [&](const EntryInfoPtr& entryInfo) -> bool {
-        const auto classification = classifyEntryNoteheads(entryInfo);
-        if (const auto* harmonics = classification.as<entry::ArtificialHarmonics>()) {
-            found.insert(found.end(), harmonics->harmonics.begin(), harmonics->harmonics.end());
-        }
-        return true;
-    });
+    const auto found = classifyFixtureHarmonics(document);
 
     using TouchInterval = entry::ArtificialHarmonic::TouchInterval;
     using NoteName = music_theory::NoteName;
-    struct ExpectedPitch
-    {
-        NoteName noteName;
-        int octave;
-        int alteration;
-    };
     struct ExpectedHarmonic
     {
         TouchInterval interval;
@@ -102,13 +117,6 @@ TEST(EntryNoteheadClassification, ClassifiesArtificialHarmonicChords)
         { TouchInterval::Fifth,      { NoteName::F, 3, 0 },  { NoteName::C, 4, 0 } },
     };
 
-    const auto expectPitch = [](const NoteInfoPtr& note, const ExpectedPitch& expected, size_t index) {
-        const auto properties = note.calcNoteProperties();
-        EXPECT_EQ(std::get<0>(properties), expected.noteName) << "harmonic " << index;
-        EXPECT_EQ(std::get<1>(properties), expected.octave) << "harmonic " << index;
-        EXPECT_EQ(std::get<2>(properties), expected.alteration) << "harmonic " << index;
-    };
-
     ASSERT_EQ(found.size(), expectedHarmonics.size());
     for (size_t index = 0; index < expectedHarmonics.size(); ++index) {
         const auto& harmonic = found[index];
@@ -119,5 +127,45 @@ TEST(EntryNoteheadClassification, ClassifiesArtificialHarmonicChords)
         EXPECT_FALSE(harmonic.soundingNote) << "harmonic " << index;
         expectPitch(harmonic.stoppedNote, expected.stopped, index);
         expectPitch(harmonic.touchedNote, expected.touched, index);
+    }
+}
+
+// Both chords in this fixture write the theoretical sounding pitch as an explicit third note, which the
+// classifier should bind to soundingNote rather than mistake for another stopped or touched note.
+// Touching a fourth above excites the 4th partial, two octaves above the stopped note (G4 -> G6);
+// touching a fifth above excites the 3rd partial, an octave and a fifth above it (G4 -> D6).
+TEST(EntryNoteheadClassification, ClassifiesWrittenSoundingPitch)
+{
+    setupTestDataPaths();
+
+    const auto document = loadFixture("harmonics_sounding.musx");
+    ASSERT_TRUE(document);
+    const auto found = classifyFixtureHarmonics(document);
+
+    using TouchInterval = entry::ArtificialHarmonic::TouchInterval;
+    using NoteName = music_theory::NoteName;
+    struct ExpectedHarmonic
+    {
+        TouchInterval interval;
+        ExpectedPitch stopped;
+        ExpectedPitch touched;
+        ExpectedPitch sounding;
+    };
+    const std::vector<ExpectedHarmonic> expectedHarmonics = {
+        { TouchInterval::Fourth, { NoteName::G, 4, 0 }, { NoteName::C, 5, 0 }, { NoteName::G, 6, 0 } },
+        { TouchInterval::Fifth,  { NoteName::G, 4, 0 }, { NoteName::D, 5, 0 }, { NoteName::D, 6, 0 } },
+    };
+
+    ASSERT_EQ(found.size(), expectedHarmonics.size());
+    for (size_t index = 0; index < expectedHarmonics.size(); ++index) {
+        const auto& harmonic = found[index];
+        const auto& expected = expectedHarmonics[index];
+        EXPECT_EQ(harmonic.interval, expected.interval) << "harmonic " << index;
+        EXPECT_EQ(harmonic.stoppedNotehead.shape, notehead::Shape::Regular) << "harmonic " << index;
+        EXPECT_EQ(harmonic.touchedNotehead.shape, notehead::Shape::Diamond) << "harmonic " << index;
+        expectPitch(harmonic.stoppedNote, expected.stopped, index);
+        expectPitch(harmonic.touchedNote, expected.touched, index);
+        ASSERT_TRUE(harmonic.soundingNote) << "harmonic " << index;
+        expectPitch(harmonic.soundingNote, expected.sounding, index);
     }
 }
