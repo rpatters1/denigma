@@ -318,6 +318,27 @@ TEST(ArticulationClassification, ClassifiesTremoloMarks)
     EXPECT_EQ(tremolo->marks, 3);
 }
 
+TEST(ArticulationClassification, ClassifiesUnmeasuredTremoloGlyphs)
+{
+    const auto fontContext = makeFontContext("Finale Maestro");
+    const auto expectUnmeasuredTremolo = [&](char32_t symbol, const std::string& expectedGlyphName) {
+        const auto classification = classifyArticulationSymbol(fontContext.fontInfo, symbol);
+        const auto* tremolo = classification.as<articulation::Tremolo>();
+        ASSERT_NE(tremolo, nullptr);
+        EXPECT_EQ(tremolo->style, articulation::Tremolo::Style::Unmeasured);
+        EXPECT_EQ(tremolo->marks, 0);
+        ASSERT_TRUE(classification.glyphName);
+        EXPECT_EQ(classification.glyphName.value(), expectedGlyphName);
+    };
+
+    expectUnmeasuredTremolo(0xE213, "stemPendereckiTremolo");
+    expectUnmeasuredTremolo(0xE22A, "buzzRoll");
+    expectUnmeasuredTremolo(0xE22B, "pendereckiTremolo");
+    expectUnmeasuredTremolo(0xE22C, "unmeasuredTremolo");
+    expectUnmeasuredTremolo(0xE22D, "unmeasuredTremoloSimple");
+    expectUnmeasuredTremolo(0xE232, "stockhausenTremolo");
+}
+
 TEST(ArticulationClassification, ClassifiesAsciiParenthesesInNonSymbolFont)
 {
     // A non-symbol charsetVal (SYMBOL_CHARSET_MAC is 4095) means literal ASCII characters, not glyph indices.

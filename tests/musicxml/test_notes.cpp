@@ -1279,3 +1279,78 @@ TEST(MusicXmlNotes, TwoNoteTremolosMatchFinaleReference)
 
     EXPECT_EQ(createComparableTremoloEvents(*actualScore), createComparableTremoloEvents(*referenceScore));
 }
+
+TEST(MusicXmlNotes, UnmeasuredTremolosCarryTheirSmuflGlyph)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("tremolo_unmeasured.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+
+    std::vector<std::pair<mx::api::MarkType, std::optional<std::string>>> tremolos;
+    for (const auto& part : actualScore->parts) {
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    (void)voiceIndex;
+                    for (const auto& note : voice.notes) {
+                        for (const auto& mark : note.noteAttachmentData.marks) {
+                            if (!mx::api::isMarkTremolo(mark.markType)) {
+                                continue;
+                            }
+                            tremolos.emplace_back(mark.markType,
+                                mark.choice.isTremolo() ? mark.choice.tremolo().smufl : std::nullopt);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // The measured control keeps its slash count in the mark type and carries no glyph name. The
+    // custom-stem measures contribute nothing: see the stem entry in roadmap.md.
+    EXPECT_EQ(tremolos, (std::vector<std::pair<mx::api::MarkType, std::optional<std::string>>>{
+                            { mx::api::MarkType::tremoloUnmeasured, "buzzRoll" },
+                            { mx::api::MarkType::tremoloUnmeasured, "pendereckiTremolo" },
+                            { mx::api::MarkType::tremoloUnmeasured, "stemPendereckiTremolo" },
+                            { mx::api::MarkType::tremoloUnmeasured, "unmeasuredTremolo" },
+                            { mx::api::MarkType::tremoloUnmeasured, "unmeasuredTremoloSimple" },
+                            { mx::api::MarkType::tremoloUnmeasured, "stockhausenTremolo" },
+                            { mx::api::MarkType::tremoloSingleThree, std::nullopt } }));
+}
+
+TEST(MusicXmlNotes, HiddenCustomStemsExportAsStemNone)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("tremolo_unmeasured.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+
+    std::vector<mx::api::Stem> halfNoteStems;
+    for (const auto& part : actualScore->parts) {
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    (void)voiceIndex;
+                    for (const auto& note : voice.notes) {
+                        // The half notes are the custom-stem cases; the quarter notes carry the tremolos.
+                        if (!note.isRest && note.durationData.durationName == mx::api::DurationName::half) {
+                            halfNoteStems.emplace_back(note.stem);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Both hidden-stem spellings report as hidden through CustomStem::calcIsHiddenStem: an assigned
+    // empty shape, and the zero shape id that plugins write. The shape-replaced stem keeps its
+    // ordinary direction, which is unspecified here because nothing forces it. Finale's own export
+    // in musicxml/tremolo_unmeasured-ref.musicxml agrees on all three.
+    EXPECT_EQ(halfNoteStems, (std::vector<mx::api::Stem>{
+                                 mx::api::Stem::unspecified,
+                                 mx::api::Stem::none,
+                                 mx::api::Stem::none }));
+}

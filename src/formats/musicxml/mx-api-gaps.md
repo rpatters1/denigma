@@ -203,7 +203,7 @@ Denigma keeps technique text as a words direction. Only the playback-style `arco
 
 Needed API shape: direction-level playback or technical modeling for the remaining technique vocabulary, so a recognized technique can carry its playback effect alongside its words.
 
-## Tuplets and Tremolos
+## Tuplets
 
 ### Nested tuplet time-modification
 
@@ -212,11 +212,3 @@ MusicXML uses `<time-modification>` on notes for the cumulative timing effect of
 `mx::api::NoteData` can store multiple `TupletStart` and `TupletStop` objects, and `mx::api::DurationData` has the single cumulative time-modification slot that MusicXML requires. However, `mx::impl::NoteWriter` currently searches sibling notes for exactly one tuplet start and exactly one tuplet stop while writing a note's `<time-modification>` normal-type data. Denigma can compute the cumulative ratio, but nested tuplets may still be unreliable through the current writer path.
 
 Needed API shape: writer support for nested tuplets, probably by matching `TupletStart` / `TupletStop` by `numberLevel` and allowing `DurationData` to express cumulative time modification independently of the visual tuplet-start search.
-
-### Unmeasured tremolos
-
-MusicXML represents unmeasured tremolos with `<tremolo type="unmeasured">0</tremolo>`, optionally using the `smufl` attribute to name a specific tremolo glyph.
-
-`mx::api` supports measured single- and multi-note tremolos, but does not expose the MusicXML `unmeasured` type or its optional SMuFL glyph. Denigma therefore cannot express Finale unmeasured tremolo glyphs through the public API. For now, Denigma emits a visible 3-slash single-note tremolo and logs the downgrade.
-
-Needed API shape: a tremolo payload in `MarkDataChoice` that exposes MusicXML tremolo type (`single`, `start`, `stop`, `unmeasured`), mark count, and optional SMuFL glyph for unmeasured tremolos.

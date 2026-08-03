@@ -249,18 +249,20 @@ void processArticulations(
             } else if constexpr (std::is_same_v<Value, classify::articulation::Ornament>) {
                 appendOrnament(note, value, classification.placement);
             } else if constexpr (std::is_same_v<Value, classify::articulation::Tremolo>) {
-                constexpr int fallbackUnmeasuredTremoloMarks = 3;
-                int marks = value.marks;
                 if (value.style == classify::articulation::Tremolo::Style::Unmeasured) {
-                    context.logMessage(LogMsg() << "Unmeasured tremolo at entry " << entry->getEntryNumber()
-                        << " cannot be exported through mx::api yet. Emitting a 3-slash single-note tremolo.", MessageSeverity::Info);
-                    marks = fallbackUnmeasuredTremoloMarks;
-                } else {
-                    marks = std::clamp(marks, MIN_SUPPORTED_TREMOLO_MARKS, MAX_SUPPORTED_TREMOLO_MARKS);
-                    if (marks != value.marks) {
-                        context.logMessage(LogMsg() << "Measured single-note tremolo at entry " << entry->getEntryNumber()
-                        << " has " << value.marks << " marks. Clamping to mx::api's supported 1..5 range.", MessageSeverity::Info);
+                    auto markData = musicXmlMark(mx::api::MarkType::tremoloUnmeasured, classification.placement);
+                    if (classification.glyphName && !classification.glyphName->empty()) {
+                        // The recognized glyph is the only thing that distinguishes a buzz roll from a
+                        // Penderecki, Wieniawski, or Stockhausen tremolo, all of which write the same element.
+                        markData.choice = mx::api::TremoloMarkData{ .smufl = classification.glyphName };
                     }
+                    note.noteAttachmentData.marks.emplace_back(std::move(markData));
+                    return;
+                }
+                const int marks = std::clamp(value.marks, MIN_SUPPORTED_TREMOLO_MARKS, MAX_SUPPORTED_TREMOLO_MARKS);
+                if (marks != value.marks) {
+                    context.logMessage(LogMsg() << "Measured single-note tremolo at entry " << entry->getEntryNumber()
+                        << " has " << value.marks << " marks. Clamping to mx::api's supported 1..5 range.", MessageSeverity::Info);
                 }
                 note.noteAttachmentData.marks.emplace_back(musicXmlMark(musicXmlTremoloType(marks), classification.placement));
             }
