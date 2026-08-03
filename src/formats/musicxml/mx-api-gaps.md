@@ -72,16 +72,6 @@ MusicXML represents trill extensions and vibrato lines as `<ornaments><wavy-line
 
 Needed API shape: wavy-line start/stop data on `MarkData` (or a dedicated paired-spanner model for note-attached wavy lines).
 
-## Notes
-
-### Artificial-harmonic technical detail
-
-MusicXML's `<technical><harmonic>` element can specify `natural` or `artificial`, plus which pitch is displayed (`base-pitch`, `touching-pitch`, or `sounding-pitch`), in addition to the plain notehead shape used to notate the stopped and touched notes.
-
-`mx::api::MarkData` supports `MarkType::harmonic`, but `NotationsWriter` only ever constructs a bare `core::Harmonic` with position data; it never calls `setChoice`/`setChoice2`, even though `core::Harmonic` (the raw schema layer) fully supports both. Denigma's entry-level classifier (`classify::classifyEntryNoteheads`) identifies artificial-harmonic note pairs, including the touch interval (fourth, major third, or fifth) and an optional third note at the theoretical sounding pitch when the source explicitly includes one, but none of that detail can be attached to the `<harmonic>` mark through the public API -- only an empty, undecorated `<harmonic/>` can be written.
-
-Needed API shape: a harmonic payload in `MarkDataChoice` with natural/artificial and base-pitch/touching-pitch/sounding-pitch fields, written through to `core::Harmonic::setChoice`/`setChoice2`.
-
 ## Measures
 
 ### Multimeasure-rest attributes
