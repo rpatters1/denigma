@@ -211,8 +211,8 @@ void createLayouts(const MnxMusxMappingPtr& context)
         // page layout. createScores omits this part's pages to match.
         const bool layoutIsCalculated = linkedPart->isLayoutCalculated();
         if (!layoutIsCalculated) {
-            context->denigmaContext->logMessage(LogMsg() << "Part " << linkedPart->getCmper()
-                << " has an uncalculated page layout; omitting its per-system layouts and pages.");
+            context->denigmaContext->logMessage(LogMsg() << "Part \"" << calcLinkedPartDisplayName(linkedPart)
+                << "\" has an uncalculated page layout; omitting its per-system layouts and pages.");
         }
         const SystemCmper maxSystem = layoutIsCalculated ? SystemCmper(staffSystems.size()) : BASE_SYSTEM_ID;
         for (SystemCmper sysId = minSystem; sysId <= maxSystem; sysId++) { //NOTE: unusual loop limits are *on purpose*

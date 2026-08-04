@@ -95,6 +95,8 @@ std::string partOutputName(const DenigmaContext& denigmaContext, const MusxInsta
     if (!part) {
         return {};
     }
+    // This builds a filename component, so it deliberately differs from calcLinkedPartDisplayName:
+    // no separating space, and ASCII accidentals.
     auto partName = part->getName(); // Unicode-encoded partname can contain non-ASCII characters
     if (partName.empty()) {
         partName = "Part" + std::to_string(part->getCmper());

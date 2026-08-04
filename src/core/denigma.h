@@ -402,6 +402,15 @@ musx::dom::MusxInstance<T> getDocOptions(const musx::dom::DocumentPtr& document,
     return retval;
 }
 
+/// @brief Returns a human-readable name for a linked part, for score names and diagnostics.
+/// @details Finale allows a part to have no name at all, so fall back to identifying it by cmper.
+/// @note This is for display. #formats::musicxml::detail::partOutputName builds filename components
+/// and deliberately differs: it omits the separating space and uses ASCII accidentals.
+/// @note Defined in denigma.cpp rather than inline, because this header is included nearly everywhere.
+std::string calcLinkedPartDisplayName(
+    const musx::dom::MusxInstance<musx::dom::others::PartDefinition>& linkedPart,
+    musx::util::EnigmaString::AccidentalStyle accidentalStyle = musx::util::EnigmaString::AccidentalStyle::Unicode);
+
 } // namespace denigma
 
 #define ASSERT_IF(TEST) \
