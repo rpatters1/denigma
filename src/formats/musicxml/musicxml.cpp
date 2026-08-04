@@ -90,21 +90,6 @@ mx::api::ScoreData createMusicXmlDocumentFromDocument(
     return *context.musicXmlScore;
 }
 
-std::string partOutputName(const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part)
-{
-    if (!part) {
-        return {};
-    }
-    // This builds a filename component, so it deliberately differs from calcLinkedPartDisplayName:
-    // no separating space, and ASCII accidentals.
-    auto partName = part->getName(); // Unicode-encoded partname can contain non-ASCII characters
-    if (partName.empty()) {
-        partName = "Part" + std::to_string(part->getCmper());
-        denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension");
-    }
-    return partName;
-}
-
 void writeMusicXmlToCallback(
     const mx::api::ScoreData& score,
     const std::string& suggestedName,
@@ -150,7 +135,8 @@ void convert(
 
     if (denigmaContext.allPartsAndScore || !denigmaContext.partName.has_value()) {
         const auto score = createMusicXmlDocumentFromDocument(document, denigmaContext, nullptr);
-        writeMusicXmlToCallback(score, partOutputName(denigmaContext, nullptr), outputCallback);
+        // The score file takes the document's own name, with no part suffix.
+        writeMusicXmlToCallback(score, std::string{}, outputCallback);
     }
     bool foundPart = false;
     if (denigmaContext.allPartsAndScore || denigmaContext.partName.has_value()) {
@@ -159,10 +145,10 @@ void convert(
             if (part->getCmper() != SCORE_PARTID) {
                 if (denigmaContext.allPartsAndScore) {
                     const auto partScore = createMusicXmlDocumentFromDocument(document, denigmaContext, part);
-                    writeMusicXmlToCallback(partScore, partOutputName(denigmaContext, part), outputCallback);
+                    writeMusicXmlToCallback(partScore, calcLinkedPartDisplayName(part), outputCallback);
                 } else if (denigmaContext.partName->empty() || part->getName().rfind(denigmaContext.partName.value(), 0) == 0) {
                     const auto partScore = createMusicXmlDocumentFromDocument(document, denigmaContext, part);
-                    writeMusicXmlToCallback(partScore, partOutputName(denigmaContext, part), outputCallback);
+                    writeMusicXmlToCallback(partScore, calcLinkedPartDisplayName(part), outputCallback);
                     foundPart = true;
                     break;
                 }

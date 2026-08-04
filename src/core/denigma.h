@@ -402,14 +402,16 @@ musx::dom::MusxInstance<T> getDocOptions(const musx::dom::DocumentPtr& document,
     return retval;
 }
 
-/// @brief Returns a human-readable name for a linked part, for score names and diagnostics.
-/// @details Finale allows a part to have no name at all, so fall back to identifying it by cmper.
-/// @note This is for display. #formats::musicxml::detail::partOutputName builds filename components
-/// and deliberately differs: it omits the separating space and uses ASCII accidentals.
+/// @brief Returns a human-readable name for a linked part.
+/// @details The single source of naming for linked parts: MNX and MusicXML score names, the part
+/// suffix on exported filenames, and diagnostics all resolve through here. Finale allows a part to
+/// have no name at all, so fall back to identifying it by cmper.
+/// @note A null instance yields an empty string rather than "Score", so callers exporting the score
+/// itself pass null and get an unsuffixed filename.
+/// @note Accidentals are rendered ASCII, as everywhere else in Denigma's output. There is
+/// deliberately no way to ask for Unicode accidentals here.
 /// @note Defined in denigma.cpp rather than inline, because this header is included nearly everywhere.
-std::string calcLinkedPartDisplayName(
-    const musx::dom::MusxInstance<musx::dom::others::PartDefinition>& linkedPart,
-    musx::util::EnigmaString::AccidentalStyle accidentalStyle = musx::util::EnigmaString::AccidentalStyle::Unicode);
+std::string calcLinkedPartDisplayName(const musx::dom::MusxInstance<musx::dom::others::PartDefinition>& linkedPart);
 
 } // namespace denigma
 

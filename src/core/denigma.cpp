@@ -259,14 +259,13 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
     return args;
 }
 
-std::string calcLinkedPartDisplayName(
-    const musx::dom::MusxInstance<musx::dom::others::PartDefinition>& linkedPart,
-    musx::util::EnigmaString::AccidentalStyle accidentalStyle)
+std::string calcLinkedPartDisplayName(const musx::dom::MusxInstance<musx::dom::others::PartDefinition>& linkedPart)
 {
     if (!linkedPart) {
         return {};
     }
-    auto name = linkedPart->getName(accidentalStyle);
+    // getName defaults to ASCII accidentals, which is what all Denigma output uses.
+    auto name = linkedPart->getName();
     if (!name.empty()) {
         return name;
     }
