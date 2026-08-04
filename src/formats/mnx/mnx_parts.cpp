@@ -169,7 +169,7 @@ static std::optional<ClefIndex> createClef(
         return clefIndex;
     } else {
         context->logMessage(LogMsg() << "Clef char " << int(musxClef->clefChar) << " has no clef info. " << " (glyph name is " << clef.glyphName.value_or("") << ")"
-            << " Clef change was skipped.", MessageSeverity::Warning);
+            << " Clef change was skipped.", MessageSeverity::Verbose);
     }
     return std::nullopt;
 };
@@ -304,7 +304,7 @@ static int calcPartRepeatSpan(const MnxMusxMappingPtr& context, mnxdom::Part& pa
         if (partSpan && partSpan.value() != staffSpan) {
             context->logMessage(LogMsg() << mnxPartDisplayName(context, part) << " has a measure repeat in measure "
                 << musxMeasure->getCmper() << " that does not apply to every staff of the part;"
-                " MNX has no per-staff measure repeat, so it is not exported.", MessageSeverity::Warning);
+                " MNX has no per-staff measure repeat, so it is not exported.", MessageSeverity::Verbose);
             return 0;
         }
         partSpan = staffSpan;

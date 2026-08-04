@@ -84,7 +84,7 @@ void MnxMusxMapping::logDiscardedCueLayerFrame(LayerIndex layer)
     discardedCueFrames++;
     logMessage(LogMsg() << "discarded cue material detected by --cue-layer in measure "
         << current.meas << ", staff " << current.staff << ", layer " << (layer + 1)
-        << "; MNX does not currently support cues.");
+        << "; MNX does not currently support cues.", MessageSeverity::Verbose);
 }
 
 void MnxMusxMapping::logDiscardedHeuristicCueStaffMeasure()
@@ -92,7 +92,7 @@ void MnxMusxMapping::logDiscardedHeuristicCueStaffMeasure()
     discardedCueFrames++;
     logMessage(LogMsg() << "discarded cue material detected heuristically in measure "
         << current.meas << ", staff " << current.staff
-        << "; MNX does not currently support cues.");
+        << "; MNX does not currently support cues.", MessageSeverity::Verbose);
 }
 
 void MnxMusxMapping::setCurrentMeasureStaff(const MusxInstance<others::Measure>& musxMeasure, StaffCmper staffCmper)
@@ -264,7 +264,7 @@ static std::unique_ptr<mnxdom::Document> createMnxDocument(const CommandInputDat
     }
     if (context->discardedCueFrames > 0) {
         denigmaContext.logMessage(LogMsg() << "discarded " << context->discardedCueFrames
-            << " cue frames because MNX does not currently support cues.");
+            << " cue frames because MNX does not currently support cues.", MessageSeverity::Verbose);
     }
 
     return std::move(context->mnxDocument);

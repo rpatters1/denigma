@@ -307,7 +307,7 @@ static void createNote(const MnxMusxMappingPtr& context, mnxdom::sequence::Event
             mnxNote.set_staff(mnxNoteStaff.value());
         } else {
             context->logMessage(LogMsg() << " note has cross-staffing to a staff (" << noteStaff
-                << ") that is not included in the MNX part.", MessageSeverity::Warning);
+                << ") that is not included in the MNX part.", MessageSeverity::Info);
         }
     }
     createTies(context, mnxNote, musxNote);
@@ -438,7 +438,7 @@ static std::optional<mnxdom::sequence::Event> createEvent(const MnxMusxMappingPt
             mnxEvent.set_staff(mnxPartStaff.value());
         } else {
             context->logMessage(LogMsg() << " entry has cross-staffing to a staff (" << crossedStaffId.value()
-                << ") that is not included in the MNX part.", MessageSeverity::Warning);
+                << ") that is not included in the MNX part.", MessageSeverity::Info);
         }
     }
     const auto [freezeStem, upStem] = musxEntryInfo.calcEntryStemSettings();

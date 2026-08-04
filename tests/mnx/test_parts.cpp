@@ -249,7 +249,8 @@ TEST(MnxParts, CueLayer)
     setupTestDataPaths();
     std::filesystem::path inputPath;
     copyInputToOutput("forced_bass_clef.musx", inputPath);
-    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx", "--cue-layer", "1", "--no-validate" };
+    // The cue notifications are verbose-only, so --verbose is required to observe them.
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx", "--cue-layer", "1", "--no-validate", "--verbose" };
     checkStderr(std::vector<std::string>{
         "discarded cue material detected by --cue-layer in measure 2, staff 1, layer 1; MNX does not currently support cues.",
         "discarded 1 cue frames because MNX does not currently support cues."
