@@ -393,7 +393,7 @@ void finalizeArpeggios(const MnxMusxMappingPtr& context)
         const auto bottomPart = findMnxPartForNote(context, bottomNote.value());
         if (!topPart || !bottomPart) {
             context->logMessage(LogMsg() << "skipping arpeggio because its note span includes a staff that is not assigned to an MNX part.",
-                MessageSeverity::Warning);
+                MessageSeverity::Info);
             continue;
         }
 
@@ -403,7 +403,7 @@ void finalizeArpeggios(const MnxMusxMappingPtr& context)
         } else {
             targetParts = findAffectedMnxPartsForArpeggio(context, candidate);
             context->logMessage(LogMsg() << "splitting arpeggio across MNX part boundary into "
-                << mnxPartDisplayList(context, targetParts) << ".", MessageSeverity::Info);
+                << mnxPartDisplayList(context, targetParts) << ".", MessageSeverity::Verbose);
         }
 
         bool emittedAny = false;

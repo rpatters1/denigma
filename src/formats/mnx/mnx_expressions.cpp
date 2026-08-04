@@ -324,7 +324,7 @@ void recordMeasureRepeatCount(const MnxMusxMappingPtr& context, const MusxInstan
         context->logMessage(LogMsg() << "Measure repeat counter " << count
             << " disagrees with counter " << it->second << " on another staff of the same part;"
             " MNX has one counter per part measure, so only the first is exported.",
-            MessageSeverity::Warning);
+            MessageSeverity::Verbose);
     }
 }
 } // namespace

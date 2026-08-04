@@ -212,7 +212,8 @@ void createLayouts(const MnxMusxMappingPtr& context)
         const bool layoutIsCalculated = linkedPart->isLayoutCalculated();
         if (!layoutIsCalculated) {
             context->denigmaContext->logMessage(LogMsg() << "Part \"" << calcLinkedPartDisplayName(linkedPart)
-                << "\" has an uncalculated page layout; omitting its per-system layouts and pages.");
+                << "\" has an uncalculated page layout; omitting its per-system layouts and pages.",
+                MessageSeverity::Verbose);
         }
         const SystemCmper maxSystem = layoutIsCalculated ? SystemCmper(staffSystems.size()) : BASE_SYSTEM_ID;
         for (SystemCmper sysId = minSystem; sysId <= maxSystem; sysId++) { //NOTE: unusual loop limits are *on purpose*
