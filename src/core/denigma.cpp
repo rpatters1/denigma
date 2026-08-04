@@ -264,7 +264,7 @@ std::string calcLinkedPartDisplayName(const musx::dom::MusxInstance<musx::dom::o
     if (!linkedPart) {
         return {};
     }
-    // getName defaults to ASCII accidentals, which is what all Denigma output uses.
+    // getName defaults to ASCII accidentals, which is the rule for filenames and log messages.
     auto name = linkedPart->getName();
     if (!name.empty()) {
         return name;
