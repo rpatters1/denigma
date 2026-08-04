@@ -9,6 +9,7 @@ stored under any single agent's own directory, so read them from `.agents/skills
 regardless of which agent you are. A skill overrides general practice for the work it
 covers, so read the relevant one before starting that kind of work rather than after.
 
+- `accidental-style` — rendering accidentals in names: Unicode for exported content, ASCII for output filenames and log messages.
 - `classifier-design` — creating or editing classifiers in `src/classify`, or shared classification helpers used by exporters.
 - `denigma-test-harness` — building, running tests, interpreting test failures, or choosing the test executable's working directory.
 - `enum-mappings` — adding or modifying enum conversions in any `<exporter>_enums.cpp`.

@@ -259,6 +259,21 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
     return args;
 }
 
+std::string calcLinkedPartDisplayName(const musx::dom::MusxInstance<musx::dom::others::PartDefinition>& linkedPart)
+{
+    if (!linkedPart) {
+        return {};
+    }
+    // getName defaults to ASCII accidentals, which is the rule for filenames and log messages.
+    auto name = linkedPart->getName();
+    if (!name.empty()) {
+        return name;
+    }
+    return linkedPart->isScore()
+        ? std::string("Score")
+        : "Part " + std::to_string(linkedPart->getCmper());
+}
+
 std::string getTimeStamp(const std::string& fmt)
 {
     auto now = std::chrono::system_clock::now();

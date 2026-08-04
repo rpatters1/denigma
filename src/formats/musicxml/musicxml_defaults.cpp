@@ -237,12 +237,26 @@ void createSystemBreaks(const MusicXmlMusxMapping& context)
         }
     };
 
+    // "Begin a New Staff System" is a saved per-measure setting that resolves nothing, so it stays
+    // trustworthy even when the part's layout was never calculated.
     for (const auto& measure : measures) {
         if (measure->beginNewSystem) {
             setSystemBreak(measure->getCmper());
         }
     }
-    for (const auto& lock : context.document->getOthers()->getArray<others::SystemLock>(context.forPartId)) {
+
+    // System locks are not shared, so a part sees only its own. Their measure spans describe a layout
+    // that was never resolved when partLayoutIsCalculated is false, so applying them would place
+    // breaks that do not correspond to any system the part actually has.
+    const auto locks = context.document->getOthers()->getArray<others::SystemLock>(context.forPartId);
+    if (!context.partLayoutIsCalculated) {
+        if (!locks.empty()) {
+            context.logMessage(LogMsg() << "Part " << context.forPartId << " has an uncalculated page layout; dropping "
+                << locks.size() << " system lock(s) rather than exporting system breaks that do not match its systems.");
+        }
+        return;
+    }
+    for (const auto& lock : locks) {
         // Both boundaries are needed when neighboring systems are unlocked.
         // MusicXML breaks are measure-scoped, so a Finale lock ending at a split measure cannot be preserved exactly.
         setSystemBreak(lock->getCmper());

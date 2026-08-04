@@ -402,6 +402,17 @@ musx::dom::MusxInstance<T> getDocOptions(const musx::dom::DocumentPtr& document,
     return retval;
 }
 
+/// @brief Returns a name identifying a linked part, for output filenames and log messages.
+/// @details Finale allows a part to have no name at all, so fall back to identifying it by cmper.
+/// Accidentals are ASCII, which is the rule for filenames and log messages.
+/// @note Not for content written into an export. Exports carry proper accidental glyphs, and the
+/// cmper fallback is a Denigma presentation choice rather than anything the document states, which
+/// is why this lives here and not in musxdom.
+/// @note A null instance yields an empty string rather than "Score", so callers naming the score's
+/// own output file pass null and get an unsuffixed filename.
+/// @note Defined in denigma.cpp rather than inline, because this header is included nearly everywhere.
+std::string calcLinkedPartDisplayName(const musx::dom::MusxInstance<musx::dom::others::PartDefinition>& linkedPart);
+
 } // namespace denigma
 
 #define ASSERT_IF(TEST) \

@@ -205,7 +205,16 @@ void createLayouts(const MnxMusxMappingPtr& context)
         Cmper baseSystemIuList = linkedPart->calcScrollViewCmper();
         auto staffSystems = context->document->getOthers()->getArray<others::StaffSystem>(linkedPart->getCmper());
         const SystemCmper minSystem = BASE_SYSTEM_ID;
-        const SystemCmper maxSystem = SystemCmper(staffSystems.size());
+        // Without a calculated layout, StaffSystem::startMeas is a zero placeholder, so per-system
+        // layouts cannot be built at all: the measure lookup below would find no measure 0. Emit only
+        // the scroll-view layout, which derives from calcScrollViewCmper and measure 1 and so needs no
+        // page layout. createScores omits this part's pages to match.
+        const bool layoutIsCalculated = linkedPart->isLayoutCalculated();
+        if (!layoutIsCalculated) {
+            context->denigmaContext->logMessage(LogMsg() << "Part \"" << calcLinkedPartDisplayName(linkedPart)
+                << "\" has an uncalculated page layout; omitting its per-system layouts and pages.");
+        }
+        const SystemCmper maxSystem = layoutIsCalculated ? SystemCmper(staffSystems.size()) : BASE_SYSTEM_ID;
         for (SystemCmper sysId = minSystem; sysId <= maxSystem; sysId++) { //NOTE: unusual loop limits are *on purpose*
             Cmper systemIuList = sysId ? staffSystems[sysId - 1]->getCmper() : baseSystemIuList;
             if (sysId != BASE_SYSTEM_ID && systemIuList == baseSystemIuList) {

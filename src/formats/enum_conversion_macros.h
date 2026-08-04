@@ -31,6 +31,14 @@ ToEnum enumConvert(FromEnum) \
     return {}; \
 }
 
+// Names the failing specialization in the diagnostic, so an unmapped value identifies
+// its own conversion instead of leaving 50-odd call sites to search.
+#if defined(_MSC_VER)
+#define ENUM_CONVERSION_SIGNATURE __FUNCSIG__
+#else
+#define ENUM_CONVERSION_SIGNATURE __PRETTY_FUNCTION__
+#endif
+
 #define BEGIN_ENUM_CONVERSION(FromEnum, ToEnum) \
 template<> \
 ToEnum enumConvert(FromEnum value) \
@@ -40,5 +48,6 @@ ToEnum enumConvert(FromEnum value) \
 #define END_ENUM_CONVERSION \
     } \
     assert(false && "unmapped enum encountered"); \
-    throw std::invalid_argument("Unable to convert enum value: " + std::to_string(int(value))); \
+    throw std::invalid_argument(std::string("Unable to convert enum value: ") \
+        + std::to_string(int(value)) + " in " + ENUM_CONVERSION_SIGNATURE); \
 }

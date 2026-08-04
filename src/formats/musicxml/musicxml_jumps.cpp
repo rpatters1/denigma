@@ -47,18 +47,6 @@ std::string jumpTargetId(MeasCmper measureId)
     return std::to_string(measureId);
 }
 
-MusxInstance<others::StaffSystem> systemForMeasure(const MusicXmlMusxMapping& context, MeasCmper measureId)
-{
-    MusxInstance<others::StaffSystem> result;
-    for (const auto& system : context.document->getOthers()->getArray<others::StaffSystem>(context.forPartId)) {
-        if (system->startMeas > measureId) {
-            break;
-        }
-        result = system;
-    }
-    return result;
-}
-
 bool shouldEmitJumpForStaff(
     const MusicXmlMusxMapping& context,
     const MusxInstance<others::TextRepeatAssign>& assignment,
@@ -75,7 +63,9 @@ bool shouldEmitJumpForStaff(
         return true;
     }
 
-    const auto system = systemForMeasure(context, assignment->getCmper());
+    // A null system means the part's layout is uncalculated (or no system covers the measure), so the
+    // staff list cannot be evaluated. Emitting for every staff is the permissive fallback.
+    const auto system = context.systemForMeasure(assignment->getCmper());
     if (!system) {
         return true;
     }

@@ -1036,19 +1036,6 @@ static XmlDocument createMssDocument(const DocumentPtr& document, const DenigmaC
     return mssDoc;
 }
 
-static std::string partOutputName(const DenigmaContext& denigmaContext, const MusxInstance<others::PartDefinition>& part)
-{
-    if (!part) {
-        return {};
-    }
-    auto partName = part->getName(); // Unicode-encoded partname can contain non-ASCII characters
-    if (partName.empty()) {
-        partName = "Part" + std::to_string(part->getCmper());
-        denigmaContext.logMessage(LogMsg() << "No part name found. Using " << partName << " for part name extension");
-    }
-    return partName;
-}
-
 static std::filesystem::path resolvePartOutputPath(const std::filesystem::path& outputPath, std::string_view partName)
 {
     std::filesystem::path qualifiedOutputPath = outputPath;
@@ -1068,7 +1055,7 @@ static void processPart(const DocumentPtr& document,
     std::ostringstream output;
     mssDoc.save(output, "    ");
     const auto data = output.str();
-    outputCallback(partOutputName(denigmaContext, part), std::as_bytes(std::span<const char>(data.data(), data.size())));
+    outputCallback(calcLinkedPartDisplayName(part), std::as_bytes(std::span<const char>(data.data(), data.size())));
 }
 
 void convert(const CommandInputData& inputData,

@@ -198,6 +198,9 @@ static void createScores(const MnxMusxMappingPtr& context)
     auto& mnxDocument = context->mnxDocument;
     for (const auto& linkedPart : context->musxParts) {
         auto partGlobals = context->document->getOthers()->get<others::PartGlobals>(linkedPart->getCmper(), MUSX_GLOBALS_CMPER);
+        // This name is written into the MNX file, so it keeps proper accidental glyphs and its own
+        // fallback. calcLinkedPartDisplayName is deliberately not used here: that helper exists for
+        // filenames and log messages, where ASCII is the rule.
         auto mnxScore = mnxDocument->ensure_scores().append(
             linkedPart->getName(EnigmaString::AccidentalStyle::Unicode));
         if (mnxScore.name().empty()) {
@@ -214,7 +217,11 @@ static void createScores(const MnxMusxMappingPtr& context)
                 mnxMmRest.set_label("");
             }
         }
-        auto pages = context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper());
+        // Pages describe which systems fall where, which an uncalculated layout never resolved.
+        // createLayouts already reported this part and omitted its per-system layouts.
+        auto pages = linkedPart->isLayoutCalculated()
+            ? context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper())
+            : MusxInstanceList<others::Page>(context->document, linkedPart->getCmper());
         for (size_t x = 0; x < pages.size(); x++) {
             auto mnxPage = mnxScore.ensure_pages().append();
             auto mnxSystems = mnxPage.systems();

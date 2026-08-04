@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -151,6 +152,10 @@ struct MusicXmlMusxMapping
           finaleOptions(loadFinaleOptions(doc, partId)),
           forPartId(partId)
     {
+        // Mirror musxdom's own guards (Document::calcPageFromMeasure and calcSystemFromMeasure) and
+        // treat a missing PartDefinition as uncalculated.
+        const auto part = doc->getOthers()->get<musx::dom::others::PartDefinition>(musx::dom::SCORE_PARTID, partId);
+        partLayoutIsCalculated = part && part->isLayoutCalculated();
     }
 
     const DenigmaContext* denigmaContext;
@@ -159,6 +164,16 @@ struct MusicXmlMusxMapping
     std::unique_ptr<mx::api::ScoreData> musicXmlScore;
     musx::dom::Cmper forPartId;
     mx::api::PartData* currentPart{};
+
+    /// True when Finale calculated this part's page layout. When false, nothing that resolves a
+    /// measure to a system or a system to a page can be trusted: Finale retains zero-valued
+    /// placeholders in others::StaffSystem and others::Page until a linked part's layout is updated.
+    /// Saved geometry and saved per-measure flags remain valid either way.
+    bool partLayoutIsCalculated{};
+
+    /// Lazily fetched backing store for #systemForMeasure. Callers previously hoisted this array out
+    /// of their loops; caching it here keeps the shared lookup equally cheap per call.
+    mutable std::optional<musx::dom::MusxInstanceList<musx::dom::others::StaffSystem>> cachedStaffSystems;
 
     MusicXmlTimingPlan timing;
     MusicXmlCurrentLocation current;
@@ -194,6 +209,10 @@ struct MusicXmlMusxMapping
         deferredArpeggioCandidates.clear();
         deferredArpeggioCandidateKeys.clear();
     }
+
+    /// Returns the staff system containing @p measureId, or a null instance when this part's layout
+    /// is uncalculated (see #partLayoutIsCalculated) or no system covers the measure.
+    musx::dom::MusxInstance<musx::dom::others::StaffSystem> systemForMeasure(musx::dom::MeasCmper measureId) const;
 
     double musicXmlTenthsFromEvpu(double evpu, double backoutScaling = 1.0) const;
     mx::api::FontData musicXmlFontDataFromFontInfo(

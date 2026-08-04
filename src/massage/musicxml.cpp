@@ -808,16 +808,14 @@ void massageMxl(const std::filesystem::path& inputPath, const std::filesystem::p
         if (utils::pathExtensionEquals(fileName, MUSICXML_EXTENSION)) {
             context->musxPartId = !isScore ? getMusxPartIdFromPartFileName(utils::utf8ToString(fileName.u8string()), context) : 0;
             auto partName = [&]() -> std::string {
-                std::string retval;
                 if (context->musxDocument) {
-                    if (auto part = context->musxDocument->getOthers()->get<others::PartDefinition>(SCORE_PARTID, context->musxPartId)) {
-                        retval = part->getName();
+                    const auto part = context->musxDocument->getOthers()->get<others::PartDefinition>(SCORE_PARTID, context->musxPartId);
+                    if (auto name = calcLinkedPartDisplayName(part); !name.empty()) {
+                        return name;
                     }
                 }
-                if (retval.empty()) {
-                    return isScore ? "Score" : std::string("Part " + std::to_string(context->musxPartId));
-                }
-                return retval;
+                // Without a source document there is no part to name, so trust the file itself.
+                return isScore ? "Score" : std::string("Part " + std::to_string(context->musxPartId));
             }();
             denigmaContext.logMessage(LogMsg() << ">>>>>>>>>> Processing zipped file " << utils::asUtf8Bytes(fileName) << " (" << partName << ") <<<<<<<<<<");
 
