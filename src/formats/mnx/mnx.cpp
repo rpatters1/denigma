@@ -214,7 +214,11 @@ static void createScores(const MnxMusxMappingPtr& context)
                 mnxMmRest.set_label("");
             }
         }
-        auto pages = context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper());
+        // Pages describe which systems fall where, which an uncalculated layout never resolved.
+        // createLayouts already reported this part and omitted its per-system layouts.
+        auto pages = linkedPart->isLayoutCalculated()
+            ? context->document->getOthers()->getArray<others::Page>(linkedPart->getCmper())
+            : MusxInstanceList<others::Page>(context->document, linkedPart->getCmper());
         for (size_t x = 0; x < pages.size(); x++) {
             auto mnxPage = mnxScore.ensure_pages().append();
             auto mnxSystems = mnxPage.systems();

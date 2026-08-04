@@ -19,6 +19,8 @@
 
 #include <map>
 #include <cmath>
+#include <algorithm>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
@@ -239,5 +241,46 @@ TEST(MusicXmlDefaults, FontsMatchFinaleWithinOneDecimalPlace)
 
         SCOPED_TRACE(fixture.musxFile);
         compareDefaultFonts(actualScore->defaults, expectedScore->defaults);
+    }
+}
+
+// Finale can save a linked part whose page layout was never calculated, leaving zero-valued
+// placeholders in others::StaffSystem and others::Page. zwei_gesange.musx is such a document: its
+// score resolves fully, while all three linked parts degrade partway through (part 1 has real
+// startMeas values for systems 1-8 and zeros for 9-12). System locks are not shared, so the parts
+// hold none of their own and inherit none from the score; the score's seven locks stay put.
+TEST(MusicXmlDefaults, UncalculatedPartLayoutKeepsScoreSystemBreaks)
+{
+    setupTestDataPaths();
+
+    std::filesystem::path inputPath;
+    copyInputToOutput("zwei_gesange.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml", "--all-parts" };
+    checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to musicxml: " << pathString(inputPath);
+    });
+
+    const auto countSystemBreaks = [](const std::filesystem::path& path) -> int {
+        const auto score = loadScoreData(path);
+        EXPECT_TRUE(score) << "Missing MusicXML output " << pathString(path);
+        if (!score) {
+            return -1;
+        }
+        return static_cast<int>(std::count_if(score->layout.begin(), score->layout.end(),
+            [](const auto& entry) { return entry.second.system.newSystem == mx::api::Bool::yes; }));
+    };
+
+    auto scorePath = inputPath;
+    scorePath.replace_extension(".musicxml");
+    // The score's layout is calculated, so its seven locks still produce breaks. The break at the
+    // first measure is dropped, since MusicXML has nothing to break away from there.
+    EXPECT_EQ(countSystemBreaks(scorePath), 7);
+
+    for (const auto& partName : { "Alto", "Viola", "Piano" }) {
+        auto partPath = inputPath;
+        partPath.replace_extension("");
+        partPath += std::string(".") + partName + ".musicxml";
+        SCOPED_TRACE(partName);
+        EXPECT_EQ(countSystemBreaks(partPath), 0);
     }
 }

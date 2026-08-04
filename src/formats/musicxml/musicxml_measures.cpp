@@ -691,17 +691,6 @@ void assignStaffAttributes(
     }
 
     const MeasCmper finaleMeasureId = musxMeasures.back()->getCmper();
-    const auto systems = context.document->getOthers()->getArray<others::StaffSystem>(context.forPartId);
-    const auto systemForMeasure = [&systems](MeasCmper measureId) -> MusxInstance<others::StaffSystem> {
-        MusxInstance<others::StaffSystem> result;
-        for (const auto& system : systems) {
-            if (system->startMeas > measureId) {
-                break;
-            }
-            result = system;
-        }
-        return result;
-    };
 
     for (size_t staffIndex = 0; staffIndex < staves.size(); ++staffIndex) {
         const auto staffId = staves[staffIndex];
@@ -715,10 +704,14 @@ void assignStaffAttributes(
                 }
             }
         }
-        for (const auto& system : systems) {
-            const auto systemStaves = context.document->getOthers()->getArray<others::StaffUsed>(context.forPartId, system->getCmper());
-            if (systemStaves.getIndexForStaff(staffId).has_value()) {
-                attributeChanges.emplace(system->startMeas, Fraction{});
+        // Each system where this staff appears is an attribute change point, but only if the part's
+        // layout was calculated. Otherwise startMeas is a zero placeholder and seeds nothing useful.
+        if (context.partLayoutIsCalculated) {
+            for (const auto& system : context.document->getOthers()->getArray<others::StaffSystem>(context.forPartId)) {
+                const auto systemStaves = context.document->getOthers()->getArray<others::StaffUsed>(context.forPartId, system->getCmper());
+                if (systemStaves.getIndexForStaff(staffId).has_value()) {
+                    attributeChanges.emplace(system->startMeas, Fraction{});
+                }
             }
         }
 
@@ -758,8 +751,11 @@ void assignStaffAttributes(
                         << " while assigning MusicXML measure-start staff attributes.", MessageSeverity::Warning);
                     return;
                 }
-                const auto system = systemForMeasure(measureId);
-                ASSERT_IF(!system) {
+                // An uncalculated layout resolves no system, which is an expected saved state rather
+                // than an anomaly, so only a calculated layout missing a system is worth reporting.
+                // Warning here unconditionally would fire once per change point per staff.
+                const auto system = context.systemForMeasure(measureId);
+                ASSERT_IF(context.partLayoutIsCalculated && !system) {
                     context.logMessage(LogMsg() << "No staff system found for measure " << measureId
                         << " while assigning MusicXML staff attributes for staff " << staffId << ".",
                         MessageSeverity::Warning);
@@ -771,8 +767,10 @@ void assignStaffAttributes(
                 }
                 prevStaffLines = staffLines;
 
+                // Staff lines and transposition do not depend on the system, so they still export
+                // without one; per-system scaling falls back to unscaled.
                 const Fraction lineSpaceFactor{measureStartStaff->lineSpace, Evpu(EVPU_PER_SPACE)};
-                const Fraction systemScale = system->calcStaffScaling(staffId);
+                const Fraction systemScale = system ? system->calcStaffScaling(staffId) : Fraction{1, 1};
                 context.layout.setStaffSize(measure.staves[staffIndex], staffId, lineSpaceFactor * systemScale, systemScale);
             }
 

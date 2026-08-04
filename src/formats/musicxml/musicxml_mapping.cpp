@@ -35,6 +35,26 @@ MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, con
     return MusicXmlPitchContext::Concert;
 }
 
+musx::dom::MusxInstance<musx::dom::others::StaffSystem> MusicXmlMusxMapping::systemForMeasure(musx::dom::MeasCmper measureId) const
+{
+    // An uncalculated layout leaves zero-valued startMeas placeholders, which would defeat the scan
+    // below: it would never break out, so every measure would resolve to the last system.
+    if (!partLayoutIsCalculated) {
+        return {};
+    }
+    if (!cachedStaffSystems) {
+        cachedStaffSystems = document->getOthers()->getArray<musx::dom::others::StaffSystem>(forPartId);
+    }
+    musx::dom::MusxInstance<musx::dom::others::StaffSystem> result;
+    for (const auto& system : *cachedStaffSystems) {
+        if (system->startMeas > measureId) {
+            break;
+        }
+        result = system;
+    }
+    return result;
+}
+
 mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLocation& location)
 {
     if (!context.currentPart || location.measureIndex >= context.currentPart->measures.size()) {

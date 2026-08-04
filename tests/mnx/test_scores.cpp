@@ -23,6 +23,7 @@
 #include <filesystem>
 #include <iterator>
 #include <fstream>
+#include <set>
 
 #include "gtest/gtest.h"
 #include "core/denigma.h"
@@ -103,4 +104,51 @@ TEST(MnxScores, MultiInstrumentTest)
     ASSERT_EQ(scores[3]["pages"][0]["systems"].size(), 1);
     EXPECT_EQ(scores[3]["pages"][0]["systems"][0]["measure"], "m1");
     EXPECT_EQ(scores[3]["pages"][0]["systems"][0]["layout"], "S3-Sys1");
+}
+
+// zwei_gesange.musx has three linked parts whose page layouts Finale never calculated, leaving
+// zero-valued startMeas placeholders. Building per-system layouts from those placeholders used to
+// look up measure 0 and throw std::logic_error, failing the whole export. The parts now get only
+// their scroll-view layout and no pages, while the score, whose layout is calculated, is unaffected.
+TEST(MnxScores, UncalculatedPartLayoutOmitsPagesAndSystemLayouts)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("zwei_gesange.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    nlohmann::json mnx;
+    openJson(inputPath.parent_path() / "zwei_gesange.mnx", mnx);
+
+    auto scores = mnx["scores"];
+    ASSERT_TRUE(scores.is_array());
+    ASSERT_EQ(scores.size(), 4);
+
+    // The score resolves fully and keeps its pages and per-system layouts.
+    EXPECT_EQ(scores[0]["name"], "Score");
+    EXPECT_EQ(scores[0]["layout"], "S0-ScrVw");
+    ASSERT_TRUE(scores[0]["pages"].is_array());
+    EXPECT_EQ(scores[0]["pages"].size(), 5);
+
+    // Every score must still reference a layout that exists, including the parts that lost theirs.
+    std::set<std::string> layoutIds;
+    ASSERT_TRUE(mnx["layouts"].is_array());
+    for (const auto& layout : mnx["layouts"]) {
+        layoutIds.insert(layout["id"].get<std::string>());
+    }
+    for (size_t scoreIndex = 0; scoreIndex < scores.size(); ++scoreIndex) {
+        EXPECT_TRUE(layoutIds.count(scores[scoreIndex]["layout"].get<std::string>()) > 0)
+            << "score " << scoreIndex << " references a missing layout";
+    }
+
+    for (size_t scoreIndex = 1; scoreIndex < scores.size(); ++scoreIndex) {
+        SCOPED_TRACE("score " + std::to_string(scoreIndex));
+        // No pages, and no per-system layout ids, but the scroll-view layout survives.
+        EXPECT_FALSE(scores[scoreIndex].contains("pages") && !scores[scoreIndex]["pages"].empty());
+        const auto layoutId = scores[scoreIndex]["layout"].get<std::string>();
+        EXPECT_NE(layoutId.find("-ScrVw"), std::string::npos) << "expected a scroll-view layout, got " << layoutId;
+    }
 }
