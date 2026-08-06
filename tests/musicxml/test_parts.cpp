@@ -604,7 +604,7 @@ TEST(MusicXmlParts, RepeatsExportEndingBrackets)
         for (const auto& part : actualScore->parts) {
             for (const auto& measure : part.measures) {
                 for (const auto& barline : measure.barlines) {
-                    if (barline.endingType == endingType) {
+                    if (barline.ending && barline.ending->type == endingType) {
                         ++result;
                     }
                 }
@@ -628,25 +628,35 @@ TEST(MusicXmlParts, RepeatsExportEndingBrackets)
         return nullptr;
     };
 
+    // The first ending is played on passes 1, 2, and 3 and carries the custom Finale text "1. 2. 3.",
+    // which differs from the number list MusicXML would otherwise display.
     const auto* firstEndingStart = findBarline(measures.at(3), mx::api::HorizontalAlignment::left);
     ASSERT_NE(firstEndingStart, nullptr);
-    EXPECT_EQ(firstEndingStart->endingType, mx::api::EndingType::start);
-    EXPECT_EQ(firstEndingStart->endingNumber, 1);
+    ASSERT_TRUE(firstEndingStart->ending);
+    EXPECT_EQ(firstEndingStart->ending->type, mx::api::EndingType::start);
+    EXPECT_EQ(firstEndingStart->ending->numbers, (std::vector<int>{ 1, 2, 3 }));
+    EXPECT_EQ(firstEndingStart->ending->text, "1. 2. 3.");
 
     const auto* firstEndingStop = findBarline(measures.at(5), mx::api::HorizontalAlignment::right);
     ASSERT_NE(firstEndingStop, nullptr);
-    EXPECT_EQ(firstEndingStop->endingType, mx::api::EndingType::stop);
-    EXPECT_EQ(firstEndingStop->endingNumber, 1);
+    ASSERT_TRUE(firstEndingStop->ending);
+    EXPECT_EQ(firstEndingStop->ending->type, mx::api::EndingType::stop);
+    EXPECT_EQ(firstEndingStop->ending->numbers, (std::vector<int>{ 1, 2, 3 }));
+    EXPECT_TRUE(firstEndingStop->ending->text.empty()) << "the label belongs to the opening bracket only";
 
     const auto* fourthEndingStart = findBarline(measures.at(6), mx::api::HorizontalAlignment::left);
     ASSERT_NE(fourthEndingStart, nullptr);
-    EXPECT_EQ(fourthEndingStart->endingType, mx::api::EndingType::start);
-    EXPECT_EQ(fourthEndingStart->endingNumber, 4);
+    ASSERT_TRUE(fourthEndingStart->ending);
+    EXPECT_EQ(fourthEndingStart->ending->type, mx::api::EndingType::start);
+    EXPECT_EQ(fourthEndingStart->ending->numbers, (std::vector<int>{ 4 }));
+    EXPECT_EQ(fourthEndingStart->ending->text, "to continue");
 
     const auto* fourthEndingStop = findBarline(measures.at(10), mx::api::HorizontalAlignment::right);
     ASSERT_NE(fourthEndingStop, nullptr);
-    EXPECT_EQ(fourthEndingStop->endingType, mx::api::EndingType::stop);
-    EXPECT_EQ(fourthEndingStop->endingNumber, 4);
+    ASSERT_TRUE(fourthEndingStop->ending);
+    EXPECT_EQ(fourthEndingStop->ending->type, mx::api::EndingType::stop);
+    EXPECT_EQ(fourthEndingStop->ending->numbers, (std::vector<int>{ 4 }));
+    EXPECT_TRUE(fourthEndingStop->ending->text.empty()) << "the label belongs to the opening bracket only";
 }
 
 TEST(MusicXmlParts, IndependentKeySignaturesMatchFinale)

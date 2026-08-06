@@ -1031,11 +1031,16 @@ TEST(MusicXmlNotes, TieTargetTypesExportSmoke)
     ASSERT_TRUE(firstEndingStopIndex);
     EXPECT_LT(*firstEndingStartIndex, *firstEndingStopIndex);
     EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStartIndex).barlineType, mx::api::BarlineType::unspecified);
-    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStartIndex).endingType, mx::api::EndingType::start);
-    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStartIndex).endingNumber, 1);
+    ASSERT_TRUE(firstEndingMeasure.barlines.at(*firstEndingStartIndex).ending);
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStartIndex).ending->type, mx::api::EndingType::start);
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStartIndex).ending->numbers, (std::vector<int>{ 1 }));
+    // The document has no custom ending text, but its "Add Period" repeat option makes Finale draw
+    // the label as "1.", which differs from the number and therefore travels as the ending's text.
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStartIndex).ending->text, "1.");
     EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStopIndex).barlineType, mx::api::BarlineType::lightHeavy);
-    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStopIndex).endingType, mx::api::EndingType::stop);
-    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStopIndex).endingNumber, 1);
+    ASSERT_TRUE(firstEndingMeasure.barlines.at(*firstEndingStopIndex).ending);
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStopIndex).ending->type, mx::api::EndingType::stop);
+    EXPECT_EQ(firstEndingMeasure.barlines.at(*firstEndingStopIndex).ending->numbers, (std::vector<int>{ 1 }));
 
     const auto& secondEndingMeasure = measures.at(3);
     const auto secondEndingStartIndex = findBarlineIndex(secondEndingMeasure, mx::api::HorizontalAlignment::left);
@@ -1044,11 +1049,13 @@ TEST(MusicXmlNotes, TieTargetTypesExportSmoke)
     ASSERT_TRUE(secondEndingStopIndex);
     EXPECT_LT(*secondEndingStartIndex, *secondEndingStopIndex);
     EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStartIndex).barlineType, mx::api::BarlineType::unspecified);
-    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStartIndex).endingType, mx::api::EndingType::start);
-    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStartIndex).endingNumber, 2);
+    ASSERT_TRUE(secondEndingMeasure.barlines.at(*secondEndingStartIndex).ending);
+    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStartIndex).ending->type, mx::api::EndingType::start);
+    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStartIndex).ending->numbers, (std::vector<int>{ 2 }));
     EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStopIndex).barlineType, mx::api::BarlineType::unspecified);
-    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStopIndex).endingType, mx::api::EndingType::discontinue);
-    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStopIndex).endingNumber, 2);
+    ASSERT_TRUE(secondEndingMeasure.barlines.at(*secondEndingStopIndex).ending);
+    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStopIndex).ending->type, mx::api::EndingType::discontinue);
+    EXPECT_EQ(secondEndingMeasure.barlines.at(*secondEndingStopIndex).ending->numbers, (std::vector<int>{ 2 }));
 }
 
 TEST(MusicXmlNotes, TieTargetTypesArpeggiatedTiesExportSmoke)

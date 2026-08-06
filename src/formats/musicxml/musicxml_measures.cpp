@@ -178,26 +178,41 @@ void assignRepeatEndings(
         ASSERT_IF(measureIndex >= part.measures.size()) {
             continue;
         }
-        auto& startBarline = ensureBarlineData(part.measures[measureIndex], mx::api::HorizontalAlignment::left);
-        startBarline.endingType = mx::api::EndingType::start;
+        /// @todo Carry the ending's appearance, above all its hidden state, when mx::api exposes the
+        /// `<ending>` appearance attributes. (See mx-api-gaps.md.)
+        auto endingData = mx::api::EndingData{};
+        endingData.type = mx::api::EndingType::start;
         if (const auto passList = context.document->getOthers()->get<others::RepeatPassList>(context.forPartId, ending->getCmper())) {
-            if (!passList->values.empty()) {
-                startBarline.endingNumber = passList->values.front();
-                if (passList->values.size() > 1) {
-                    context.logMessage(LogMsg() << "MusicXML ending at measure " << ending->getCmper()
-                        << " has multiple pass numbers, but mx::api can only export the first.", MessageSeverity::Info);
-                }
-            }
+            endingData.numbers = passList->values;
         }
-        const auto endingNumber = startBarline.endingNumber;
+
+        // MusicXML displays the `number` attribute when `<ending>` carries no text of its own, so send
+        // Finale's ending text only when it says something the numbers do not. That covers custom
+        // ending text and the "Add Period" repeat option, which appends a period to the pass list.
+        const auto numberText = [&endingData]() {
+            std::string result;
+            for (int pass : endingData.numbers) {
+                if (!result.empty()) {
+                    result += ", ";
+                }
+                result += std::to_string(pass);
+            }
+            return result;
+        }();
+        if (auto endingText = ending->createEndingText(); endingText != numberText) {
+            endingData.text = std::move(endingText);
+        }
+        ensureBarlineData(part.measures[measureIndex], mx::api::HorizontalAlignment::left).ending = endingData;
 
         const auto endMeasureIndex = static_cast<size_t>(ending->getCmper() + ending->calcEndingLength() - 2);
         ASSERT_IF(endMeasureIndex >= part.measures.size()) {
             continue;
         }
-        auto& stopBarline = ensureBarlineData(part.measures[endMeasureIndex], mx::api::HorizontalAlignment::right);
-        stopBarline.endingType = ending->calcIsOpen() ? mx::api::EndingType::discontinue : mx::api::EndingType::stop;
-        stopBarline.endingNumber = endingNumber;
+        // The closing bracket repeats the numbers so that both barlines identify the same ending,
+        // but not the text: MusicXML draws the label at every `<ending>` that carries one.
+        endingData.type = ending->calcIsOpen() ? mx::api::EndingType::discontinue : mx::api::EndingType::stop;
+        endingData.text.clear();
+        ensureBarlineData(part.measures[endMeasureIndex], mx::api::HorizontalAlignment::right).ending = std::move(endingData);
     }
 }
 

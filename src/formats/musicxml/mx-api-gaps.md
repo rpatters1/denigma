@@ -152,13 +152,13 @@ Needed API shape: an `Enclosure enclosure` field on `mx::api::PageTextData`, con
 
 ## Barlines and Endings
 
-### Repeat-ending display text and multiple numbers
+### Repeat-ending appearance and visibility
 
-MusicXML `<ending>` has both a semantic `number` attribute and element text for the displayed ending label. These can differ, such as `number="1, 2, 3"` with displayed text `1-3`. Finale also allows custom ending text through `RepeatEndingText`, and musxdom exposes this via `RepeatEndingStart::createEndingText()`.
+MusicXML `<ending>` carries, besides `number`, `type`, and its display text, the appearance attributes `print-object`, `end-length`, `text-x`, `text-y`, `system`, and the whole `print-style` group. Finale supplies a value for each of them: `RepeatEndingStart::hidden` for `print-object`, `endLineVPos` for `end-length`, `textHPos` and `textVPos` for `text-x` and `text-y`, `topStaffOnly` for `system`, the bracket corner offsets for `default-x` and `default-y`, and `FontOptions::FontType::Ending` for the font. Finale's own export writes them, as in `<ending default-y="40" end-length="30" font-size="8.5" number="4" print-object="yes" system="only-top" type="start">`.
 
-`mx::api::BarlineData` currently exposes `endingType` and one integer `endingNumber`, but it does not expose the ending text body or multiple ending numbers. Denigma can export structural volta starts and stops, but currently emits only the first pass number and cannot preserve custom or condensed display text.
+`mx::api::EndingData` exposes `type`, `numbers`, and `text` only, so Denigma exports the ending's structure and label but none of its placement, size, or visibility. Hidden endings are the notable loss, because they are structural in Finale rather than decorative: the bracket is suppressed while the repeat still governs playback.
 
-Needed API shape: ending data with a string/list representation for the MusicXML `number` attribute and a separate display text value, plus reader/writer support for `core::Ending::setValue()`.
+Needed API shape: `PositionData` and `FontData` members on `EndingData` in line with other positionable API types, plus a print-object flag, an end-length value, the text offsets, and the `system` placement enum, with reader and writer support for each.
 
 ## Directions and Expressions
 
