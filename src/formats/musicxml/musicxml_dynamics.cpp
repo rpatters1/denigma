@@ -22,9 +22,10 @@
 
 #include "musicxml.h"
 
+#include <functional>
+#include <map>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -44,6 +45,81 @@ namespace musicxml {
 namespace detail {
 
 namespace {
+
+/// @brief Returns the StandardDynamic mx declares after @p value, or nullopt at the end of the enum.
+///
+/// This exists so that the lookup below can visit every StandardDynamic, which no list can promise
+/// to do: C++ cannot enumerate an enum, and a list that falls behind one says nothing about what it
+/// omits. A switch can promise it. This one has no default arm, so -Wswitch, which this library
+/// builds with -Werror, fails the build the moment mx adds a dynamic.
+constexpr std::optional<mx::api::StandardDynamic> nextStandardDynamic(mx::api::StandardDynamic value)
+{
+    using Dynamic = mx::api::StandardDynamic;
+    switch (value) {
+    case Dynamic::p: return Dynamic::pp;
+    case Dynamic::pp: return Dynamic::ppp;
+    case Dynamic::ppp: return Dynamic::pppp;
+    case Dynamic::pppp: return Dynamic::ppppp;
+    case Dynamic::ppppp: return Dynamic::pppppp;
+    case Dynamic::pppppp: return Dynamic::f;
+    case Dynamic::f: return Dynamic::ff;
+    case Dynamic::ff: return Dynamic::fff;
+    case Dynamic::fff: return Dynamic::ffff;
+    case Dynamic::ffff: return Dynamic::fffff;
+    case Dynamic::fffff: return Dynamic::ffffff;
+    case Dynamic::ffffff: return Dynamic::mp;
+    case Dynamic::mp: return Dynamic::mf;
+    case Dynamic::mf: return Dynamic::sf;
+    case Dynamic::sf: return Dynamic::sfp;
+    case Dynamic::sfp: return Dynamic::sfpp;
+    case Dynamic::sfpp: return Dynamic::fp;
+    case Dynamic::fp: return Dynamic::rf;
+    case Dynamic::rf: return Dynamic::rfz;
+    case Dynamic::rfz: return Dynamic::sfz;
+    case Dynamic::sfz: return Dynamic::sffz;
+    case Dynamic::sffz: return Dynamic::fz;
+    case Dynamic::fz: return Dynamic::n;
+    case Dynamic::n: return Dynamic::pf;
+    case Dynamic::pf: return Dynamic::sfzp;
+    case Dynamic::sfzp: return std::nullopt; // the last one mx declares
+    }
+    return std::nullopt;
+}
+
+/// @brief The MusicXML dynamic elements, keyed by the letters they draw.
+///
+/// mx spells every element it can write, so the letters come from it rather than from a second copy
+/// here, and denigma cannot disagree with it about what an element is called.
+const std::map<std::string, mx::api::StandardDynamic, std::less<>>& standardDynamicElements()
+{
+    // std::less<> so a string_view looks up without building a string.
+    static const auto elements = [] {
+        auto result = std::map<std::string, mx::api::StandardDynamic, std::less<>>{};
+        for (auto dynamic = std::optional{ mx::api::StandardDynamic::p }; dynamic;
+                dynamic = nextStandardDynamic(*dynamic)) {
+            // Hoisted out of ASSERT_IF, which evaluates its test twice.
+            const bool inserted = result.emplace(mx::api::toString(*dynamic), *dynamic).second;
+            ASSERT_IF(!inserted) {
+                break; // nextStandardDynamic cycled, so the walk would never end
+            }
+        }
+        return result;
+    }();
+    return elements;
+}
+
+/// @brief Returns the MusicXML dynamic element that spells these letters, or nullopt when MusicXML
+/// has no element for them.
+///
+/// MusicXML names its dynamic elements after the letters they draw, so a marking maps to an element
+/// exactly when its letters name one. The bare affix letters "m", "r", "s", and "z" have no element
+/// of their own.
+std::optional<mx::api::StandardDynamic> musicXmlStandardDynamic(std::string_view letters)
+{
+    const auto& elements = standardDynamicElements();
+    const auto found = elements.find(letters);
+    return found != elements.end() ? std::optional{ found->second } : std::nullopt;
+}
 
 mx::api::DirectionData createDynamicDirection(
     const MusicXmlMusxMapping& context,
@@ -66,58 +142,18 @@ mx::api::DirectionData createDynamicDirection(
     return direction;
 }
 
-/// @brief Returns the MusicXML dynamic element that spells these letters, or nullopt when
-/// MusicXML has no element for them.
-///
-/// MusicXML names its dynamic elements after the letters they draw, so a glyph maps to an element
-/// exactly when the glyph's letters name one. The bare affix letters "m", "r", "s", and "z" have
-/// no element of their own.
-std::optional<mx::api::StandardDynamic> musicXmlStandardDynamic(std::string_view letters)
-{
-    static const std::unordered_map<std::string_view, mx::api::StandardDynamic> elements = {
-        { "p", mx::api::StandardDynamic::p },
-        { "pp", mx::api::StandardDynamic::pp },
-        { "ppp", mx::api::StandardDynamic::ppp },
-        { "pppp", mx::api::StandardDynamic::pppp },
-        { "ppppp", mx::api::StandardDynamic::ppppp },
-        { "pppppp", mx::api::StandardDynamic::pppppp },
-        { "f", mx::api::StandardDynamic::f },
-        { "ff", mx::api::StandardDynamic::ff },
-        { "fff", mx::api::StandardDynamic::fff },
-        { "ffff", mx::api::StandardDynamic::ffff },
-        { "fffff", mx::api::StandardDynamic::fffff },
-        { "ffffff", mx::api::StandardDynamic::ffffff },
-        { "mp", mx::api::StandardDynamic::mp },
-        { "mf", mx::api::StandardDynamic::mf },
-        { "sf", mx::api::StandardDynamic::sf },
-        { "sfp", mx::api::StandardDynamic::sfp },
-        { "sfpp", mx::api::StandardDynamic::sfpp },
-        { "fp", mx::api::StandardDynamic::fp },
-        { "rf", mx::api::StandardDynamic::rf },
-        { "rfz", mx::api::StandardDynamic::rfz },
-        { "sfz", mx::api::StandardDynamic::sfz },
-        { "sffz", mx::api::StandardDynamic::sffz },
-        { "fz", mx::api::StandardDynamic::fz },
-        { "n", mx::api::StandardDynamic::n },
-        { "pf", mx::api::StandardDynamic::pf },
-        { "sfzp", mx::api::StandardDynamic::sfzp }
-    };
-    const auto found = elements.find(letters);
-    return found != elements.end() ? std::optional{ found->second } : std::nullopt;
-}
-
-/// @brief Decomposes a marking with no dedicated MusicXML dynamic element into the ordered
-/// components of one `<dynamics>` element, one component per source glyph.
+/// @brief Decomposes a marking into the ordered components of one `<dynamics>` element, one
+/// component per source glyph.
 ///
 /// The glyph sequence is how the source spells the marking, and MusicXML says the same thing the
 /// same way: Finale draws "sfmp" either as the composite `dynamicSforzando1` and `dynamicMP`
 /// glyphs or as four separate letters, and each spelling exports as itself. A glyph whose letters
 /// name a MusicXML dynamic element writes that element; every other glyph writes an
 /// `<other-dynamics>` carrying its letters and its own SMuFL name.
-std::optional<mx::api::CompoundDynamicsData> createCompoundDynamics(const std::vector<std::string>& glyphs)
+std::optional<mx::api::CompoundDynamicsData> createDynamicsFromGlyphs(const std::vector<std::string>& glyphs)
 {
-    if (glyphs.size() < 2) {
-        return std::nullopt; // a lone glyph is the plain other-dynamics case
+    if (glyphs.empty()) {
+        return std::nullopt;
     }
 
     auto result = mx::api::CompoundDynamicsData{};
@@ -135,42 +171,54 @@ std::optional<mx::api::CompoundDynamicsData> createCompoundDynamics(const std::v
     return result;
 }
 
+/// @brief Builds the `<dynamics>` mark for a classified marking, or returns nullopt when the
+/// marking cannot be spelled as a dynamic at all.
+///
+/// A marking whose letters name a MusicXML dynamic element writes that element. Every other
+/// marking has to be spelled out symbol by symbol as the children of one `<dynamics>`.
 std::optional<mx::api::MarkData> createDynamicMark(
     const classify::dynamics::Mark& dynamic, std::string_view sourceText, mx::api::Placement placement)
 {
-    const auto markType = enumConvert<mx::api::MarkType>(dynamic.dynamic);
-    if (markType == mx::api::MarkType::unspecified) {
-        return std::nullopt;
+    const auto placed = [placement](mx::api::MarkData mark) {
+        mark.positionData.placement = placement;
+        return mark;
+    };
+
+    if (const auto standard = musicXmlStandardDynamic(classify::dynamicCanonicalText(dynamic.dynamic))) {
+        return placed(mx::api::MarkData(*standard));
+    }
+    if (auto fromGlyphs = createDynamicsFromGlyphs(dynamic.glyphs)) {
+        return placed(mx::api::MarkData(std::move(*fromGlyphs)));
     }
 
-    auto mark = mx::api::MarkData(placement, markType);
-    if (mark.markType == mx::api::MarkType::otherDynamics) {
-        if (auto compound = createCompoundDynamics(dynamic.glyphs)) {
-            mark.markType = mx::api::MarkType::compoundDynamics;
-            mark.choice = std::move(*compound);
-        } else if (auto letters = classify::dynamicGlyphsToLetters(dynamic.glyphs); !letters.empty()) {
-            mark.name = std::move(letters); // one glyph spells the whole marking
-            mark.choice = mx::api::OtherMarkData{ dynamic.glyphs.front() };
-        } else {
-            // No glyphs to follow, so the marking can only be spelled with its letters. The
-            // classifier reports a glyphless dynamic only when the source text is dynamic letters,
-            // so normalize that text the way the classifier did before matching it.
-            auto sourceLetters = std::string{};
-            for (const char ch : sourceText) {
-                if (!utils::isSpace(static_cast<unsigned char>(ch))) {
-                    sourceLetters.push_back(utils::toLowerCase(ch));
-                }
-            }
-            if (sourceLetters.empty()) {
-                return std::nullopt;
-            }
-            mark.name = std::move(sourceLetters);
+    // No glyph sequence to follow, so the marking can only be spelled with its letters. The
+    // classifier reports a glyphless dynamic only when the source text is dynamic letters, so
+    // normalize that text the way the classifier did before writing it.
+    auto sourceLetters = std::string{};
+    for (const char ch : sourceText) {
+        if (!utils::isSpace(static_cast<unsigned char>(ch))) {
+            sourceLetters.push_back(utils::toLowerCase(ch));
         }
     }
-    return mark;
+    if (sourceLetters.empty()) {
+        return std::nullopt;
+    }
+    auto spelling = mx::api::CompoundDynamicsData{ { mx::api::OtherDynamicsData{ std::move(sourceLetters), std::nullopt } } };
+    return placed(mx::api::MarkData(std::move(spelling)));
 }
 
 } // namespace
+
+/// @brief Reports how many dynamic elements standardDynamicElements() reached.
+///
+/// @note Nothing in the library needs this, so it is not declared in musicxml.h. It has external
+/// linkage for the tests, which declare it themselves and hold it to MusicXML's own count. That is
+/// the one thing the walk cannot check about itself: a release build compiles the cycle assertion
+/// out, and a chain that skips a dynamic never trips it in the first place.
+size_t musicXmlStandardDynamicCount()
+{
+    return standardDynamicElements().size();
+}
 
 std::vector<mx::api::DirectionData> createDynamicExpressionDirections(
     MusicXmlMusxMapping& context,

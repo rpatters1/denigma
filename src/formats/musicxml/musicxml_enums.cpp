@@ -3,7 +3,6 @@
 #include "denigma/classify/articulations.h"
 #include "denigma/classify/barlines.h"
 #include "denigma/classify/chords.h"
-#include "denigma/classify/dynamics.h"
 #include "denigma/classify/noteheads.h"
 #include "formats/enum_conversion_macros.h"
 
@@ -157,39 +156,6 @@ BEGIN_ENUM_CONVERSION(music_theory::DiatonicMode, mx::api::KeyMode)
     case music_theory::DiatonicMode::Mixolydian: return mx::api::KeyMode::mixolydian;
     case music_theory::DiatonicMode::Aeolian: return mx::api::KeyMode::aeolian;
     case music_theory::DiatonicMode::Locrian: return mx::api::KeyMode::locrian;
-END_ENUM_CONVERSION
-
-BEGIN_ENUM_CONVERSION(classify::dynamics::Dynamic, mx::api::MarkType)
-    case classify::dynamics::Dynamic::None: return mx::api::MarkType::unspecified;
-    case classify::dynamics::Dynamic::Other: return mx::api::MarkType::otherDynamics;
-    case classify::dynamics::Dynamic::pppppp: return mx::api::MarkType::pppppp;
-    case classify::dynamics::Dynamic::ppppp: return mx::api::MarkType::ppppp;
-    case classify::dynamics::Dynamic::pppp: return mx::api::MarkType::pppp;
-    case classify::dynamics::Dynamic::ppp: return mx::api::MarkType::ppp;
-    case classify::dynamics::Dynamic::pp: return mx::api::MarkType::pp;
-    case classify::dynamics::Dynamic::p: return mx::api::MarkType::p;
-    case classify::dynamics::Dynamic::mp: return mx::api::MarkType::mp;
-    case classify::dynamics::Dynamic::mf: return mx::api::MarkType::mf;
-    case classify::dynamics::Dynamic::f: return mx::api::MarkType::f;
-    case classify::dynamics::Dynamic::ff: return mx::api::MarkType::ff;
-    case classify::dynamics::Dynamic::fff: return mx::api::MarkType::fff;
-    case classify::dynamics::Dynamic::ffff: return mx::api::MarkType::ffff;
-    case classify::dynamics::Dynamic::fffff: return mx::api::MarkType::fffff;
-    case classify::dynamics::Dynamic::ffffff: return mx::api::MarkType::ffffff;
-    case classify::dynamics::Dynamic::fp: return mx::api::MarkType::fp;
-    case classify::dynamics::Dynamic::ffp: return mx::api::MarkType::otherDynamics;
-    case classify::dynamics::Dynamic::fz: return mx::api::MarkType::fz;
-    case classify::dynamics::Dynamic::ffz: return mx::api::MarkType::otherDynamics;
-    case classify::dynamics::Dynamic::pf: return mx::api::MarkType::pf;
-    case classify::dynamics::Dynamic::sf: return mx::api::MarkType::sf;
-    case classify::dynamics::Dynamic::sfp: return mx::api::MarkType::sfp;
-    case classify::dynamics::Dynamic::sfpp: return mx::api::MarkType::sfpp;
-    case classify::dynamics::Dynamic::sfz: return mx::api::MarkType::sfz;
-    case classify::dynamics::Dynamic::sffz: return mx::api::MarkType::sffz;
-    case classify::dynamics::Dynamic::sfzp: return mx::api::MarkType::sfzp;
-    case classify::dynamics::Dynamic::rf: return mx::api::MarkType::rf;
-    case classify::dynamics::Dynamic::rfz: return mx::api::MarkType::rfz;
-    case classify::dynamics::Dynamic::n: return mx::api::MarkType::n;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(others::Enclosure::Shape, mx::api::Enclosure)

@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <array>
 #include <filesystem>
+#include <optional>
 #include <unordered_map>
 
 #include "core/denigma.h"
@@ -32,6 +33,21 @@
 #include "pugixml.hpp"
 #include "test_utils.h"
 #include "utils/stringutils.h"
+
+namespace denigma {
+namespace formats {
+namespace musicxml {
+namespace detail {
+
+/// Defined in musicxml_dynamics.cpp and declared here rather than in musicxml.h, because nothing
+/// in the library needs it: it exists so the test below can hold the walk over StandardDynamic to
+/// MusicXML's count of dynamic elements.
+size_t musicXmlStandardDynamicCount();
+
+} // namespace detail
+} // namespace musicxml
+} // namespace formats
+} // namespace denigma
 
 namespace denigma::test::musicxml {
 
@@ -235,6 +251,10 @@ std::vector<ComparableExpressionEnclosure> collectExpressionEnclosures(
     return result;
 }
 
+/// @brief The number of dynamic elements MusicXML defines, and so the number of values
+/// mx::api::StandardDynamic has.
+constexpr size_t musicXmlDynamicElementCount = 26;
+
 /// @brief One child of a MusicXML `<dynamics>` element: either a dynamic element named after the
 /// letters it draws, or an other-dynamics fallback carrying its letters and SMuFL glyph name.
 struct ComparableDynamicsComponent
@@ -246,6 +266,24 @@ struct ComparableDynamicsComponent
     bool operator==(const ComparableDynamicsComponent&) const = default;
 };
 
+/// @brief Spells out the children of one `<dynamics>` mark, whether it holds a lone standard
+/// symbol or several components.
+std::vector<ComparableDynamicsComponent> dynamicsComponents(const mx::api::MarkData& mark)
+{
+    if (mark.choice.isDynamic()) {
+        return { { mark.choice.dynamic(), std::string{}, std::nullopt } };
+    }
+    std::vector<ComparableDynamicsComponent> result;
+    for (const auto& component : mark.choice.compoundDynamics().components) {
+        if (component.isStandard()) {
+            result.emplace_back(component.standard(), std::string{}, std::nullopt);
+        } else {
+            result.emplace_back(std::nullopt, component.other().text, component.other().smufl);
+        }
+    }
+    return result;
+}
+
 std::vector<std::vector<ComparableDynamicsComponent>> collectCompoundDynamics(const mx::api::ScoreData& score)
 {
     std::vector<std::vector<ComparableDynamicsComponent>> result;
@@ -254,18 +292,13 @@ std::vector<std::vector<ComparableDynamicsComponent>> collectCompoundDynamics(co
             for (const auto& staff : measure.staves) {
                 for (const auto& direction : staff.directions) {
                     for (const auto& mark : directionMarks(direction)) {
-                        if (mark.markType != mx::api::MarkType::compoundDynamics) {
+                        // A mark spelling itself with one standard symbol collapses to a bare
+                        // dynamic, so a compound choice is exactly a marking MusicXML has no
+                        // single element for.
+                        if (!mark.choice.isCompoundDynamics()) {
                             continue;
                         }
-                        std::vector<ComparableDynamicsComponent> components;
-                        for (const auto& component : mark.choice.compoundDynamics().components) {
-                            if (component.isStandard()) {
-                                components.emplace_back(component.standard(), std::string{}, std::nullopt);
-                            } else {
-                                components.emplace_back(std::nullopt, component.other().text, component.other().smufl);
-                            }
-                        }
-                        result.emplace_back(std::move(components));
+                        result.emplace_back(dynamicsComponents(mark));
                     }
                 }
             }
@@ -927,16 +960,16 @@ TEST(MusicXmlExpressions, DynamicsKeepTheWordsAroundThem)
 
     // Measures 4 and 5 spell each dynamic with a word beside its glyph, so every direction must
     // carry both the mark and the word: "più f", "sub. p", "ff sempre", "menos f".
-    const std::vector<std::pair<std::string, mx::api::MarkType>> expected = {
-        { "più", mx::api::MarkType::f },
-        { "sub.", mx::api::MarkType::p },
-        { "sempre", mx::api::MarkType::ff },
-        { "menos", mx::api::MarkType::f },
+    const std::vector<std::pair<std::string, mx::api::StandardDynamic>> expected = {
+        { "più", mx::api::StandardDynamic::f },
+        { "sub.", mx::api::StandardDynamic::p },
+        { "sempre", mx::api::StandardDynamic::ff },
+        { "menos", mx::api::StandardDynamic::f },
     };
 
     const auto& measures = actualScore->parts.front().measures;
     ASSERT_GE(measures.size(), 5u);
-    std::vector<std::pair<std::string, mx::api::MarkType>> actual;
+    std::vector<std::pair<std::string, mx::api::StandardDynamic>> actual;
     for (size_t measureIndex = 3; measureIndex <= 4; ++measureIndex) {
         for (const auto& staff : measures.at(measureIndex).staves) {
             for (const auto& direction : staff.directions) {
@@ -944,12 +977,23 @@ TEST(MusicXmlExpressions, DynamicsKeepTheWordsAroundThem)
                 const auto words = directionWords(direction);
                 ASSERT_EQ(marks.size(), 1u) << "measure " << (measureIndex + 1);
                 ASSERT_EQ(words.size(), 1u) << "measure " << (measureIndex + 1);
-                actual.emplace_back(utils::trimAscii(words.front().text), marks.front().markType);
+                ASSERT_TRUE(marks.front().choice.isDynamic()) << "measure " << (measureIndex + 1);
+                actual.emplace_back(utils::trimAscii(words.front().text), marks.front().choice.dynamic());
             }
         }
     }
 
     EXPECT_EQ(actual, expected);
+}
+
+TEST(MusicXmlExpressions, TheDynamicElementTableKnowsEveryDynamic)
+{
+    // musicXmlStandardDynamic walks a switch over mx::api::StandardDynamic, so -Wswitch fails the
+    // build if mx adds a dynamic, and mx supplies the letters so they cannot drift from the element
+    // names it writes. What the switch cannot state is that its chain reaches every value: a
+    // mis-spliced one would skip a dynamic, or cycle. MusicXML defines 26 dynamic elements, which
+    // is a fact about the format rather than a restatement of that chain.
+    EXPECT_EQ(formats::musicxml::detail::musicXmlStandardDynamicCount(), musicXmlDynamicElementCount);
 }
 
 TEST(MusicXmlExpressions, CompoundDynamicsSpellOutTheirComponents)
@@ -1006,6 +1050,10 @@ TEST(MusicXmlExpressions, CompoundDynamicsFollowTheSourceGlyphSequence)
             { mx::api::StandardDynamic::ff, "", std::nullopt },
             { std::nullopt, "z", "dynamicZ" }
         },
+        { // "sfmp" typed as ASCII letters, which resolve to no glyphs at all
+          // (see GlyphlessDynamicsFallBackToTheirLetters)
+            { std::nullopt, "sfmp", std::nullopt }
+        },
     };
 
     EXPECT_EQ(collectCompoundDynamics(*actualScore), expected);
@@ -1028,22 +1076,23 @@ TEST(MusicXmlExpressions, GlyphlessDynamicsFallBackToTheirLetters)
     const auto& measures = actualScore->parts.front().measures;
     ASSERT_GE(measures.size(), 2u);
 
-    std::vector<std::tuple<mx::api::MarkType, std::string, std::optional<std::string>>> marks;
+    std::vector<std::pair<std::string, std::vector<ComparableDynamicsComponent>>> marks;
     size_t wordsCount = 0;
     for (const auto& staff : measures.at(1).staves) {
         for (const auto& direction : staff.directions) {
             for (const auto& mark : directionMarks(direction)) {
-                marks.emplace_back(mark.markType, mark.name, mark.choice.otherMark().smufl);
+                ASSERT_EQ(mark.markType, mx::api::MarkType::dynamics);
+                marks.emplace_back(mark.name, dynamicsComponents(mark));
             }
             wordsCount += directionWords(direction).size();
         }
     }
 
-    const std::vector<std::tuple<mx::api::MarkType, std::string, std::optional<std::string>>> expected = {
+    const std::vector<std::pair<std::string, std::vector<ComparableDynamicsComponent>>> expected = {
         // "ffz", drawn as the glyphs ff and z, keeps its glyph sequence.
-        { mx::api::MarkType::compoundDynamics, "", std::nullopt },
+        { "ffz", { { mx::api::StandardDynamic::ff, "", std::nullopt }, { std::nullopt, "z", "dynamicZ" } } },
         // "sfmp", typed as ASCII letters, carries its letters and no glyph name.
-        { mx::api::MarkType::otherDynamics, "sfmp", std::nullopt }
+        { "sfmp", { { std::nullopt, "sfmp", std::nullopt } } }
     };
     EXPECT_EQ(marks, expected);
     EXPECT_EQ(wordsCount, 0u);
