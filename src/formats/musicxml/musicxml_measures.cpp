@@ -541,6 +541,9 @@ mx::api::ClefData musicXmlClefFromMusxClef(
             result.printObject = mx::api::Bool::no;
         }
     }
+    // mx::api defaults isOctaveChangeSpecified to true, so an ordinary clef would otherwise write a
+    // meaningless <clef-octave-change>0</clef-octave-change>.
+    result.isOctaveChangeSpecified = result.octaveChange != 0;
     return result;
 }
 
@@ -1050,10 +1053,22 @@ void addMeasureNumber(
             }();
 
             if (partDisplaysMeasureNumbers || systemRelation != mx::api::SystemRelation::unspecified) {
-                if (scorePartData->showOnEvery && scorePartData->incidence == 1) {
+                if (scorePartData->showOnEvery && scorePartData->incidence <= 1) {
+                    // Every measure, the common case. Finale's UI cannot produce an increment below
+                    // 1, so a zero here is unset data and means the same thing.
                     measure.measureNumbering = mx::api::MeasureNumbering::measure;
                 } else if (scorePartData->showOnStart) {
                     measure.measureNumbering = mx::api::MeasureNumbering::system;
+                } else if (!scorePartData->showOnEvery) {
+                    // Neither "Show On Start of Staff System" nor "Show on Every": the region numbers
+                    // no measure of this part, which is not the same as having nothing to say.
+                    measure.measureNumbering = mx::api::MeasureNumbering::none;
+                } else {
+                    // Mid-system numbers every nth measure. MusicXML offers only "every measure" and
+                    // "start of system", so leave it unstated rather than overstate or erase it.
+                    context.logMessage(LogMsg() << "Measure numbers shown on every " << scorePartData->incidence
+                        << " measures have no MusicXML equivalent; leaving measure numbering unspecified.",
+                        MessageSeverity::Verbose);
                 }
             } else {
                 measure.measureNumbering = mx::api::MeasureNumbering::none;
@@ -1107,6 +1122,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
     std::vector<std::optional<ClefIndex>> prevClefIndices(stavesIt->second.size());
     std::vector<std::optional<mx::api::TimeChoice>> prevTimeSigs(stavesIt->second.size());
     const auto pitchContext = pitchContextForPart(context, part.uniqueId);
+    const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId);
     for (size_t measureIndex = 0; measureIndex < musxMeasures.size(); ++measureIndex) {
         const auto& musxMeasure = musxMeasures[measureIndex];
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
@@ -1125,7 +1141,9 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         addMeasureNumber(context, measure, musxMeasure, stavesIt->second, scoreStaves);
         assignKeySignatures(context, measure, musxMeasure, stavesIt->second, pitchContext, prevKeyData);
         assignTimeSignature(context, measure, musxMeasure, stavesIt->second, prevTimeSigs);
-        if (const auto partSymbolIt = context.partIdToPartSymbol.find(part.uniqueId); partSymbolIt != context.partIdToPartSymbol.end()) {
+        // The brace or bracket belongs to the part, not to each of its measures. MusicXML carries it
+        // in the first measure's <attributes>, where it stays in effect for the rest of the part.
+        if (measureIndex == 0 && partSymbolIt != context.partIdToPartSymbol.end()) {
             measure.partSymbol = partSymbolIt->second;
         }
 
