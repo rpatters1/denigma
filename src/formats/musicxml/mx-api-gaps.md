@@ -72,6 +72,28 @@ MusicXML represents trill extensions and vibrato lines as `<ornaments><wavy-line
 
 Needed API shape: wavy-line start/stop data on `MarkData` (or a dedicated paired-spanner model for note-attached wavy lines).
 
+### Note-attached glissandi and slides
+
+MusicXML represents both markings as note-attached paired spanners inside `<notations>`: `<glissando type="start|stop">` and `<slide type="start|stop">`. The two carry the same information and differ only in what they imply about the pitch motion between the notes. A glissando defaults to a wavy line and covers the discrete case, while a slide is continuous between the two pitches and defaults to a solid line. Both take an optional `number` for overlapping spans, an optional `line-type` with dash and space lengths, the usual print-style attributes, and optional text content that is printed alongside the line, which is where a marking such as "gliss." belongs.
+
+MX's generated core layer models both elements, and `NotationsChoice` already admits them, but `mx::api` exposes neither. `CurveType` offers only `slur` and `tie`, and `NotationsWriter` skips any entry in `curveStarts`, `curveContinuations`, or `curveStops` whose type is not one of those two, so the generic curve path cannot carry a glissando. `MarkData` has no glissando or slide member either. `NoteAttachmentData` reserves `spannerStarts` and `spannerStops` vectors, but they are commented out and unimplemented. Denigma therefore has no way to write either element, and drops all Finale glissandi and tab slides.
+
+Needed API shape: a note-attached paired spanner model on `NoteAttachmentData`, which the reserved spanner vectors anticipate. It should carry the element kind (glissando or slide), start/stop state, spanner number, the optional printed text, `LineData` for line type and dash and space lengths, and the shared placement, position, and color attributes. A model general enough to host the wavy-line pairs described above would serve both gaps.
+
+## Lyrics
+
+### Word-extension endpoints
+
+MusicXML `<extend>` carries a `type` of `start`, `continue`, or `stop`. A word extension spanning several notes is written as `<extend type="start"/>` on the syllable and a text-less `<lyric>` holding `<extend type="stop"/>` on the note where the line ends, which is how Finale's own export encodes it. A bare `<extend/>` is the legacy form and says only that the syllable extends, not how far.
+
+`mx::api::LyricData` exposes `bool hasExtend` and nothing else, and its writer emits the bare form. There is also no way to express the terminating lyric, since a `LyricData` with empty `text` and no syllabic would have to write an `<extend>`-only element, which the current model cannot request. Denigma therefore emits a bare `<extend/>` on the syllable and the extension's length is unrecoverable by the importer.
+
+The source data is available. `details::LyricAssign::calcWordExtensionEndpoint` returns the terminating entry directly, so mapping start and stop would be straightforward once the API can express them. One case would remain unmappable regardless: the function returns null for documents using legacy rather than smart word extensions, where `LyricAssign::wext` holds a raw Evpu length instead of an endpoint. Resolving a length into a terminating note requires knowing note spacing, which is engraved layout, so legacy extensions keep the bare `<extend/>` in any event.
+
+`LyricData` is thin in other respects that matter less but would likely be addressed by the same work: it models no `<elision>`, none of `<humming>`, `<laughing>`, `<end-line>`, or `<end-paragraph>`, and carries `positionData` and `printData` but no `FontData`.
+
+Needed API shape: an extend model on `LyricData` carrying the MusicXML type alongside the existing boolean, and a way to write a lyric whose only content is an `<extend>`, so a multi-note extension can name both of its ends.
+
 ## Measures
 
 ### Multimeasure-rest attributes
@@ -131,6 +153,18 @@ MusicXML name-display elements can carry formatting and position data, including
 Denigma will probably not try to export part-name or part-group positioning overrides, or will export very few of them. This is therefore a low-priority gap for Denigma, but it remains a possible API limitation for applications that need exact layout round-tripping.
 
 Needed API shape: position/print data for group-name-display, group-abbreviation-display, and possibly group-symbol placement.
+
+## Score Metadata
+
+### Arranger and publisher are accepted but never written
+
+MusicXML records an arranger as `<identification><creator type="arranger">`, alongside composer and lyricist. Finale's own export writes it whenever the file's Arranger field is populated.
+
+`mx::api::ScoreData` has `arranger` and `publisher` members beside `composer` and `lyricist`, so both are settable, and Denigma sets `arranger` in `setFileInfoText` from Finale's own `FileInfoText::TextType::Arranger`, which is a field distinct from Composer. The writer consumes neither: `ScoreWriter` emits `<creator>` for `composer` and `lyricist` only, and nothing reads `ScoreData::arranger` or `ScoreData::publisher` on the way out. The value is silently dropped, which also makes the assignment in Denigma dead state. `ScoreReader` does populate both on the way in, under a stale comment claiming `ScoreData` has no fields for them, so the round trip loses them at the write step rather than the read step.
+
+Denigma works around this by also recording the arranger as a `<miscellaneous-field>`, which keeps the text in the file but not in the element any importer would look for. Publisher needs no workaround, since Finale has no corresponding file-info field for Denigma to read.
+
+Needed API shape: no new model, only writer support. `ScoreWriter` should emit `<creator type="arranger">` from `ScoreData::arranger` and `<identification><creator type="publisher">` from `ScoreData::publisher`, on the same path as composer and lyricist. Once arranger is written, Denigma's miscellaneous-field workaround should be removed. The stale `ScoreReader` comment should go at the same time.
 
 ## Page Text and Credits
 

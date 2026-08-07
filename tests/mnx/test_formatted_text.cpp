@@ -174,7 +174,7 @@ TEST(MnxFormattedText, SplitsSmuflGlyphsFromMixedTextWhenRequested)
 {
     auto ctx = makeRawTextContext("^fontid(2)^size(24)^nfx(0)p f");
     MnxFormattedTextOptions options;
-    options.symbolPolicy = MnxFormattedTextSymbolPolicy::SplitSmufl;
+    options.symbolPolicy = utils::SmuflSymbolPolicy::SplitSmufl;
 
     const auto formatted = makeFormattedText(ctx.parsingContext, options);
 
@@ -233,7 +233,7 @@ TEST(MnxFormattedText, ChunkCallbackPreservesTextPolicy)
     std::vector<std::string> chunks;
     std::vector<std::vector<std::string>> glyphs;
     MnxFormattedTextOptions options;
-    options.symbolPolicy = MnxFormattedTextSymbolPolicy::PreserveText;
+    options.symbolPolicy = utils::SmuflSymbolPolicy::PreserveText;
     options.onChunk = [&](const std::string& chunk, const std::vector<std::string>& chunkGlyphs) {
         chunks.push_back(chunk);
         glyphs.push_back(chunkGlyphs);
@@ -260,7 +260,7 @@ TEST(MnxFormattedText, ChunkCallbackSplitsSmuflPolicy)
     std::vector<std::string> chunks;
     std::vector<std::vector<std::string>> glyphs;
     MnxFormattedTextOptions options;
-    options.symbolPolicy = MnxFormattedTextSymbolPolicy::SplitSmufl;
+    options.symbolPolicy = utils::SmuflSymbolPolicy::SplitSmufl;
     options.onChunk = [&](const std::string& chunk, const std::vector<std::string>& chunkGlyphs) {
         chunks.push_back(chunk);
         glyphs.push_back(chunkGlyphs);

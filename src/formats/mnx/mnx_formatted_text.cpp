@@ -38,65 +38,6 @@ namespace detail {
 
 namespace {
 
-struct GlyphRun
-{
-    bool isSmufl{};
-    std::string text;
-    std::vector<std::string> glyphs;
-};
-
-static void appendUtf8(std::string& dst, std::string_view src, size_t offset, size_t length)
-{
-    dst.append(src.substr(offset, length));
-}
-
-static std::vector<std::string> glyphNamesForText(const MusxInstance<FontInfo>& font, const std::string& text)
-{
-    std::vector<std::string> result;
-    bool allMapped = true;
-    for (utils::Utf8Iterator iter(text); !iter.atEnd(); iter.next()) {
-        if (auto glyphName = utils::smuflGlyphNameForFont(font, iter->codepoint)) {
-            result.push_back(*glyphName);
-        } else {
-            allMapped = false;
-        }
-    }
-    if (!allMapped) {
-        result.clear();
-    }
-    return result;
-}
-
-static std::vector<GlyphRun> splitRunsByGlyphMapping(const MusxInstance<FontInfo>& font, const std::string& text)
-{
-    std::vector<GlyphRun> result;
-
-    auto appendText = [&](std::string_view src, size_t offset, size_t length) {
-        if (result.empty() || result.back().isSmufl) {
-            result.push_back(GlyphRun{ false, {}, {} });
-        }
-        appendUtf8(result.back().text, src, offset, length);
-    };
-
-    auto appendGlyph = [&](std::string_view src, size_t offset, size_t length, const std::string& glyphName) {
-        if (result.empty() || !result.back().isSmufl) {
-            result.push_back(GlyphRun{ true, {}, {} });
-        }
-        appendUtf8(result.back().text, src, offset, length);
-        result.back().glyphs.push_back(glyphName);
-    };
-
-    for (utils::Utf8Iterator iter(text); !iter.atEnd(); iter.next()) {
-        if (auto glyphName = utils::smuflGlyphNameForFont(font, iter->codepoint)) {
-            appendGlyph(text, iter.offset(), iter->byteCount, *glyphName);
-        } else {
-            appendText(text, iter.offset(), iter->byteCount);
-        }
-    }
-
-    return result;
-}
-
 static bool sameFont(const MusxInstance<FontInfo>& lhs, const MusxInstance<FontInfo>& rhs)
 {
     if (!lhs || !rhs) {
@@ -169,13 +110,13 @@ static void appendConvertedChunk(mnxdom::FormattedText dst, const std::string& t
         return;
     }
 
-    if (options.plainTextOnly || options.symbolPolicy == MnxFormattedTextSymbolPolicy::PreserveText) {
+    if (options.plainTextOnly || options.symbolPolicy == utils::SmuflSymbolPolicy::PreserveText) {
         appendTextChunk(dst, text, styles, options);
         return;
     }
 
-    if (options.symbolPolicy == MnxFormattedTextSymbolPolicy::PreferSmufl) {
-        if (auto glyphs = glyphNamesForText(styles.font, text); !glyphs.empty()) {
+    if (options.symbolPolicy == utils::SmuflSymbolPolicy::PreferSmufl) {
+        if (auto glyphs = utils::smuflGlyphNamesForText(styles.font, text); !glyphs.empty()) {
             appendSmuflChunk(dst, text, glyphs, styles, options);
         } else {
             appendTextChunk(dst, text, styles, options);
@@ -183,9 +124,9 @@ static void appendConvertedChunk(mnxdom::FormattedText dst, const std::string& t
         return;
     }
 
-    if (options.symbolPolicy == MnxFormattedTextSymbolPolicy::SplitSmufl) {
+    if (options.symbolPolicy == utils::SmuflSymbolPolicy::SplitSmufl) {
         bool addTextStyle = true;
-        for (const auto& run : splitRunsByGlyphMapping(styles.font, text)) {
+        for (const auto& run : utils::smuflSplitRunsByGlyphMapping(styles.font, text)) {
             if (run.isSmufl) {
                 appendSmuflChunk(dst, run.text, run.glyphs, styles, options, false);
             } else {
@@ -206,7 +147,7 @@ void setFormattedText(
     dst.clear();
 
     EnigmaString::EnigmaParsingOptions parsingOptions;
-    if (options.plainTextOnly || options.symbolPolicy == MnxFormattedTextSymbolPolicy::PreserveText) {
+    if (options.plainTextOnly || options.symbolPolicy == utils::SmuflSymbolPolicy::PreserveText) {
         parsingOptions = EnigmaString::EnigmaParsingOptions(EnigmaString::AccidentalStyle::Unicode);
     }
     if (options.plainTextOnly) {

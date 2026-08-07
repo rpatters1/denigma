@@ -261,16 +261,7 @@ std::vector<mx::api::DirectionData> createDynamicExpressionDirections(
                 auto symbols = std::vector<mx::api::WordsChoice>{};
                 symbols.reserve(dynamic->glyphs.size());
                 for (const auto& glyph : dynamic->glyphs) {
-                    auto symbol = mx::api::SymbolData{};
-                    symbol.smufl = glyph;
-                    symbol.positionData = sourceWords->positionData;
-                    symbol.fontData = sourceWords->fontData;
-                    if (sourceWords->isColorSpecified) {
-                        symbol.color = sourceWords->colorData;
-                    }
-                    symbol.enclosure = sourceWords->enclosure;
-                    symbol.justify = sourceWords->justify;
-                    symbols.emplace_back(std::move(symbol));
+                    symbols.emplace_back(musicXmlSymbolFromWords(*sourceWords, run.chunk.styles.font, glyph));
                 }
                 direction.directionTypes.emplace_back(std::move(symbols));
                 continue;

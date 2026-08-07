@@ -167,16 +167,17 @@ std::optional<mx::api::DirectionData> createTempoExpressionDirection(
     bool isStaffValueSpecified)
 {
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
-    auto words = std::vector<mx::api::WordsData>{};
+    auto words = std::vector<mx::api::WordsChoice>{};
     if (classification.enigmaCtx) {
         words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
     }
     const auto enclosure = enclosureForTextExpression(assignment);
     const auto justify = justifyForTextExpression(assignment);
-    for (auto& item : words) {
-        item.enclosure = enclosure;
-        item.justify = justify;
-    }
+    forEachMusicXmlWordsRunItem(words, [&](mx::api::PositionData&,
+            mx::api::Enclosure& itemEnclosure, mx::api::HorizontalAlignment& itemJustify) {
+        itemEnclosure = enclosure;
+        itemJustify = justify;
+    });
     appendMusicXmlWordsRun(direction, std::move(words));
 
     const double quarterNotesPerMinute = musicXmlQuarterNotesPerMinute(classification.tempoText().tempo);
@@ -200,16 +201,17 @@ std::optional<mx::api::DirectionData> createWordsExpressionDirection(
     bool isStaffValueSpecified)
 {
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
-    auto words = std::vector<mx::api::WordsData>{};
+    auto words = std::vector<mx::api::WordsChoice>{};
     if (classification.enigmaCtx) {
         words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
     }
     const auto enclosure = enclosureForTextExpression(assignment);
     const auto justify = justifyForTextExpression(assignment);
-    for (auto& item : words) {
-        item.enclosure = enclosure;
-        item.justify = justify;
-    }
+    forEachMusicXmlWordsRunItem(words, [&](mx::api::PositionData&,
+            mx::api::Enclosure& itemEnclosure, mx::api::HorizontalAlignment& itemJustify) {
+        itemEnclosure = enclosure;
+        itemJustify = justify;
+    });
     appendMusicXmlWordsRun(direction, std::move(words));
     if (mx::api::isDirectionDataEmpty(direction)) {
         return std::nullopt;

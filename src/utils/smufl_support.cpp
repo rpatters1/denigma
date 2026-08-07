@@ -25,7 +25,9 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+#include <vector>
 
 #include "smufl_support.h"
 
@@ -224,6 +226,43 @@ std::optional<SmuflGlyphMetricsEvpu> smuflGlyphMetricsForFont(const FontInfo& fo
     result.advance = advanceInSpaces * evpuPerSpaceAtSize;
     result.top = bbox[3] * evpuPerSpaceAtSize;
     result.bottom = bbox[1] * evpuPerSpaceAtSize;
+    return result;
+}
+
+std::vector<std::string> smuflGlyphNamesForText(const MusxInstance<FontInfo>& fontInfo, const std::string& text)
+{
+    std::vector<std::string> result;
+    for (Utf8Iterator iter(text); !iter.atEnd(); iter.next()) {
+        auto glyphName = smuflGlyphNameForFont(fontInfo, iter->codepoint);
+        if (!glyphName) {
+            // All or nothing: one unmappable character disqualifies the whole run.
+            return {};
+        }
+        result.push_back(std::move(*glyphName));
+    }
+    return result;
+}
+
+std::vector<SmuflGlyphRun> smuflSplitRunsByGlyphMapping(const MusxInstance<FontInfo>& fontInfo, const std::string& text)
+{
+    std::vector<SmuflGlyphRun> result;
+
+    const auto append = [&](bool isSmufl, std::string_view source, size_t offset, size_t length) -> SmuflGlyphRun& {
+        if (result.empty() || result.back().isSmufl != isSmufl) {
+            result.push_back(SmuflGlyphRun{ isSmufl, {}, {} });
+        }
+        result.back().text.append(source.substr(offset, length));
+        return result.back();
+    };
+
+    for (Utf8Iterator iter(text); !iter.atEnd(); iter.next()) {
+        if (auto glyphName = smuflGlyphNameForFont(fontInfo, iter->codepoint)) {
+            append(true, text, iter.offset(), iter->byteCount).glyphs.push_back(std::move(*glyphName));
+        } else {
+            append(false, text, iter.offset(), iter->byteCount);
+        }
+    }
+
     return result;
 }
 

@@ -58,10 +58,24 @@ std::string_view musicXmlFontFamilyFallbackName(MusicXmlFontFamilyFallback fallb
     throw std::invalid_argument("Unknown MusicXML font-family fallback.");
 }
 
+/// True when @p name is one of MusicXML's generic font families rather than an installed face.
+bool isGenericFontFamily(std::string_view name)
+{
+    static constexpr MusicXmlFontFamilyFallback kGenerics[] = {
+        MusicXmlFontFamilyFallback::Music, MusicXmlFontFamilyFallback::Engraved,
+        MusicXmlFontFamilyFallback::Handwritten, MusicXmlFontFamilyFallback::Text,
+        MusicXmlFontFamilyFallback::Serif, MusicXmlFontFamilyFallback::SansSerif,
+        MusicXmlFontFamilyFallback::Cursive, MusicXmlFontFamilyFallback::Fantasy,
+        MusicXmlFontFamilyFallback::Monospace
+    };
+    return std::any_of(std::begin(kGenerics), std::end(kGenerics),
+        [name](MusicXmlFontFamilyFallback fallback) { return name == musicXmlFontFamilyFallbackName(fallback); });
+}
+
 } // namespace
 
 mx::api::FontData MusicXmlMusxMapping::musicXmlFontDataFromFontInfo(const musx::dom::FontInfo& fontInfo,
-    MusicXmlFontFamilyFallback fallback) const
+    MusicXmlFontFamilyFallback fallback, MusicXmlFontScaling fontScaling) const
 {
     mx::api::FontData result;
     const auto fontName = fontInfo.getName();
@@ -74,16 +88,24 @@ mx::api::FontData MusicXmlMusxMapping::musicXmlFontDataFromFontInfo(const musx::
 
     if (!fontInfo.getSizeIsPercent() && fontInfo.fontSize > 0) {
         constexpr auto kUnscaledMmPerStaff = musx::dom::EVPU_PER_STANDARD_STAFF / musx::dom::EVPU_PER_MM;
-        auto staffScaling = 1.0;
+        auto scaling = 1.0;
         if (!fontInfo.absolute) {
-            const bool hasInitializedScaling = musicXmlScore && musicXmlScore->defaults.scalingMillimeters > 0.0;
-            ASSERT_IF(!hasInitializedScaling) {
-                throw std::logic_error("MusicXML font conversion requires initialized score scaling for non-absolute font sizes.");
+            if (fontScaling == MusicXmlFontScaling::Page) {
+                // Page-attached text sits on the page, so only the page scaling reduces it. Using the
+                // combined factor here would shrink it again by the system scaling, which never
+                // applies to it. effectivePageFormat is the single-target source: it takes its page
+                // percent from the first real page rather than from the page format options alone.
+                scaling = finaleOptions.effectivePageFormat->calcPageScaling().toDouble();
+            } else {
+                const bool hasInitializedScaling = musicXmlScore && musicXmlScore->defaults.scalingMillimeters > 0.0;
+                ASSERT_IF(!hasInitializedScaling) {
+                    throw std::logic_error("MusicXML font conversion requires initialized score scaling for non-absolute font sizes.");
+                }
+                scaling = musicXmlScore->defaults.scalingMillimeters / kUnscaledMmPerStaff;
             }
-            staffScaling = musicXmlScore->defaults.scalingMillimeters / kUnscaledMmPerStaff;
         }
         result.sizeType = mx::api::FontSizeType::point;
-        result.sizePoint = static_cast<double>(fontInfo.fontSize) * staffScaling;
+        result.sizePoint = static_cast<double>(fontInfo.fontSize) * scaling;
     }
 
     // Finale font styles are explicit: unset bold/italic means normal, not unspecified.
@@ -180,24 +202,122 @@ mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
     return result;
 }
 
-std::vector<mx::api::WordsData> musicXmlWordsFromEnigmaText(const MusicXmlMusxMapping& context,
+/// The source font family is deliberately not carried over. A symbol names a glyph rather than a
+/// character, and it exists only because Denigma declined to rely on the source font being present;
+/// naming that font would ask the reader to resolve a SMuFL glyph name out of it, which a legacy
+/// font cannot do at all. Style and weight are dropped for the same reason, since a glyph is neither
+/// bold nor italic. A reader who does want the original font is served by not converting at all; see
+/// the font-availability assertion in roadmap.md.
+///
+/// A SMuFL source keeps its whole font data, family included. That face really does contain the
+/// glyph under this name, so naming it gives a reader who has it the source's own design, and the
+/// family list degrades to the generic for a reader who does not, which is what such a list is for.
+/// Its generic is replaced with an engraving one, since the fallback appended for running prose
+/// would send a reader to a text font that cannot draw the glyph at all. Size and style come across
+/// for the same reason: every SMuFL font sets one em to four staff spaces, so a point size measured
+/// in one carries its meaning into another, keeping a tempo glyph deliberately smaller than staff
+/// size.
+///
+/// A legacy source keeps none of it. The name means nothing in that face, so there is nothing to
+/// point a reader at; its point size describes only its own design and would mis-scale the
+/// substituted glyph; and its bold or italic would ask for a synthesized slant on a glyph that has
+/// none. No generic is added either, `<symbol>` already saying that a glyph is wanted.
+///
+/// Style and weight are nonetheless always stated, because `mx::api::FontData` leaves them
+/// unspecified by default and an unspecified style inherits from whatever ran before. A legacy
+/// source therefore gets an explicit normal rather than nothing, for the same reason
+/// #musicXmlFontDataFromFontInfo states normal on ordinary words.
+mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWords,
+    const musx::dom::MusxInstance<musx::dom::FontInfo>& font, std::string glyphName)
+{
+    mx::api::SymbolData result;
+    result.smufl = std::move(glyphName);
+    result.positionData = sourceWords.positionData;
+    if (font && font->calcIsSMuFL()) {
+        result.fontData = sourceWords.fontData;
+        auto& families = result.fontData.fontFamily;
+        families.erase(std::remove_if(families.begin(), families.end(),
+            [](const std::string& family) { return isGenericFontFamily(family); }), families.end());
+        families.emplace_back(musicXmlFontFamilyFallbackName(MusicXmlFontFamilyFallback::Engraved));
+    } else {
+        result.fontData.style = mx::api::FontStyle::normal;
+        result.fontData.weight = mx::api::FontWeight::normal;
+    }
+    if (sourceWords.isColorSpecified) {
+        result.color = sourceWords.colorData;
+    }
+    result.enclosure = sourceWords.enclosure;
+    result.justify = sourceWords.justify;
+    return result;
+}
+
+namespace {
+
+/// Expands one source chunk into run items, converting music-font characters per @p policy.
+void appendChunkToWordsRun(std::vector<mx::api::WordsChoice>& run, const mx::api::WordsData& sourceWords,
+    const musx::dom::MusxInstance<musx::dom::FontInfo>& font, utils::SmuflSymbolPolicy policy)
+{
+    const auto appendWords = [&](std::string text) {
+        auto words = sourceWords;
+        words.text = std::move(text);
+        run.emplace_back(std::move(words));
+    };
+
+    if (policy == utils::SmuflSymbolPolicy::PreserveText) {
+        run.emplace_back(sourceWords);
+        return;
+    }
+
+    if (policy == utils::SmuflSymbolPolicy::PreferSmufl) {
+        auto glyphs = utils::smuflGlyphNamesForText(font, sourceWords.text);
+        if (glyphs.empty()) {
+            run.emplace_back(sourceWords);
+            return;
+        }
+        for (auto& glyphName : glyphs) {
+            run.emplace_back(musicXmlSymbolFromWords(sourceWords, font, std::move(glyphName)));
+        }
+        return;
+    }
+
+    for (const auto& glyphRun : utils::smuflSplitRunsByGlyphMapping(font, sourceWords.text)) {
+        if (!glyphRun.isSmufl) {
+            appendWords(glyphRun.text);
+            continue;
+        }
+        for (const auto& glyphName : glyphRun.glyphs) {
+            run.emplace_back(musicXmlSymbolFromWords(sourceWords, font, glyphName));
+        }
+    }
+}
+
+} // namespace
+
+std::vector<mx::api::WordsChoice> musicXmlWordsFromEnigmaText(const MusicXmlMusxMapping& context,
     const musx::util::EnigmaParsingContext& text, const MusicXmlFormattedTextOptions& options)
 {
-    std::vector<mx::api::WordsData> result;
-    auto parserOptions = options;
+    std::vector<mx::api::WordsChoice> result;
     text.parseEnigmaText([&](const std::string& chunkText, const musx::util::EnigmaStyles& styles) -> bool {
         musx::util::EnigmaTextChunk chunk{ chunkText, styles };
         auto words = musicXmlWordsFromEnigmaTextChunk(context, chunk, options);
         if (!words) {
             return true;
         }
-        result.emplace_back(std::move(*words));
         if (options.onChunk) {
-            options.onChunk(result.back().fontData, result.back().text);
+            options.onChunk(words->fontData, words->text);
         }
+        appendChunkToWordsRun(result, *words, styles.font, options.symbolPolicy);
         return true;
     }, musx::util::EnigmaString::EnigmaParsingOptions(options.accidentalStyle));
     return result;
+}
+
+void appendMusicXmlWordsRun(mx::api::DirectionData& direction, std::vector<mx::api::WordsChoice> run)
+{
+    if (run.empty()) {
+        return;
+    }
+    direction.directionTypes.emplace_back(std::move(run));
 }
 
 void appendMusicXmlWordsRun(mx::api::DirectionData& direction, std::vector<mx::api::WordsData> words)
@@ -242,7 +362,8 @@ std::optional<MusicXmlPageTextContent> musicXmlPageTextContentFromEnigmaText(con
         if (styles.font->hidden) {
             return true;
         }
-        const auto fontData = context.musicXmlFontDataFromFontInfo(*styles.font, options.fallback);
+        const auto fontData = context.musicXmlFontDataFromFontInfo(
+            *styles.font, options.fallback, MusicXmlFontScaling::Page);
         if (!foundVisibleFont) {
             result.fontData = fontData;
             foundVisibleFont = true;

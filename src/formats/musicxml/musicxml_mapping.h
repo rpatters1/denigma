@@ -62,6 +62,17 @@ enum class MusicXmlFontFamilyFallback
     Monospace
 };
 
+/// @brief Which of Finale's scaling factors reduces a font's nominal point size.
+///
+/// MusicXML font sizes are physical points, so a font must be scaled by whatever Finale scales the
+/// thing it sits on. Text living in staff space shrinks with both the page and the systems, while
+/// page-attached text sits on the page and is unaffected by system or staff scaling.
+enum class MusicXmlFontScaling
+{
+    StaffSpace,
+    Page
+};
+
 enum class MusicXmlPitchContext
 {
     Concert,
@@ -217,7 +228,8 @@ struct MusicXmlMusxMapping
     double musicXmlTenthsFromEvpu(double evpu, double backoutScaling = 1.0) const;
     mx::api::FontData musicXmlFontDataFromFontInfo(
         const musx::dom::FontInfo& fontInfo,
-        MusicXmlFontFamilyFallback fallback = MusicXmlFontFamilyFallback::None) const;
+        MusicXmlFontFamilyFallback fallback = MusicXmlFontFamilyFallback::None,
+        MusicXmlFontScaling fontScaling = MusicXmlFontScaling::StaffSpace) const;
 
     void logMessage(LogMsg&& msg, MessageSeverity severity = MessageSeverity::Info) const
     {
