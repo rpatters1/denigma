@@ -195,10 +195,16 @@ mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
 /// bold nor italic. A reader who does want the original font is served by not converting at all; see
 /// the font-availability assertion in roadmap.md.
 ///
-/// Size is kept only for a SMuFL source. Every SMuFL font sets one em to four staff spaces, so a
-/// point size measured in one carries its meaning into another, and a tempo glyph drawn smaller than
-/// staff size stays smaller. A legacy font's point size describes only its own design and would
-/// mis-scale the substituted glyph, so it is left for the reader to decide.
+/// Size and style are carried over only for a SMuFL source. Every SMuFL font sets one em to four
+/// staff spaces, so a point size measured in one carries its meaning into another, and a tempo glyph
+/// drawn smaller than staff size stays smaller. A legacy font's point size describes only its own
+/// design and would mis-scale the substituted glyph, so it is left for the reader to decide, and its
+/// bold or italic would only ask for a synthesized slant on a glyph that has none.
+///
+/// Style and weight are nonetheless always stated, because `mx::api::FontData` leaves them
+/// unspecified by default and an unspecified style inherits from whatever ran before. A legacy
+/// source therefore gets an explicit normal rather than nothing, for the same reason
+/// #musicXmlFontDataFromFontInfo states normal on ordinary words.
 mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWords,
     const musx::dom::MusxInstance<musx::dom::FontInfo>& font, std::string glyphName)
 {
@@ -206,9 +212,11 @@ mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWord
     result.smufl = std::move(glyphName);
     result.positionData = sourceWords.positionData;
     if (font && font->calcIsSMuFL()) {
-        result.fontData.sizeType = sourceWords.fontData.sizeType;
-        result.fontData.sizePoint = sourceWords.fontData.sizePoint;
-        result.fontData.sizeCss = sourceWords.fontData.sizeCss;
+        result.fontData = sourceWords.fontData;
+        result.fontData.fontFamily.clear();
+    } else {
+        result.fontData.style = mx::api::FontStyle::normal;
+        result.fontData.weight = mx::api::FontWeight::normal;
     }
     if (sourceWords.isColorSpecified) {
         result.color = sourceWords.colorData;
