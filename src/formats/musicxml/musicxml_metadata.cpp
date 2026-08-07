@@ -89,6 +89,9 @@ void setFileInfoText(mx::api::ScoreData& score, FileInfoText::TextType textType,
         addMiscellaneousField(score.encoding, "arranger", std::move(value));
         break;
     case FileInfoText::TextType::Subtitle:
+        // MusicXML has no subtitle element: <work> offers only title and number, and <identification>
+        // has no equivalent. A subtitle travels as a <credit> with credit-type "subtitle", which the
+        // page text path already emits, so there is nothing to record here.
         break;
     }
 }
@@ -134,8 +137,15 @@ mx::api::PositionData pageTextPosition(const MusicXmlMusxMapping& context,
     case options::TextOptions::VerticalAlignment::Center: result.defaultY = (bottom + top) / 2.0; break;
     case options::TextOptions::VerticalAlignment::Bottom: result.defaultY = bottom; break;
     }
-    result.defaultX += context.musicXmlTenthsFromEvpu(xOffset);
-    result.defaultY += context.musicXmlTenthsFromEvpu(yOffset);
+    // The page box computed above is in page tenths, which back out the combined page and system
+    // scaling because a page's dimensions are physical and no scaling shrinks the paper. These
+    // offsets are different: they position content on the page, and page content is reduced by the
+    // page scaling. A nominal-Evpu offset therefore lands at Evpu * pageScaling / combined, which,
+    // since combined is pageScaling * systemScaling, is the same as backing out the system scaling
+    // alone. Using the default backout here would mix staff-space offsets into a page-space box.
+    const double systemScaling = context.finaleOptions.effectivePageFormat->calcSystemScaling().toDouble();
+    result.defaultX += context.musicXmlTenthsFromEvpu(xOffset, systemScaling);
+    result.defaultY += context.musicXmlTenthsFromEvpu(yOffset, systemScaling);
     result.isDefaultXSpecified = true;
     result.isDefaultYSpecified = true;
     result.horizontalAlignment = enumConvert<mx::api::HorizontalAlignment>(horizontalAlignment);
@@ -155,8 +165,6 @@ void createMetaData(const MusicXmlMusxMapping& context)
         item.elementName = std::move(elementName);
         item.isSupported = supported;
     };
-    /// @todo (possibly) Add an export option to use accidental support="yes" to allow for differences in importer
-    /// behavior around this issue.
     addSupportedElement("accidental", false);
     addSupportedElement("beam");
     addSupportedElement("stem", false);

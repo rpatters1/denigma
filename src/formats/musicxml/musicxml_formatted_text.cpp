@@ -61,7 +61,7 @@ std::string_view musicXmlFontFamilyFallbackName(MusicXmlFontFamilyFallback fallb
 } // namespace
 
 mx::api::FontData MusicXmlMusxMapping::musicXmlFontDataFromFontInfo(const musx::dom::FontInfo& fontInfo,
-    MusicXmlFontFamilyFallback fallback) const
+    MusicXmlFontFamilyFallback fallback, MusicXmlFontScaling fontScaling) const
 {
     mx::api::FontData result;
     const auto fontName = fontInfo.getName();
@@ -74,16 +74,24 @@ mx::api::FontData MusicXmlMusxMapping::musicXmlFontDataFromFontInfo(const musx::
 
     if (!fontInfo.getSizeIsPercent() && fontInfo.fontSize > 0) {
         constexpr auto kUnscaledMmPerStaff = musx::dom::EVPU_PER_STANDARD_STAFF / musx::dom::EVPU_PER_MM;
-        auto staffScaling = 1.0;
+        auto scaling = 1.0;
         if (!fontInfo.absolute) {
-            const bool hasInitializedScaling = musicXmlScore && musicXmlScore->defaults.scalingMillimeters > 0.0;
-            ASSERT_IF(!hasInitializedScaling) {
-                throw std::logic_error("MusicXML font conversion requires initialized score scaling for non-absolute font sizes.");
+            if (fontScaling == MusicXmlFontScaling::Page) {
+                // Page-attached text sits on the page, so only the page scaling reduces it. Using the
+                // combined factor here would shrink it again by the system scaling, which never
+                // applies to it. effectivePageFormat is the single-target source: it takes its page
+                // percent from the first real page rather than from the page format options alone.
+                scaling = finaleOptions.effectivePageFormat->calcPageScaling().toDouble();
+            } else {
+                const bool hasInitializedScaling = musicXmlScore && musicXmlScore->defaults.scalingMillimeters > 0.0;
+                ASSERT_IF(!hasInitializedScaling) {
+                    throw std::logic_error("MusicXML font conversion requires initialized score scaling for non-absolute font sizes.");
+                }
+                scaling = musicXmlScore->defaults.scalingMillimeters / kUnscaledMmPerStaff;
             }
-            staffScaling = musicXmlScore->defaults.scalingMillimeters / kUnscaledMmPerStaff;
         }
         result.sizeType = mx::api::FontSizeType::point;
-        result.sizePoint = static_cast<double>(fontInfo.fontSize) * staffScaling;
+        result.sizePoint = static_cast<double>(fontInfo.fontSize) * scaling;
     }
 
     // Finale font styles are explicit: unset bold/italic means normal, not unspecified.
@@ -242,7 +250,8 @@ std::optional<MusicXmlPageTextContent> musicXmlPageTextContentFromEnigmaText(con
         if (styles.font->hidden) {
             return true;
         }
-        const auto fontData = context.musicXmlFontDataFromFontInfo(*styles.font, options.fallback);
+        const auto fontData = context.musicXmlFontDataFromFontInfo(
+            *styles.font, options.fallback, MusicXmlFontScaling::Page);
         if (!foundVisibleFont) {
             result.fontData = fontData;
             foundVisibleFont = true;
