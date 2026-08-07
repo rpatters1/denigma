@@ -96,6 +96,15 @@ mx::api::LyricData musicXmlLyricFromSyllable(
     const musx::dom::texts::LyricsTextBase& lyricText,
     size_t syllableIndex,
     const MusicXmlFormattedTextOptions& options = {});
+/// @brief Builds a `<symbol>` for @p glyphName from the words it replaces.
+///
+/// Shared by every path that substitutes a glyph for text, so that all of them agree on what a
+/// symbol carries. The source font family, style, and weight are deliberately dropped; see the
+/// implementation and the symbol entry in design-decisions.md for why.
+mx::api::SymbolData musicXmlSymbolFromWords(
+    const mx::api::WordsData& sourceWords,
+    const musx::dom::MusxInstance<musx::dom::FontInfo>& font,
+    std::string glyphName);
 /// @brief Converts formatted text into an ordered run of words and SMuFL symbols.
 ///
 /// Music-font characters become `<symbol>` items according to MusicXmlFormattedTextOptions::symbolPolicy,

@@ -188,11 +188,6 @@ mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
     return result;
 }
 
-namespace {
-
-/// Builds a `<symbol>` carrying @p glyphName, taking placement and color from the words the source
-/// chunk would otherwise have produced.
-///
 /// The source font family is deliberately not carried over. A symbol names a glyph rather than a
 /// character, and it exists only because Denigma declined to rely on the source font being present;
 /// naming that font would ask the reader to resolve a SMuFL glyph name out of it, which a legacy
@@ -222,6 +217,8 @@ mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWord
     result.justify = sourceWords.justify;
     return result;
 }
+
+namespace {
 
 /// Expands one source chunk into run items, converting music-font characters per @p policy.
 void appendChunkToWordsRun(std::vector<mx::api::WordsChoice>& run, const mx::api::WordsData& sourceWords,
