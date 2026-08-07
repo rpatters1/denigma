@@ -35,44 +35,6 @@ namespace detail {
 
 namespace {
 
-struct MusicFontFallbackMapping
-{
-    std::string_view name;
-    MusicXmlFontFamilyFallback fallback;
-};
-
-MusicXmlFontFamilyFallback musicFontFallbackFromFontInfo(const FontInfo& fontInfo)
-{
-    static constexpr auto knownMusicFonts = std::to_array<MusicFontFallbackMapping>({
-        { "bravura", MusicXmlFontFamilyFallback::Engraved },
-        { "broadwaycopyist", MusicXmlFontFamilyFallback::Handwritten },
-        { "broadwaycopyistperc", MusicXmlFontFamilyFallback::Handwritten },
-        { "finalebroadway", MusicXmlFontFamilyFallback::Handwritten },
-        { "finaleengraver", MusicXmlFontFamilyFallback::Engraved },
-        { "finalejazz", MusicXmlFontFamilyFallback::Handwritten },
-        { "finalemaestro", MusicXmlFontFamilyFallback::Engraved },
-        { "engraver", MusicXmlFontFamilyFallback::Engraved },
-        { "engraverfontset", MusicXmlFontFamilyFallback::Engraved },
-        { "jazz", MusicXmlFontFamilyFallback::Handwritten },
-        { "jazzperc", MusicXmlFontFamilyFallback::Handwritten },
-        { "leland", MusicXmlFontFamilyFallback::Engraved },
-        { "maestro", MusicXmlFontFamilyFallback::Engraved },
-        { "maestropercussion", MusicXmlFontFamilyFallback::Engraved },
-        { "musejazz", MusicXmlFontFamilyFallback::Handwritten },
-        { "opus", MusicXmlFontFamilyFallback::Engraved },
-        { "petaluma", MusicXmlFontFamilyFallback::Handwritten },
-        { "petrucci", MusicXmlFontFamilyFallback::Engraved },
-        { "pmusic", MusicXmlFontFamilyFallback::Engraved },
-        { "sonata", MusicXmlFontFamilyFallback::Engraved },
-    });
-
-    const auto fontName = utils::normalizedFontName(fontInfo.getName());
-    const auto it = std::find_if(knownMusicFonts.begin(), knownMusicFonts.end(), [&](const auto& item) {
-        return item.name == std::string_view(fontName.data(), fontName.size());
-    });
-    return it != knownMusicFonts.end() ? it->fallback : MusicXmlFontFamilyFallback::Music;
-}
-
 void createPageLayoutData(
     const MusicXmlMusxMapping& context,
     const options::PageFormatOptions::PageFormat& pagePrefs,
@@ -190,9 +152,9 @@ void createAppearance(const MusicXmlMusxMapping& context)
 void createFontData(const MusicXmlMusxMapping& context)
 {
     auto& defaults = context.musicXmlScore->defaults;
-    defaults.musicFont = context.musicXmlFontDataFromFontInfo(
-        *context.finaleOptions.defaultMusicFont,
-        musicFontFallbackFromFontInfo(*context.finaleOptions.defaultMusicFont));
+    const auto& defaultMusicFont = *context.finaleOptions.defaultMusicFont;
+    defaults.musicFont = context.musicXmlFontDataFromFontInfo(defaultMusicFont,
+        enumConvert<MusicXmlFontFamilyFallback>(utils::musicFontStyleForFont(defaultMusicFont.getName())));
 
     if (const auto wordFont = context.finaleOptions.fontOptions->getFontInfo(options::FontOptions::FontType::Expression)) {
         defaults.wordFont = context.musicXmlFontDataFromFontInfo(*wordFont, MusicXmlFontFamilyFallback::Text);

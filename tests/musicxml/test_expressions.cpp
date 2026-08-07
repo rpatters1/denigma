@@ -593,36 +593,52 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
 
     // The glyph-bearing measure text is the only fixture exercising symbol splitting on this path.
     // Finale splits it the same way and names the same glyphs, which is what the text comparison
-    // above pins. It parts company on the font: Finale keeps the source size, writing
-    // font-size="15.4" and "12", while Denigma drops both size and family because Maestro is a
-    // legacy font whose point size describes only its own design. Style and weight are still stated
-    // outright, so the glyph cannot inherit bold or italic from the run before it.
-    std::vector<mx::api::SymbolData> symbols;
-    for (const auto& measure : actualScore->parts.front().measures) {
-        for (const auto& staff : measure.staves) {
-            for (const auto& direction : staff.directions) {
-                for (const auto& choice : direction.directionTypes) {
-                    if (!choice.isWordsRun()) {
-                        continue;
-                    }
-                    for (const auto& item : choice.wordsRun()) {
-                        if (item.isSymbol()) {
-                            symbols.emplace_back(item.symbol());
+    // above pins. The sizes agree too: Maestro spans four staff spaces to the em, the same as a
+    // SMuFL font, so smufl_mapping reports a ratio of 1 and the source sizes carry across unchanged.
+    // Finale rounds what it writes and Denigma does not, which is all the tolerance below absorbs.
+    // The family is still dropped, since a SMuFL glyph name means nothing in Maestro, and style and
+    // weight are stated outright so the glyph cannot inherit bold or italic from the run before it.
+    const auto collectSymbols = [](const mx::api::ScoreData& score) {
+        std::vector<mx::api::SymbolData> result;
+        for (const auto& measure : score.parts.front().measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& direction : staff.directions) {
+                    for (const auto& choice : direction.directionTypes) {
+                        if (!choice.isWordsRun()) {
+                            continue;
+                        }
+                        for (const auto& item : choice.wordsRun()) {
+                            if (item.isSymbol()) {
+                                result.emplace_back(item.symbol());
+                            }
                         }
                     }
                 }
             }
         }
-    }
+        return result;
+    };
 
-    ASSERT_EQ(symbols.size(), 2u);
-    EXPECT_EQ(symbols[0].smufl, "unpitchedPercussionClef1");
-    EXPECT_EQ(symbols[1].smufl, "repeat2Bars");
-    for (const auto& symbol : symbols) {
-        EXPECT_TRUE(symbol.fontData.fontFamily.empty()) << symbol.smufl;
-        EXPECT_EQ(symbol.fontData.sizeType, mx::api::FontSizeType::unspecified) << symbol.smufl;
-        EXPECT_EQ(symbol.fontData.style, mx::api::FontStyle::normal) << symbol.smufl;
-        EXPECT_EQ(symbol.fontData.weight, mx::api::FontWeight::normal) << symbol.smufl;
+    const auto actualSymbols = collectSymbols(*actualScore);
+    const auto referenceSymbols = collectSymbols(*referenceScore);
+
+    ASSERT_EQ(actualSymbols.size(), 2u);
+    ASSERT_EQ(referenceSymbols.size(), actualSymbols.size());
+    EXPECT_EQ(actualSymbols[0].smufl, "unpitchedPercussionClef1");
+    EXPECT_EQ(actualSymbols[1].smufl, "repeat2Bars");
+
+    constexpr double kFinaleRoundingTolerance = 0.05;
+    for (size_t index = 0; index < actualSymbols.size(); ++index) {
+        const auto& actual = actualSymbols[index];
+        const auto& reference = referenceSymbols[index];
+        EXPECT_EQ(actual.smufl, reference.smufl);
+        EXPECT_TRUE(actual.fontData.fontFamily.empty()) << actual.smufl;
+        EXPECT_EQ(actual.fontData.style, mx::api::FontStyle::normal) << actual.smufl;
+        EXPECT_EQ(actual.fontData.weight, mx::api::FontWeight::normal) << actual.smufl;
+        ASSERT_EQ(actual.fontData.sizeType, mx::api::FontSizeType::point) << actual.smufl;
+        ASSERT_EQ(reference.fontData.sizeType, mx::api::FontSizeType::point) << actual.smufl;
+        EXPECT_NEAR(actual.fontData.sizePoint, reference.fontData.sizePoint, kFinaleRoundingTolerance)
+            << actual.smufl;
     }
 }
 

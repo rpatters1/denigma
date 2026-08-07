@@ -21,25 +21,30 @@
  */
 #include "font_names.h"
 
-#include <array>
-#include <utility>
+#include "smufl_mapping.h"
 
 #include "utils/stringutils.h"
 
 namespace utils {
 namespace {
 
-static constexpr auto finaleToSmuflFontMap = std::to_array<std::pair<std::string_view, std::string_view>>({
-    std::pair<std::string_view, std::string_view>{ "ashmusic", "Finale Ash" },
-    std::pair<std::string_view, std::string_view>{ "broadwaycopyist", "Finale Broadway" },
-    std::pair<std::string_view, std::string_view>{ "engraver", "Finale Engraver" },
-    std::pair<std::string_view, std::string_view>{ "engraverfontset", "Finale Engraver" },
-    std::pair<std::string_view, std::string_view>{ "jazz", "Finale Jazz" },
-    std::pair<std::string_view, std::string_view>{ "maestro", "Finale Maestro" },
-    std::pair<std::string_view, std::string_view>{ "petrucci", "Finale Legacy" },
-    std::pair<std::string_view, std::string_view>{ "pmusic", "Finale Maestro" },
-    std::pair<std::string_view, std::string_view>{ "sonata", "Finale Maestro" },
-});
+MusicFontStyle musicFontStyleFromMapping(smufl_mapping::MusicFontStyle fontStyle)
+{
+    switch (fontStyle) {
+    case smufl_mapping::MusicFontStyle::Engraved: return MusicFontStyle::Engraved;
+    case smufl_mapping::MusicFontStyle::Handwritten: return MusicFontStyle::Handwritten;
+    }
+    return MusicFontStyle::Unknown;
+}
+
+/// The registry's own key normalization removes whitespace but keeps punctuation, while Finale
+/// documents spell the same face with hyphens and underscores as readily as with spaces. Its keys
+/// are stored fully normalized, so handing it #normalizedFontName's output matches them directly
+/// and makes the lookup as tolerant as the rest of Denigma's font-name handling.
+std::optional<smufl_mapping::LegacyFontInfo> legacyFontInfo(std::string_view fontName)
+{
+    return smufl_mapping::getLegacyFontInfo(normalizedFontName(fontName));
+}
 
 } // namespace
 
@@ -57,10 +62,11 @@ std::string normalizedFontName(std::string_view fontName)
 
 std::optional<std::string_view> mappedSmuflFontForFinaleLegacyFont(std::string_view fontName)
 {
-    const std::string normalized = normalizedFontName(fontName);
-    for (const auto& [finaleNameKey, smuflName] : finaleToSmuflFontMap) {
-        if (finaleNameKey == normalized || normalizedFontName(smuflName) == normalized) {
-            return smuflName;
+    // The registry names a successor only where one has been established, and leaves it empty
+    // rather than guessing, which is the same answer an unknown font gives a caller here.
+    if (const auto legacyFont = legacyFontInfo(fontName)) {
+        if (!legacyFont->smuflSuccessorFont.empty()) {
+            return legacyFont->smuflSuccessorFont;
         }
     }
     return std::nullopt;
@@ -69,6 +75,25 @@ std::optional<std::string_view> mappedSmuflFontForFinaleLegacyFont(std::string_v
 bool isFinaleLegacyMusicFontMappedToSmufl(std::string_view fontName)
 {
     return mappedSmuflFontForFinaleLegacyFont(fontName).has_value();
+}
+
+MusicFontStyle musicFontStyleForFont(std::string_view fontName)
+{
+    if (const auto smuflFont = smufl_mapping::getSmuflFontInfo(normalizedFontName(fontName))) {
+        return musicFontStyleFromMapping(smuflFont->fontStyle);
+    }
+    if (const auto legacyFont = legacyFontInfo(fontName)) {
+        return musicFontStyleFromMapping(legacyFont->fontStyle);
+    }
+    return MusicFontStyle::Unknown;
+}
+
+std::optional<double> legacySmuflSizeRatioForFont(std::string_view fontName)
+{
+    if (const auto legacyFont = legacyFontInfo(fontName)) {
+        return legacyFont->smuflSizeRatio();
+    }
+    return std::nullopt;
 }
 
 } // namespace utils

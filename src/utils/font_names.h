@@ -27,10 +27,36 @@
 
 namespace utils {
 
+/// @brief What a music font looks like, independent of whether it is set in the score or inline
+/// with running text.
+///
+/// The values come from the smufl_mapping font registries, which cover both legacy and SMuFL
+/// fonts. Denigma keeps its own enum so that the registry stays a private dependency of this
+/// library rather than bubbling up to everything that needs a font name.
+enum class MusicFontStyle
+{
+    Unknown,        ///< Not a font the registries know, so nothing can be said about its look.
+    Engraved,       ///< Imitates traditional plate engraving.
+    Handwritten     ///< Imitates manuscript.
+};
+
 std::string normalizedFontName(std::string_view fontName);
 
+/// @brief The SMuFL font that supersedes a Finale legacy music font, if one is known.
 std::optional<std::string_view> mappedSmuflFontForFinaleLegacyFont(std::string_view fontName);
 
 bool isFinaleLegacyMusicFontMappedToSmufl(std::string_view fontName);
+
+/// @brief What @p fontName looks like, for either a legacy or a SMuFL music font.
+MusicFontStyle musicFontStyleForFont(std::string_view fontName);
+
+/// @brief The factor converting a point size in a legacy music font to the equivalent point size
+/// in a substituted SMuFL font.
+///
+/// A SMuFL font spans four staff spaces to the em, which is what makes a point size portable
+/// between SMuFL fonts. Legacy fonts promise nothing, so the registry records what each one
+/// actually does. Returns nullopt when the font is unknown, or known to have no staff-relative
+/// size, in which case a substituted glyph's size cannot be derived and must be left unstated.
+std::optional<double> legacySmuflSizeRatioForFont(std::string_view fontName);
 
 } // namespace utils
