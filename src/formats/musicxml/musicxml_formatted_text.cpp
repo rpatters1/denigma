@@ -190,14 +190,31 @@ mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
 
 namespace {
 
-/// Builds a `<symbol>` carrying @p glyphName, taking its appearance from the words the source chunk
-/// would otherwise have produced. Mirrors how classified dynamics build their symbol runs.
-mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWords, std::string glyphName)
+/// Builds a `<symbol>` carrying @p glyphName, taking placement and color from the words the source
+/// chunk would otherwise have produced.
+///
+/// The source font family is deliberately not carried over. A symbol names a glyph rather than a
+/// character, and it exists only because Denigma declined to rely on the source font being present;
+/// naming that font would ask the reader to resolve a SMuFL glyph name out of it, which a legacy
+/// font cannot do at all. Style and weight are dropped for the same reason, since a glyph is neither
+/// bold nor italic. A reader who does want the original font is served by not converting at all; see
+/// the font-availability assertion in roadmap.md.
+///
+/// Size is kept only for a SMuFL source. Every SMuFL font sets one em to four staff spaces, so a
+/// point size measured in one carries its meaning into another, and a tempo glyph drawn smaller than
+/// staff size stays smaller. A legacy font's point size describes only its own design and would
+/// mis-scale the substituted glyph, so it is left for the reader to decide.
+mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWords,
+    const musx::dom::MusxInstance<musx::dom::FontInfo>& font, std::string glyphName)
 {
     mx::api::SymbolData result;
     result.smufl = std::move(glyphName);
     result.positionData = sourceWords.positionData;
-    result.fontData = sourceWords.fontData;
+    if (font && font->calcIsSMuFL()) {
+        result.fontData.sizeType = sourceWords.fontData.sizeType;
+        result.fontData.sizePoint = sourceWords.fontData.sizePoint;
+        result.fontData.sizeCss = sourceWords.fontData.sizeCss;
+    }
     if (sourceWords.isColorSpecified) {
         result.color = sourceWords.colorData;
     }
@@ -228,7 +245,7 @@ void appendChunkToWordsRun(std::vector<mx::api::WordsChoice>& run, const mx::api
             return;
         }
         for (auto& glyphName : glyphs) {
-            run.emplace_back(musicXmlSymbolFromWords(sourceWords, std::move(glyphName)));
+            run.emplace_back(musicXmlSymbolFromWords(sourceWords, font, std::move(glyphName)));
         }
         return;
     }
@@ -239,7 +256,7 @@ void appendChunkToWordsRun(std::vector<mx::api::WordsChoice>& run, const mx::api
             continue;
         }
         for (const auto& glyphName : glyphRun.glyphs) {
-            run.emplace_back(musicXmlSymbolFromWords(sourceWords, glyphName));
+            run.emplace_back(musicXmlSymbolFromWords(sourceWords, font, glyphName));
         }
     }
 }
