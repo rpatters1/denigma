@@ -28,7 +28,10 @@
 #include "mx/api/DirectionData.h"
 #include "mx/api/LyricData.h"
 #include "mx/api/PageTextData.h"
+#include "mx/api/SymbolData.h"
+#include "mx/api/WordsChoice.h"
 #include "mx/api/WordsData.h"
+#include "utils/smufl_support.h"
 
 namespace denigma {
 namespace formats {
@@ -41,8 +44,37 @@ struct MusicXmlFormattedTextOptions
 {
     MusicXmlFontFamilyFallback fallback = MusicXmlFontFamilyFallback::Text;
     musx::util::EnigmaString::AccidentalStyle accidentalStyle = musx::util::EnigmaString::AccidentalStyle::Unicode;
+    /// @brief How music-font characters become `<symbol>` elements. See utils::SmuflSymbolPolicy.
+    ///
+    /// Denigma splits by default, because it cannot know whether the reader has the source font and
+    /// a missing one turns a glyph into whatever character shares its codepoint. That default costs
+    /// a reader who does have the font the kerning a legacy metronome font applies, which an unsplit
+    /// run would have carried through intact. The roadmap's font-availability assertion is the
+    /// intended way for a user to vouch for their fonts, selecting PreserveText so that nothing is
+    /// substituted.
+    utils::SmuflSymbolPolicy symbolPolicy = utils::SmuflSymbolPolicy::SplitSmufl;
     MusicXmlFormattedTextChunkCallback onChunk;
 };
+
+/// @brief Applies attributes shared by every item of a words run.
+///
+/// `mx::api::WordsChoice` holds its alternatives by value and returns copies, so each item is
+/// rebuilt rather than modified in place. @p fn receives the item's position, enclosure, and justify.
+template <typename Fn>
+void forEachMusicXmlWordsRunItem(std::vector<mx::api::WordsChoice>& run, Fn&& fn)
+{
+    for (auto& item : run) {
+        if (item.isSymbol()) {
+            auto symbol = item.symbol();
+            fn(symbol.positionData, symbol.enclosure, symbol.justify);
+            item = mx::api::WordsChoice(std::move(symbol));
+        } else {
+            auto words = item.words();
+            fn(words.positionData, words.enclosure, words.justify);
+            item = mx::api::WordsChoice(std::move(words));
+        }
+    }
+}
 
 struct MusicXmlPageTextContent
 {
@@ -64,11 +96,19 @@ mx::api::LyricData musicXmlLyricFromSyllable(
     const musx::dom::texts::LyricsTextBase& lyricText,
     size_t syllableIndex,
     const MusicXmlFormattedTextOptions& options = {});
-std::vector<mx::api::WordsData> musicXmlWordsFromEnigmaText(
+/// @brief Converts formatted text into an ordered run of words and SMuFL symbols.
+///
+/// Music-font characters become `<symbol>` items according to MusicXmlFormattedTextOptions::symbolPolicy,
+/// so that a glyph survives on a system lacking the source font. Chunk order and fonts are retained.
+std::vector<mx::api::WordsChoice> musicXmlWordsFromEnigmaText(
     const MusicXmlMusxMapping& context,
     const musx::util::EnigmaParsingContext& text,
     const MusicXmlFormattedTextOptions& options = {});
-/// @brief Appends one words-only direction type while retaining the source chunk order and fonts.
+/// @brief Appends one direction type holding an ordered run of words and symbols.
+void appendMusicXmlWordsRun(
+    mx::api::DirectionData& direction,
+    std::vector<mx::api::WordsChoice> run);
+/// @brief Appends one words-only direction type, for callers that build WordsData directly.
 void appendMusicXmlWordsRun(
     mx::api::DirectionData& direction,
     std::vector<mx::api::WordsData> words);

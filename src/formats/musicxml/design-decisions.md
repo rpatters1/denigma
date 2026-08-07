@@ -94,6 +94,22 @@ A tie whose start has no reachable end, either because Finale recorded no tie en
 
 `<tied type="let-ring">` is MusicXML's element for exactly this: a tie that is drawn and sounds but has no destination note. An unterminated `<tie type="start">` is malformed, and importers that honor it leave the note sounding indefinitely. Finale's export writes the malformed form; Denigma does not follow it there.
 
+### Music-font characters become symbols, splitting the run around them
+
+A character that resolves to a canonical SMuFL name is exported as `<symbol>` rather than as text in its source font, and a chunk mixing mappable and unmappable characters is split so the glyph converts and the rest stays words. `utils::SmuflSymbolPolicy` models the alternatives, and `SplitSmufl` is both the default and the only value a MusicXML export currently reaches.
+
+Splitting and not splitting differ only for a mixed run, which is what a legacy metronome font produces when a note glyph and its number are typed together. Compare how each degrades on a system without that font. Splitting yields a portable glyph followed by digits and punctuation that any fallback font renders correctly. Not splitting keeps the whole run as text in a font the reader does not have, so the glyph renders as whatever character occupies that codepoint elsewhere. Denigma's own corpus shows the failure: `tempo_varied_staves.musx` carries "Tempo (♩=120)" in the legacy font Patmm, which Denigma used to export as a raw character that reads as "Tempo (∞=120)" anywhere Patmm is missing. It now exports `metNoteQuarterUp`.
+
+The cost is real, and it is not recovered elsewhere. A reader who does have the font receives an unsplit run completely intact, kerning and all, because the font travels on the `<words>` element and the importer applies it. Some legacy metronome fonts kern a note against its number deliberately, and splitting discards that. So this policy knowingly degrades output for readers who would otherwise have had none.
+
+It is chosen anyway because the two failures are not comparable. A reader with the font loses spacing: visible, minor, and obviously a layout matter. A reader without it sees the glyph replaced by whatever character occupies that codepoint, which reads as data corruption, gives no hint of the original, and cannot be repaired from the file. Preferring a small certain loss over an occasional unrecoverable one is the trade being made, and it is a judgement about which readers to favor rather than a case where one policy dominates.
+
+The scope of the trade is narrower than it looks. The policies diverge only for a run mixing mappable and unmappable characters in one font. A SMuFL font run is ordinarily a single glyph, which both policies convert identically, so the divergence is confined to legacy symbol fonts.
+
+The default assumes the worst about the reader's fonts because Denigma has no way to know better. The user does, and the roadmap's font-availability assertion is the intended way to say so. Once the fonts are known to be present the faithful setting is `PreserveText`, which substitutes nothing at all: converting even a wholly-mappable run would replace the source glyph design with the reader's music font, which is the substitution such a user is declining.
+
+This is also why MusicXML does not need to parse metronome markings out of expression text. Finale splits its own chunks at font changes, so "Adagio espressivo ♩ = 84" arrives as three chunks and exports as words, symbol, words: faithful text plus a portable glyph, with `<sound tempo>` carrying the playback.
+
 ### Tuplet ratios are reduced, and the printed spelling travels separately
 
 `<time-modification>` is written from the entry's cumulative ratio, so a Finale tuplet of six sixteenths in the space of four is exported as `3:2`. Finale's own export writes the unreduced `6:4`. The printed numbers are unaffected: `<tuplet-actual>` and `<tuplet-normal>` carry Finale's display number and reference number with their durations, so the tuplet still reads as "6 in the space of 4" on the page.

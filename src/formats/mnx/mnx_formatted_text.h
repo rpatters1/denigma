@@ -32,24 +32,19 @@
 #include "musx/musx.h"
 
 #include "mnx_fwd.h"
+#include "utils/smufl_support.h"
 
 namespace denigma {
 namespace formats {
 namespace mnx {
 namespace detail {
 
-enum class MnxFormattedTextSymbolPolicy
-{
-    PreserveText,
-    PreferSmufl,
-    SplitSmufl
-};
 
 using MnxFormattedTextChunkCallback = std::function<void(const std::string&, const std::vector<std::string>&)>;
 
 struct MnxFormattedTextOptions
 {
-    MnxFormattedTextSymbolPolicy symbolPolicy = MnxFormattedTextSymbolPolicy::PreferSmufl;
+    utils::SmuflSymbolPolicy symbolPolicy = utils::SmuflSymbolPolicy::PreferSmufl;
     bool skipHiddenText = true;
     bool plainTextOnly = false;
     std::optional<musx::dom::MusxInstance<musx::dom::FontInfo>> initialFont;

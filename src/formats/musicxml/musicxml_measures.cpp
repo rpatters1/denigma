@@ -868,23 +868,24 @@ void processMeasureText(
         } else if (resolvedYEvpu < currentStaff->calcBottomLineEvpu()) {
             direction.placement = mx::api::Placement::below;
         }
-        for (auto& item : words) {
+        forEachMusicXmlWordsRunItem(words, [&](mx::api::PositionData& positionData,
+                mx::api::Enclosure& enclosure, mx::api::HorizontalAlignment& justify) {
             if (hasDefaultX) {
-                item.positionData.defaultX = context.musicXmlTenthsFromEvpu(defaultXEvpu);
-                item.positionData.isDefaultXSpecified = true;
+                positionData.defaultX = context.musicXmlTenthsFromEvpu(defaultXEvpu);
+                positionData.isDefaultXSpecified = true;
             }
             if (hasDefaultY) {
-                item.positionData.defaultY = context.musicXmlTenthsFromEvpu(defaultYEvpu);
-                item.positionData.isDefaultYSpecified = true;
+                positionData.defaultY = context.musicXmlTenthsFromEvpu(defaultYEvpu);
+                positionData.isDefaultYSpecified = true;
             }
             if (horizontalAlignment != mx::api::HorizontalAlignment::unspecified) {
-                item.positionData.horizontalAlignment = horizontalAlignment;
-                item.justify = horizontalAlignment;
+                positionData.horizontalAlignment = horizontalAlignment;
+                justify = horizontalAlignment;
             }
             if (useStandardFrameEnclosure) {
-                item.enclosure = mx::api::Enclosure::rectangle;
+                enclosure = mx::api::Enclosure::rectangle;
             }
-        }
+        });
 
         appendMusicXmlWordsRun(direction, std::move(words));
         staff.directions.emplace_back(std::move(direction));

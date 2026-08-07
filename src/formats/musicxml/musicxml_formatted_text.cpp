@@ -188,24 +188,89 @@ mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
     return result;
 }
 
-std::vector<mx::api::WordsData> musicXmlWordsFromEnigmaText(const MusicXmlMusxMapping& context,
+namespace {
+
+/// Builds a `<symbol>` carrying @p glyphName, taking its appearance from the words the source chunk
+/// would otherwise have produced. Mirrors how classified dynamics build their symbol runs.
+mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWords, std::string glyphName)
+{
+    mx::api::SymbolData result;
+    result.smufl = std::move(glyphName);
+    result.positionData = sourceWords.positionData;
+    result.fontData = sourceWords.fontData;
+    if (sourceWords.isColorSpecified) {
+        result.color = sourceWords.colorData;
+    }
+    result.enclosure = sourceWords.enclosure;
+    result.justify = sourceWords.justify;
+    return result;
+}
+
+/// Expands one source chunk into run items, converting music-font characters per @p policy.
+void appendChunkToWordsRun(std::vector<mx::api::WordsChoice>& run, const mx::api::WordsData& sourceWords,
+    const musx::dom::MusxInstance<musx::dom::FontInfo>& font, utils::SmuflSymbolPolicy policy)
+{
+    const auto appendWords = [&](std::string text) {
+        auto words = sourceWords;
+        words.text = std::move(text);
+        run.emplace_back(std::move(words));
+    };
+
+    if (policy == utils::SmuflSymbolPolicy::PreserveText) {
+        run.emplace_back(sourceWords);
+        return;
+    }
+
+    if (policy == utils::SmuflSymbolPolicy::PreferSmufl) {
+        auto glyphs = utils::smuflGlyphNamesForText(font, sourceWords.text);
+        if (glyphs.empty()) {
+            run.emplace_back(sourceWords);
+            return;
+        }
+        for (auto& glyphName : glyphs) {
+            run.emplace_back(musicXmlSymbolFromWords(sourceWords, std::move(glyphName)));
+        }
+        return;
+    }
+
+    for (const auto& glyphRun : utils::smuflSplitRunsByGlyphMapping(font, sourceWords.text)) {
+        if (!glyphRun.isSmufl) {
+            appendWords(glyphRun.text);
+            continue;
+        }
+        for (const auto& glyphName : glyphRun.glyphs) {
+            run.emplace_back(musicXmlSymbolFromWords(sourceWords, glyphName));
+        }
+    }
+}
+
+} // namespace
+
+std::vector<mx::api::WordsChoice> musicXmlWordsFromEnigmaText(const MusicXmlMusxMapping& context,
     const musx::util::EnigmaParsingContext& text, const MusicXmlFormattedTextOptions& options)
 {
-    std::vector<mx::api::WordsData> result;
-    auto parserOptions = options;
+    std::vector<mx::api::WordsChoice> result;
     text.parseEnigmaText([&](const std::string& chunkText, const musx::util::EnigmaStyles& styles) -> bool {
         musx::util::EnigmaTextChunk chunk{ chunkText, styles };
         auto words = musicXmlWordsFromEnigmaTextChunk(context, chunk, options);
         if (!words) {
             return true;
         }
-        result.emplace_back(std::move(*words));
         if (options.onChunk) {
-            options.onChunk(result.back().fontData, result.back().text);
+            options.onChunk(words->fontData, words->text);
         }
+        appendChunkToWordsRun(result, *words, styles.font, options.symbolPolicy);
         return true;
     }, musx::util::EnigmaString::EnigmaParsingOptions(options.accidentalStyle));
     return result;
+}
+
+void appendMusicXmlWordsRun(mx::api::DirectionData& direction, std::vector<mx::api::WordsChoice> run)
+{
+    if (run.empty()) {
+        return;
+    }
+    direction.directionTypes.emplace_back(std::move(run));
 }
 
 void appendMusicXmlWordsRun(mx::api::DirectionData& direction, std::vector<mx::api::WordsData> words)

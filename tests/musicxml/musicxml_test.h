@@ -38,6 +38,28 @@ inline int directionDrawnTick(const mx::api::DirectionData& direction)
     return direction.tickTimePosition + direction.offset.value_or(0);
 }
 
+/// @brief Renders a direction's words runs as one string, showing each symbol as {glyphName}.
+///
+/// Music-font characters export as `<symbol>` rather than text, so a test that only collects words
+/// would silently see a marking with its glyph missing. This keeps the glyph visible and asserted.
+inline std::string directionRunText(const mx::api::DirectionData& direction)
+{
+    std::string result;
+    for (const auto& choice : direction.directionTypes) {
+        if (!choice.isWordsRun()) {
+            continue;
+        }
+        for (const auto& item : choice.wordsRun()) {
+            if (item.isWords()) {
+                result += item.words().text;
+            } else if (item.isSymbol()) {
+                result += "{" + item.symbol().smufl + "}";
+            }
+        }
+    }
+    return result;
+}
+
 inline std::vector<mx::api::WordsData> directionWords(const mx::api::DirectionData& direction)
 {
     std::vector<mx::api::WordsData> result;

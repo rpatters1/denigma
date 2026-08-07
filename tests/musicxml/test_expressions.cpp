@@ -462,10 +462,9 @@ TEST(MusicXmlExpressions, TempoVariedStavesSmoke)
                 TempoEvent event;
                 event.tempo = direction.soundData.tempo;
                 event.hasSound = true;
-                const auto words = directionWords(direction);
-                if (!words.empty()) {
+                if (auto runText = directionRunText(direction); !runText.empty()) {
                     event.hasWords = true;
-                    event.words = words.front().text;
+                    event.words = std::move(runText);
                 }
                 result.emplace_back(std::move(event));
             }
@@ -493,15 +492,15 @@ TEST(MusicXmlExpressions, TempoVariedStavesSmoke)
     ASSERT_TRUE(violin);
 
     const std::vector<std::pair<std::string, double>> piccoloExpected = {
-        { "Tempo (∞=120)", 120.0 },
+        { "Tempo ({metNoteQuarterUp}=120)", 120.0 },
         { "accel.", 132.0 },
         { "", 144.0 }
     };
     const std::vector<std::pair<std::string, double>> hornExpected = {
-        { "Tempo (∞=120)", 120.0 }
+        { "Tempo ({metNoteQuarterUp}=120)", 120.0 }
     };
     const std::vector<std::pair<std::string, double>> violinExpected = {
-        { "Tempo (∞=120)", 120.0 },
+        { "Tempo ({metNoteQuarterUp}=120)", 120.0 },
         { "accel.", 132.0 }
     };
 
