@@ -18,6 +18,8 @@
  */
 
 #include <algorithm>
+#include <optional>
+#include <string>
 
 #include "gtest/gtest.h"
 #include "musicxml_test.h"
@@ -47,11 +49,59 @@ TEST(MusicXmlMetadata, exportsPageTextCredits)
     ASSERT_NE(title, score->pageTextItems.end());
     EXPECT_EQ(title->text, "\nfor");
     EXPECT_EQ(title->justify, mx::api::HorizontalAlignment::center);
+    // No text block in this document carries a standard frame, so no credit states an enclosure and
+    // none is written; MusicXML's own default for credit-words is none.
+    EXPECT_EQ(title->enclosure, mx::api::Enclosure::unspecified);
 
     const auto composer = findCredit("composer");
     ASSERT_NE(composer, score->pageTextItems.end());
     EXPECT_EQ(composer->text, "R. G. PATTERSON (2012)");
     EXPECT_EQ(composer->creditTypes, (std::vector<std::string>{ "composer", "rights" }));
+}
+
+// Finale's Arranger field is distinct from Composer and has its own MusicXML creator type. Its
+// Subtitle field has no MusicXML element at all, so it travels as a miscellaneous field; see the
+// design-decisions entry for why not as a creator. zwei_gesange.musx populates both.
+TEST(MusicXmlMetadata, arrangerBecomesCreatorAndSubtitleBecomesMiscellaneousField)
+{
+    const auto score = createScoreDataFromMusicXmlFixture("zwei_gesange.musx");
+    ASSERT_TRUE(score);
+
+    EXPECT_EQ(score->arranger, "1. Gestillte Sehnsucht");
+    EXPECT_EQ(score->composer, "Johannes Brahms, Op. 91");
+    EXPECT_EQ(score->workTitle, "Zwei Gesänge");
+    // Finale has no publisher field, so nothing can populate this one.
+    EXPECT_TRUE(score->publisher.empty());
+    // The arranger belongs to its own creator now, so it must not also be duplicated as loose metadata.
+    EXPECT_TRUE(score->lyricist.empty());
+
+    const auto findMiscellaneousField = [&](const std::string& key) -> std::optional<std::string> {
+        const auto& fields = score->encoding.miscellaneousFields;
+        const auto found = std::find_if(fields.begin(), fields.end(), [&](const auto& field) {
+            return field.key == key;
+        });
+        if (found == fields.end()) {
+            return std::nullopt;
+        }
+        return found->value;
+    };
+
+    EXPECT_EQ(findMiscellaneousField("subtitle"), std::optional<std::string>("(for Alto, Viola, and Piano)"));
+    EXPECT_FALSE(findMiscellaneousField("arranger").has_value());
+}
+
+// A Finale text block with no custom frame shape and a positive standard line thickness is a plain
+// rectangle. Both page texts in page_percent.musx carry one, and Finale's own export of the document
+// writes enclosure="rectangle" on both credits; see musicxml/page_percent-ref.musicxml.
+TEST(MusicXmlMetadata, pageTextStandardFrameBecomesRectangleEnclosure)
+{
+    const auto score = createScoreDataFromMusicXmlFixture("page_percent.musx");
+    ASSERT_TRUE(score);
+    ASSERT_EQ(score->pageTextItems.size(), 2u);
+
+    for (const auto& credit : score->pageTextItems) {
+        EXPECT_EQ(credit.enclosure, mx::api::Enclosure::rectangle) << "credit text: " << credit.text;
+    }
 }
 
 // Page text sits on the page, so only Finale's page scaling reduces its point size. The system and

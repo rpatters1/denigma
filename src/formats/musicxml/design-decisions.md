@@ -88,6 +88,18 @@ The Finale field is called Title and holds the name of the work, and `<work-titl
 
 This is held provisionally, subject to real-world importer behavior rather than to further argument from the specification. If it turns out that the importers Denigma targets consistently do the wrong thing with `<work-title>`, delete this entry and change the mapping.
 
+### The subtitle becomes a miscellaneous field, not a creator
+
+Finale's Subtitle file-info field is written as `<identification><miscellaneous><miscellaneous-field name="subtitle">`. It is also emitted as a `<credit>` with credit-type `subtitle` wherever a page text block inserts it, but that is the page text path's doing and depends on the subtitle actually being placed on a page.
+
+MusicXML has no subtitle element and no way to add one. `<work>` offers only `<work-title>` and `<work-number>`, and the `identification` complexType is a closed `xs:sequence` with no `xs:any`, so a `<subtitle>` child would make the document schema-invalid rather than merely unread.
+
+What is available is a non-standard `type` value. `creator`, `rights`, and `relation` are all `typed-text`, whose `type` is an unconstrained `xs:token`, and the specification says other type values may be used. `<creator type="subtitle">` therefore validates. It is rejected anyway, because `<creator>` is Dublin Core creator and the attribute is open for creative roles: writing the subtitle there asserts that the subtitle is a person who made the score. An importer that handles unknown creator types generically, and several list them, would print the subtitle in the composer block. Wrong metadata is a worse outcome than absent metadata, since a reader cannot tell it is wrong.
+
+`<miscellaneous-field>` makes no such claim. Its own documentation describes it as the place for metadata not yet supported in the MusicXML format, which is this case exactly, and `mx::api` routes `EncodingData::miscellaneousFields` into `<identification><miscellaneous>` despite the field hanging off the encoding model.
+
+`<movement-title>` is genuinely free, since Finale's Title goes to `<work-title>` per the entry above, and it is a standard element importers do read. It is not used for the subtitle because MuseScore and Dorico both surface `movement-title` as the piece's main title, so the subtitle would compete with the real one.
+
 ### Unresolved ties become let-ring ties
 
 A tie whose start has no reachable end, either because Finale recorded no tie end or because the target entry is hidden, exports as `<tied type="let-ring">` rather than an unterminated `<tie type="start">`.
