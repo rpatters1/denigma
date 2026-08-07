@@ -58,6 +58,20 @@ std::string_view musicXmlFontFamilyFallbackName(MusicXmlFontFamilyFallback fallb
     throw std::invalid_argument("Unknown MusicXML font-family fallback.");
 }
 
+/// True when @p name is one of MusicXML's generic font families rather than an installed face.
+bool isGenericFontFamily(std::string_view name)
+{
+    static constexpr MusicXmlFontFamilyFallback kGenerics[] = {
+        MusicXmlFontFamilyFallback::Music, MusicXmlFontFamilyFallback::Engraved,
+        MusicXmlFontFamilyFallback::Handwritten, MusicXmlFontFamilyFallback::Text,
+        MusicXmlFontFamilyFallback::Serif, MusicXmlFontFamilyFallback::SansSerif,
+        MusicXmlFontFamilyFallback::Cursive, MusicXmlFontFamilyFallback::Fantasy,
+        MusicXmlFontFamilyFallback::Monospace
+    };
+    return std::any_of(std::begin(kGenerics), std::end(kGenerics),
+        [name](MusicXmlFontFamilyFallback fallback) { return name == musicXmlFontFamilyFallbackName(fallback); });
+}
+
 } // namespace
 
 mx::api::FontData MusicXmlMusxMapping::musicXmlFontDataFromFontInfo(const musx::dom::FontInfo& fontInfo,
@@ -195,11 +209,19 @@ mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
 /// bold nor italic. A reader who does want the original font is served by not converting at all; see
 /// the font-availability assertion in roadmap.md.
 ///
-/// Size and style are carried over only for a SMuFL source. Every SMuFL font sets one em to four
-/// staff spaces, so a point size measured in one carries its meaning into another, and a tempo glyph
-/// drawn smaller than staff size stays smaller. A legacy font's point size describes only its own
-/// design and would mis-scale the substituted glyph, so it is left for the reader to decide, and its
-/// bold or italic would only ask for a synthesized slant on a glyph that has none.
+/// A SMuFL source keeps its whole font data, family included. That face really does contain the
+/// glyph under this name, so naming it gives a reader who has it the source's own design, and the
+/// family list degrades to the generic for a reader who does not, which is what such a list is for.
+/// Its generic is replaced with an engraving one, since the fallback appended for running prose
+/// would send a reader to a text font that cannot draw the glyph at all. Size and style come across
+/// for the same reason: every SMuFL font sets one em to four staff spaces, so a point size measured
+/// in one carries its meaning into another, keeping a tempo glyph deliberately smaller than staff
+/// size.
+///
+/// A legacy source keeps none of it. The name means nothing in that face, so there is nothing to
+/// point a reader at; its point size describes only its own design and would mis-scale the
+/// substituted glyph; and its bold or italic would ask for a synthesized slant on a glyph that has
+/// none. No generic is added either, `<symbol>` already saying that a glyph is wanted.
 ///
 /// Style and weight are nonetheless always stated, because `mx::api::FontData` leaves them
 /// unspecified by default and an unspecified style inherits from whatever ran before. A legacy
@@ -213,7 +235,10 @@ mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWord
     result.positionData = sourceWords.positionData;
     if (font && font->calcIsSMuFL()) {
         result.fontData = sourceWords.fontData;
-        result.fontData.fontFamily.clear();
+        auto& families = result.fontData.fontFamily;
+        families.erase(std::remove_if(families.begin(), families.end(),
+            [](const std::string& family) { return isGenericFontFamily(family); }), families.end());
+        families.emplace_back(musicXmlFontFamilyFallbackName(MusicXmlFontFamilyFallback::Engraved));
     } else {
         result.fontData.style = mx::api::FontStyle::normal;
         result.fontData.weight = mx::api::FontWeight::normal;
