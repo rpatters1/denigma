@@ -541,19 +541,23 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
             const auto& measure = score.parts.front().measures.at(measureIndex);
             for (const auto& staff : measure.staves) {
                 for (const auto& direction : staff.directions) {
-                    const auto words = directionWords(direction);
-                    if (words.size() != 1 || direction.isSoundDataSpecified) {
+                    // directionRunText renders a music-font glyph as {glyphName} rather than dropping
+                    // it, which directionWords would do. A measure text carrying one splits into
+                    // several run items, so neither the text nor the direction itself may be taken
+                    // from a lone <words>.
+                    const auto text = directionRunText(direction);
+                    const auto position = directionRunPosition(direction);
+                    if (text.empty() || !position || direction.isSoundDataSpecified) {
                         continue;
                     }
-                    const auto& wordsData = words.front();
                     const auto drawnTick = directionDrawnTick(direction);
                     result.push_back({
                         measureIndex,
-                        wordsData.text,
+                        text,
                         direction.placement,
-                        wordsData.positionData.isDefaultXSpecified ? std::make_optional(wordsData.positionData.defaultX) : std::nullopt,
-                        wordsData.positionData.isDefaultYSpecified ? std::make_optional(wordsData.positionData.defaultY) : std::nullopt,
-                        wordsData.positionData.isRelativeXSpecified ? std::make_optional(wordsData.positionData.relativeX) : std::nullopt,
+                        position->isDefaultXSpecified ? std::make_optional(position->defaultX) : std::nullopt,
+                        position->isDefaultYSpecified ? std::make_optional(position->defaultY) : std::nullopt,
+                        position->isRelativeXSpecified ? std::make_optional(position->relativeX) : std::nullopt,
                         drawnTick > 0 ? std::make_optional(drawnTick) : std::nullopt
                     });
                 }
@@ -565,7 +569,7 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
     const auto actualDirections = collectMeasureTextDirections(*actualScore);
     const auto referenceDirections = collectMeasureTextDirections(*referenceScore);
 
-    ASSERT_EQ(actualDirections.size(), 3u);
+    ASSERT_EQ(actualDirections.size(), 4u);
     ASSERT_EQ(referenceDirections.size(), actualDirections.size());
 
     constexpr double kDefaultYTolerance = 1.0;
@@ -585,6 +589,40 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
             ASSERT_TRUE(actual.defaultX.has_value());
             EXPECT_NEAR(*actual.defaultX, *reference.relativeX, kDefaultYTolerance);
         }
+    }
+
+    // The glyph-bearing measure text is the only fixture exercising symbol splitting on this path.
+    // Finale splits it the same way and names the same glyphs, which is what the text comparison
+    // above pins. It parts company on the font: Finale keeps the source size, writing
+    // font-size="15.4" and "12", while Denigma drops both size and family because Maestro is a
+    // legacy font whose point size describes only its own design. Style and weight are still stated
+    // outright, so the glyph cannot inherit bold or italic from the run before it.
+    std::vector<mx::api::SymbolData> symbols;
+    for (const auto& measure : actualScore->parts.front().measures) {
+        for (const auto& staff : measure.staves) {
+            for (const auto& direction : staff.directions) {
+                for (const auto& choice : direction.directionTypes) {
+                    if (!choice.isWordsRun()) {
+                        continue;
+                    }
+                    for (const auto& item : choice.wordsRun()) {
+                        if (item.isSymbol()) {
+                            symbols.emplace_back(item.symbol());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    ASSERT_EQ(symbols.size(), 2u);
+    EXPECT_EQ(symbols[0].smufl, "unpitchedPercussionClef1");
+    EXPECT_EQ(symbols[1].smufl, "repeat2Bars");
+    for (const auto& symbol : symbols) {
+        EXPECT_TRUE(symbol.fontData.fontFamily.empty()) << symbol.smufl;
+        EXPECT_EQ(symbol.fontData.sizeType, mx::api::FontSizeType::unspecified) << symbol.smufl;
+        EXPECT_EQ(symbol.fontData.style, mx::api::FontStyle::normal) << symbol.smufl;
+        EXPECT_EQ(symbol.fontData.weight, mx::api::FontWeight::normal) << symbol.smufl;
     }
 }
 
