@@ -58,7 +58,7 @@ std::string formatDate(const header::FileInfo& fileInfo)
 void addMiscellaneousField(mx::api::EncodingData& encoding, std::string key, std::string value)
 {
     if (!value.empty()) {
-        encoding.miscelaneousFields.emplace_back(std::move(key), std::move(value));
+        encoding.miscellaneousFields.emplace_back(std::move(key), std::move(value));
     }
 }
 
@@ -85,13 +85,14 @@ void setFileInfoText(mx::api::ScoreData& score, FileInfoText::TextType textType,
         score.lyricist = std::move(value);
         break;
     case FileInfoText::TextType::Arranger:
-        score.arranger = value;
-        addMiscellaneousField(score.encoding, "arranger", std::move(value));
+        score.arranger = std::move(value);
         break;
     case FileInfoText::TextType::Subtitle:
         // MusicXML has no subtitle element: <work> offers only title and number, and <identification>
-        // has no equivalent. A subtitle travels as a <credit> with credit-type "subtitle", which the
-        // page text path already emits, so there is nothing to record here.
+        // admits no new child. A subtitle travels as a <credit> with credit-type "subtitle", which the
+        // page text path emits, but only where a page text block places one, so the file-info value is
+        // also recorded here to survive a document that never puts its subtitle on a page.
+        addMiscellaneousField(score.encoding, "subtitle", std::move(value));
         break;
     }
 }
@@ -206,8 +207,10 @@ void createPageTexts(const MusicXmlMusxMapping& context)
         if (!startPage || !endPage || !textBlock) {
             continue;
         }
-        // TODO: mx::api::PageTextData has no enclosure field, so even a plain standard frame is dropped;
-        // MusicXML itself has no equivalent for custom frames, word wrapping, or text-block dimensions.
+        // A text block with no custom frame shape and a positive line thickness is a plain rectangle,
+        // the one frame MusicXML can name. Custom frames, word wrapping, and text-block dimensions have
+        // no MusicXML equivalent and are dropped.
+        const bool useStandardFrameEnclosure = textBlock->shapeId == 0 && textBlock->stdLineThickness > 0;
         // IWBNI MusicXML could preserve the Enigma insert template and recurring range/parity rule instead of requiring
         // resolved, page-specific credits. Importers cannot reconstruct those source semantics from credit-words.
         for (PageCmper pageNumber = *startPage; pageNumber <= *endPage; ++pageNumber) {
@@ -229,6 +232,9 @@ void createPageTexts(const MusicXmlMusxMapping& context)
             pageText.positionData = pageTextPosition(context, *assignment, pageNumber);
             // TODO: MusicXML cannot represent Finale full or forced-full justification; enumConvert omits it.
             pageText.justify = enumConvert<mx::api::HorizontalAlignment>(textBlock->justify);
+            if (useStandardFrameEnclosure) {
+                pageText.enclosure = mx::api::Enclosure::rectangle;
+            }
         }
     }
 }

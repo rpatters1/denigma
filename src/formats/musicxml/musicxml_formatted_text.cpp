@@ -24,6 +24,8 @@
 #include <string_view>
 #include <utility>
 
+#include "utils/font_names.h"
+
 namespace denigma {
 namespace formats {
 namespace musicxml {
@@ -218,10 +220,18 @@ mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
 /// in one carries its meaning into another, keeping a tempo glyph deliberately smaller than staff
 /// size.
 ///
-/// A legacy source keeps none of it. The name means nothing in that face, so there is nothing to
-/// point a reader at; its point size describes only its own design and would mis-scale the
-/// substituted glyph; and its bold or italic would ask for a synthesized slant on a glyph that has
-/// none. No generic is added either, `<symbol>` already saying that a glyph is wanted.
+/// A legacy source keeps neither its family nor its bold or italic. The name means nothing in that
+/// face, so there is nothing to point a reader at, and a synthesized slant on a glyph that has none
+/// is not wanted. No generic is added either, `<symbol>` already saying that a glyph is wanted.
+///
+/// Its size does come across, converted. A legacy font's point size is meaningful only against its
+/// own em, so it can be restated in SMuFL terms wherever the registry records how many staff spaces
+/// that em spans: every Finale music font measured so far agrees with SMuFL's four, making the
+/// conversion an identity in practice, but the ratio is applied rather than assumed. A font with no
+/// staff-relative size at all, such as the metronome font Patmm whose measurements scatter from 1.09
+/// to 7.05 staff spaces per em, still states no size. Dropping it is not the neutral choice it looks
+/// like, since the reader then applies a default that is usually full staff size, which is wrong for
+/// the common case of a glyph deliberately set smaller than the staff.
 ///
 /// Style and weight are nonetheless always stated, because `mx::api::FontData` leaves them
 /// unspecified by default and an unspecified style inherits from whatever ran before. A legacy
@@ -240,6 +250,12 @@ mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWord
             [](const std::string& family) { return isGenericFontFamily(family); }), families.end());
         families.emplace_back(musicXmlFontFamilyFallbackName(MusicXmlFontFamilyFallback::Engraved));
     } else {
+        if (font && sourceWords.fontData.sizeType == mx::api::FontSizeType::point) {
+            if (const auto sizeRatio = utils::legacySmuflSizeRatioForFont(font->getName())) {
+                result.fontData.sizeType = mx::api::FontSizeType::point;
+                result.fontData.sizePoint = sourceWords.fontData.sizePoint * (*sizeRatio);
+            }
+        }
         result.fontData.style = mx::api::FontStyle::normal;
         result.fontData.weight = mx::api::FontWeight::normal;
     }

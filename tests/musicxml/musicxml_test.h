@@ -60,6 +60,29 @@ inline std::string directionRunText(const mx::api::DirectionData& direction)
     return result;
 }
 
+/// @brief Returns the position of a direction's first words-run item, whether words or symbol.
+///
+/// Every item of a run carries the same position, since the exporters apply it through
+/// forEachMusicXmlWordsRunItem. Reading it from the first item rather than the first `<words>` keeps
+/// a run that opens with a glyph from looking positionless.
+inline std::optional<mx::api::PositionData> directionRunPosition(const mx::api::DirectionData& direction)
+{
+    for (const auto& choice : direction.directionTypes) {
+        if (!choice.isWordsRun()) {
+            continue;
+        }
+        for (const auto& item : choice.wordsRun()) {
+            if (item.isWords()) {
+                return item.words().positionData;
+            }
+            if (item.isSymbol()) {
+                return item.symbol().positionData;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 inline std::vector<mx::api::WordsData> directionWords(const mx::api::DirectionData& direction)
 {
     std::vector<mx::api::WordsData> result;

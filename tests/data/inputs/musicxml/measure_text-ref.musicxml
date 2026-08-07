@@ -4,7 +4,7 @@
   <identification>
     <encoding>
       <software>Finale v27.4 for Mac</software>
-      <encoding-date>2026-07-07</encoding-date>
+      <encoding-date>2026-08-07</encoding-date>
       <supports attribute="new-system" element="print" type="yes" value="yes"/>
       <supports attribute="new-page" element="print" type="yes" value="yes"/>
       <supports element="accidental" type="yes"/>
@@ -144,6 +144,15 @@
     </measure>
     <!--=======================================================-->
     <measure number="4" width="229">
+      <direction placement="below">
+        <direction-type>
+          <words default-y="-70" relative-x="-55" valign="top">Text containing </words>
+          <symbol font-size="15.4">unpitchedPercussionClef1</symbol>
+          <words font-family="Times New Roman" font-size="10.25"> glyph and </words>
+          <symbol font-size="12">repeat2Bars</symbol>
+          <words font-family="Times New Roman" font-size="10.25"> glyph</words>
+        </direction-type>
+      </direction>
       <note>
         <rest measure="yes"/>
         <duration>32</duration>

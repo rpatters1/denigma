@@ -5,6 +5,7 @@
 #include "denigma/classify/chords.h"
 #include "denigma/classify/noteheads.h"
 #include "formats/enum_conversion_macros.h"
+#include "utils/font_names.h"
 
 #include "mx/api/ApiCommon.h"
 #include "mx/api/BarlineData.h"
@@ -182,6 +183,14 @@ BEGIN_ENUM_CONVERSION(classify::articulation::Fermata::Shape, mx::api::MarkType)
     case classify::articulation::Fermata::Shape::HalfCurve: return mx::api::MarkType::fermataHalfCurve;
     case classify::articulation::Fermata::Shape::Normal: return mx::api::MarkType::fermataNormal;
     case classify::articulation::Fermata::Shape::Square: return mx::api::MarkType::fermataSquare;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(utils::MusicFontStyle, MusicXmlFontFamilyFallback)
+    // An unknown font falls back to the generic `music` rather than to either look, which states
+    // that a music font is wanted without claiming to know which kind.
+    case utils::MusicFontStyle::Unknown: return MusicXmlFontFamilyFallback::Music;
+    case utils::MusicFontStyle::Engraved: return MusicXmlFontFamilyFallback::Engraved;
+    case utils::MusicFontStyle::Handwritten: return MusicXmlFontFamilyFallback::Handwritten;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(MusicXmlPitchContext, KeySignature::KeyContext)

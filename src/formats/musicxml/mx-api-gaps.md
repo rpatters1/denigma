@@ -154,18 +154,6 @@ Denigma will probably not try to export part-name or part-group positioning over
 
 Needed API shape: position/print data for group-name-display, group-abbreviation-display, and possibly group-symbol placement.
 
-## Score Metadata
-
-### Arranger and publisher are accepted but never written
-
-MusicXML records an arranger as `<identification><creator type="arranger">`, alongside composer and lyricist. Finale's own export writes it whenever the file's Arranger field is populated.
-
-`mx::api::ScoreData` has `arranger` and `publisher` members beside `composer` and `lyricist`, so both are settable, and Denigma sets `arranger` in `setFileInfoText` from Finale's own `FileInfoText::TextType::Arranger`, which is a field distinct from Composer. The writer consumes neither: `ScoreWriter` emits `<creator>` for `composer` and `lyricist` only, and nothing reads `ScoreData::arranger` or `ScoreData::publisher` on the way out. The value is silently dropped, which also makes the assignment in Denigma dead state. `ScoreReader` does populate both on the way in, under a stale comment claiming `ScoreData` has no fields for them, so the round trip loses them at the write step rather than the read step.
-
-Denigma works around this by also recording the arranger as a `<miscellaneous-field>`, which keeps the text in the file but not in the element any importer would look for. Publisher needs no workaround, since Finale has no corresponding file-info field for Denigma to read.
-
-Needed API shape: no new model, only writer support. `ScoreWriter` should emit `<creator type="arranger">` from `ScoreData::arranger` and `<identification><creator type="publisher">` from `ScoreData::publisher`, on the same path as composer and lyricist. Once arranger is written, Denigma's miscellaneous-field workaround should be removed. The stale `ScoreReader` comment should go at the same time.
-
 ## Page Text and Credits
 
 ### Mixed formatting within a credit
@@ -175,14 +163,6 @@ Finale page-attached text can change font, size, and style within one text block
 `mx::api::PageTextData` contains one string and one `FontData`, and its writer emits exactly one `<credit-words>`. Denigma therefore concatenates all visible Enigma text chunks and applies the first visible chunk's font to the complete credit. Hidden-font chunks are omitted.
 
 Needed API shape: an ordered collection of formatted credit words/symbol chunks within one `PageTextData`, with independent font and position data for each chunk.
-
-### Page text enclosure
-
-MusicXML `<credit-words>` is type `formatted-text-id`, the same type as `<words>` and `<rehearsal>`, so it carries the whole `text-formatting` attribute group, `enclosure` included. Finale page text blocks can use a standard frame, which is exactly the case Denigma already resolves for measure text: `shapeId == 0 && stdLineThickness > 0` means a plain rectangle.
-
-`mx::core::FormattedTextID` already exposes `enclosure()` and `setEnclosure()`, and `DirectionWriter::emitRehearsal()` calls that setter on this very class. The omission is confined to the API model: `mx::api::PageTextData` has no enclosure field, and `PageTextFunctions.cpp` reads and writes only `justify`. Denigma therefore drops the frame even when the source carries one MusicXML could represent exactly.
-
-Needed API shape: an `Enclosure enclosure` field on `mx::api::PageTextData`, converted in both directions in `PageTextFunctions.cpp` beside the existing `justify` handling. Finale's custom frame geometry and text-block layout are a separate, non-mappable concern; see the downgrade-policy item in the [MusicXML feature roadmap](roadmap.md).
 
 ## Barlines and Endings
 

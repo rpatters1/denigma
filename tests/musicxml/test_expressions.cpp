@@ -541,19 +541,23 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
             const auto& measure = score.parts.front().measures.at(measureIndex);
             for (const auto& staff : measure.staves) {
                 for (const auto& direction : staff.directions) {
-                    const auto words = directionWords(direction);
-                    if (words.size() != 1 || direction.isSoundDataSpecified) {
+                    // directionRunText renders a music-font glyph as {glyphName} rather than dropping
+                    // it, which directionWords would do. A measure text carrying one splits into
+                    // several run items, so neither the text nor the direction itself may be taken
+                    // from a lone <words>.
+                    const auto text = directionRunText(direction);
+                    const auto position = directionRunPosition(direction);
+                    if (text.empty() || !position || direction.isSoundDataSpecified) {
                         continue;
                     }
-                    const auto& wordsData = words.front();
                     const auto drawnTick = directionDrawnTick(direction);
                     result.push_back({
                         measureIndex,
-                        wordsData.text,
+                        text,
                         direction.placement,
-                        wordsData.positionData.isDefaultXSpecified ? std::make_optional(wordsData.positionData.defaultX) : std::nullopt,
-                        wordsData.positionData.isDefaultYSpecified ? std::make_optional(wordsData.positionData.defaultY) : std::nullopt,
-                        wordsData.positionData.isRelativeXSpecified ? std::make_optional(wordsData.positionData.relativeX) : std::nullopt,
+                        position->isDefaultXSpecified ? std::make_optional(position->defaultX) : std::nullopt,
+                        position->isDefaultYSpecified ? std::make_optional(position->defaultY) : std::nullopt,
+                        position->isRelativeXSpecified ? std::make_optional(position->relativeX) : std::nullopt,
                         drawnTick > 0 ? std::make_optional(drawnTick) : std::nullopt
                     });
                 }
@@ -565,7 +569,7 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
     const auto actualDirections = collectMeasureTextDirections(*actualScore);
     const auto referenceDirections = collectMeasureTextDirections(*referenceScore);
 
-    ASSERT_EQ(actualDirections.size(), 3u);
+    ASSERT_EQ(actualDirections.size(), 4u);
     ASSERT_EQ(referenceDirections.size(), actualDirections.size());
 
     constexpr double kDefaultYTolerance = 1.0;
@@ -585,6 +589,56 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
             ASSERT_TRUE(actual.defaultX.has_value());
             EXPECT_NEAR(*actual.defaultX, *reference.relativeX, kDefaultYTolerance);
         }
+    }
+
+    // The glyph-bearing measure text is the only fixture exercising symbol splitting on this path.
+    // Finale splits it the same way and names the same glyphs, which is what the text comparison
+    // above pins. The sizes agree too: Maestro spans four staff spaces to the em, the same as a
+    // SMuFL font, so smufl_mapping reports a ratio of 1 and the source sizes carry across unchanged.
+    // Finale rounds what it writes and Denigma does not, which is all the tolerance below absorbs.
+    // The family is still dropped, since a SMuFL glyph name means nothing in Maestro, and style and
+    // weight are stated outright so the glyph cannot inherit bold or italic from the run before it.
+    const auto collectSymbols = [](const mx::api::ScoreData& score) {
+        std::vector<mx::api::SymbolData> result;
+        for (const auto& measure : score.parts.front().measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& direction : staff.directions) {
+                    for (const auto& choice : direction.directionTypes) {
+                        if (!choice.isWordsRun()) {
+                            continue;
+                        }
+                        for (const auto& item : choice.wordsRun()) {
+                            if (item.isSymbol()) {
+                                result.emplace_back(item.symbol());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    };
+
+    const auto actualSymbols = collectSymbols(*actualScore);
+    const auto referenceSymbols = collectSymbols(*referenceScore);
+
+    ASSERT_EQ(actualSymbols.size(), 2u);
+    ASSERT_EQ(referenceSymbols.size(), actualSymbols.size());
+    EXPECT_EQ(actualSymbols[0].smufl, "unpitchedPercussionClef1");
+    EXPECT_EQ(actualSymbols[1].smufl, "repeat2Bars");
+
+    constexpr double kFinaleRoundingTolerance = 0.05;
+    for (size_t index = 0; index < actualSymbols.size(); ++index) {
+        const auto& actual = actualSymbols[index];
+        const auto& reference = referenceSymbols[index];
+        EXPECT_EQ(actual.smufl, reference.smufl);
+        EXPECT_TRUE(actual.fontData.fontFamily.empty()) << actual.smufl;
+        EXPECT_EQ(actual.fontData.style, mx::api::FontStyle::normal) << actual.smufl;
+        EXPECT_EQ(actual.fontData.weight, mx::api::FontWeight::normal) << actual.smufl;
+        ASSERT_EQ(actual.fontData.sizeType, mx::api::FontSizeType::point) << actual.smufl;
+        ASSERT_EQ(reference.fontData.sizeType, mx::api::FontSizeType::point) << actual.smufl;
+        EXPECT_NEAR(actual.fontData.sizePoint, reference.fontData.sizePoint, kFinaleRoundingTolerance)
+            << actual.smufl;
     }
 }
 

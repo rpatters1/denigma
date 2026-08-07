@@ -44,13 +44,55 @@ TEST(FontNames, MapsKnownFinaleLegacyFontsToSmuflFonts)
     ASSERT_TRUE(mapped.has_value());
     EXPECT_EQ(*mapped, "Finale Broadway");
 
-    mapped = utils::mappedSmuflFontForFinaleLegacyFont("Finale_Legacy");
+    // Fonts the smufl_mapping registry covers that Denigma's own list never did.
+    mapped = utils::mappedSmuflFontForFinaleLegacyFont("Maestro Wide");
     ASSERT_TRUE(mapped.has_value());
-    EXPECT_EQ(*mapped, "Finale Legacy");
+    EXPECT_EQ(*mapped, "Finale Maestro");
+
+    mapped = utils::mappedSmuflFontForFinaleLegacyFont("JazzText");
+    ASSERT_TRUE(mapped.has_value());
+    EXPECT_EQ(*mapped, "Finale Jazz Text");
 }
 
 TEST(FontNames, DoesNotMapUnknownFonts)
 {
     EXPECT_FALSE(utils::mappedSmuflFontForFinaleLegacyFont("Times New Roman").has_value());
     EXPECT_FALSE(utils::isFinaleLegacyMusicFontMappedToSmufl("Times New Roman"));
+
+    // A legacy font the registry knows but for which no successor has been established. Nothing is
+    // invented for it, which is the same answer an unknown font gets.
+    EXPECT_FALSE(utils::mappedSmuflFontForFinaleLegacyFont("Crescendo").has_value());
+
+    // A SMuFL font is not a legacy font, so it has no successor to report. Both callers test
+    // FontInfo::calcIsSMuFL before asking, so neither can reach this.
+    EXPECT_FALSE(utils::mappedSmuflFontForFinaleLegacyFont("Finale Legacy").has_value());
+}
+
+TEST(FontNames, ReportsMusicFontStyleForLegacyAndSmuflFonts)
+{
+    // Style is independent of whether a font is legacy or SMuFL, and of whether it is set in the
+    // score or inline with text: the Jazz text faces are handwritten too.
+    EXPECT_EQ(utils::musicFontStyleForFont("Maestro"), utils::MusicFontStyle::Engraved);
+    EXPECT_EQ(utils::musicFontStyleForFont("Petrucci"), utils::MusicFontStyle::Engraved);
+    EXPECT_EQ(utils::musicFontStyleForFont("Jazz"), utils::MusicFontStyle::Handwritten);
+    EXPECT_EQ(utils::musicFontStyleForFont("JazzText"), utils::MusicFontStyle::Handwritten);
+    EXPECT_EQ(utils::musicFontStyleForFont("Bravura"), utils::MusicFontStyle::Engraved);
+    EXPECT_EQ(utils::musicFontStyleForFont("Finale Maestro"), utils::MusicFontStyle::Engraved);
+    EXPECT_EQ(utils::musicFontStyleForFont("Petaluma"), utils::MusicFontStyle::Handwritten);
+    EXPECT_EQ(utils::musicFontStyleForFont("Times New Roman"), utils::MusicFontStyle::Unknown);
+}
+
+TEST(FontNames, ReportsLegacySizeRatioOnlyForStaffRelativeFonts)
+{
+    // Every Finale music font measured so far spans four staff spaces to the em, the same as SMuFL,
+    // so the conversion is an identity. The ratio is still read rather than assumed.
+    const auto maestro = utils::legacySmuflSizeRatioForFont("Maestro");
+    ASSERT_TRUE(maestro.has_value());
+    EXPECT_DOUBLE_EQ(*maestro, 1.0);
+
+    // Patmm's measurements scatter across the mapped glyphs with no coherent scale, so its point
+    // size says nothing about staff size and no size may be derived from it.
+    EXPECT_FALSE(utils::legacySmuflSizeRatioForFont("Patmm").has_value());
+
+    EXPECT_FALSE(utils::legacySmuflSizeRatioForFont("Times New Roman").has_value());
 }
