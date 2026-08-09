@@ -21,10 +21,32 @@
  */
 #include "classify.h"
 
+#include "denigma/classify/classifier_common.h"
 #include "smufl_mapping.h"
 
 namespace denigma {
 namespace classify {
+
+musx::dom::MusxInstance<musx::dom::FontInfo> singleVisibleFont(
+    const musx::util::EnigmaParsingContext& textContext)
+{
+    musx::dom::MusxInstance<musx::dom::FontInfo> result;
+    for (const auto& chunk : textContext.collectEnigmaTextChunks()) {
+        if (chunk.text.empty() || (chunk.styles.font && chunk.styles.font->hidden)) {
+            continue;
+        }
+        if (!chunk.styles.font) {
+            return nullptr;
+        }
+        if (!result) {
+            result = chunk.styles.font;
+        } else if (!result->isSame(*chunk.styles.font)) {
+            return nullptr;
+        }
+    }
+    return result;
+}
+
 namespace detail {
 
 std::optional<std::string> glyphNameForFont(

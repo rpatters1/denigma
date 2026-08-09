@@ -61,5 +61,11 @@ struct PseudoTie
     musx::dom::CurveContourDirection contour{ musx::dom::CurveContourDirection::Unspecified };
 };
 
+/// @brief Returns the common effective font of all nonempty visible text chunks.
+/// @return The common font, or null when there is no visible text, a chunk has no font, or the
+/// visible chunks do not all use the same typeface, size, and effects.
+musx::dom::MusxInstance<musx::dom::FontInfo> singleVisibleFont(
+    const musx::util::EnigmaParsingContext& textContext);
+
 } // namespace classify
 } // namespace denigma

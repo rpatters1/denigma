@@ -310,45 +310,6 @@ std::vector<std::vector<ComparableDynamicsComponent>> collectCompoundDynamics(co
 
 } // namespace
 
-TEST(MusicXmlExpressions, MetronomeMarkUsesDisplayedTempoWithoutPlayback)
-{
-    const classify::expression::MetronomeMark mark{
-        { "", 0, 0 },
-        musx::dom::NoteType::Half,
-        "metNoteHalfDown",
-        2,
-        72
-    };
-
-    const auto tempo = formats::musicxml::detail::musicXmlMetronomeMark(mark);
-    ASSERT_TRUE(tempo.choice.isBeatsPerMinute());
-    const auto beatsPerMinute = tempo.choice.beatsPerMinute();
-    EXPECT_EQ(beatsPerMinute.durationName, mx::api::DurationName::half);
-    EXPECT_EQ(beatsPerMinute.dots, 2);
-    EXPECT_EQ(beatsPerMinute.beatsPerMinute, "72");
-    EXPECT_EQ(
-        formats::musicxml::detail::musicXmlQuarterNotesPerMinute(mark.tempo),
-        mx::api::DOUBLE_UNSPECIFIED);
-}
-
-TEST(MusicXmlExpressions, MetronomeMarkPlaybackIsIndependentOfDisplayedTempo)
-{
-    const classify::expression::MetronomeMark mark{
-        { "", 100, static_cast<int>(musx::dom::NoteType::Quarter) },
-        musx::dom::NoteType::Eighth,
-        "metNote8thUp",
-        1,
-        60
-    };
-
-    const auto tempo = formats::musicxml::detail::musicXmlMetronomeMark(mark);
-    const auto beatsPerMinute = tempo.choice.beatsPerMinute();
-    EXPECT_EQ(beatsPerMinute.durationName, mx::api::DurationName::eighth);
-    EXPECT_EQ(beatsPerMinute.dots, 1);
-    EXPECT_EQ(beatsPerMinute.beatsPerMinute, "60");
-    EXPECT_DOUBLE_EQ(formats::musicxml::detail::musicXmlQuarterNotesPerMinute(mark.tempo), 100.0);
-}
-
 TEST(MusicXmlExpressions, MetronomeMarkFixtureExportsSemanticDirectionsAndConfiguredPlayback)
 {
     setupTestDataPaths();
@@ -365,11 +326,12 @@ TEST(MusicXmlExpressions, MetronomeMarkFixtureExportsSemanticDirectionsAndConfig
         int dots;
         std::string beatsPerMinute;
         std::optional<double> playbackQuarterNotesPerMinute;
+        std::optional<std::string> singleFontFamily;
     };
     const std::array<ExpectedMetronome, 3> expected{ {
-        { mx::api::DurationName::eighth, 0, "72", 72.0 },
-        { mx::api::DurationName::half, 2, "104", 208.0 },
-        { mx::api::DurationName::whole, 0, "120", std::nullopt }
+        { mx::api::DurationName::eighth, 0, "72", 72.0, "Patmm" },
+        { mx::api::DurationName::half, 2, "104", 208.0, "Finale Broadway Text" },
+        { mx::api::DurationName::whole, 0, "120", std::nullopt, std::nullopt }
     } };
 
     for (size_t measureIndex = 0; measureIndex < expected.size(); ++measureIndex) {
@@ -387,6 +349,17 @@ TEST(MusicXmlExpressions, MetronomeMarkFixtureExportsSemanticDirectionsAndConfig
         EXPECT_EQ(beatsPerMinute.durationName, expected[measureIndex].duration) << "measure " << (measureIndex + 1);
         EXPECT_EQ(beatsPerMinute.dots, expected[measureIndex].dots) << "measure " << (measureIndex + 1);
         EXPECT_EQ(beatsPerMinute.beatsPerMinute, expected[measureIndex].beatsPerMinute) << "measure " << (measureIndex + 1);
+        if (expected[measureIndex].singleFontFamily) {
+            ASSERT_EQ(tempo.fontData.fontFamily.size(), 1u) << "measure " << (measureIndex + 1);
+            EXPECT_EQ(tempo.fontData.fontFamily.front(), *expected[measureIndex].singleFontFamily)
+                << "measure " << (measureIndex + 1);
+            EXPECT_EQ(tempo.fontData.sizeType, mx::api::FontSizeType::point) << "measure " << (measureIndex + 1);
+            EXPECT_GT(tempo.fontData.sizePoint, 0.0) << "measure " << (measureIndex + 1);
+        } else {
+            EXPECT_TRUE(tempo.fontData.fontFamily.empty()) << "split-font measure " << (measureIndex + 1);
+            EXPECT_EQ(tempo.fontData.sizeType, mx::api::FontSizeType::unspecified)
+                << "split-font measure " << (measureIndex + 1);
+        }
 
         if (expected[measureIndex].playbackQuarterNotesPerMinute) {
             ASSERT_TRUE(direction.isSoundDataSpecified) << "measure " << (measureIndex + 1);

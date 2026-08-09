@@ -73,7 +73,10 @@ mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacem
 mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fermata);
 mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLocation& location);
 double musicXmlQuarterNotesPerMinute(const classify::expression::TempoInfo& tempo);
-mx::api::TempoData musicXmlMetronomeMark(const classify::expression::MetronomeMark& metronomeMark);
+mx::api::TempoData musicXmlMetronomeMark(
+    const MusicXmlMusxMapping& context,
+    const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment,
+    const classify::ExpressionClassification& classification);
 /// Converts a classified Finale harp diagram to ordered MusicXML pedal tunings.
 mx::api::HarpPedalsData musicXmlHarpPedals(const classify::expression::HarpDiagram& diagram);
 mx::api::ScoreData createMusicXmlDocument(

@@ -71,20 +71,6 @@ mx::api::HarpPedalsData musicXmlHarpPedals(const classify::expression::HarpDiagr
     return result;
 }
 
-mx::api::TempoData musicXmlMetronomeMark(const classify::expression::MetronomeMark& metronomeMark)
-{
-    mx::api::BeatsPerMinute beatsPerMinute;
-    beatsPerMinute.durationName = enumConvert<mx::api::DurationName>(metronomeMark.noteType);
-    beatsPerMinute.dots = static_cast<int>(metronomeMark.augmentationDots);
-    beatsPerMinute.beatsPerMinute = std::to_string(metronomeMark.displayedBeatsPerMinute);
-    /// @todo Preserve a different right-hand font once mx::api::BeatsPerMinute exposes the
-    /// per-minute element's FontData. See mx-api-gaps.md.
-
-    mx::api::TempoData result;
-    result.choice = mx::api::TempoChoice(std::move(beatsPerMinute));
-    return result;
-}
-
 bool isTopStaffAssignment(const MusxInstance<others::MeasureExprAssign>& assignment)
 {
     return assignment->staffAssign == static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
@@ -183,8 +169,7 @@ std::optional<mx::api::DirectionData> createTempoExpressionDirection(
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
     const classify::expression::TempoInfo* tempo = nullptr;
     if (const auto* metronomeMark = classification.as<classify::expression::MetronomeMark>()) {
-        auto musicXmlMetronome = musicXmlMetronomeMark(*metronomeMark);
-        musicXmlMetronome.justify = justifyForTextExpression(assignment);
+        auto musicXmlMetronome = musicXmlMetronomeMark(context, assignment, classification);
         direction.directionTypes.emplace_back(mx::api::DirectionChoice(std::move(musicXmlMetronome)));
         tempo = &metronomeMark->tempo;
     } else {
@@ -369,6 +354,31 @@ double musicXmlQuarterNotesPerMinute(const classify::expression::TempoInfo& temp
 
     constexpr EduFloat eduPerQuarterNote = EduFloat(NoteType::Quarter);
     return static_cast<double>(tempo.beatsPerMinute) * static_cast<double>(tempo.beatUnitEdu) / eduPerQuarterNote;
+}
+
+mx::api::TempoData musicXmlMetronomeMark(
+    const MusicXmlMusxMapping& context,
+    const MusxInstance<others::MeasureExprAssign>& assignment,
+    const classify::ExpressionClassification& classification)
+{
+    const auto& metronomeMark = classification.metronomeMark();
+    mx::api::BeatsPerMinute beatsPerMinute;
+    beatsPerMinute.durationName = enumConvert<mx::api::DurationName>(metronomeMark.noteType);
+    beatsPerMinute.dots = static_cast<int>(metronomeMark.augmentationDots);
+    beatsPerMinute.beatsPerMinute = std::to_string(metronomeMark.displayedBeatsPerMinute);
+    /// @todo Preserve split fonts by assigning the left-hand font to TempoData::fontData and the
+    /// right-hand font to the per-minute element once mx::api::BeatsPerMinute exposes its FontData.
+    /// See mx-api-gaps.md.
+
+    mx::api::TempoData result;
+    result.choice = mx::api::TempoChoice(std::move(beatsPerMinute));
+    if (classification.enigmaCtx) {
+        if (const auto font = classify::singleVisibleFont(*classification.enigmaCtx)) {
+            result.fontData = context.musicXmlFontDataFromFontInfo(*font);
+        }
+    }
+    result.justify = justifyForTextExpression(assignment);
+    return result;
 }
 
 void processExpressions(
