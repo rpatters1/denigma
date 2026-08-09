@@ -91,6 +91,11 @@ void createNotesForMeasureStaff(
     musx::dom::StaffCmper staffId,
     size_t measureIndex,
     size_t staffIndex);
+int syntheticRestVoiceNumber(const mx::api::PartData& part, size_t staffIndex);
+void finalizeEmptyMeasureRests(
+    MusicXmlMusxMapping& context,
+    mx::api::PartData& part,
+    const std::vector<musx::dom::StaffCmper>& staffIds);
 void createParts(MusicXmlMusxMapping& context);
 /// True when the expression assignment uses Finale's floating TOP staff, which draws the expression
 /// on the top staff of every system. MusicXML expresses that as `<direction system="only-top">`.

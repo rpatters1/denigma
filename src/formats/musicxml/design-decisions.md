@@ -56,6 +56,12 @@ An entry hidden in the requested context exports as `<rest print-object="no">` w
 
 Finale's own export collapses hidden rests into `<forward>`, which advances the musical position and discards the fact that a rest is there at all. A `print-object="no"` rest keeps the entry addressable, so directions, lyrics, and spanner endpoints attached to it still have something to attach to, and an importer that later chooses to reveal hidden material has the rest's duration type rather than a bare duration.
 
+### Synthetic measure rests use a real staff voice
+
+After the exporter has created every source entry in a part, a staff with no notes in a measure receives a synthetic complete-measure rest. The rest uses the lowest-numbered voice that contains real notes anywhere on that staff. Only a staff with no real notes at all falls back to its Layer 1/V1 voice.
+
+A synthetic rest must not invent a source voice. If a staff contains only Finale Layer 4, assigning its empty measures to Layer 1 makes MusicXML describe two voices even though the source has one. Importers may then apply multi-voice engraving rules to the Layer 4 passage. Deferring the rests until the real voices are known keeps empty measures in an existing voice without renumbering any source entry.
+
 ### A floating rest keeps floating
 
 `<display-step>` and `<display-octave>` are written for a rest that Finale positions explicitly, and omitted for one Finale floats.

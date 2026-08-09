@@ -463,15 +463,15 @@ void addSyntheticFullMeasureRest(
     mx::api::StaffData& staff,
     const MusxInstance<others::Measure>& musxMeasure,
     StaffCmper staffId,
-    size_t staffIndex)
+    int userVoiceNumber)
 {
-    const int userVoiceNumber = musicXmlVoiceNumber(staffIndex, 0, 1);
     const auto measureStartStaff = others::StaffComposite::createCurrent(context.document, context.forPartId, staffId, musxMeasure->getCmper(), 0);
     auto rest = createRestData(
-        context, staff, EntryInfoPtr::InterpretedIterator{}, musxMeasure, measureStartStaff, userVoiceNumber, false, false);
+        context, staff, EntryInfoPtr::InterpretedIterator{}, musxMeasure, measureStartStaff,
+        userVoiceNumber, false, false);
 
     auto& voice = staff.voices[userVoiceNumber - 1];
-    voice.notes.emplace_back(rest);
+    voice.notes.emplace_back(std::move(rest));
 }
 
 void appendEntryNotes(
@@ -661,11 +661,9 @@ void createNotesForMeasureStaff(
     musx::dom::details::GFrameHoldContext staffMeasureContext(
         context.document, context.forPartId, staffId, musxMeasure->getCmper(), legacyPickupSpacer);
     if (!staffMeasureContext) {
-        addSyntheticFullMeasureRest(context, staff, musxMeasure, staffId, staffIndex);
         return;
     }
 
-    bool emittedNotes = false;
     const auto pitchContext = pitchContextForStaff(context, staffId);
     /// @todo Honor Blank/BlankWithRests alternate notation by suppressing the affected entries and
     /// their attachments with print-object once its layer semantics have been mapped to MusicXML.
@@ -693,13 +691,60 @@ void createNotesForMeasureStaff(
                 }
                 appendEntryNotes(context, staff, voice, entryIt, musxMeasure, userVoiceNumber, measureIndex, staffIndex,
                     hasMultipleLayers, usesV1V2, isCue, measure.staves.size() > 1, pitchContext);
-                emittedNotes = true;
             }
         }
     }
+}
 
-    if (!emittedNotes) {
-        addSyntheticFullMeasureRest(context, staff, musxMeasure, staffId, staffIndex);
+int syntheticRestVoiceNumber(const mx::api::PartData& part, size_t staffIndex)
+{
+    int voiceNumber = musicXmlVoiceNumber(staffIndex, 0, 1);
+    bool foundRealVoice = false;
+    for (const auto& measure : part.measures) {
+        if (staffIndex >= measure.staves.size()) {
+            continue;
+        }
+        for (const auto& [voiceIndex, voice] : measure.staves[staffIndex].voices) {
+            if (!voice.notes.empty() && (!foundRealVoice || voiceIndex + 1 < voiceNumber)) {
+                voiceNumber = voiceIndex + 1;
+                foundRealVoice = true;
+            }
+        }
+    }
+    return voiceNumber;
+}
+
+void finalizeEmptyMeasureRests(
+    MusicXmlMusxMapping& context,
+    mx::api::PartData& part,
+    const std::vector<StaffCmper>& staffIds)
+{
+    const auto musxMeasures = context.document->getOthers()->getArray<others::Measure>(context.forPartId);
+    ASSERT_IF(part.measures.size() != musxMeasures.size()) {
+        throw std::logic_error("MusicXML and Finale measure counts differ while finalizing empty measure rests.");
+    }
+
+    auto syntheticVoiceNumbers = std::vector<int>{};
+    syntheticVoiceNumbers.reserve(staffIds.size());
+    for (size_t staffIndex = 0; staffIndex < staffIds.size(); ++staffIndex) {
+        syntheticVoiceNumbers.emplace_back(syntheticRestVoiceNumber(part, staffIndex));
+    }
+
+    for (size_t measureIndex = 0; measureIndex < part.measures.size(); ++measureIndex) {
+        auto& measure = part.measures[measureIndex];
+        ASSERT_IF(measure.staves.size() != staffIds.size()) {
+            throw std::logic_error("MusicXML staff count changed while finalizing empty measure rests.");
+        }
+        for (size_t staffIndex = 0; staffIndex < staffIds.size(); ++staffIndex) {
+            auto& staff = measure.staves[staffIndex];
+            const bool hasNotes = std::ranges::any_of(staff.voices, [](const auto& item) { return !item.second.notes.empty(); });
+            if (hasNotes) {
+                continue;
+            }
+            const int userVoiceNumber = syntheticVoiceNumbers[staffIndex];
+            const auto& musxMeasure = musxMeasures[measureIndex];
+            addSyntheticFullMeasureRest(context, staff, musxMeasure, staffIds[staffIndex], userVoiceNumber);
+        }
     }
 }
 

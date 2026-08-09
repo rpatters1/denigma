@@ -1160,6 +1160,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         }
     }
 
+    finalizeEmptyMeasureRests(context, part, stavesIt->second);
     assignRepeatEndings(context, part);
     processSmartShapes(context, musxMeasures, stavesIt->second);
 
