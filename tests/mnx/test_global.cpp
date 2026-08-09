@@ -54,6 +54,43 @@ TEST(MnxGlobal, MetronomeMarkUsesDisplayedTempoWithoutPlayback)
     EXPECT_EQ(tempo.noteValue.dots, 2u);
 }
 
+TEST(MnxGlobal, MetronomeMarkFixturePreservesEveryDisplayedEquation)
+{
+    setupTestDataPaths();
+    std::filesystem::path inputPath;
+    copyInputToOutput("metronome_marks.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--mnx" };
+    checkStderr({ "Processing", pathString(inputPath.filename()), "!validation error" }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to mnx: " << pathString(inputPath);
+    });
+
+    const auto doc = mnxdom::Document::create(inputPath.parent_path() / "metronome_marks.mnx");
+    const auto measures = doc.global().measures();
+    ASSERT_EQ(measures.size(), 3u);
+
+    struct ExpectedTempo
+    {
+        int bpm;
+        mnxdom::NoteValueBase base;
+        unsigned dots;
+    };
+    const std::array<ExpectedTempo, 3> expected{ {
+        { 72, mnxdom::NoteValueBase::Eighth, 0 },
+        { 104, mnxdom::NoteValueBase::Half, 2 },
+        { 120, mnxdom::NoteValueBase::Whole, 0 }
+    } };
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        const auto tempos = measures[i].tempos();
+        ASSERT_TRUE(tempos) << "measure " << (i + 1);
+        ASSERT_EQ(tempos->size(), 1u) << "measure " << (i + 1);
+        const auto tempo = tempos->front();
+        EXPECT_EQ(tempo.bpm(), expected[i].bpm) << "measure " << (i + 1);
+        EXPECT_EQ(tempo.value().base(), expected[i].base) << "measure " << (i + 1);
+        EXPECT_EQ(tempo.value().dots(), expected[i].dots) << "measure " << (i + 1);
+    }
+}
+
 TEST(MnxGlobal, Tempos)
 {
     setupTestDataPaths();

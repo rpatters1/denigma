@@ -349,6 +349,88 @@ TEST(MusicXmlExpressions, MetronomeMarkPlaybackIsIndependentOfDisplayedTempo)
     EXPECT_DOUBLE_EQ(formats::musicxml::detail::musicXmlQuarterNotesPerMinute(mark.tempo), 100.0);
 }
 
+TEST(MusicXmlExpressions, MetronomeMarkFixtureExportsSemanticDirectionsAndConfiguredPlayback)
+{
+    setupTestDataPaths();
+
+    const auto actualScore = loadScoreData(exportMusicXmlFixture("metronome_marks.musx"));
+    ASSERT_TRUE(actualScore);
+    ASSERT_EQ(actualScore->parts.size(), 1u);
+    const auto& measures = actualScore->parts.front().measures;
+    ASSERT_EQ(measures.size(), 3u);
+
+    struct ExpectedMetronome
+    {
+        mx::api::DurationName duration;
+        int dots;
+        std::string beatsPerMinute;
+        std::optional<double> playbackQuarterNotesPerMinute;
+    };
+    const std::array<ExpectedMetronome, 3> expected{ {
+        { mx::api::DurationName::eighth, 0, "72", 72.0 },
+        { mx::api::DurationName::half, 2, "104", 208.0 },
+        { mx::api::DurationName::whole, 0, "120", std::nullopt }
+    } };
+
+    for (size_t measureIndex = 0; measureIndex < expected.size(); ++measureIndex) {
+        const auto& measure = measures[measureIndex];
+        ASSERT_EQ(measure.staves.size(), 1u) << "measure " << (measureIndex + 1);
+        const auto& directions = measure.staves.front().directions;
+        ASSERT_EQ(directions.size(), 1u) << "measure " << (measureIndex + 1);
+        const auto& direction = directions.front();
+        ASSERT_EQ(direction.directionTypes.size(), 1u) << "measure " << (measureIndex + 1);
+        const auto& choice = direction.directionTypes.front();
+        ASSERT_TRUE(choice.isTempo()) << "measure " << (measureIndex + 1);
+        const auto tempo = choice.tempo();
+        ASSERT_TRUE(tempo.choice.isBeatsPerMinute()) << "measure " << (measureIndex + 1);
+        const auto beatsPerMinute = tempo.choice.beatsPerMinute();
+        EXPECT_EQ(beatsPerMinute.durationName, expected[measureIndex].duration) << "measure " << (measureIndex + 1);
+        EXPECT_EQ(beatsPerMinute.dots, expected[measureIndex].dots) << "measure " << (measureIndex + 1);
+        EXPECT_EQ(beatsPerMinute.beatsPerMinute, expected[measureIndex].beatsPerMinute) << "measure " << (measureIndex + 1);
+
+        if (expected[measureIndex].playbackQuarterNotesPerMinute) {
+            ASSERT_TRUE(direction.isSoundDataSpecified) << "measure " << (measureIndex + 1);
+            EXPECT_DOUBLE_EQ(direction.soundData.tempo, *expected[measureIndex].playbackQuarterNotesPerMinute)
+                << "measure " << (measureIndex + 1);
+        } else {
+            EXPECT_FALSE(direction.isSoundDataSpecified) << "visual-only measure " << (measureIndex + 1);
+        }
+    }
+}
+
+TEST(MusicXmlExpressions, MetronomeMarkReferenceCapturesFinaleFontAndAlignmentBehavior)
+{
+    setupTestDataPaths();
+
+    pugi::xml_document reference;
+    const auto loadResult = reference.load_file(
+        pathString(getInputPath() / "musicxml/metronome_marks-ref.musicxml").c_str());
+    ASSERT_TRUE(loadResult);
+    const auto part = reference.child("score-partwise").child("part");
+
+    const auto firstDirectionType = part.find_child_by_attribute("measure", "number", "1")
+        .child("direction").child("direction-type");
+    const auto legacyWords = firstDirectionType.child("words");
+    ASSERT_TRUE(legacyWords);
+    EXPECT_STREQ(legacyWords.attribute("font-family").value(), "Patmm");
+    EXPECT_FALSE(firstDirectionType.child("metronome"));
+
+    const auto singleFontMetronome = part.find_child_by_attribute("measure", "number", "2")
+        .child("direction").child("direction-type").child("metronome");
+    ASSERT_TRUE(singleFontMetronome);
+    EXPECT_STREQ(singleFontMetronome.attribute("font-family").value(), "Finale Broadway Text");
+    EXPECT_STREQ(singleFontMetronome.attribute("halign").value(), "left");
+    EXPECT_FALSE(singleFontMetronome.child("per-minute").attribute("font-family"));
+
+    const auto splitFontMetronome = part.find_child_by_attribute("measure", "number", "3")
+        .child("direction").child("direction-type").child("metronome");
+    ASSERT_TRUE(splitFontMetronome);
+    EXPECT_STREQ(splitFontMetronome.attribute("font-family").value(), "Finale Maestro Text");
+    EXPECT_STREQ(splitFontMetronome.attribute("halign").value(), "left");
+    EXPECT_STREQ(splitFontMetronome.child("per-minute").attribute("font-family").value(), "Times New Roman Bold");
+    EXPECT_STREQ(splitFontMetronome.parent().parent().child("sound").attribute("tempo").value(), "480");
+}
+
 TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
 {
     setupTestDataPaths();

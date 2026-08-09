@@ -77,6 +77,8 @@ mx::api::TempoData musicXmlMetronomeMark(const classify::expression::MetronomeMa
     beatsPerMinute.durationName = enumConvert<mx::api::DurationName>(metronomeMark.noteType);
     beatsPerMinute.dots = static_cast<int>(metronomeMark.augmentationDots);
     beatsPerMinute.beatsPerMinute = std::to_string(metronomeMark.displayedBeatsPerMinute);
+    /// @todo Preserve a different right-hand font once mx::api::BeatsPerMinute exposes the
+    /// per-minute element's FontData. See mx-api-gaps.md.
 
     mx::api::TempoData result;
     result.choice = mx::api::TempoChoice(std::move(beatsPerMinute));
