@@ -76,6 +76,26 @@ bool isTopStaffAssignment(const MusxInstance<others::MeasureExprAssign>& assignm
     return assignment->staffAssign == static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
 }
 
+mx::api::HorizontalAlignment musicXmlHorizontalAlignmentForTextExpression(
+    const MusxInstance<others::MeasureExprAssign>& assignment)
+{
+    const auto textExpression = assignment ? assignment->getTextExpression() : nullptr;
+    // horzMeasExprAlign chooses the musical landmark used as the anchor. The separate
+    // horzExprJustification says which edge of the expression sits at that anchor: MusicXML halign.
+    return textExpression ? enumConvert<mx::api::HorizontalAlignment>(textExpression->horzExprJustification)
+                          : mx::api::HorizontalAlignment::unspecified;
+}
+
+mx::api::HorizontalAlignment musicXmlJustifyForTextExpression(
+    const MusxInstance<others::MeasureExprAssign>& assignment)
+{
+    const auto textExpression = assignment ? assignment->getTextExpression() : nullptr;
+    const auto textBlock = textExpression ? textExpression->getTextBlock() : nullptr;
+    // TextBlock::justify controls the alignment of lines inside the text, which is MusicXML justify.
+    return textBlock ? enumConvert<mx::api::HorizontalAlignment>(textBlock->justify)
+                     : mx::api::HorizontalAlignment::unspecified;
+}
+
 namespace {
 
 void appendTechniquePlayback(mx::api::DirectionData& direction, const classify::expression::TechniqueText& technique)
@@ -145,19 +165,6 @@ mx::api::Enclosure enclosureForTextExpression(
     return enumConvert<mx::api::Enclosure>(enclosure->shape);
 }
 
-/// The `justify` attribute for a text expression's `<words>` or `<rehearsal>`: how the lines of a
-/// multi-line marking sit relative to each other. Finale keeps this separate from the alignment of
-/// the marking against its anchor, which `horzMeasExprAlign` supplies.
-mx::api::HorizontalAlignment justifyForTextExpression(
-    const MusxInstance<others::MeasureExprAssign>& assignment)
-{
-    const auto textExpression = assignment ? assignment->getTextExpression() : nullptr;
-    if (!textExpression) {
-        return mx::api::HorizontalAlignment::unspecified;
-    }
-    return enumConvert<mx::api::HorizontalAlignment>(textExpression->horzExprJustification);
-}
-
 std::optional<mx::api::DirectionData> createTempoExpressionDirection(
     MusicXmlMusxMapping& context,
     size_t staffIndex,
@@ -178,9 +185,11 @@ std::optional<mx::api::DirectionData> createTempoExpressionDirection(
             words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
         }
         const auto enclosure = enclosureForTextExpression(assignment);
-        const auto justify = justifyForTextExpression(assignment);
-        forEachMusicXmlWordsRunItem(words, [&](mx::api::PositionData&,
+        const auto horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
+        const auto justify = musicXmlJustifyForTextExpression(assignment);
+        forEachMusicXmlWordsRunItem(words, [&](mx::api::PositionData& positionData,
                 mx::api::Enclosure& itemEnclosure, mx::api::HorizontalAlignment& itemJustify) {
+            positionData.horizontalAlignment = horizontalAlignment;
             itemEnclosure = enclosure;
             itemJustify = justify;
         });
@@ -214,9 +223,11 @@ std::optional<mx::api::DirectionData> createWordsExpressionDirection(
         words = musicXmlWordsFromEnigmaText(context, *classification.enigmaCtx);
     }
     const auto enclosure = enclosureForTextExpression(assignment);
-    const auto justify = justifyForTextExpression(assignment);
-    forEachMusicXmlWordsRunItem(words, [&](mx::api::PositionData&,
+    const auto horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
+    const auto justify = musicXmlJustifyForTextExpression(assignment);
+    forEachMusicXmlWordsRunItem(words, [&](mx::api::PositionData& positionData,
             mx::api::Enclosure& itemEnclosure, mx::api::HorizontalAlignment& itemJustify) {
+        positionData.horizontalAlignment = horizontalAlignment;
         itemEnclosure = enclosure;
         itemJustify = justify;
     });
@@ -244,7 +255,8 @@ std::optional<mx::api::DirectionData> createRehearsalExpressionDirection(
         // Unlike words and symbols, MusicXML rehearsal marks default to a square enclosure.
         rehearsal.enclosure = mx::api::Enclosure::none;
     }
-    rehearsal.justify = justifyForTextExpression(assignment);
+    rehearsal.positionData.horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
+    rehearsal.justify = musicXmlJustifyForTextExpression(assignment);
     if (classification.enigmaCtx) {
         const auto chunks = classification.enigmaCtx->collectEnigmaTextChunks(
             EnigmaString::EnigmaParsingOptions(EnigmaString::AccidentalStyle::Unicode));
@@ -274,6 +286,7 @@ std::optional<mx::api::DirectionData> createStringMuteExpressionDirection(
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
     auto stringMute = mx::api::StringMuteData{};
     stringMute.type = enumConvert<mx::api::StringMuteType>(classification.stringMute().type);
+    stringMute.positionData.horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
     direction.directionTypes.emplace_back(std::move(stringMute));
     return direction;
 }
@@ -287,7 +300,9 @@ std::optional<mx::api::DirectionData> createHarpDiagramExpressionDirection(
     bool isStaffValueSpecified)
 {
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
-    direction.directionTypes.emplace_back(musicXmlHarpPedals(classification.harpDiagram()));
+    auto harpPedals = musicXmlHarpPedals(classification.harpDiagram());
+    harpPedals.positionData.horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
+    direction.directionTypes.emplace_back(std::move(harpPedals));
     return direction;
 }
 
@@ -377,7 +392,8 @@ mx::api::TempoData musicXmlMetronomeMark(
             result.fontData = context.musicXmlFontDataFromFontInfo(*font);
         }
     }
-    result.justify = justifyForTextExpression(assignment);
+    result.positionData.horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
+    result.justify = musicXmlJustifyForTextExpression(assignment);
     return result;
 }
 
@@ -418,6 +434,7 @@ void processExpressions(
     };
 
     auto appendMarkToAssociatedNote = [&](const MusxInstance<others::MeasureExprAssign>& assignment, mx::api::MarkData mark) {
+        mark.positionData.horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
         if (auto* note = noteForEntry(assignment->calcAssociatedEntry())) {
             note->noteAttachmentData.marks.emplace_back(std::move(mark));
         } else {

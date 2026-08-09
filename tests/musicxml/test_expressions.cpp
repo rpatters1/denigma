@@ -345,6 +345,8 @@ TEST(MusicXmlExpressions, MetronomeMarkFixtureExportsSemanticDirectionsAndConfig
         ASSERT_TRUE(choice.isTempo()) << "measure " << (measureIndex + 1);
         const auto tempo = choice.tempo();
         ASSERT_TRUE(tempo.choice.isBeatsPerMinute()) << "measure " << (measureIndex + 1);
+        EXPECT_EQ(tempo.positionData.horizontalAlignment, mx::api::HorizontalAlignment::left)
+            << "measure " << (measureIndex + 1);
         const auto beatsPerMinute = tempo.choice.beatsPerMinute();
         EXPECT_EQ(beatsPerMinute.durationName, expected[measureIndex].duration) << "measure " << (measureIndex + 1);
         EXPECT_EQ(beatsPerMinute.dots, expected[measureIndex].dots) << "measure " << (measureIndex + 1);
@@ -697,6 +699,7 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
         size_t measureIndex{};
         std::string text;
         mx::api::Placement placement{mx::api::Placement::unspecified};
+        mx::api::HorizontalAlignment horizontalAlignment{mx::api::HorizontalAlignment::unspecified};
         std::optional<double> defaultX;
         std::optional<double> defaultY;
         std::optional<double> relativeX;
@@ -723,6 +726,7 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
                         measureIndex,
                         text,
                         direction.placement,
+                        position->horizontalAlignment,
                         position->isDefaultXSpecified ? std::make_optional(position->defaultX) : std::nullopt,
                         position->isDefaultYSpecified ? std::make_optional(position->defaultY) : std::nullopt,
                         position->isRelativeXSpecified ? std::make_optional(position->relativeX) : std::nullopt,
@@ -748,6 +752,7 @@ TEST(MusicXmlExpressions, MeasureTextSmoke)
         EXPECT_EQ(actual.measureIndex, reference.measureIndex);
         EXPECT_EQ(actual.text, reference.text);
         EXPECT_EQ(actual.placement, reference.placement);
+        EXPECT_EQ(actual.horizontalAlignment, mx::api::HorizontalAlignment::left);
         ASSERT_EQ(actual.defaultY.has_value(), reference.defaultY.has_value());
         if (actual.defaultY && reference.defaultY) {
             EXPECT_NEAR(*actual.defaultY, *reference.defaultY, kDefaultYTolerance);
@@ -983,7 +988,7 @@ TEST(MusicXmlExpressions, MeasureTextEnclosuresUseStandardFrameRule)
     }
 }
 
-TEST(MusicXmlExpressions, TextExpressionsExportSourceJustification)
+TEST(MusicXmlExpressions, TextExpressionsExportSourceAlignmentAndJustification)
 {
     setupTestDataPaths();
 
@@ -992,26 +997,33 @@ TEST(MusicXmlExpressions, TextExpressionsExportSourceJustification)
     ASSERT_TRUE(actualScore);
     ASSERT_FALSE(actualScore->parts.empty());
 
-    // TextExpressionDef::horzExprJustification reaches both <words justify="..."> and
-    // <rehearsal justify="...">, independently of the halign that positions the marking.
-    std::unordered_map<std::string, mx::api::HorizontalAlignment> justifyByText;
+    // TextExpressionDef::horzExprJustification positions the expression against its anchor with
+    // halign. TextBlock::justify independently controls the lines within words and rehearsal text.
+    struct Alignment
+    {
+        mx::api::HorizontalAlignment horizontal;
+        mx::api::HorizontalAlignment justify;
+    };
+    std::unordered_map<std::string, Alignment> alignmentByText;
     for (const auto& measure : actualScore->parts.front().measures) {
         for (const auto& staff : measure.staves) {
             for (const auto& direction : staff.directions) {
                 for (const auto& word : directionWords(direction)) {
-                    justifyByText.emplace(word.text, word.justify);
+                    alignmentByText.emplace(word.text, Alignment{ word.positionData.horizontalAlignment, word.justify });
                 }
                 for (const auto& rehearsal : directionRehearsals(direction)) {
-                    justifyByText.emplace(rehearsal.text, rehearsal.justify);
+                    alignmentByText.emplace(
+                        rehearsal.text, Alignment{ rehearsal.positionData.horizontalAlignment, rehearsal.justify });
                 }
             }
         }
     }
 
     for (const auto& text : { "Tempo", "expressive", "pizz.", "Reh. 1" }) {
-        const auto found = justifyByText.find(text);
-        ASSERT_NE(found, justifyByText.end()) << text;
-        EXPECT_EQ(found->second, mx::api::HorizontalAlignment::left) << text;
+        const auto found = alignmentByText.find(text);
+        ASSERT_NE(found, alignmentByText.end()) << text;
+        EXPECT_EQ(found->second.horizontal, mx::api::HorizontalAlignment::left) << text;
+        EXPECT_EQ(found->second.justify, mx::api::HorizontalAlignment::left) << text;
     }
 }
 
@@ -1181,16 +1193,22 @@ TEST(MusicXmlExpressions, DynamicsKeepTheWordsAroundThem)
 
     // Measures 4 and 5 spell each dynamic with a word beside its glyph, so every direction must
     // carry both the mark and the word: "più f", "sub. p", "ff sempre", "menos f".
-    const std::vector<std::pair<std::string, mx::api::StandardDynamic>> expected = {
-        { "più", mx::api::StandardDynamic::f },
-        { "sub.", mx::api::StandardDynamic::p },
-        { "sempre", mx::api::StandardDynamic::ff },
-        { "menos", mx::api::StandardDynamic::f },
+    struct ExpectedDynamic
+    {
+        std::string words;
+        mx::api::StandardDynamic dynamic;
+        mx::api::HorizontalAlignment horizontalAlignment;
+    };
+    const std::vector<ExpectedDynamic> expected = {
+        { "più", mx::api::StandardDynamic::f, mx::api::HorizontalAlignment::right },
+        { "sub.", mx::api::StandardDynamic::p, mx::api::HorizontalAlignment::right },
+        { "sempre", mx::api::StandardDynamic::ff, mx::api::HorizontalAlignment::left },
+        { "menos", mx::api::StandardDynamic::f, mx::api::HorizontalAlignment::center },
     };
 
     const auto& measures = actualScore->parts.front().measures;
     ASSERT_GE(measures.size(), 5u);
-    std::vector<std::pair<std::string, mx::api::StandardDynamic>> actual;
+    std::vector<ExpectedDynamic> actual;
     for (size_t measureIndex = 3; measureIndex <= 4; ++measureIndex) {
         for (const auto& staff : measures.at(measureIndex).staves) {
             for (const auto& direction : staff.directions) {
@@ -1199,12 +1217,20 @@ TEST(MusicXmlExpressions, DynamicsKeepTheWordsAroundThem)
                 ASSERT_EQ(marks.size(), 1u) << "measure " << (measureIndex + 1);
                 ASSERT_EQ(words.size(), 1u) << "measure " << (measureIndex + 1);
                 ASSERT_TRUE(marks.front().choice.isDynamic()) << "measure " << (measureIndex + 1);
-                actual.emplace_back(utils::trimAscii(words.front().text), marks.front().choice.dynamic());
+                EXPECT_EQ(words.front().positionData.horizontalAlignment, marks.front().positionData.horizontalAlignment)
+                    << "measure " << (measureIndex + 1);
+                actual.push_back({ utils::trimAscii(words.front().text), marks.front().choice.dynamic(),
+                    marks.front().positionData.horizontalAlignment });
             }
         }
     }
 
-    EXPECT_EQ(actual, expected);
+    ASSERT_EQ(actual.size(), expected.size());
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_EQ(actual[index].words, expected[index].words) << index;
+        EXPECT_EQ(actual[index].dynamic, expected[index].dynamic) << index;
+        EXPECT_EQ(actual[index].horizontalAlignment, expected[index].horizontalAlignment) << index;
+    }
 }
 
 TEST(MusicXmlExpressions, TheDynamicElementTableKnowsEveryDynamic)

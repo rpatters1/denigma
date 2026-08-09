@@ -48,6 +48,7 @@ TEST(MusicXmlMetadata, exportsPageTextCredits)
     const auto title = findCredit("title");
     ASSERT_NE(title, score->pageTextItems.end());
     EXPECT_EQ(title->text, "\nfor");
+    EXPECT_EQ(title->positionData.horizontalAlignment, mx::api::HorizontalAlignment::center);
     EXPECT_EQ(title->justify, mx::api::HorizontalAlignment::center);
     // No text block in this document carries a standard frame, so no credit states an enclosure and
     // none is written; MusicXML's own default for credit-words is none.

@@ -852,11 +852,9 @@ void processMeasureText(
         }
 
         const auto textBlock = assignment->getTextBlock();
-        // TextBlock::justify is the text block's own justification, the same field page text maps to
-        // MusicXML's justify attribute. It also stands in for the anchor alignment, which measure
-        // text assignments do not record separately.
-        const auto horizontalAlignment = textBlock ? enumConvert<mx::api::HorizontalAlignment>(textBlock->justify)
-                                                   : mx::api::HorizontalAlignment::unspecified;
+        // TextBlock::justify controls the alignment of lines within the text block.
+        const auto justify = textBlock ? enumConvert<mx::api::HorizontalAlignment>(textBlock->justify)
+                                       : mx::api::HorizontalAlignment::unspecified;
         const bool useStandardFrameEnclosure = textBlock && textBlock->shapeId == 0 && textBlock->stdLineThickness > 0;
         const Evpu resolvedYEvpu = assignment->yDisp + (textBlock ? textBlock->yAdd : Evpu{});
         const Evpu defaultXEvpu = (textBlock ? textBlock->xAdd : Evpu{}) + (assignment->xDispEdu == 0 ? assignment->xDispEvpu : Evpu{});
@@ -869,7 +867,7 @@ void processMeasureText(
             direction.placement = mx::api::Placement::below;
         }
         forEachMusicXmlWordsRunItem(words, [&](mx::api::PositionData& positionData,
-                mx::api::Enclosure& enclosure, mx::api::HorizontalAlignment& justify) {
+                mx::api::Enclosure& enclosure, mx::api::HorizontalAlignment& itemJustify) {
             if (hasDefaultX) {
                 positionData.defaultX = context.musicXmlTenthsFromEvpu(defaultXEvpu);
                 positionData.isDefaultXSpecified = true;
@@ -878,10 +876,9 @@ void processMeasureText(
                 positionData.defaultY = context.musicXmlTenthsFromEvpu(defaultYEvpu);
                 positionData.isDefaultYSpecified = true;
             }
-            if (horizontalAlignment != mx::api::HorizontalAlignment::unspecified) {
-                positionData.horizontalAlignment = horizontalAlignment;
-                justify = horizontalAlignment;
-            }
+            // Measure text is always anchored by its left edge, independently of its justification.
+            positionData.horizontalAlignment = mx::api::HorizontalAlignment::left;
+            itemJustify = justify;
             if (useStandardFrameEnclosure) {
                 enclosure = mx::api::Enclosure::rectangle;
             }
