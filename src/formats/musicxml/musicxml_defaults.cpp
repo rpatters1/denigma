@@ -153,8 +153,11 @@ void createFontData(const MusicXmlMusxMapping& context)
 {
     auto& defaults = context.musicXmlScore->defaults;
     const auto& defaultMusicFont = *context.finaleOptions.defaultMusicFont;
-    defaults.musicFont = context.musicXmlFontDataFromFontInfo(defaultMusicFont,
-        enumConvert<MusicXmlFontFamilyFallback>(utils::musicFontStyleForFont(defaultMusicFont.getName())));
+    const auto musicFontStyle = utils::musicFontStyleForFont(defaultMusicFont.getName());
+    const auto musicFontFallback = musicFontStyle
+        ? enumConvert<MusicXmlFontFamilyFallback>(*musicFontStyle)
+        : MusicXmlFontFamilyFallback::Music;
+    defaults.musicFont = context.musicXmlFontDataFromFontInfo(defaultMusicFont, musicFontFallback);
 
     if (const auto wordFont = context.finaleOptions.fontOptions->getFontInfo(options::FontOptions::FontType::Expression)) {
         defaults.wordFont = context.musicXmlFontDataFromFontInfo(*wordFont, MusicXmlFontFamilyFallback::Text);

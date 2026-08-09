@@ -240,20 +240,20 @@ mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWord
     mx::api::SymbolData result;
     result.smufl = std::move(glyphName);
     result.positionData = sourceWords.positionData;
-    const auto sourceFontType = font ? utils::musicFontTypeForFont(font->getName()) : utils::MusicFontType::Unknown;
+    const auto sourceFontType = font ? utils::musicFontTypeForFont(font->getName()) : std::nullopt;
     if (font && font->calcIsSMuFL()) {
         result.fontData = sourceWords.fontData;
         auto& families = result.fontData.fontFamily;
         families.erase(std::remove_if(families.begin(), families.end(),
             [](const std::string& family) { return isGenericFontFamily(family); }), families.end());
         families.emplace_back(musicXmlFontFamilyFallbackName(MusicXmlFontFamilyFallback::Engraved));
-        if (sourceFontType != utils::MusicFontType::Engraving) {
+        if (sourceFontType != smufl_mapping::MusicFontType::Engraving) {
             result.fontData.sizeType = mx::api::FontSizeType::unspecified;
             result.fontData.sizePoint = mx::api::DOUBLE_UNSPECIFIED;
             result.fontData.sizeCss = mx::api::CssSize::unspecified;
         }
     } else {
-        if (sourceFontType == utils::MusicFontType::Engraving && sourceWords.fontData.sizeType == mx::api::FontSizeType::point) {
+        if (sourceFontType == smufl_mapping::MusicFontType::Engraving && sourceWords.fontData.sizeType == mx::api::FontSizeType::point) {
             if (const auto sizeRatio = utils::legacySmuflSizeRatioForFont(font->getName())) {
                 result.fontData.sizeType = mx::api::FontSizeType::point;
                 result.fontData.sizePoint = sourceWords.fontData.sizePoint * (*sizeRatio);

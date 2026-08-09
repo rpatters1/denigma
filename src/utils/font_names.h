@@ -25,28 +25,9 @@
 #include <string>
 #include <string_view>
 
+#include "smufl_mapping.h"
+
 namespace utils {
-
-/// @brief How a music font is used in a score, independent of its visual style.
-enum class MusicFontType
-{
-    Unknown,        ///< Not a font the registries know, so its intended use is unknown.
-    Engraving,      ///< Placed in the score as notation.
-    Text            ///< Set inline with running text.
-};
-
-/// @brief What a music font looks like, independent of whether it is set in the score or inline
-/// with running text.
-///
-/// The values come from the smufl_mapping font registries, which cover both legacy and SMuFL
-/// fonts. Denigma keeps its own enum so that the registry stays a private dependency of this
-/// library rather than bubbling up to everything that needs a font name.
-enum class MusicFontStyle
-{
-    Unknown,        ///< Not a font the registries know, so nothing can be said about its look.
-    Engraved,       ///< Imitates traditional plate engraving.
-    Handwritten     ///< Imitates manuscript.
-};
 
 std::string normalizedFontName(std::string_view fontName);
 
@@ -55,11 +36,13 @@ std::optional<std::string_view> mappedSmuflFontForFinaleLegacyFont(std::string_v
 
 bool isFinaleLegacyMusicFontMappedToSmufl(std::string_view fontName);
 
-/// @brief How @p fontName is used, for either a legacy or a SMuFL music font.
-MusicFontType musicFontTypeForFont(std::string_view fontName);
+/// @brief How @p fontName is used, for either a legacy or a SMuFL music font, or `std::nullopt`
+/// when neither registry contains the font.
+std::optional<smufl_mapping::MusicFontType> musicFontTypeForFont(std::string_view fontName);
 
-/// @brief What @p fontName looks like, for either a legacy or a SMuFL music font.
-MusicFontStyle musicFontStyleForFont(std::string_view fontName);
+/// @brief What @p fontName looks like, for either a legacy or a SMuFL music font, or `std::nullopt`
+/// when neither registry contains the font.
+std::optional<smufl_mapping::MusicFontStyle> musicFontStyleForFont(std::string_view fontName);
 
 /// @brief The factor converting a point size in a legacy music font to the equivalent point size
 /// in a substituted SMuFL font.
