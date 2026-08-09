@@ -215,23 +215,20 @@ mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
 /// glyph under this name, so naming it gives a reader who has it the source's own design, and the
 /// family list degrades to the generic for a reader who does not, which is what such a list is for.
 /// Its generic is replaced with an engraving one, since the fallback appended for running prose
-/// would send a reader to a text font that cannot draw the glyph at all. Size and style come across
-/// for the same reason: every SMuFL font sets one em to four staff spaces, so a point size measured
-/// in one carries its meaning into another, keeping a tempo glyph deliberately smaller than staff
-/// size.
+/// would send a reader to a text font that cannot draw the glyph at all. Style comes across for the
+/// same reason. Size comes across only for an engraving face; text-face point sizes describe how a
+/// glyph sits alongside text rather than its size as freestanding music.
 ///
 /// A legacy source keeps neither its family nor its bold or italic. The name means nothing in that
 /// face, so there is nothing to point a reader at, and a synthesized slant on a glyph that has none
 /// is not wanted. No generic is added either, `<symbol>` already saying that a glyph is wanted.
 ///
-/// Its size does come across, converted. A legacy font's point size is meaningful only against its
-/// own em, so it can be restated in SMuFL terms wherever the registry records how many staff spaces
-/// that em spans: every Finale music font measured so far agrees with SMuFL's four, making the
-/// conversion an identity in practice, but the ratio is applied rather than assumed. A font with no
-/// staff-relative size at all, such as the metronome font Patmm whose measurements scatter from 1.09
-/// to 7.05 staff spaces per em, still states no size. Dropping it is not the neutral choice it looks
-/// like, since the reader then applies a default that is usually full staff size, which is wrong for
-/// the common case of a glyph deliberately set smaller than the staff.
+/// Its size comes across, converted, only when the source is an engraving font. A legacy engraving
+/// font's point size is meaningful only against its own em, so it can be restated in SMuFL terms
+/// wherever the registry records how many staff spaces that em spans. A text font's size instead
+/// describes how its glyph fits a text run; carrying that value onto a freestanding `<symbol>` can
+/// make a metronome note much too small, so it is left unstated. Unknown fonts and fonts with no
+/// staff-relative size likewise state no size.
 ///
 /// Style and weight are nonetheless always stated, because `mx::api::FontData` leaves them
 /// unspecified by default and an unspecified style inherits from whatever ran before. A legacy
@@ -243,14 +240,20 @@ mx::api::SymbolData musicXmlSymbolFromWords(const mx::api::WordsData& sourceWord
     mx::api::SymbolData result;
     result.smufl = std::move(glyphName);
     result.positionData = sourceWords.positionData;
+    const auto sourceFontType = font ? utils::musicFontTypeForFont(font->getName()) : utils::MusicFontType::Unknown;
     if (font && font->calcIsSMuFL()) {
         result.fontData = sourceWords.fontData;
         auto& families = result.fontData.fontFamily;
         families.erase(std::remove_if(families.begin(), families.end(),
             [](const std::string& family) { return isGenericFontFamily(family); }), families.end());
         families.emplace_back(musicXmlFontFamilyFallbackName(MusicXmlFontFamilyFallback::Engraved));
+        if (sourceFontType != utils::MusicFontType::Engraving) {
+            result.fontData.sizeType = mx::api::FontSizeType::unspecified;
+            result.fontData.sizePoint = mx::api::DOUBLE_UNSPECIFIED;
+            result.fontData.sizeCss = mx::api::CssSize::unspecified;
+        }
     } else {
-        if (font && sourceWords.fontData.sizeType == mx::api::FontSizeType::point) {
+        if (sourceFontType == utils::MusicFontType::Engraving && sourceWords.fontData.sizeType == mx::api::FontSizeType::point) {
             if (const auto sizeRatio = utils::legacySmuflSizeRatioForFont(font->getName())) {
                 result.fontData.sizeType = mx::api::FontSizeType::point;
                 result.fontData.sizePoint = sourceWords.fontData.sizePoint * (*sizeRatio);
@@ -313,6 +316,9 @@ std::vector<mx::api::WordsChoice> musicXmlWordsFromEnigmaText(const MusicXmlMusx
     const musx::util::EnigmaParsingContext& text, const MusicXmlFormattedTextOptions& options)
 {
     std::vector<mx::api::WordsChoice> result;
+    const auto symbolPolicy = context.denigmaContext->allFontsAvailable
+        ? utils::SmuflSymbolPolicy::PreserveText
+        : options.symbolPolicy;
     text.parseEnigmaText([&](const std::string& chunkText, const musx::util::EnigmaStyles& styles) -> bool {
         musx::util::EnigmaTextChunk chunk{ chunkText, styles };
         auto words = musicXmlWordsFromEnigmaTextChunk(context, chunk, options);
@@ -322,7 +328,7 @@ std::vector<mx::api::WordsChoice> musicXmlWordsFromEnigmaText(const MusicXmlMusx
         if (options.onChunk) {
             options.onChunk(words->fontData, words->text);
         }
-        appendChunkToWordsRun(result, *words, styles.font, options.symbolPolicy);
+        appendChunkToWordsRun(result, *words, styles.font, symbolPolicy);
         return true;
     }, musx::util::EnigmaString::EnigmaParsingOptions(options.accidentalStyle));
     return result;

@@ -26,6 +26,7 @@
 #include "core/denigma.h"
 #include "core/musx_reader.h"
 #include "formats/musicxml/musicxml.h"
+#include "formats/musicxml/musicxml_formatted_text.h"
 #include "gtest/gtest.h"
 #include "mnxdom.h"
 #include "musicxml_test.h"
@@ -344,6 +345,50 @@ TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
     EXPECT_TRUE(foundSoundOnlyTempo);
 }
 
+TEST(MusicXmlExpressions, ConvertedSymbolsCarrySizeOnlyFromEngravingFonts)
+{
+    const auto makeFont = [](const std::string& fontName) {
+        const std::string xml = R"xml(<?xml version="1.0" encoding="UTF-8"?>
+<finale>
+  <others>
+    <fontName cmper="1">
+      <charsetBank>Win</charsetBank>
+      <charsetVal>8191</charsetVal>
+      <pitch>0</pitch>
+      <family>0</family>
+      <name>)xml" + fontName + R"xml(</name>
+    </fontName>
+  </others>
+</finale>)xml";
+        std::vector<char> buffer(xml.begin(), xml.end());
+        auto document = musx::factory::DocumentFactory::create<denigma::MusxReader>(buffer);
+        auto font = std::make_shared<musx::dom::FontInfo>(document);
+        font->fontId = 1;
+        return std::pair{ std::move(document), std::move(font) };
+    };
+
+    mx::api::WordsData sourceWords;
+    sourceWords.fontData.sizeType = mx::api::FontSizeType::point;
+    sourceWords.fontData.sizePoint = 18.0;
+
+    const auto engravingContext = makeFont("Maestro");
+    const auto engravingSymbol = formats::musicxml::detail::musicXmlSymbolFromWords(
+        sourceWords, engravingContext.second, "metNoteQuarterUp");
+    EXPECT_EQ(engravingSymbol.fontData.sizeType, mx::api::FontSizeType::point);
+    EXPECT_DOUBLE_EQ(engravingSymbol.fontData.sizePoint, 18.0);
+
+    // This is the spelling stored by Windows Finale; registry matching also accepts spaces.
+    const auto legacyTextContext = makeFont("EngraverTextT");
+    const auto legacyTextSymbol = formats::musicxml::detail::musicXmlSymbolFromWords(
+        sourceWords, legacyTextContext.second, "metNoteQuarterUp");
+    EXPECT_EQ(legacyTextSymbol.fontData.sizeType, mx::api::FontSizeType::unspecified);
+
+    const auto smuflTextContext = makeFont("Finale Maestro Text");
+    const auto smuflTextSymbol = formats::musicxml::detail::musicXmlSymbolFromWords(
+        sourceWords, smuflTextContext.second, "metNoteQuarterUp");
+    EXPECT_EQ(smuflTextSymbol.fontData.sizeType, mx::api::FontSizeType::unspecified);
+}
+
 TEST(MusicXmlExpressions, HarpPedalDiagramMapsToOrderedPedalTunings)
 {
     using PedalPosition = classify::expression::HarpDiagram::PedalPosition;
@@ -391,7 +436,7 @@ TEST(MusicXmlExpressions, GenericTextDirectionsMatchReference)
     EXPECT_EQ(actualDirections.front().staffIndex, 0u);
     EXPECT_EQ(actualDirections.front().placement, mx::api::Placement::below);
     EXPECT_EQ(actualDirections.front().words, std::vector<std::string>{ "warm" });
-    EXPECT_EQ(actualDirections.front().enclosures, std::vector<mx::api::Enclosure>{ mx::api::Enclosure::none });
+    EXPECT_EQ(actualDirections.front().enclosures, std::vector<mx::api::Enclosure>{ mx::api::Enclosure::unspecified });
 }
 
 TEST(MusicXmlExpressions, MultimeasureRestNumbersDoNotExportAsDirections)
@@ -510,6 +555,35 @@ TEST(MusicXmlExpressions, TempoVariedStavesSmoke)
     expectMeasureTempos(*horn, 5, hornExpected);
     expectMeasureTempos(*violin, 0, violinExpected);
     expectMeasureTempos(*violin, 5, violinExpected);
+}
+
+TEST(MusicXmlExpressions, AllFontsAvailableCliPreservesSourceTextRuns)
+{
+    setupTestDataPaths();
+
+    std::filesystem::path inputPath;
+    copyInputToOutput("tempo_varied_staves.musx", inputPath);
+    ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml", "--all-fonts-available" };
+    checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
+        EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0);
+    });
+
+    auto outputPath = inputPath;
+    outputPath.replace_extension(".musicxml");
+    pugi::xml_document document;
+    const auto parseResult = document.load_file(outputPath.c_str());
+    ASSERT_TRUE(parseResult) << parseResult.description();
+
+    const auto tempoDirections = document.select_nodes("//direction[sound[@tempo='120']]");
+    ASSERT_FALSE(tempoDirections.empty());
+    for (const auto& tempoDirection : tempoDirections) {
+        const auto direction = tempoDirection.node();
+        EXPECT_FALSE(direction.select_node("direction-type/symbol"));
+        const auto words = direction.select_node("direction-type/words").node();
+        ASSERT_TRUE(words);
+        EXPECT_STREQ(words.child_value(), "Tempo (∞=120)");
+        EXPECT_STREQ(words.attribute("font-family").value(), "Patmm, text");
+    }
 }
 
 TEST(MusicXmlExpressions, MeasureTextSmoke)
@@ -772,7 +846,7 @@ TEST(MusicXmlExpressions, ExpressionEnclosuresExportExpectedShapes)
 
     const std::vector<ComparableExpressionEnclosure> expected = {
         { 0u, 0, mx::api::Placement::above, "Tempo", mx::api::Enclosure::hexagon },
-        { 0u, 16, mx::api::Placement::below, "expressive", mx::api::Enclosure::none },
+        { 0u, 16, mx::api::Placement::below, "expressive", mx::api::Enclosure::unspecified },
         { 1u, 8, mx::api::Placement::above, "pizz.", mx::api::Enclosure::rectangle },
         { 2u, 0, mx::api::Placement::above, "Reh. 1", mx::api::Enclosure::oval }
     };

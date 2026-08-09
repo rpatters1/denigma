@@ -82,6 +82,16 @@ TEST(FontNames, ReportsMusicFontStyleForLegacyAndSmuflFonts)
     EXPECT_EQ(utils::musicFontStyleForFont("Times New Roman"), utils::MusicFontStyle::Unknown);
 }
 
+TEST(FontNames, ReportsMusicFontTypeForLegacyAndSmuflFonts)
+{
+    EXPECT_EQ(utils::musicFontTypeForFont("Maestro"), utils::MusicFontType::Engraving);
+    EXPECT_EQ(utils::musicFontTypeForFont("Engraver Font Set"), utils::MusicFontType::Engraving);
+    EXPECT_EQ(utils::musicFontTypeForFont("EngraverTextT"), utils::MusicFontType::Text);
+    EXPECT_EQ(utils::musicFontTypeForFont("Finale Maestro"), utils::MusicFontType::Engraving);
+    EXPECT_EQ(utils::musicFontTypeForFont("Finale Maestro Text"), utils::MusicFontType::Text);
+    EXPECT_EQ(utils::musicFontTypeForFont("Times New Roman"), utils::MusicFontType::Unknown);
+}
+
 TEST(FontNames, ReportsLegacySizeRatioOnlyForStaffRelativeFonts)
 {
     // Every Finale music font measured so far spans four staff spaces to the em, the same as SMuFL,

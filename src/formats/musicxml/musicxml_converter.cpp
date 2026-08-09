@@ -53,6 +53,7 @@ DenigmaContext makeMusicXmlContext(const Options& options, const std::filesystem
     context.noValidate = !options.common.validate;
     context.verbose = options.common.verbose;
     context.quiet = options.common.quiet;
+    context.allFontsAvailable = options.common.allFontsAvailable;
     context.includeTempoTool = options.includeTempoTool;
     context.cueLayer = options.cueLayer;
     context.allPartsAndScore = options.allPartsAndScore;

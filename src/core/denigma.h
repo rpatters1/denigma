@@ -250,6 +250,7 @@ public:
     bool verbose{};
     bool quiet{};
     bool noValidate{};
+    bool allFontsAvailable{};
     std::optional<int> cueLayer;
     std::optional<std::filesystem::path> excludeFolder;
     std::optional<std::string> partName;

@@ -27,6 +27,14 @@
 
 namespace utils {
 
+/// @brief How a music font is used in a score, independent of its visual style.
+enum class MusicFontType
+{
+    Unknown,        ///< Not a font the registries know, so its intended use is unknown.
+    Engraving,      ///< Placed in the score as notation.
+    Text            ///< Set inline with running text.
+};
+
 /// @brief What a music font looks like, independent of whether it is set in the score or inline
 /// with running text.
 ///
@@ -46,6 +54,9 @@ std::string normalizedFontName(std::string_view fontName);
 std::optional<std::string_view> mappedSmuflFontForFinaleLegacyFont(std::string_view fontName);
 
 bool isFinaleLegacyMusicFontMappedToSmufl(std::string_view fontName);
+
+/// @brief How @p fontName is used, for either a legacy or a SMuFL music font.
+MusicFontType musicFontTypeForFont(std::string_view fontName);
 
 /// @brief What @p fontName looks like, for either a legacy or a SMuFL music font.
 MusicFontStyle musicFontStyleForFont(std::string_view fontName);

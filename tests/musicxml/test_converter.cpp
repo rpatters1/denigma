@@ -89,6 +89,41 @@ TEST(ConverterApi, MusxToMusicXmlWritesToStream)
     EXPECT_TRUE(document.child("score-partwise"));
 }
 
+TEST(ConverterApi, MusxToMusicXmlPreservesTextWhenAllFontsAreAvailable)
+{
+    setupTestDataPaths();
+
+    denigma::ConverterRegistry registry;
+    denigma::formats::musicxml::registerConverters(registry);
+    const auto* converter = registry.findReaderMultiOutput(denigma::FormatId::Musx, denigma::FormatId::MusicXml);
+    ASSERT_NE(converter, nullptr);
+
+    denigma::FileRandomAccessReader input(getInputPath() / "tempo_varied_staves.musx");
+    std::string xmlText;
+    denigma::formats::musicxml::Options options;
+    options.common.sourceName = "tempo_varied_staves.musx";
+    options.common.allFontsAvailable = true;
+    const auto result = converter->convert(input, [&](std::string_view, std::span<const std::byte> data) {
+        xmlText.assign(reinterpret_cast<const char*>(data.data()), data.size());
+    }, denigma::ConversionRequest{ &options });
+
+    EXPECT_TRUE(result.diagnostics().empty());
+    pugi::xml_document document;
+    const auto parseResult = document.load_string(xmlText.c_str());
+    ASSERT_TRUE(parseResult) << parseResult.description();
+
+    const auto tempoDirections = document.select_nodes("//direction[sound[@tempo='120']]");
+    ASSERT_FALSE(tempoDirections.empty());
+    for (const auto& tempoDirection : tempoDirections) {
+        const auto direction = tempoDirection.node();
+        EXPECT_FALSE(direction.select_node("direction-type/symbol"));
+        const auto words = direction.select_node("direction-type/words").node();
+        ASSERT_TRUE(words);
+        EXPECT_STREQ(words.child_value(), "Tempo (∞=120)");
+        EXPECT_STREQ(words.attribute("font-family").value(), "Patmm, text");
+    }
+}
+
 TEST(ConverterApi, MusxToMusicXmlInvokesOutputCallbackForParts)
 {
     setupTestDataPaths();

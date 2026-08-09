@@ -261,6 +261,16 @@ TEST(Options, ParseOptions)
     }
     {
         static const std::string fileName = "notAscii-其れ";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx", "--musicxml", "--all-fonts-available" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 3);
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[1])), fileName + ".musx");
+        EXPECT_EQ(pathString(std::filesystem::path(newArgs[2])), "--musicxml");
+        EXPECT_TRUE(ctx.allFontsAvailable);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ";
         ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx", "--svg", "--shape-def", "3,5", "--shape-def", "5,7",
                          "--svg-unit", "px", "--no-svg-page-scale", "--svg-scale", "1.25" };
         DenigmaContext ctx(DENIGMA_NAME);

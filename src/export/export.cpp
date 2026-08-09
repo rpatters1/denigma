@@ -51,6 +51,7 @@ CommonOptions makeCommonOptions(const DenigmaContext& denigmaContext)
     options.validate = !denigmaContext.noValidate;
     options.verbose = denigmaContext.verbose;
     options.quiet = denigmaContext.quiet;
+    options.allFontsAvailable = denigmaContext.allFontsAvailable;
     options.logCallback = [&denigmaContext](MessageSeverity severity, std::string_view message) {
         denigmaContext.logMessage(LogMsg() << message, severity);
     };
@@ -387,6 +388,8 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "Usage: " << fullCommand << " <input-pattern> [--output options]" << std::endl;
     std::cout << std::endl;
     std::cout << indentSpaces << "Specific options:" << std::endl;
+    std::cout << indentSpaces << "  --all-fonts-available          Tells " << DENIGMA_NAME
+              << " that every source font will be available when the output is read." << std::endl;
     std::cout << indentSpaces << "  --cue-layer <1..4>              Treat entries in this Finale layer as cue material." << std::endl;
     std::cout << indentSpaces << "  --mnx-schema [file-path]        Validate against this json schema file rather than the embedded one." << std::endl;
     std::cout << indentSpaces << "  --include-tempo-tool            Include tempo changes created with the Tempo Tool." << std::endl;

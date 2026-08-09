@@ -124,23 +124,13 @@ Two details need deciding rather than assuming. MUSX notes that Finale's behavio
 
 `PageData` also carries `pageNumber` and `pageLayoutData`, which Finale's own export uses on its page-break prints. Those are separate questions from the break itself and should not be folded in here; see the page-specific layout note under text and custom-line fidelity below.
 
-## Font-availability assertion
+## Extend the font-availability assertion to MNX
 
-Add an export option by which the user asserts that every font the document uses is installed where the output will be read. Denigma cannot determine this, and the user can. Several export choices currently resolve a portability-versus-fidelity tension by assuming the worst, and this assertion is the single input that would let them assume the best instead.
+The shared `allFontsAvailable` export option and its `--all-fonts-available` CLI spelling tell Denigma that every source font will be available where the output is read. MusicXML uses it to select `utils::SmuflSymbolPolicy::PreserveText`; its default remains `SplitSmufl`.
 
-Frame it as an assertion about the environment, not as a rendering preference. "Preserve original fonts" and the like describe the consequence rather than the premise, and they invite a user to ask for fidelity without understanding what makes it safe. The premise is what the user actually knows.
+Apply the same option to MNX once MNX has official formatted strings. Until then, leave its current `PreferSmufl` behavior alone rather than designing around a provisional text representation. At that point, reconcile MNX with MusicXML's two meaningful choices: without the fonts use `SplitSmufl`; with them use `PreserveText`. The intermediate `PreferSmufl` has no identified long-term use case.
 
-The immediate consumer is symbol conversion. `utils::SmuflSymbolPolicy` already models the choice, and only the `SplitSmufl` default is reachable today. The assertion should select `PreserveText`, not the intermediate `PreferSmufl`. Once the fonts are known to be present, the faithful output is the one that substitutes nothing: the source glyph design, its metrics, and any kerning the font applies, in every run rather than only the mixed ones. `PreferSmufl` would still replace a wholly-mappable run with the reader's music font, which is precisely the substitution the assertion exists to decline. That also keeps the option's meaning to a single comprehensible rule, "I have the fonts, so use them," rather than a hybrid that has to be explained run by run.
-
-What the default gives up in exchange is worth stating plainly. A legacy metronome font kerns a note against its number as one designed unit, and an unsplit run carries the whole marking through MusicXML completely intact when the font is present, because the font travels on the `<words>` element. Splitting discards that kerning. The default therefore degrades output for a reader who would otherwise have had none, and is chosen only because the opposite failure, a glyph replaced by whatever character shares its codepoint, is unrecoverable rather than merely untidy. See the corresponding entry in [design-decisions.md](design-decisions.md).
-
-That leaves `PreferSmufl` with no caller and no identified use case. It is a halfway compromise from before there was any way to ask the user, and the assertion supplies exactly the input it was standing in for: without the fonts you want `SplitSmufl`, with them you want `PreserveText`, and nothing selects the middle. It survives only as the MNX exporter's current default, pinned by that exporter's tests, so it should be removed when MNX is reconciled with this option rather than kept as a setting nobody has a reason to choose.
-
-Denigma's audience makes this pointed. Someone converting their own scores on a machine that still has its Finale fonts installed is precisely the reader the default penalizes, and is a large share of who uses this tool.
-
-Survey the other decisions that turn on the same premise before settling the option's scope, so it does not end up narrowly attached to symbol conversion. The generic-family fallbacks appended to exported font names are the obvious neighbor, since they exist for the same reason.
-
-Two things to get right. The assertion concerns where the output will be *read*, which is not always the machine doing the export, so the wording should not imply that Denigma verified anything; a user who asserts wrongly gets the mojibake back. And the MNX exporter defaults to `PreferSmufl`, with its tests pinning that. MNX will probably follow whatever MusicXML settles on, but not as part of this work: leave it alone until MNX itself has a formatted-text story worth deciding for.
+The assertion may eventually inform other portability choices too. Generic font-family fallbacks are the obvious neighbor because they exist for the same missing-font case, but changing them should be decided separately rather than folded into formatted-text preservation.
 
 ## Text and custom-line fidelity
 
