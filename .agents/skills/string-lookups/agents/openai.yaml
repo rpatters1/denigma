@@ -1,0 +1,4 @@
+interface:
+  display_name: "String Lookups"
+  short_description: "Prefer maps for repeated string lookup"
+  default_prompt: "Use $string-lookups when implementing hard-coded string dispatch."

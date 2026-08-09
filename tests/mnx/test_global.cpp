@@ -38,6 +38,22 @@ namespace mnxdom = ::mnx;
 using namespace denigma;
 using namespace musx::dom;
 
+TEST(MnxGlobal, MetronomeMarkUsesDisplayedTempoWithoutPlayback)
+{
+    const classify::expression::MetronomeMark mark{
+        { "", 0, 0 },
+        NoteType::Half,
+        "metNoteHalfUp",
+        2,
+        72
+    };
+
+    const auto tempo = formats::mnx::detail::mnxTempoFromMetronomeMark(mark);
+    EXPECT_EQ(tempo.bpm, 72);
+    EXPECT_EQ(tempo.noteValue.base, mnxdom::NoteValueBase::Half);
+    EXPECT_EQ(tempo.noteValue.dots, 2u);
+}
+
 TEST(MnxGlobal, Tempos)
 {
     setupTestDataPaths();

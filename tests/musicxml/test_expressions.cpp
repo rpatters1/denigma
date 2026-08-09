@@ -310,6 +310,45 @@ std::vector<std::vector<ComparableDynamicsComponent>> collectCompoundDynamics(co
 
 } // namespace
 
+TEST(MusicXmlExpressions, MetronomeMarkUsesDisplayedTempoWithoutPlayback)
+{
+    const classify::expression::MetronomeMark mark{
+        { "", 0, 0 },
+        musx::dom::NoteType::Half,
+        "metNoteHalfDown",
+        2,
+        72
+    };
+
+    const auto tempo = formats::musicxml::detail::musicXmlMetronomeMark(mark);
+    ASSERT_TRUE(tempo.choice.isBeatsPerMinute());
+    const auto beatsPerMinute = tempo.choice.beatsPerMinute();
+    EXPECT_EQ(beatsPerMinute.durationName, mx::api::DurationName::half);
+    EXPECT_EQ(beatsPerMinute.dots, 2);
+    EXPECT_EQ(beatsPerMinute.beatsPerMinute, "72");
+    EXPECT_EQ(
+        formats::musicxml::detail::musicXmlQuarterNotesPerMinute(mark.tempo),
+        mx::api::DOUBLE_UNSPECIFIED);
+}
+
+TEST(MusicXmlExpressions, MetronomeMarkPlaybackIsIndependentOfDisplayedTempo)
+{
+    const classify::expression::MetronomeMark mark{
+        { "", 100, static_cast<int>(musx::dom::NoteType::Quarter) },
+        musx::dom::NoteType::Eighth,
+        "metNote8thUp",
+        1,
+        60
+    };
+
+    const auto tempo = formats::musicxml::detail::musicXmlMetronomeMark(mark);
+    const auto beatsPerMinute = tempo.choice.beatsPerMinute();
+    EXPECT_EQ(beatsPerMinute.durationName, mx::api::DurationName::eighth);
+    EXPECT_EQ(beatsPerMinute.dots, 1);
+    EXPECT_EQ(beatsPerMinute.beatsPerMinute, "60");
+    EXPECT_DOUBLE_EQ(formats::musicxml::detail::musicXmlQuarterNotesPerMinute(mark.tempo), 100.0);
+}
+
 TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
 {
     setupTestDataPaths();
