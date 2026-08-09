@@ -81,6 +81,8 @@ struct CommonOptions
     bool verbose{ false };
     /// Suppresses info/verbose logging when true.
     bool quiet{ false };
+    /// Every source font will be available in the environment that reads the converted output.
+    bool allFontsAvailable{ false };
     /// Optional callback that receives converter log messages. Defaults to no-op.
     std::function<void(MessageSeverity severity, std::string_view message)> logCallback = [](MessageSeverity, std::string_view) {};
 };

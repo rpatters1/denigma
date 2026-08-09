@@ -1202,6 +1202,23 @@ TEST(MusicXmlNotes, VoicesStemsMatchFinaleWhereExported)
     compareStemEventsSetByExporter(*actualScore, *expectedScore);
 }
 
+TEST(MusicXmlNotes, SyntheticRestVoiceUsesLowestRealVoiceOnStaff)
+{
+    auto part = mx::api::PartData{};
+    part.measures.resize(2);
+    for (auto& measure : part.measures) {
+        measure.staves.resize(2);
+    }
+
+    constexpr int layer4VoiceIndex = 6;
+    part.measures[1].staves[0].voices[layer4VoiceIndex].notes.emplace_back(mx::api::NoteData{});
+    EXPECT_EQ(formats::musicxml::detail::syntheticRestVoiceNumber(part, 0), layer4VoiceIndex + 1);
+
+    constexpr size_t secondStaffIndex = 1;
+    EXPECT_EQ(formats::musicxml::detail::syntheticRestVoiceNumber(part, secondStaffIndex),
+        formats::musicxml::detail::musicXmlVoiceNumber(secondStaffIndex, 0, 1));
+}
+
 TEST(MusicXmlNotes, CrossStaffNotesMatchFinale)
 {
     setupTestDataPaths();

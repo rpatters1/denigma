@@ -117,23 +117,22 @@ mx::api::DirectionData createExpressionDirection(
     return direction;
 }
 
-/// The enclosure for a text expression's `<words>` or `<rehearsal>`. An absent or degenerate Finale
-/// enclosure yields an explicit `none` rather than `unspecified`, because `<rehearsal>` defaults to
-/// a square box when the attribute is omitted. See the note on the shape conversion table.
+/// The enclosure for a text expression. An absent or degenerate Finale enclosure is unspecified;
+/// callers exporting an element whose MusicXML default is not `none` must override it explicitly.
 mx::api::Enclosure enclosureForTextExpression(
     const MusxInstance<others::MeasureExprAssign>& assignment)
 {
     const auto textExpression = assignment ? assignment->getTextExpression() : nullptr;
     if (!textExpression || !textExpression->hasEnclosure) {
-        return mx::api::Enclosure::none;
+        return mx::api::Enclosure::unspecified;
     }
 
     const auto enclosure = textExpression->getEnclosure();
     if (!enclosure) {
-        return mx::api::Enclosure::none;
+        return mx::api::Enclosure::unspecified;
     }
     if (enclosure->lineWidth <= 0) {
-        return mx::api::Enclosure::none;
+        return mx::api::Enclosure::unspecified;
     }
 
     if (enclosure->shape == others::Enclosure::Shape::Rectangle) {
@@ -232,6 +231,10 @@ std::optional<mx::api::DirectionData> createRehearsalExpressionDirection(
     mx::api::RehearsalData rehearsal;
     rehearsal.text = classification.rehearsalMark().text;
     rehearsal.enclosure = enclosureForTextExpression(assignment);
+    if (rehearsal.enclosure == mx::api::Enclosure::unspecified) {
+        // Unlike words and symbols, MusicXML rehearsal marks default to a square enclosure.
+        rehearsal.enclosure = mx::api::Enclosure::none;
+    }
     rehearsal.justify = justifyForTextExpression(assignment);
     if (classification.enigmaCtx) {
         const auto chunks = classification.enigmaCtx->collectEnigmaTextChunks(

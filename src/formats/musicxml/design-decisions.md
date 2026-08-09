@@ -56,6 +56,12 @@ An entry hidden in the requested context exports as `<rest print-object="no">` w
 
 Finale's own export collapses hidden rests into `<forward>`, which advances the musical position and discards the fact that a rest is there at all. A `print-object="no"` rest keeps the entry addressable, so directions, lyrics, and spanner endpoints attached to it still have something to attach to, and an importer that later chooses to reveal hidden material has the rest's duration type rather than a bare duration.
 
+### Synthetic measure rests use a real staff voice
+
+After the exporter has created every source entry in a part, a staff with no notes in a measure receives a synthetic complete-measure rest. The rest uses the lowest-numbered voice that contains real notes anywhere on that staff. Only a staff with no real notes at all falls back to its Layer 1/V1 voice.
+
+A synthetic rest must not invent a source voice. If a staff contains only Finale Layer 4, assigning its empty measures to Layer 1 makes MusicXML describe two voices even though the source has one. Importers may then apply multi-voice engraving rules to the Layer 4 passage. Deferring the rests until the real voices are known keeps empty measures in an existing voice without renumbering any source entry.
+
 ### A floating rest keeps floating
 
 `<display-step>` and `<display-octave>` are written for a rest that Finale positions explicitly, and omitted for one Finale floats.
@@ -108,7 +114,7 @@ A tie whose start has no reachable end, either because Finale recorded no tie en
 
 ### Music-font characters become symbols, splitting the run around them
 
-A character that resolves to a canonical SMuFL name is exported as `<symbol>` rather than as text in its source font, and a chunk mixing mappable and unmappable characters is split so the glyph converts and the rest stays words. `utils::SmuflSymbolPolicy` models the alternatives, and `SplitSmufl` is both the default and the only value a MusicXML export currently reaches.
+A character that resolves to a canonical SMuFL name is exported as `<symbol>` rather than as text in its source font, and a chunk mixing mappable and unmappable characters is split so the glyph converts and the rest stays words. `utils::SmuflSymbolPolicy` models the alternatives, and `SplitSmufl` is the default. The `--all-fonts-available` assertion selects `PreserveText` instead, keeping every character in its source font.
 
 Splitting and not splitting differ only for a mixed run, which is what a legacy metronome font produces when a note glyph and its number are typed together. Compare how each degrades on a system without that font. Splitting yields a portable glyph followed by digits and punctuation that any fallback font renders correctly. Not splitting keeps the whole run as text in a font the reader does not have, so the glyph renders as whatever character occupies that codepoint elsewhere. Denigma's own corpus shows the failure: `tempo_varied_staves.musx` carries "Tempo (♩=120)" in the legacy font Patmm, which Denigma used to export as a raw character that reads as "Tempo (∞=120)" anywhere Patmm is missing. It now exports `metNoteQuarterUp`.
 
@@ -118,17 +124,15 @@ It is chosen anyway because the two failures are not comparable. A reader with t
 
 What a `<symbol>` carries about its font follows from whether that font can draw the glyph. A SMuFL source keeps its whole font data, family included: the face really does contain the glyph under this name, so naming it gives a reader who has it the source's own design, while the family list degrades to its generic for a reader who does not, which is exactly what such a list is for. The generic is swapped for an engraving one, since the fallback appended for running prose would send a reader to a text font that cannot draw a glyph at all. A legacy source keeps neither its family nor its bold or italic, because the name means nothing in that face and there is nothing to point a reader at, and because a synthesized slant on a glyph that has none is not wanted.
 
-Size is different, and is carried across converted. A SMuFL music font sets one em to four staff spaces, which is what makes a point size portable from one such font to another and keeps a tempo glyph deliberately smaller than staff size. Legacy fonts promise nothing of the kind, so `smufl_mapping` records per font how many staff spaces one em actually spans, and the exporter multiplies by the resulting ratio rather than assuming it. Every Finale music font measured so far agrees with SMuFL's four, so the conversion is currently an identity everywhere it applies, and Denigma's output matches Finale's own for the same document. A font whose em is not staff-relative at all still states no size: the metronome font Patmm measures anywhere from 1.09 to 7.05 staff spaces per em across its mapped glyphs, so nothing can be derived from its point size.
+Size is carried across only from an engraving font. A SMuFL engraving font sets one em to four staff spaces, which makes a point size portable from one such font to another and keeps a glyph deliberately smaller than staff size. Legacy engraving fonts promise nothing of the kind, so `smufl_mapping` records per font how many staff spaces one em actually spans, and the exporter multiplies by the resulting ratio rather than assuming it.
 
-Dropping the size, which is what Denigma did before the measurements existed, is not the neutral choice it appears to be. It hands the reader a default that is usually full staff size, so a glyph the author deliberately set smaller than the staff comes back oversized. Stating a size that is slightly wrong is a smaller error than stating none, and for every font now in the registry the size is not wrong at all.
-
-Note that a SMuFL *text* face is not four spaces to the em: Bravura Text and its peers use five, while MakeMusic's text faces stay on the music scale. That does not affect a SMuFL source here, because such a source keeps its own family and so is read back in the face the size was measured against.
+A text music font uses its point size to describe how a glyph sits alongside running text, not how large freestanding notation should be. Carrying that size onto `<symbol>` can therefore make a metronome note much too small after the legacy family has been dropped; a Windows-created file using Engraver Text T at 18 points produced a 7.38-point quarter note this way. Symbols converted from text fonts leave size unspecified and let the reader choose its music-symbol size. Unknown fonts do the same because their intended use cannot be established. An engraving font whose em is not staff-relative also states no size because no conversion can be derived.
 
 Style and weight are always stated, since `mx::api::FontData` leaves them unspecified by default and an unspecified style inherits from whatever ran before; a legacy source gets an explicit normal rather than nothing, exactly as ordinary words do.
 
 The scope of the trade is narrower than it looks. The policies diverge only for a run mixing mappable and unmappable characters in one font. A SMuFL font run is ordinarily a single glyph, which both policies convert identically, so the divergence is confined to legacy symbol fonts.
 
-The default assumes the worst about the reader's fonts because Denigma has no way to know better. The user does, and the roadmap's font-availability assertion is the intended way to say so. Once the fonts are known to be present the faithful setting is `PreserveText`, which substitutes nothing at all: converting even a wholly-mappable run would replace the source glyph design with the reader's music font, which is the substitution such a user is declining.
+The default assumes the worst about the reader's fonts because Denigma has no way to know better. The user does, and `--all-fonts-available` is how they say so. Once the fonts are known to be present the faithful setting is `PreserveText`, which substitutes nothing at all: converting even a wholly-mappable run would replace the source glyph design with the reader's music font, which is the substitution such a user is declining.
 
 This is also why MusicXML does not need to parse metronome markings out of expression text. Finale splits its own chunks at font changes, so "Adagio espressivo ♩ = 84" arrives as three chunks and exports as words, symbol, words: faithful text plus a portable glyph, with `<sound tempo>` carrying the playback.
 

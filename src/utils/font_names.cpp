@@ -28,6 +28,15 @@
 namespace utils {
 namespace {
 
+MusicFontType musicFontTypeFromMapping(smufl_mapping::MusicFontType fontType)
+{
+    switch (fontType) {
+    case smufl_mapping::MusicFontType::Engraving: return MusicFontType::Engraving;
+    case smufl_mapping::MusicFontType::Text: return MusicFontType::Text;
+    }
+    return MusicFontType::Unknown;
+}
+
 MusicFontStyle musicFontStyleFromMapping(smufl_mapping::MusicFontStyle fontStyle)
 {
     switch (fontStyle) {
@@ -75,6 +84,17 @@ std::optional<std::string_view> mappedSmuflFontForFinaleLegacyFont(std::string_v
 bool isFinaleLegacyMusicFontMappedToSmufl(std::string_view fontName)
 {
     return mappedSmuflFontForFinaleLegacyFont(fontName).has_value();
+}
+
+MusicFontType musicFontTypeForFont(std::string_view fontName)
+{
+    if (const auto smuflFont = smufl_mapping::getSmuflFontInfo(normalizedFontName(fontName))) {
+        return musicFontTypeFromMapping(smuflFont->fontType);
+    }
+    if (const auto legacyFont = legacyFontInfo(fontName)) {
+        return musicFontTypeFromMapping(legacyFont->fontType);
+    }
+    return MusicFontType::Unknown;
 }
 
 MusicFontStyle musicFontStyleForFont(std::string_view fontName)
