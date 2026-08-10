@@ -72,24 +72,24 @@ TEST(FontNames, ReportsMusicFontStyleForLegacyAndSmuflFonts)
 {
     // Style is independent of whether a font is legacy or SMuFL, and of whether it is set in the
     // score or inline with text: the Jazz text faces are handwritten too.
-    EXPECT_EQ(utils::musicFontStyleForFont("Maestro"), utils::MusicFontStyle::Engraved);
-    EXPECT_EQ(utils::musicFontStyleForFont("Petrucci"), utils::MusicFontStyle::Engraved);
-    EXPECT_EQ(utils::musicFontStyleForFont("Jazz"), utils::MusicFontStyle::Handwritten);
-    EXPECT_EQ(utils::musicFontStyleForFont("JazzText"), utils::MusicFontStyle::Handwritten);
-    EXPECT_EQ(utils::musicFontStyleForFont("Bravura"), utils::MusicFontStyle::Engraved);
-    EXPECT_EQ(utils::musicFontStyleForFont("Finale Maestro"), utils::MusicFontStyle::Engraved);
-    EXPECT_EQ(utils::musicFontStyleForFont("Petaluma"), utils::MusicFontStyle::Handwritten);
-    EXPECT_EQ(utils::musicFontStyleForFont("Times New Roman"), utils::MusicFontStyle::Unknown);
+    EXPECT_EQ(utils::musicFontStyleForFont("Maestro"), smufl_mapping::MusicFontStyle::Engraved);
+    EXPECT_EQ(utils::musicFontStyleForFont("Petrucci"), smufl_mapping::MusicFontStyle::Engraved);
+    EXPECT_EQ(utils::musicFontStyleForFont("Jazz"), smufl_mapping::MusicFontStyle::Handwritten);
+    EXPECT_EQ(utils::musicFontStyleForFont("JazzText"), smufl_mapping::MusicFontStyle::Handwritten);
+    EXPECT_EQ(utils::musicFontStyleForFont("Bravura"), smufl_mapping::MusicFontStyle::Engraved);
+    EXPECT_EQ(utils::musicFontStyleForFont("Finale Maestro"), smufl_mapping::MusicFontStyle::Engraved);
+    EXPECT_EQ(utils::musicFontStyleForFont("Petaluma"), smufl_mapping::MusicFontStyle::Handwritten);
+    EXPECT_FALSE(utils::musicFontStyleForFont("Times New Roman").has_value());
 }
 
 TEST(FontNames, ReportsMusicFontTypeForLegacyAndSmuflFonts)
 {
-    EXPECT_EQ(utils::musicFontTypeForFont("Maestro"), utils::MusicFontType::Engraving);
-    EXPECT_EQ(utils::musicFontTypeForFont("Engraver Font Set"), utils::MusicFontType::Engraving);
-    EXPECT_EQ(utils::musicFontTypeForFont("EngraverTextT"), utils::MusicFontType::Text);
-    EXPECT_EQ(utils::musicFontTypeForFont("Finale Maestro"), utils::MusicFontType::Engraving);
-    EXPECT_EQ(utils::musicFontTypeForFont("Finale Maestro Text"), utils::MusicFontType::Text);
-    EXPECT_EQ(utils::musicFontTypeForFont("Times New Roman"), utils::MusicFontType::Unknown);
+    EXPECT_EQ(utils::musicFontTypeForFont("Maestro"), smufl_mapping::MusicFontType::Engraving);
+    EXPECT_EQ(utils::musicFontTypeForFont("Engraver Font Set"), smufl_mapping::MusicFontType::Engraving);
+    EXPECT_EQ(utils::musicFontTypeForFont("EngraverTextT"), smufl_mapping::MusicFontType::Text);
+    EXPECT_EQ(utils::musicFontTypeForFont("Finale Maestro"), smufl_mapping::MusicFontType::Engraving);
+    EXPECT_EQ(utils::musicFontTypeForFont("Finale Maestro Text"), smufl_mapping::MusicFontType::Text);
+    EXPECT_FALSE(utils::musicFontTypeForFont("Times New Roman").has_value());
 }
 
 TEST(FontNames, ReportsLegacySizeRatioOnlyForStaffRelativeFonts)

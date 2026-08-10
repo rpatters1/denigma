@@ -9,10 +9,10 @@ add_denigma_internal_library(denigma_font_names
     ${CMAKE_CURRENT_LIST_DIR}/font_names.cpp
 )
 # smufl_mapping owns the legacy and SMuFL font registries this library reads. It is a compiled-in
-# static table with no dependencies of its own, so it does not weigh the library down, and it is
-# kept private so callers never see the registry types.
+# static table with no dependencies of its own, so it does not weigh the library down. Its font
+# classification enums are part of font_names' public interface.
 target_link_libraries(denigma_font_names
-    PRIVATE
+    PUBLIC
         smufl_mapping
 )
 

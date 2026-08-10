@@ -185,12 +185,9 @@ BEGIN_ENUM_CONVERSION(classify::articulation::Fermata::Shape, mx::api::MarkType)
     case classify::articulation::Fermata::Shape::Square: return mx::api::MarkType::fermataSquare;
 END_ENUM_CONVERSION
 
-BEGIN_ENUM_CONVERSION(utils::MusicFontStyle, MusicXmlFontFamilyFallback)
-    // An unknown font falls back to the generic `music` rather than to either look, which states
-    // that a music font is wanted without claiming to know which kind.
-    case utils::MusicFontStyle::Unknown: return MusicXmlFontFamilyFallback::Music;
-    case utils::MusicFontStyle::Engraved: return MusicXmlFontFamilyFallback::Engraved;
-    case utils::MusicFontStyle::Handwritten: return MusicXmlFontFamilyFallback::Handwritten;
+BEGIN_ENUM_CONVERSION(smufl_mapping::MusicFontStyle, MusicXmlFontFamilyFallback)
+    case smufl_mapping::MusicFontStyle::Engraved: return MusicXmlFontFamilyFallback::Engraved;
+    case smufl_mapping::MusicFontStyle::Handwritten: return MusicXmlFontFamilyFallback::Handwritten;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(MusicXmlPitchContext, KeySignature::KeyContext)

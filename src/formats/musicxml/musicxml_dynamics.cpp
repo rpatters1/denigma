@@ -177,10 +177,14 @@ std::optional<mx::api::CompoundDynamicsData> createDynamicsFromGlyphs(const std:
 /// A marking whose letters name a MusicXML dynamic element writes that element. Every other
 /// marking has to be spelled out symbol by symbol as the children of one `<dynamics>`.
 std::optional<mx::api::MarkData> createDynamicMark(
-    const classify::dynamics::Mark& dynamic, std::string_view sourceText, mx::api::Placement placement)
+    const classify::dynamics::Mark& dynamic,
+    std::string_view sourceText,
+    mx::api::Placement placement,
+    mx::api::HorizontalAlignment horizontalAlignment)
 {
-    const auto placed = [placement](mx::api::MarkData mark) {
+    const auto placed = [placement, horizontalAlignment](mx::api::MarkData mark) {
         mark.positionData.placement = placement;
+        mark.positionData.horizontalAlignment = horizontalAlignment;
         return mark;
     };
 
@@ -230,6 +234,8 @@ std::vector<mx::api::DirectionData> createDynamicExpressionDirections(
 {
     auto direction = createDynamicDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
     auto pendingWords = std::vector<mx::api::WordsData>{};
+    const auto horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
+    const auto justify = musicXmlJustifyForTextExpression(assignment);
 
     auto flushPendingWords = [&]() {
         appendMusicXmlWordsRun(direction, std::move(pendingWords));
@@ -239,13 +245,16 @@ std::vector<mx::api::DirectionData> createDynamicExpressionDirections(
     auto appendWords = [&](const musx::util::EnigmaTextChunk& chunk) {
         auto words = musicXmlWordsFromEnigmaTextChunk(context, chunk);
         if (words) {
+            words->positionData.horizontalAlignment = horizontalAlignment;
+            words->justify = justify;
             pendingWords.emplace_back(std::move(*words));
         }
     };
 
     for (const auto& run : classification.runs) {
         if (const auto* dynamic = run.as<classify::dynamics::Mark>()) {
-            auto mark = createDynamicMark(*dynamic, run.chunk.text, enumConvert<mx::api::Placement>(placement));
+            auto mark = createDynamicMark(
+                *dynamic, run.chunk.text, enumConvert<mx::api::Placement>(placement), horizontalAlignment);
             if (!mark) {
                 if (dynamic->glyphs.empty()) {
                     appendWords(run.chunk);

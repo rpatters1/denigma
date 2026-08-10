@@ -32,6 +32,15 @@ mnxdom::NoteValue::Required mnxNoteValueFromEdu(Edu duration)
     return mnxdom::NoteValue::make(enumConvert<mnxdom::NoteValueBase>(base), dots);
 }
 
+mnxdom::global::Tempo::Required mnxTempoFromMetronomeMark(const classify::expression::MetronomeMark& metronomeMark)
+{
+    return mnxdom::global::Tempo::make(
+        metronomeMark.displayedBeatsPerMinute,
+        mnxdom::NoteValue::make(
+            enumConvert<mnxdom::NoteValueBase>(metronomeMark.noteType),
+            static_cast<unsigned>(metronomeMark.augmentationDots)));
+}
+
 mnxdom::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const MnxMusxMappingPtr& context, musx::util::Fraction duration)
 {
     if (duration <= 0 || (duration.denominator() & (duration.denominator() - 1)) != 0) {

@@ -15,6 +15,7 @@ covers, so read the relevant one before starting that kind of work rather than a
 - `enum-mappings` — adding or modifying enum conversions in any `<exporter>_enums.cpp`.
 - `nested-namespaces` — any C++ namespace declaration.
 - `optional-usage` — `std::optional` fields or return values, especially for enum or bool state.
+- `string-lookups` — hard-coded string-to-value lookups or dispatch, especially repeated literal comparisons.
 - `windows-minmax` — any call to `std::min`, `std::max`, `std::clamp`, or `numeric_limits<T>::min`/`max`.
 
 ## Purpose

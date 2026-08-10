@@ -176,6 +176,23 @@ Needed API shape: `PositionData` and `FontData` members on `EndingData` in line 
 
 ## Directions and Expressions
 
+### Per-minute font in metronome marks
+
+MusicXML lets `<per-minute>` carry its own font attributes, independently of the enclosing
+`<metronome>`. Finale uses that distinction when the metronome note and its number come from
+different fonts. In `metronome_marks.musx`, Finale writes Finale Maestro Text on `<metronome>` and
+Times New Roman Bold on `<per-minute>` for the split-font whole-note mark.
+
+`mx::api::TempoData::fontData` can represent the enclosing metronome font, but
+`mx::api::BeatsPerMinute` stores only the per-minute string. `MetronomeReader` consequently
+discards the child font attributes, and `DirectionWriter` cannot emit them. Denigma can preserve a
+single font on the enclosing metronome, but cannot fully preserve a split-font mark through the
+current API.
+
+Needed API shape: add `FontData` for the per-minute value to `BeatsPerMinute`, with reader, writer,
+and comparison support. A default-constructed `FontData` should leave the child attributes
+unstated so it inherits the enclosing metronome font.
+
 ### Keyboard pedal appearance, identity, and playback
 
 Finale custom-line smart shapes can use independent start, continuation, and end text; visible or blank lines;

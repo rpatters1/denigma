@@ -28,24 +28,6 @@
 namespace utils {
 namespace {
 
-MusicFontType musicFontTypeFromMapping(smufl_mapping::MusicFontType fontType)
-{
-    switch (fontType) {
-    case smufl_mapping::MusicFontType::Engraving: return MusicFontType::Engraving;
-    case smufl_mapping::MusicFontType::Text: return MusicFontType::Text;
-    }
-    return MusicFontType::Unknown;
-}
-
-MusicFontStyle musicFontStyleFromMapping(smufl_mapping::MusicFontStyle fontStyle)
-{
-    switch (fontStyle) {
-    case smufl_mapping::MusicFontStyle::Engraved: return MusicFontStyle::Engraved;
-    case smufl_mapping::MusicFontStyle::Handwritten: return MusicFontStyle::Handwritten;
-    }
-    return MusicFontStyle::Unknown;
-}
-
 /// The registry's own key normalization removes whitespace but keeps punctuation, while Finale
 /// documents spell the same face with hyphens and underscores as readily as with spaces. Its keys
 /// are stored fully normalized, so handing it #normalizedFontName's output matches them directly
@@ -86,26 +68,26 @@ bool isFinaleLegacyMusicFontMappedToSmufl(std::string_view fontName)
     return mappedSmuflFontForFinaleLegacyFont(fontName).has_value();
 }
 
-MusicFontType musicFontTypeForFont(std::string_view fontName)
+std::optional<smufl_mapping::MusicFontType> musicFontTypeForFont(std::string_view fontName)
 {
     if (const auto smuflFont = smufl_mapping::getSmuflFontInfo(normalizedFontName(fontName))) {
-        return musicFontTypeFromMapping(smuflFont->fontType);
+        return smuflFont->fontType;
     }
     if (const auto legacyFont = legacyFontInfo(fontName)) {
-        return musicFontTypeFromMapping(legacyFont->fontType);
+        return legacyFont->fontType;
     }
-    return MusicFontType::Unknown;
+    return std::nullopt;
 }
 
-MusicFontStyle musicFontStyleForFont(std::string_view fontName)
+std::optional<smufl_mapping::MusicFontStyle> musicFontStyleForFont(std::string_view fontName)
 {
     if (const auto smuflFont = smufl_mapping::getSmuflFontInfo(normalizedFontName(fontName))) {
-        return musicFontStyleFromMapping(smuflFont->fontStyle);
+        return smuflFont->fontStyle;
     }
     if (const auto legacyFont = legacyFontInfo(fontName)) {
-        return musicFontStyleFromMapping(legacyFont->fontStyle);
+        return legacyFont->fontStyle;
     }
-    return MusicFontStyle::Unknown;
+    return std::nullopt;
 }
 
 std::optional<double> legacySmuflSizeRatioForFont(std::string_view fontName)

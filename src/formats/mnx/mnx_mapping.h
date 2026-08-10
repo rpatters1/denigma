@@ -25,6 +25,7 @@
 #include <optional>
 
 #include "core/denigma.h"
+#include "denigma/classify/expressions.h"
 #include "musx/musx.h"
 #include "mnxdom.h"
 
@@ -41,6 +42,7 @@ namespace detail {
 struct MnxMusxMapping;
 
 mnxdom::NoteValue::Required mnxNoteValueFromEdu(Edu duration);
+mnxdom::global::Tempo::Required mnxTempoFromMetronomeMark(const classify::expression::MetronomeMark& metronomeMark);
 mnxdom::NoteValueQuantity::Required mnxNoteValueQuantityFromFraction(const std::shared_ptr<MnxMusxMapping>& context, musx::util::Fraction duration);
 mnxdom::LyricLineType mnxLineTypeFromLyric(const MusxInstance<LyricsSyllableInfo>& syl);
 

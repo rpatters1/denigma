@@ -23,10 +23,12 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "core/denigma.h"
@@ -35,7 +37,8 @@
 #include "utils/stringutils.h"
 #include "utils/utf8_iterator.h"
 
-namespace denigma::classify {
+namespace denigma {
+namespace classify {
 
 using namespace dynamics;
 using namespace expression;
@@ -361,6 +364,145 @@ static bool isTempoMarkText(std::string_view normalizedText)
     return matchesAny(normalizedText, {
         "largo", "adagio", "andante", "moderato", "allegro", "presto", "vivace"
     });
+}
+
+static std::optional<musx::dom::NoteType> metronomeNoteTypeFromGlyphName(std::string_view glyphName)
+{
+    using NoteType = musx::dom::NoteType;
+    static const std::unordered_map<std::string_view, NoteType> noteTypes = {
+        { "metNoteDoubleWhole", NoteType::Breve },
+        { "metNoteDoubleWholeSquare", NoteType::Breve },
+        { "metNoteWhole", NoteType::Whole },
+        { "metNoteHalfUp", NoteType::Half },
+        { "metNoteHalfDown", NoteType::Half },
+        { "metNoteQuarterUp", NoteType::Quarter },
+        { "metNoteQuarterDown", NoteType::Quarter },
+        { "metNote8thUp", NoteType::Eighth },
+        { "metNote8thDown", NoteType::Eighth },
+        { "metNote16thUp", NoteType::Note16th },
+        { "metNote16thDown", NoteType::Note16th },
+        { "metNote32ndUp", NoteType::Note32nd },
+        { "metNote32ndDown", NoteType::Note32nd },
+        { "metNote64thUp", NoteType::Note64th },
+        { "metNote64thDown", NoteType::Note64th },
+        { "metNote128thUp", NoteType::Note128th },
+        { "metNote128thDown", NoteType::Note128th },
+        { "metNote256thUp", NoteType::Note256th },
+        { "metNote256thDown", NoteType::Note256th },
+        { "metNote512thUp", NoteType::Note512th },
+        { "metNote512thDown", NoteType::Note512th },
+        { "metNote1024thUp", NoteType::Note1024th },
+        { "metNote1024thDown", NoteType::Note1024th }
+    };
+    const auto found = noteTypes.find(glyphName);
+    return found != noteTypes.end() ? std::optional{ found->second } : std::nullopt;
+}
+
+static bool isMetronomeAugmentationDotGlyph(std::string_view glyphName)
+{
+    return glyphName == "metAugmentationDot" || glyphName == "augmentationDot";
+}
+
+/// Recognizes a complete, simple metronome equation across source font runs. Resolving each
+/// character against its own font makes a one-font legacy marking and a split SMuFL/text marking
+/// equivalent here, while the retained Enigma context leaves that source distinction to callers.
+static std::optional<ExpressionClassification> classifyMetronomeMark(const ResolvedTextExpression& resolved)
+{
+    enum class ParseState
+    {
+        Note,
+        DotsOrEquals,
+        BeatsPerMinute,
+        TrailingSpace
+    };
+
+    const auto chunks = collectVisibleExpressionChunks(resolved.rawTextCtx);
+    if (chunks.empty()) {
+        return std::nullopt;
+    }
+
+    ParseState state = ParseState::Note;
+    musx::dom::NoteType noteType{ musx::dom::NoteType::Quarter };
+    std::string noteGlyphName;
+    size_t augmentationDots = 0;
+    std::string displayedBeatsPerMinute;
+    for (const auto& chunk : chunks) {
+        const auto& font = chunk.styles.font;
+        if (!font) {
+            return std::nullopt;
+        }
+        for (utils::Utf8Iterator iter(chunk.text); !iter.atEnd(); iter.next()) {
+            if (!iter.valid()) {
+                return std::nullopt;
+            }
+            const char32_t codepoint = iter->codepoint;
+            if (codepoint < 0x80 && utils::isSpace(static_cast<unsigned char>(codepoint))) {
+                if (state == ParseState::BeatsPerMinute && !displayedBeatsPerMinute.empty()) {
+                    state = ParseState::TrailingSpace;
+                }
+                continue;
+            }
+
+            if (state == ParseState::TrailingSpace) {
+                return std::nullopt;
+            }
+
+            const auto glyphName = detail::glyphNameForFont(font, codepoint);
+            if (state == ParseState::Note) {
+                const auto resolvedNoteType = glyphName
+                    ? metronomeNoteTypeFromGlyphName(*glyphName) : std::nullopt;
+                if (!resolvedNoteType) {
+                    return std::nullopt;
+                }
+                noteType = *resolvedNoteType;
+                noteGlyphName = *glyphName;
+                state = ParseState::DotsOrEquals;
+                continue;
+            }
+            if (state == ParseState::DotsOrEquals) {
+                if (codepoint == U'.' || (glyphName && isMetronomeAugmentationDotGlyph(*glyphName))) {
+                    ++augmentationDots;
+                    continue;
+                }
+                if (codepoint == U'=') {
+                    state = ParseState::BeatsPerMinute;
+                    continue;
+                }
+                return std::nullopt;
+            }
+            if (codepoint < U'0' || codepoint > U'9') {
+                return std::nullopt;
+            }
+            displayedBeatsPerMinute.push_back(static_cast<char>(codepoint));
+        }
+    }
+    if ((state != ParseState::BeatsPerMinute && state != ParseState::TrailingSpace)
+        || displayedBeatsPerMinute.empty()) {
+        return std::nullopt;
+    }
+
+    int displayedValue{};
+    const auto [end, error] = std::from_chars(
+        displayedBeatsPerMinute.data(), displayedBeatsPerMinute.data() + displayedBeatsPerMinute.size(), displayedValue);
+    if (error != std::errc{} || end != displayedBeatsPerMinute.data() + displayedBeatsPerMinute.size()) {
+        return std::nullopt;
+    }
+
+    TempoInfo tempo{ resolved.text, 0, 0 };
+    if (resolved.expressionDef
+        && resolved.expressionDef->playbackType == musx::dom::others::PlaybackType::Tempo
+        && resolved.expressionDef->auxData1 > 0) {
+        tempo.beatsPerMinute = resolved.expressionDef->value;
+        tempo.beatUnitEdu = resolved.expressionDef->auxData1;
+    }
+
+    ExpressionClassification result;
+    result.type = ExpressionType::MetronomeMark;
+    result.basis = basisForRecognition(resolved.categoryType, CategoryType::TempoMarks);
+    result.value = MetronomeMark{
+        std::move(tempo), noteType, std::move(noteGlyphName), augmentationDots, displayedValue
+    };
+    return result;
 }
 
 static bool isAsciiUpperAlphaNumeric(std::string_view text)
@@ -1001,6 +1143,9 @@ static std::optional<ExpressionClassification> classifyResolvedTextExpressionBef
     if (const auto symbol = classifySymbolExpression(resolved)) {
         return withEnigmaCtx(*symbol, resolved);
     }
+    if (const auto metronomeMark = classifyMetronomeMark(resolved)) {
+        return withEnigmaCtx(*metronomeMark, resolved);
+    }
     if (hasTempoPlayback(resolved.expressionDef)) {
         return withEnigmaCtx(*classifyTempo(resolved.expressionDef, resolved.text, normalizedText, categoryType), resolved);
     }
@@ -1214,4 +1359,5 @@ std::vector<ExpressionAssignmentClassification> classifyExpressionAssignments(
     return results;
 }
 
-} // namespace denigma::classify
+} // namespace classify
+} // namespace denigma

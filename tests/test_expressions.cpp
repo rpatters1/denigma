@@ -533,6 +533,147 @@ TEST(ExpressionClassification, UsesCategoryForTempoTechniqueAndRehearsalText)
     EXPECT_EQ(rehearsal.rehearsalMark().text, "A");
 }
 
+TEST(ExpressionClassification, ClassifiesVisualOnlyLegacyMetronomeMarks)
+{
+    const auto context = makeTextExpressionContext(
+        "^fontid(0)^size(12)^nfx(0)qd=120", ExpressionCategoryType::TempoMarks, {}, false, "Engraver Text T");
+    const auto result = classifyExpression(context.def);
+
+    ASSERT_EQ(result.type, ExpressionType::MetronomeMark);
+    EXPECT_EQ(result.basis, ClassificationBasis::FinaleCategoryConfirmed);
+    const auto& mark = result.metronomeMark();
+    EXPECT_EQ(mark.noteType, NoteType::Quarter);
+    EXPECT_EQ(mark.noteGlyphName, "metNoteQuarterUp");
+    EXPECT_EQ(mark.augmentationDots, 1);
+    EXPECT_EQ(mark.displayedBeatsPerMinute, 120);
+    EXPECT_EQ(mark.tempo.beatsPerMinute, 0);
+    EXPECT_EQ(mark.tempo.beatUnitEdu, 0);
+}
+
+TEST(ExpressionClassification, ClassifiesSmuflMetronomeMarksAcrossFontChanges)
+{
+    const auto context = makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)&#xECA3;&#xECB7;^fontid(1)^size(12)^nfx(0) . = 72",
+        ExpressionCategoryType::Misc,
+        {},
+        false,
+        "Finale Maestro",
+        4095,
+        {},
+        {},
+        0,
+        {},
+        fontDefinitionXml(1, "Times New Roman", 0));
+    const auto result = classifyExpression(context.def);
+
+    ASSERT_EQ(result.type, ExpressionType::MetronomeMark);
+    EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
+    const auto& mark = result.metronomeMark();
+    EXPECT_EQ(mark.noteType, NoteType::Half);
+    EXPECT_EQ(mark.noteGlyphName, "metNoteHalfUp");
+    EXPECT_EQ(mark.augmentationDots, 2);
+    EXPECT_EQ(mark.displayedBeatsPerMinute, 72);
+}
+
+TEST(ExpressionClassification, KeepsMetronomePlaybackSeparateFromTheDisplayedNumber)
+{
+    const auto context = makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)&#xECA5; = 96",
+        ExpressionCategoryType::TempoMarks,
+        tempoPlaybackXml(100, 1024),
+        false,
+        "Finale Maestro",
+        4095);
+    const auto result = classifyExpression(context.def);
+
+    ASSERT_EQ(result.type, ExpressionType::MetronomeMark);
+    const auto& mark = result.metronomeMark();
+    EXPECT_EQ(mark.displayedBeatsPerMinute, 96);
+    EXPECT_EQ(mark.tempo.beatsPerMinute, 100);
+    EXPECT_EQ(mark.tempo.beatUnitEdu, 1024);
+}
+
+TEST(ExpressionClassification, MapsEverySimpleMetronomeNoteGlyphToANoteType)
+{
+    using TestCase = std::pair<std::string, NoteType>;
+    const std::vector<TestCase> cases = {
+        { "&#xECA0;", NoteType::Breve },
+        { "&#xECA1;", NoteType::Breve },
+        { "&#xECA2;", NoteType::Whole },
+        { "&#xECA3;", NoteType::Half },
+        { "&#xECA4;", NoteType::Half },
+        { "&#xECA5;", NoteType::Quarter },
+        { "&#xECA6;", NoteType::Quarter },
+        { "&#xECA7;", NoteType::Eighth },
+        { "&#xECA8;", NoteType::Eighth },
+        { "&#xECA9;", NoteType::Note16th },
+        { "&#xECAA;", NoteType::Note16th },
+        { "&#xECAB;", NoteType::Note32nd },
+        { "&#xECAC;", NoteType::Note32nd },
+        { "&#xECAD;", NoteType::Note64th },
+        { "&#xECAE;", NoteType::Note64th },
+        { "&#xECAF;", NoteType::Note128th },
+        { "&#xECB0;", NoteType::Note128th },
+        { "&#xECB1;", NoteType::Note256th },
+        { "&#xECB2;", NoteType::Note256th },
+        { "&#xECB3;", NoteType::Note512th },
+        { "&#xECB4;", NoteType::Note512th },
+        { "&#xECB5;", NoteType::Note1024th },
+        { "&#xECB6;", NoteType::Note1024th }
+    };
+
+    for (const auto& [glyph, expected] : cases) {
+        const auto result = classifyExpression(makeTextExpressionContext(
+            "^fontid(0)^size(24)^nfx(0)" + glyph + "=60",
+            ExpressionCategoryType::TempoMarks,
+            {},
+            false,
+            "Finale Maestro",
+            4095).def);
+        ASSERT_EQ(result.type, ExpressionType::MetronomeMark) << glyph;
+        EXPECT_EQ(result.metronomeMark().noteType, expected) << glyph;
+    }
+}
+
+TEST(ExpressionClassification, DoesNotExtractMetronomeMarksFromLongerText)
+{
+    const auto extraText = classifyExpression(makeTextExpressionContext(
+        "Allegro ^fontid(0)^size(24)^nfx(0)&#xECA5;=120",
+        ExpressionCategoryType::Invalid,
+        {},
+        false,
+        "Finale Maestro",
+        4095).def);
+    EXPECT_EQ(extraText.type, ExpressionType::GenericText);
+
+    const auto extraGlyph = classifyExpression(makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)&#xECA5;&#xECA7;=120",
+        ExpressionCategoryType::TempoMarks,
+        {},
+        false,
+        "Finale Maestro",
+        4095).def);
+    EXPECT_EQ(extraGlyph.type, ExpressionType::TempoMark);
+
+    const auto missingNumber = classifyExpression(makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)&#xECA5;=",
+        ExpressionCategoryType::TempoMarks,
+        {},
+        false,
+        "Finale Maestro",
+        4095).def);
+    EXPECT_EQ(missingNumber.type, ExpressionType::TempoMark);
+
+    const auto splitNumber = classifyExpression(makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)&#xECA5;=1 20",
+        ExpressionCategoryType::TempoMarks,
+        {},
+        false,
+        "Finale Maestro",
+        4095).def);
+    EXPECT_EQ(splitNumber.type, ExpressionType::TempoMark);
+}
+
 TEST(ExpressionClassification, StrongCategoriesOverrideTextHeuristics)
 {
     const auto rehearsal = classifyTextExpression("p", ExpressionCategoryType::RehearsalMarks);

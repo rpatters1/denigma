@@ -22,6 +22,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -55,6 +56,7 @@ enum class ExpressionType
     PseudoTie, ///< A shape expression used as a stand-in for a tie.
     NonArpeggio, ///< A shape expression used as a non-arpeggio sign.
     TempoMark, ///< A tempo indication.
+    MetronomeMark, ///< A standalone metronome-note equation.
     TempoAlteration, ///< A relative tempo alteration.
     TechniqueText, ///< Text identifying a performance technique.
     RehearsalMark, ///< A rehearsal mark.
@@ -132,6 +134,22 @@ struct TempoText
 {
     /// @brief Tempo text and playback values.
     TempoInfo tempo;
+};
+
+/// @struct MetronomeMark
+/// @brief A standalone metronome-note equation.
+struct MetronomeMark
+{
+    /// @brief Source text and any independently configured Finale playback values.
+    TempoInfo tempo;
+    /// @brief Undotted semantic value of the displayed metronome note.
+    musx::dom::NoteType noteType{ musx::dom::NoteType::Quarter };
+    /// @brief Canonical SMuFL name of the metronome-note glyph.
+    std::string noteGlyphName;
+    /// @brief Number of augmentation dots following the note.
+    std::size_t augmentationDots{};
+    /// @brief Number displayed to the right of the equals sign.
+    int displayedBeatsPerMinute{};
 };
 
 /// @struct TempoAlteration
@@ -299,7 +317,7 @@ struct RunClassification
 using ExpressionValue = std::variant<
     std::monostate, dynamics::Mark, expression::Fermata, expression::BreathMark,
     articulation::StringMute, expression::HarpDiagram, keyboardpedal::Type, PseudoTie,
-    expression::NonArpeggio, expression::TempoText, expression::TempoAlteration,
+    expression::NonArpeggio, expression::TempoText, expression::MetronomeMark, expression::TempoAlteration,
     expression::TechniqueText, expression::RehearsalMark, expression::MultimeasureRestNumber,
     expression::MeasureRepeatCount, expression::GenericText, expression::Error, expression::Suppress>;
 
@@ -382,6 +400,11 @@ public:
     /// @throws std::logic_error if #type is not ExpressionType::TempoMark.
     const expression::TempoText& tempoText() const
     { return checkedPayload<expression::TempoText, ExpressionType::TempoMark>("TempoText"); }
+
+    /// @brief Returns the classified standalone metronome marking.
+    /// @throws std::logic_error if #type is not ExpressionType::MetronomeMark.
+    const expression::MetronomeMark& metronomeMark() const
+    { return checkedPayload<expression::MetronomeMark, ExpressionType::MetronomeMark>("MetronomeMark"); }
 
     /// @brief Returns the classified relative tempo alteration.
     /// @throws std::logic_error if #type is not ExpressionType::TempoAlteration.

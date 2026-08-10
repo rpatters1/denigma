@@ -222,15 +222,15 @@ static void createSegno(
 
 static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measure& mnxMeasure, const MusxInstance<others::Measure>& musxMeasure)
 {
-    auto createTempo = [&mnxMeasure](int bpm, Edu noteValue, Edu eduPosition) {
+    auto createTempo = [&mnxMeasure](const mnxdom::global::Tempo::Required& tempoData, Edu eduPosition) {
         auto mnxTempos = mnxMeasure.ensure_tempos();
-        auto tempo = mnxTempos.append(bpm, mnxNoteValueFromEdu(noteValue));
+        auto tempo = mnxTempos.append(tempoData.bpm, tempoData.noteValue);
         if (eduPosition) {
             auto pos = Fraction::fromEdu(eduPosition);
             tempo.ensure_location(mnxFractionFromFraction(pos));
-        }    
+        }
     };
-    std::map<Edu, classify::expression::TempoInfo> temposAtPositions;
+    std::map<Edu, mnxdom::global::Tempo::Required> temposAtPositions;
     if (musxMeasure->hasExpression) {
         // Search in order of decreasing precedence. Using emplace keeps the first tempo at a beat location.
         const auto expAssigns = musxMeasure->getDocument()->getOthers()->getArray<others::MeasureExprAssign>(SCORE_PARTID, musxMeasure->getCmper());
@@ -248,9 +248,16 @@ static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measu
                     continue;
                 }
                 const auto& classification = expAssignClassification.classification;
-                if (const auto* tempo = classification.as<classify::expression::TempoText>();
-                    tempo && tempo->tempo.beatsPerMinute > 0 && tempo->tempo.beatUnitEdu > 0) {
-                    temposAtPositions.emplace(expAssign->eduPosition, tempo->tempo);
+                const auto* tempoText = classification.as<classify::expression::TempoText>();
+                const auto* metronomeMark = classification.as<classify::expression::MetronomeMark>();
+                if (metronomeMark) {
+                    temposAtPositions.emplace(expAssign->eduPosition, mnxTempoFromMetronomeMark(*metronomeMark));
+                } else if (tempoText && tempoText->tempo.beatsPerMinute > 0 && tempoText->tempo.beatUnitEdu > 0) {
+                    temposAtPositions.emplace(
+                        expAssign->eduPosition,
+                        mnxdom::global::Tempo::make(
+                            tempoText->tempo.beatsPerMinute,
+                            mnxNoteValueFromEdu(Edu(tempoText->tempo.beatUnitEdu))));
                 }
             }
         };
@@ -267,12 +274,14 @@ static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measu
                     tempoUnit = std::min(unit, NoteType::Quarter);
                 }
                 const auto noteType = tempoUnit.value_or(NoteType::Quarter);
-                temposAtPositions.emplace(tempoChange->eduPosition, classify::expression::TempoInfo{ {}, tempoChange->getAbsoluteTempo(noteType), Edu(noteType) });
+                temposAtPositions.emplace(
+                    tempoChange->eduPosition,
+                    mnxdom::global::Tempo::make(tempoChange->getAbsoluteTempo(noteType), mnxNoteValueFromEdu(Edu(noteType))));
             }
         }
     }
     for (const auto& [position, tempo] : temposAtPositions) {
-        createTempo(tempo.beatsPerMinute, Edu(tempo.beatUnitEdu), position);
+        createTempo(tempo, position);
     }
     /// @todo hide tempo tool changes if MNX ever adds visibility to the tempo object.
 }
