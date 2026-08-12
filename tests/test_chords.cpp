@@ -140,6 +140,40 @@ TEST(ChordSuffixClassifier, ClassifiesAnAbsentSuffixAsMajor)
     EXPECT_EQ(*classification.quality, denigma::classify::chord::Quality::Major);
 }
 
+TEST(ChordSuffixClassifier, TreatsCompoundPlusSuffixesAsMajorAddChords)
+{
+    const auto context = makeFontContext("Times New Roman");
+    const auto classify = [&context](std::u32string_view text) {
+        auto suffix = makeSuffix(context, text.front());
+        for (size_t index = 1; index < text.size(); ++index) {
+            appendSuffixElement(suffix, context, text[index], static_cast<Inci>(index));
+        }
+        return denigma::classify::classifyChordSuffix(suffix);
+    };
+
+    const auto majorSixth = classify(U"+6");
+    ASSERT_TRUE(majorSixth.quality);
+    EXPECT_EQ(*majorSixth.quality, denigma::classify::chord::Quality::MajorSixth);
+    EXPECT_TRUE(majorSixth.degrees.empty());
+
+    const auto majorAddTwo = classify(U"+2");
+    ASSERT_TRUE(majorAddTwo.quality);
+    EXPECT_EQ(*majorAddTwo.quality, denigma::classify::chord::Quality::Major);
+    ASSERT_EQ(majorAddTwo.degrees.size(), 1);
+    EXPECT_EQ(majorAddTwo.degrees.front().value, 2);
+    EXPECT_EQ(majorAddTwo.degrees.front().type, denigma::classify::chord::Degree::Type::Add);
+}
+
+TEST(ChordSuffixClassifier, KeepsBarePlusAsAugmented)
+{
+    const auto context = makeFontContext("Times New Roman");
+    const auto classification = denigma::classify::classifyChordSuffix(makeSuffix(context, U'+'));
+
+    ASSERT_TRUE(classification.quality);
+    EXPECT_EQ(*classification.quality, denigma::classify::chord::Quality::Augmented);
+    EXPECT_TRUE(classification.degrees.empty());
+}
+
 TEST(ChordSuffixClassifier, ConvertsLegacyFinaleChordSymbols)
 {
     const auto context = makeFontContext("Maestro");

@@ -234,6 +234,16 @@ void classifyText(ChordSuffixClassification& result)
     if (parseText == "ped") { result.quality = Quality::Pedal; return; }
     if (parseText == "nc" || parseText == "n.c.") { result.quality = Quality::None; return; }
     if (parseText == "m7b5") { result.quality = Quality::MinorSeventh; addDegree(result, 5, DegreeType::Alter, -1); return; }
+    if (parseText == "+") { result.quality = Quality::Augmented; return; }
+    if (parseText == "+6") { result.quality = Quality::MajorSixth; return; }
+    if (parseText.size() > 1 && parseText.front() == '+'
+        && std::isdigit(static_cast<unsigned char>(parseText[1])) && parseText != "+5") {
+        if (parseDegrees(std::string_view(parseText).substr(1), result)) {
+            result.quality = Quality::Major;
+            return;
+        }
+        result.degrees.clear();
+    }
     const std::pair<std::string_view, Quality> suspendedPrefixes[] {
         { "13sus4", Quality::SuspendedFourth }, { "11sus4", Quality::SuspendedFourth },
         { "9sus4", Quality::SuspendedFourth }, { "7sus4", Quality::SuspendedFourth },
