@@ -14,29 +14,21 @@ Add a MusicXML export option that selects whether an explicitly positioned whole
 
 The default should remain Finale-compatible and apply no adjustment, matching round trips through Finale and MuseScore. The optional SMuFL-origin behavior should use `calcFinaleToSmuflRestPositionOffset`, matching Dorico's current interpretation. Apply the selected convention consistently to ordinary and complete-measure whole rests; other rest durations are unaffected.
 
-## Nontraditional and microtonal key signatures
+## Microtonal key signatures
 
-Export Finale nontraditional key signatures through MusicXML's ordered `<key-step>`, `<key-alter>`, and optional `<key-accidental>` values instead of degrading them to zero fifths. Begin with custom 12-EDO signatures, for which MUSX DOM can provide the key map and `mx::api::KeyData::nonTraditional` already provides a writer path.
-
-Extend the same mapping to microtonal key signatures by converting Finale's EDO divisions into MusicXML semitone alterations and suitable accidental values. Preserve the effective written or concert-pitch signature independently for each staff, as the exporter already does for traditional keys.
-
-## Visible cue notes and rests
-
-Export cue material that is visible in the target score or part as MusicXML `<cue/>` notes and rests. Skip cue material hidden in that target context. `mx::api::NoteData::isCue` already writes and reads cue, grace-cue, and cue-rest forms, so this is a Denigma policy and mapping task rather than an MX API feature.
-
-MusicXML export identifies cue layers, suppresses cue entries and their associated expressions when hidden in the requested context, and sends visible cue entries and expressions through their normal mapping paths. Notes and rests set `isCue`. Cue ties remain blocked on the visual-tie API limitation documented in [mx-api-gaps.md](mx-api-gaps.md); Denigma does not maintain a separate workaround path. MNX keeps its current cue-discard behavior because it does not yet support cues.
+Extend the nontraditional key-signature mapping to microtonal signatures by converting Finale's EDO divisions into MusicXML semitone alterations and suitable accidental values. Preserve the effective written or concert-pitch signature independently for each staff, as the exporter already does for traditional keys.
 
 ## Instruments, transpositions, and instrument changes
 
-Treat a part's instrument as one subject rather than the handful of unrelated fields it is today. `populatePartMetadata` sets only `instrumentData.uniqueId` and, when the staff's `instUuid` is recognized, `instrumentData.soundID`. Everything else about the instrument is left default.
+Treat a part's instrument as one subject rather than the handful of unrelated fields it is today. `populatePartMetadata` sets `instrumentData.uniqueId`, its required name, and, when the staff's `instUuid` is recognized, `instrumentData.soundID`. `soloOrEnsemble` remains unset even though Finale knows which staves are solo.
 
-The visible defect is the name. `mx::api::InstrumentData::name` and `abbreviation` are never set, so every `<score-instrument>` carries an empty `<instrument-name/>`, a required element with nothing in it. Finale writes its playback device name there; the staff's full and abbreviated names, or the name of the Finale instrument behind `instUuid`, are the better sources. `soloOrEnsemble` is likewise unset even though Finale knows which staves are solo.
+The instrument name uses the standardized SoundID string when one is available, allowing consumers to localize the semantic identifier. It falls back to Finale's authored full instrument name and then to the raw instrument UUID. Do not add an English-language UUID-to-name table to Denigma or MUSX DOM.
 
 Instrument sound coverage is partial in a way that hides itself. `musicXmlSoundIdFromInstrumentUuid` maps a fixed table of Finale instrument uuids, several entries are commented out, and an unrecognized uuid simply yields no `<instrument-sound>` with no diagnostic. Decide whether an unmapped instrument deserves a Verbose log, and extend the table.
 
 Transposition is exported once per part, from the staff that was current when the part was built, and gated on `showTransposed`. Finale can change an instrument's transposition mid-piece through a staff style, and nothing captures that. The related concert-score `<for-part>` support is an MX API gap; see [mx-api-gaps.md](mx-api-gaps.md).
 
-Instrument changes are the largest piece and are blocked upstream: `mx::api::PartData` holds exactly one `InstrumentData` for the whole part, so neither a mid-piece instrument change nor two simultaneous instruments can be expressed. That limitation, and the multiple-`<score-instrument>` model needed to lift it, are described under instrument changes within a part in [mx-api-gaps.md](mx-api-gaps.md). Naming, `soloOrEnsemble`, sound coverage, and initial transposition can all proceed ahead of it.
+Instrument changes are the largest piece and are blocked upstream: `mx::api::PartData` holds exactly one `InstrumentData` for the whole part, so neither a mid-piece instrument change nor two simultaneous instruments can be expressed. That limitation, and the multiple-`<score-instrument>` model needed to lift it, are described under instrument changes within a part in [mx-api-gaps.md](mx-api-gaps.md). `soloOrEnsemble`, sound coverage, and initial transposition can all proceed ahead of it.
 
 Two neighbouring items overlap this one and should stay separate. MIDI channels below covers the playback assignment that hangs off the instrument, and percussion covers the per-note instrument identity that drum kits need.
 
@@ -111,18 +103,6 @@ Export single-note tremolos with six, seven, or eight slashes. `mx::api` models 
 Finale can spell the higher counts only by stacking: a Shape Designer shape that draws several tremolo glyphs, or two tremolo articulations assigned to one entry. Recognizing the first requires a new `KnownShapeDefType` and recognizer in MUSX DOM, and a stack with variable count and spacing is a fuzzier recognition target than the fixed patterns already there. Recognizing the second requires entry-level aggregation plus vertical-offset geometry, since two tremolo articulations on one entry may equally well be two separate marks.
 
 This is gated on evidence. Revisit it when a real-world Finale file actually spells such a tremolo; that file also settles which of the two routes is worth supporting.
-
-## Hard page breaks
-
-Export Finale's explicit page breaks as MusicXML `<print new-page="yes">`. Denigma writes no `new-page` attribute today, and populates no `mx::api::PageData` at all, so a document's authored page breaks are lost even though its system breaks survive.
-
-`others::Measure::pageBreak` is the source, and it is the page equivalent of the `beginNewSystem` flag that `createSystemBreaks` already reads: a saved per-measure setting that resolves nothing and therefore stays trustworthy even in a part whose page layout Finale never calculated. Take it and nothing else. Breaks recoverable only from the resolved `others::Page` and `others::StaffSystem` records are engraver output, and exporting them is ruled out by the authored-sources decision in [design-decisions.md](design-decisions.md); once this lands, update that document's break entry to cover pages as well as systems.
-
-No MX API work is needed. `mx::api::PageData::newPage` writes the attribute, and `ScoreData::layout` already carries the per-measure `LayoutData` that `createSystemBreaks` populates, so a page break is one more field on an entry that path may already be creating.
-
-Two details need deciding rather than assuming. MUSX notes that Finale's behavior is unpredictable when `pageBreak` is set on a measure that is not the first of its system, so decide what such a measure means before mapping it; MusicXML has no equivalent ambiguity, since `new-page` starts a system too. Related, a measure carrying both flags should not produce contradictory output: confirm whether `new-page="yes"` alone suffices or whether `new-system="yes"` should accompany it.
-
-`PageData` also carries `pageNumber` and `pageLayoutData`, which Finale's own export uses on its page-break prints. Those are separate questions from the break itself and should not be folded in here; see the page-specific layout note under text and custom-line fidelity below.
 
 ## Extend the font-availability assertion to MNX
 

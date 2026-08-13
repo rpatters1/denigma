@@ -28,9 +28,9 @@ A note's `default-x`, a `<measure>`'s `width`, a slur's `bezier-x` and `bezier-y
 
 Denigma does export position for anchors Finale stores directly. Page text blocks carry absolute page coordinates in the document, so `<credit-words>` receives real `default-x` and `default-y` values derived from the page margins and the text block's assignment. That is stored authorial placement, and it is the clearest illustration of where the line falls.
 
-### System breaks come from authored sources only
+### System and page breaks come from authored sources only
 
-`createSystemBreaks` derives `<print new-system="yes">` from the per-measure "Begin a New Staff System" flag and from `others::SystemLock`, and from nothing else. It never reads the resolved `others::StaffSystem` list.
+`createSystemBreaks` derives `<print new-system="yes">` from the per-measure "Begin a New Staff System" flag and from `others::SystemLock`. `createPageBreaks` derives `<print new-page="yes">` from the per-measure page-break flag. Neither reads the resolved `others::StaffSystem` or `others::Page` lists. When both break types occur on one measure, the page break takes precedence because it inherently starts a new system.
 
 A system boundary that exists only because Finale's engraver happened to fill a line there is layout, and re-emitting it freezes one particular rendering into a file the importer is about to re-flow. A lock or an explicit break flag is something the author asked for, and it survives the round trip.
 

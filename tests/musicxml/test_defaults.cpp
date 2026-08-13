@@ -284,3 +284,20 @@ TEST(MusicXmlDefaults, UncalculatedPartLayoutKeepsScoreSystemBreaks)
         EXPECT_EQ(countSystemBreaks(partPath), 0);
     }
 }
+
+TEST(MusicXmlDefaults, ExportsAuthoredPageBreaks)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("musicxml/page70-staff82ev.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score);
+
+    const auto pageBreaks = std::count_if(score->layout.begin(), score->layout.end(), [](const auto& entry) {
+        return entry.second.page.newPage == mx::api::Bool::yes;
+    });
+    EXPECT_EQ(pageBreaks, 1);
+    EXPECT_TRUE(std::none_of(score->layout.begin(), score->layout.end(), [](const auto& entry) {
+        return entry.second.page.newPage == mx::api::Bool::yes && entry.second.system.newSystem != mx::api::Bool::unspecified;
+    }));
+}
