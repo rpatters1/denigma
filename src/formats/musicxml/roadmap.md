@@ -20,12 +20,6 @@ Export Finale nontraditional key signatures through MusicXML's ordered `<key-ste
 
 Extend the same mapping to microtonal key signatures by converting Finale's EDO divisions into MusicXML semitone alterations and suitable accidental values. Preserve the effective written or concert-pitch signature independently for each staff, as the exporter already does for traditional keys.
 
-## Visible cue notes and rests
-
-Export cue material that is visible in the target score or part as MusicXML `<cue/>` notes and rests. Skip cue material hidden in that target context. `mx::api::NoteData::isCue` already writes and reads cue, grace-cue, and cue-rest forms, so this is a Denigma policy and mapping task rather than an MX API feature.
-
-MusicXML export identifies cue layers, suppresses cue entries and their associated expressions when hidden in the requested context, and sends visible cue entries and expressions through their normal mapping paths. Notes and rests set `isCue`. Cue ties remain blocked on the visual-tie API limitation documented in [mx-api-gaps.md](mx-api-gaps.md); Denigma does not maintain a separate workaround path. MNX keeps its current cue-discard behavior because it does not yet support cues.
-
 ## Instruments, transpositions, and instrument changes
 
 Treat a part's instrument as one subject rather than the handful of unrelated fields it is today. `populatePartMetadata` sets only `instrumentData.uniqueId` and, when the staff's `instUuid` is recognized, `instrumentData.soundID`. Everything else about the instrument is left default.
@@ -111,18 +105,6 @@ Export single-note tremolos with six, seven, or eight slashes. `mx::api` models 
 Finale can spell the higher counts only by stacking: a Shape Designer shape that draws several tremolo glyphs, or two tremolo articulations assigned to one entry. Recognizing the first requires a new `KnownShapeDefType` and recognizer in MUSX DOM, and a stack with variable count and spacing is a fuzzier recognition target than the fixed patterns already there. Recognizing the second requires entry-level aggregation plus vertical-offset geometry, since two tremolo articulations on one entry may equally well be two separate marks.
 
 This is gated on evidence. Revisit it when a real-world Finale file actually spells such a tremolo; that file also settles which of the two routes is worth supporting.
-
-## Hard page breaks
-
-Export Finale's explicit page breaks as MusicXML `<print new-page="yes">`. Denigma writes no `new-page` attribute today, and populates no `mx::api::PageData` at all, so a document's authored page breaks are lost even though its system breaks survive.
-
-`others::Measure::pageBreak` is the source, and it is the page equivalent of the `beginNewSystem` flag that `createSystemBreaks` already reads: a saved per-measure setting that resolves nothing and therefore stays trustworthy even in a part whose page layout Finale never calculated. Take it and nothing else. Breaks recoverable only from the resolved `others::Page` and `others::StaffSystem` records are engraver output, and exporting them is ruled out by the authored-sources decision in [design-decisions.md](design-decisions.md); once this lands, update that document's break entry to cover pages as well as systems.
-
-No MX API work is needed. `mx::api::PageData::newPage` writes the attribute, and `ScoreData::layout` already carries the per-measure `LayoutData` that `createSystemBreaks` populates, so a page break is one more field on an entry that path may already be creating.
-
-Two details need deciding rather than assuming. MUSX notes that Finale's behavior is unpredictable when `pageBreak` is set on a measure that is not the first of its system, so decide what such a measure means before mapping it; MusicXML has no equivalent ambiguity, since `new-page` starts a system too. Related, a measure carrying both flags should not produce contradictory output: confirm whether `new-page="yes"` alone suffices or whether `new-system="yes"` should accompany it.
-
-`PageData` also carries `pageNumber` and `pageLayoutData`, which Finale's own export uses on its page-break prints. Those are separate questions from the break itself and should not be folded in here; see the page-specific layout note under text and custom-line fidelity below.
 
 ## Extend the font-availability assertion to MNX
 

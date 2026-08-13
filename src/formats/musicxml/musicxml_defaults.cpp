@@ -229,6 +229,21 @@ void createSystemBreaks(const MusicXmlMusxMapping& context)
     }
 }
 
+void createPageBreaks(const MusicXmlMusxMapping& context)
+{
+    const auto measures = context.document->getOthers()->getArray<others::Measure>(context.forPartId);
+    for (size_t index = 1; index < measures.size(); ++index) {
+        if (!measures[index]->pageBreak) {
+            continue;
+        }
+        auto& layout = context.musicXmlScore->layout[static_cast<mx::api::MeasureIndex>(index)];
+        layout.page.newPage = mx::api::Bool::yes;
+        // A page break inherently starts a system, so avoid a redundant new-system attribute when
+        // both authored flags or a system lock target the same measure.
+        layout.system.newSystem = mx::api::Bool::unspecified;
+    }
+}
+
 } // namespace
 
 void createDefaults(const MusicXmlMusxMapping& context)
@@ -245,6 +260,7 @@ void createDefaults(const MusicXmlMusxMapping& context)
     createPageLayoutData(context, *pagePrefs, combinedSystemScaling);
     createSystemLayoutData(context, *pagePrefs);
     createSystemBreaks(context);
+    createPageBreaks(context);
     createAppearance(context);
     createFontData(context);
 }
