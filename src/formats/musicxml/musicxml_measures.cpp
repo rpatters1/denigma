@@ -388,11 +388,60 @@ int musicXmlKeyFifths(
         return 0;
     }
     if (!keySignature->isLinear()) {
-        context.logMessage(LogMsg() << "Skipping unsupported non-linear key signature " << keySignature->getKeyMode()
-            << " in measure " << measureId << ".", MessageSeverity::Info);
         return 0;
     }
     return keySignature->getAlteration(enumConvert<KeySignature::KeyContext>(pitchContext));
+}
+
+mx::api::Accidental musicXmlAccidentalFor12EdoAlteration(int alteration)
+{
+    constexpr int kTripleFlat = -3;
+    constexpr int kDoubleFlat = -2;
+    constexpr int kFlat = -1;
+    constexpr int kSharp = 1;
+    constexpr int kDoubleSharp = 2;
+    constexpr int kTripleSharp = 3;
+    switch (alteration) {
+        case kTripleFlat: return mx::api::Accidental::tripleFlat;
+        case kDoubleFlat: return mx::api::Accidental::flatFlat;
+        case kFlat: return mx::api::Accidental::flat;
+        case kSharp: return mx::api::Accidental::sharp;
+        case kDoubleSharp: return mx::api::Accidental::doubleSharp;
+        case kTripleSharp: return mx::api::Accidental::tripleSharp;
+        default: return mx::api::Accidental::none;
+    }
+}
+
+void populateNonTraditional12EdoKey(
+    const MusicXmlMusxMapping& context,
+    const MusxInstance<KeySignature>& keySignature,
+    MeasCmper measureId,
+    mx::api::KeyData& key)
+{
+    const auto mode = keySignature->getKeyMode();
+    const auto amounts = context.document->getOthers()->get<others::AcciAmountSharps>(SCORE_PARTID, mode);
+    const auto order = context.document->getOthers()->get<others::AcciOrderSharps>(SCORE_PARTID, mode);
+    if (!amounts || !order) {
+        context.logMessage(LogMsg() << "Skipping incomplete non-linear key signature " << mode
+            << " in measure " << measureId << ".", MessageSeverity::Info);
+        return;
+    }
+
+    for (size_t index = 0; index < amounts->values.size() && index < order->values.size(); ++index) {
+        const int alteration = amounts->values[index];
+        if (alteration == 0) {
+            break;
+        }
+        const auto noteNameIndex = order->values[index];
+        if (noteNameIndex >= music_theory::STANDARD_DIATONIC_STEPS) {
+            context.logMessage(LogMsg() << "Skipping invalid pitch index " << noteNameIndex << " in non-linear key signature "
+                << mode << " in measure " << measureId << ".", MessageSeverity::Info);
+            continue;
+        }
+        const auto noteName = static_cast<music_theory::NoteName>(noteNameIndex);
+        key.nonTraditional.emplace_back(
+            enumConvert<mx::api::Step>(noteName), alteration, 0.0, musicXmlAccidentalFor12EdoAlteration(alteration));
+    }
 }
 
 mx::api::KeyData createKeyData(
@@ -403,6 +452,12 @@ mx::api::KeyData createKeyData(
     bool staffHidesKeySignature)
 {
     auto key = mx::api::KeyData{};
+    const bool keySignatureIsVisible = !(keySignature->keyless || keySignature->hideKeySigShowAccis || staffHidesKeySignature);
+    if (keySignatureIsVisible && keySignature->isNonLinear()
+        && keySignature->calcEDODivisions() == music_theory::STANDARD_12EDO_STEPS) {
+        populateNonTraditional12EdoKey(context, keySignature, measureId, key);
+        return key;
+    }
     key.fifths = musicXmlKeyFifths(context, keySignature, measureId, pitchContext, staffHidesKeySignature);
     key.mode = musicXmlKeyModeFromMusxKeySignature(keySignature, staffHidesKeySignature);
     return key;

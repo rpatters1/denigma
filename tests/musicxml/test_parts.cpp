@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <map>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -30,8 +31,10 @@
 #include "core/denigma.h"
 #include "core/musx_reader.h"
 #include "formats/musicxml/musicxml.h"
+#include "mx/api/DocumentManager.h"
 #include "mx/api/ScoreData.h"
 #include "musicxml_test.h"
+#include "pugixml.hpp"
 #include "test_utils.h"
 
 using namespace denigma;
@@ -708,6 +711,53 @@ TEST(MusicXmlParts, CustomLinearKeySignaturesExportDiatonicModes)
         SCOPED_TRACE("measure " + std::to_string(measureIndex + 1));
         ASSERT_EQ(measures[measureIndex].keys.size(), 1);
         EXPECT_EQ(measures[measureIndex].keys.front().mode, expectedModes[measureIndex]);
+    }
+}
+
+TEST(MusicXmlParts, NonTraditional12EdoKeySignaturesPreserveAccidentalOrder)
+{
+    setupTestDataPaths();
+
+    const auto score = createScoreDataFromMusxPath(std::filesystem::path(MUSX_TEST_DATA_PATH) / "keysigs.musx");
+    ASSERT_TRUE(score);
+    ASSERT_EQ(score->parts.size(), 1);
+
+    constexpr size_t nonTraditionalKeyMeasureIndex = 4;
+    const auto& measures = score->parts.front().measures;
+    ASSERT_GT(measures.size(), nonTraditionalKeyMeasureIndex);
+    ASSERT_EQ(measures[nonTraditionalKeyMeasureIndex].keys.size(), 1);
+    const auto& components = measures[nonTraditionalKeyMeasureIndex].keys.front().nonTraditional;
+    const std::vector expected{
+        mx::api::KeyComponent{ mx::api::Step::b, -1, 0.0, mx::api::Accidental::flat },
+        mx::api::KeyComponent{ mx::api::Step::e, -1, 0.0, mx::api::Accidental::flat },
+        mx::api::KeyComponent{ mx::api::Step::f, 1, 0.0, mx::api::Accidental::sharp }
+    };
+    EXPECT_EQ(components, expected);
+
+    auto& documentManager = mx::api::DocumentManager::getInstance();
+    const auto documentIdResult = documentManager.createFromScore(*score);
+    ASSERT_TRUE(documentIdResult.ok()) << documentIdResult.error().message;
+    const int documentId = documentIdResult.value();
+    std::ostringstream output;
+    const auto writeResult = documentManager.writeToStream(documentId, output);
+    documentManager.destroyDocument(documentId);
+    ASSERT_TRUE(writeResult.ok()) << writeResult.error().message;
+
+    pugi::xml_document document;
+    ASSERT_TRUE(document.load_string(output.str().c_str()));
+    const auto keySteps = document.select_nodes("(//measure)[5]/attributes/key/key-step");
+    const auto keyAlters = document.select_nodes("(//measure)[5]/attributes/key/key-alter");
+    const auto keyAccidentals = document.select_nodes("(//measure)[5]/attributes/key/key-accidental");
+    ASSERT_EQ(keySteps.size(), expected.size());
+    ASSERT_EQ(keyAlters.size(), expected.size());
+    ASSERT_EQ(keyAccidentals.size(), expected.size());
+    const std::array expectedSteps{ "B", "E", "F" };
+    const std::array expectedAlters{ "-1", "-1", "1" };
+    const std::array expectedAccidentals{ "flat", "flat", "sharp" };
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_STREQ(keySteps[index].node().child_value(), expectedSteps[index]);
+        EXPECT_STREQ(keyAlters[index].node().child_value(), expectedAlters[index]);
+        EXPECT_STREQ(keyAccidentals[index].node().child_value(), expectedAccidentals[index]);
     }
 }
 
