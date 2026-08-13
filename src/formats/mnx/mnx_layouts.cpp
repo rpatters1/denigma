@@ -157,17 +157,7 @@ static void buildOrderedContent(
                 }
             }
             if (group.startSlot != group.endSlot || group.group->bracket->showOnSingleStaff) {
-                switch (group.group->bracket->style) {
-                case details::Bracket::BracketStyle::None:
-                    break;
-                case details::Bracket::BracketStyle::DeskBracket: // until mnx provides a proper desk bracket.
-                case details::Bracket::BracketStyle::PianoBrace:
-                    mnxGroup.set_symbol(mnxdom::LayoutSymbol::Brace);
-                    break;
-                default:
-                    mnxGroup.set_symbol(mnxdom::LayoutSymbol::Bracket);
-                    break;
-                }
+                mnxGroup.set_or_clear_symbol(enumConvert<mnxdom::LayoutSymbol>(group.group->bracket->style));
             }
             // @todo add group properties to content
             buildOrderedContent(mnxGroup.content(), context, groups, systemStaves, forMeas, index, *group.endSlot, groupIndex + 1);

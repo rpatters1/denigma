@@ -73,28 +73,10 @@ std::optional<mnxdom::Fermata> makeFermata(
     return result;
 }
 
-std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::articulation::BreathMark& breathMark, VerticalPlacement placement)
+mnxdom::sequence::BreathMark makeBreathMark(const classify::articulation::BreathMark& breathMark, VerticalPlacement placement)
 {
-    std::optional<mnxdom::BreathMarkSymbol> symbol;
-    switch (breathMark.type) {
-    case classify::articulation::BreathMark::Type::Comma:
-        symbol = mnxdom::BreathMarkSymbol::Comma;
-        break;
-    case classify::articulation::BreathMark::Type::Tick:
-        symbol = mnxdom::BreathMarkSymbol::Tick;
-        break;
-    case classify::articulation::BreathMark::Type::Upbow:
-        symbol = mnxdom::BreathMarkSymbol::Upbow;
-        break;
-    case classify::articulation::BreathMark::Type::Salzedo:
-        symbol = mnxdom::BreathMarkSymbol::Salzedo;
-        break;
-    }
-    if (!symbol) {
-        return std::nullopt;
-    }
     mnxdom::sequence::BreathMark result;
-    result.set_symbol(symbol.value());
+    result.set_or_clear_symbol(enumConvert<mnxdom::BreathMarkSymbol>(breathMark.type));
     result.set_or_clear_orient(enumConvert<mnxdom::Orientation>(placement));
     return result;
 }
@@ -485,9 +467,7 @@ void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Ev
                             mnxEvent.set_fermata(mnxFermata.value());
                         }
                     } else if constexpr (std::is_same_v<Value, classify::articulation::BreathMark>) {
-                        if (auto mnxBreathMark = makeBreathMark(value, classification.placement)) {
-                            mnxEvent.ensure_markings().set_breath(mnxBreathMark.value());
-                        }
+                        mnxEvent.ensure_markings().set_breath(makeBreathMark(value, classification.placement));
                     } else if constexpr (std::is_same_v<Value, classify::articulation::Arpeggio>) {
                         if (auto candidate = makeArpeggio(musxEntryInfo, asgn, value)) {
                             appendArpeggioCandidate(context, mnxPartMeasure.value(), candidate.value());

@@ -179,7 +179,7 @@ TEST(MnxBeams, BeamHooksAndInner)
         ASSERT_TRUE(beams.beams().has_value());
         ASSERT_EQ(beams.beams().value().size(), 1);
         EXPECT_EQ(beams.beams().value()[0].events()[0], "ev7");
-        EXPECT_EQ(beams.beams().value()[0].direction(), std::optional<mnx::BeamHookDirection>{});
+        EXPECT_EQ(beams.beams().value()[0].direction(), mnx::BeamHookDirection::Auto);
     }
 }
 
@@ -238,7 +238,7 @@ TEST(MnxBeams, BeamRestWorkarounds)
         ASSERT_TRUE(beam.beams().has_value());
         ASSERT_EQ(beam.beams().value().size(), 1);
         EXPECT_EQ(beam.beams().value()[0].events()[0], "ev21");
-        EXPECT_EQ(beam.beams().value()[0].direction(), std::optional<mnx::BeamHookDirection>{});
+        EXPECT_EQ(beam.beams().value()[0].direction(), mnx::BeamHookDirection::Auto);
     }
 
     doc.buildEntityMap();

@@ -71,7 +71,7 @@ static void createBeams(
                                     mnxdom::BeamHookDirection hookDir = manual->isLeft()
                                                                      ? mnxdom::BeamHookDirection::Left
                                                                      : mnxdom::BeamHookDirection::Right;
-                                    hookBeam.set_direction(hookDir);
+                                    hookBeam.set_or_clear_direction(hookDir);
                                 }
                             }
                         } else if (lowestBeamStart <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {

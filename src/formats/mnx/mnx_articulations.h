@@ -51,7 +51,7 @@ std::optional<mnxdom::Fermata> makeFermata(
     const classify::GlyphStyle& glyphStyle,
     VerticalPlacement placement);
 
-std::optional<mnxdom::sequence::BreathMark> makeBreathMark(const classify::articulation::BreathMark& breathMark, VerticalPlacement placement);
+mnxdom::sequence::BreathMark makeBreathMark(const classify::articulation::BreathMark& breathMark, VerticalPlacement placement);
 
 std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
     const EntryInfoPtr& sourceEntry,

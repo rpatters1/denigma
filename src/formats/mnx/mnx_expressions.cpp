@@ -355,9 +355,8 @@ void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<oth
                 break;
             }
             case classify::ExpressionType::BreathMark:
-                if (auto mnxBreathMark = makeBreathMark(classification.breathMark().breathMark, placement)) {
-                    attachBreathMark(context, calcAttachmentContext(context, asgn), mnxBreathMark.value());
-                }
+                attachBreathMark(context, calcAttachmentContext(context, asgn),
+                    makeBreathMark(classification.breathMark().breathMark, placement));
                 break;
             case classify::ExpressionType::NonArpeggio:
                 appendArpeggioCandidate(context, mnxMeasure, classification.nonArpeggio().candidate);
