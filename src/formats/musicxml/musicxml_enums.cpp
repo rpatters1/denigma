@@ -17,6 +17,7 @@
 #include "mx/api/MarkData.h"
 #include "mx/api/NoteData.h"
 #include "mx/api/OttavaData.h"
+#include "mx/api/PartData.h"
 #include "mx/api/PartGroupData.h"
 #include "mx/api/PitchData.h"
 #include "mx/api/PositionData.h"
@@ -221,6 +222,12 @@ BEGIN_ENUM_CONVERSION(NoteType, mx::api::DurationName)
     case NoteType::Note512th: return mx::api::DurationName::dur512th;
     case NoteType::Note1024th: return mx::api::DurationName::dur1024th;
     default: break; // causes a throw
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(SoloOrEnsemble, mx::api::SoloOrEnsemble)
+    case SoloOrEnsemble::Unspecified: return mx::api::SoloOrEnsemble::unspecified;
+    case SoloOrEnsemble::Solo: return mx::api::SoloOrEnsemble::solo;
+    case SoloOrEnsemble::Ensemble: return mx::api::SoloOrEnsemble::ensemble;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(classify::articulation::Ornament::Type, mx::api::MarkType)

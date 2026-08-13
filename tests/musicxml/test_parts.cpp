@@ -24,6 +24,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -33,6 +34,7 @@
 #include "formats/musicxml/musicxml.h"
 #include "mx/api/DocumentManager.h"
 #include "mx/api/ScoreData.h"
+#include "musx/dom/InstrumentUuids.h"
 #include "musicxml_test.h"
 #include "pugixml.hpp"
 #include "test_utils.h"
@@ -675,7 +677,7 @@ TEST(MusicXmlParts, IndependentKeySignaturesMatchFinale)
     compareKeySignatures(*actualScore, *expectedScore);
 }
 
-TEST(MusicXmlParts, InstrumentNameUsesSoundIdString)
+TEST(MusicXmlParts, InstrumentMetadataUsesPlaybackRouteAndMatchesFinale)
 {
     setupTestDataPaths();
 
@@ -684,14 +686,92 @@ TEST(MusicXmlParts, InstrumentNameUsesSoundIdString)
     ASSERT_EQ(score->parts.size(), 1);
     const auto& instrument = score->parts.front().instrumentData;
     EXPECT_EQ(instrument.soundID, mx::api::SoundID::unspecified);
-    EXPECT_EQ(instrument.name, musx::dom::uuid::BlankStaff);
+    EXPECT_EQ(instrument.name, "SmartMusic SoftSynth 1");
+    EXPECT_EQ(instrument.soloOrEnsemble, mx::api::SoloOrEnsemble::unspecified);
 
-    const auto mappedScore = createScoreDataFromMusicXmlFixture("transposition.musx");
-    ASSERT_TRUE(mappedScore);
-    ASSERT_FALSE(mappedScore->parts.empty());
-    for (const auto& part : mappedScore->parts) {
-        ASSERT_NE(part.instrumentData.soundID, mx::api::SoundID::unspecified);
-        EXPECT_EQ(part.instrumentData.name, mx::api::SoundIDToString(part.instrumentData.soundID));
+    const auto actualScore = createScoreDataFromMusicXmlFixture("transposition.musx");
+    const auto expectedScore = loadScoreData(getInputPath() / "musicxml/transposition-ref.musicxml");
+    ASSERT_TRUE(actualScore);
+    ASSERT_TRUE(expectedScore);
+    ASSERT_EQ(actualScore->parts.size(), expectedScore->parts.size());
+    for (size_t index = 0; index < expectedScore->parts.size(); ++index) {
+        const auto& actual = actualScore->parts[index].instrumentData;
+        const auto& expected = expectedScore->parts[index].instrumentData;
+        EXPECT_EQ(actual.name, expected.name);
+        EXPECT_EQ(actual.soundID, expected.soundID);
+    }
+}
+
+TEST(MusicXmlParts, SoloOrEnsembleMatchesFinale)
+{
+    setupTestDataPaths();
+
+    static constexpr auto fixtures = std::to_array<std::pair<std::string_view, std::string_view>>({
+        { "harmonics_artificial.musx", "musicxml/harmonics_artificial-ref.musicxml" },
+        { "harmonics_sounding.musx", "musicxml/harmonics_sounding-ref.musicxml" },
+        { "large_orchestra.musx", "musicxml/large_orchestra-ref.musicxml" },
+        { "measnums_topbottom.musx", "musicxml/measnums_topbottom-ref.musicxml" },
+        { "techniques.musx", "musicxml/techniques-ref.musicxml" },
+        { "tempo_varied_staves.musx", "musicxml/tempo_varied_staves-ref.musicxml" },
+        { "zwei_gesange.musx", "musicxml/zwei_gesange-ref.musicxml" }
+    });
+
+    for (const auto& [musxFile, referenceFile] : fixtures) {
+        const auto actualScore = createScoreDataFromMusicXmlFixture(std::string(musxFile));
+        const auto expectedScore = loadScoreData(getInputPath() / referenceFile);
+        ASSERT_TRUE(actualScore);
+        ASSERT_TRUE(expectedScore);
+        ASSERT_EQ(actualScore->parts.size(), expectedScore->parts.size());
+        for (size_t index = 0; index < expectedScore->parts.size(); ++index) {
+            SCOPED_TRACE(std::string(musxFile) + " part " + std::to_string(index + 1));
+            EXPECT_EQ(
+                actualScore->parts[index].instrumentData.soloOrEnsemble,
+                expectedScore->parts[index].instrumentData.soloOrEnsemble);
+        }
+    }
+}
+
+TEST(MusicXmlParts, FinaleMusicXmlUuidsMapToSoundIds)
+{
+    static constexpr auto mappings = std::to_array<std::pair<std::string_view, mx::api::SoundID>>({
+        { musx::dom::uuid::MusicXmlDrumGroup, mx::api::SoundID::drumGroup },
+        { musx::dom::uuid::MusicXmlDrumGroupSet, mx::api::SoundID::drumGroupSet },
+        { musx::dom::uuid::MusicXmlTabor, mx::api::SoundID::drumTabor },
+        { musx::dom::uuid::MusicXmlAccordion, mx::api::SoundID::keyboardAccordion },
+        { musx::dom::uuid::MusicXmlSuspendedCymbal, mx::api::SoundID::metalCymbalSuspended },
+        { musx::dom::uuid::MusicXmlHandchimes, mx::api::SoundID::pitchedPercussionHandchimes },
+        { musx::dom::uuid::MusicXmlMusicBox, mx::api::SoundID::pitchedPercussionMusicBox },
+        { musx::dom::uuid::MusicXmlCavaquinho, mx::api::SoundID::pluckCavaquinho },
+        { musx::dom::uuid::MusicXmlVocals, mx::api::SoundID::voiceVocals },
+        { musx::dom::uuid::MusicXmlCalliope, mx::api::SoundID::windFlutesCalliope },
+        { musx::dom::uuid::MusicXmlAlbogue, mx::api::SoundID::windReedAlbogue }
+    });
+
+    for (const auto& [uuid, expectedSoundId] : mappings) {
+        const auto actualSound = formats::musicxml::detail::musicXmlInstrumentSoundFromUuid(uuid);
+        ASSERT_TRUE(actualSound) << uuid;
+        EXPECT_EQ(actualSound->soundId, expectedSoundId) << uuid;
+    }
+}
+
+TEST(MusicXmlParts, SoloOrEnsembleOnlyDisambiguatesSharedSoundIds)
+{
+    using musx::dom::SoloOrEnsemble;
+
+    static constexpr auto mappings = std::to_array<std::pair<std::string_view, SoloOrEnsemble>>({
+        { musx::dom::uuid::Violin, SoloOrEnsemble::Solo },
+        { musx::dom::uuid::ViolinSection, SoloOrEnsemble::Ensemble },
+        { musx::dom::uuid::Voice, SoloOrEnsemble::Solo },
+        { musx::dom::uuid::Vocals, SoloOrEnsemble::Ensemble },
+        { musx::dom::uuid::Piano, SoloOrEnsemble::Unspecified },
+        { musx::dom::uuid::PianoNoName, SoloOrEnsemble::Unspecified },
+        { musx::dom::uuid::Flute, SoloOrEnsemble::Unspecified }
+    });
+
+    for (const auto& [uuid, expected] : mappings) {
+        const auto sound = formats::musicxml::detail::musicXmlInstrumentSoundFromUuid(uuid);
+        ASSERT_TRUE(sound) << uuid;
+        EXPECT_EQ(sound->soloOrEnsemble, expected) << uuid;
     }
 }
 

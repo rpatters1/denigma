@@ -24,7 +24,9 @@
 
 #include <algorithm>
 #include <array>
+#include <map>
 #include <optional>
+#include <set>
 #include <string_view>
 
 #include "musx/dom/InstrumentUuids.h"
@@ -49,7 +51,7 @@ struct InstrumentSoundMapping
 
 } // namespace
 
-std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid)
+std::optional<MusicXmlInstrumentSound> musicXmlInstrumentSoundFromUuid(std::string_view instUuid)
 {
     static constexpr auto table = std::to_array<InstrumentSoundMapping>({
         // { uuid::BlankStaff,                     SoundID:: },
@@ -118,6 +120,7 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
         { uuid::Organ2Staff,                    SoundID::keyboardOrgan },
         { uuid::Celesta,                        SoundID::keyboardCelesta },
         { uuid::Accordion,                      SoundID::keyboardAccordion },
+        { uuid::MusicXmlAccordion,              SoundID::keyboardAccordion },
         { uuid::Melodica,                       SoundID::windReedMelodica },
         { uuid::ElectricPiano,                  SoundID::keyboardPianoElectric },
         { uuid::Clavinet,                       SoundID::keyboardClavichord },
@@ -139,6 +142,7 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
         { uuid::BaritoneVoice,                  SoundID::voiceBaritone },
         { uuid::BassVoice,                      SoundID::voiceBass },
         { uuid::Vocals,                         SoundID::voiceVocals },
+        { uuid::MusicXmlVocals,                 SoundID::voiceVocals },
         { uuid::Voice,                          SoundID::voiceVocals },
         { uuid::VoiceNoName,                    SoundID::voiceVocals },
         { uuid::MezzoSopranoVoice,              SoundID::voiceMezzoSoprano },
@@ -259,7 +263,9 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
         { uuid::Venu,                           SoundID::windFlutesVenu },
         { uuid::Xiao,                           SoundID::windFlutesXiao },
         { uuid::Xun,                            SoundID::windFlutesXun },
+        { uuid::MusicXmlCalliope,               SoundID::windFlutesCalliope },
         { uuid::Albogue,                        SoundID::windReedAlbogue },
+        { uuid::MusicXmlAlbogue,                SoundID::windReedAlbogue },
         { uuid::Alboka,                         SoundID::windReedAlboka },
         { uuid::AltoCrumhorn,                   SoundID::windReedCrumhornAlto },
         { uuid::Arghul,                         SoundID::windReedArghul },
@@ -396,6 +402,7 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
         { uuid::Lute,                           SoundID::pluckLute },
         { uuid::Ukulele,                        SoundID::pluckUkulele },
         { uuid::TenorUkulele,                   SoundID::pluckUkuleleTenor },
+        { uuid::MusicXmlCavaquinho,             SoundID::pluckCavaquinho },
         { uuid::Sitar,                          SoundID::pluckSitar },
         { uuid::Zither,                         SoundID::pluckZither },
         { uuid::Archlute,                       SoundID::pluckArchlute },
@@ -563,6 +570,8 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
         { uuid::Handbells,                      SoundID::pitchedPercussionHandbells },
         { uuid::HandbellsTClef,                 SoundID::pitchedPercussionHandbells },
         { uuid::HandbellsBClef,                 SoundID::pitchedPercussionHandbells },
+        { uuid::MusicXmlHandchimes,             SoundID::pitchedPercussionHandchimes },
+        { uuid::MusicXmlMusicBox,               SoundID::pitchedPercussionMusicBox },
         { uuid::HangTClef,                      SoundID::metalHang },
         { uuid::JawHarp,                        SoundID::metalJawHarp },
         { uuid::Kalimba,                        SoundID::pitchedPercussionKalimba },
@@ -615,6 +624,9 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
         { uuid::SnareDrum,                      SoundID::drumSnareDrum },
         { uuid::BassDrum,                       SoundID::drumBassDrum },
         { uuid::DrumSet,                        SoundID::drumGroupSet },
+        { uuid::MusicXmlDrumGroup,              SoundID::drumGroup },
+        { uuid::MusicXmlDrumGroupSet,           SoundID::drumGroupSet },
+        { uuid::MusicXmlTabor,                  SoundID::drumTabor },
         { uuid::TenorDrum,                      SoundID::drumTenorDrum },
         { uuid::QuadToms,                       SoundID::drumTomTom },
         { uuid::QuintToms,                      SoundID::drumTomTom },
@@ -731,6 +743,7 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
         { uuid::HiHatCymbal,                    SoundID::metalHiHat },
         { uuid::RideCymbal,                     SoundID::metalCymbalRide },
         { uuid::SplashCymbal,                   SoundID::metalCymbalSplash },
+        { uuid::MusicXmlSuspendedCymbal,        SoundID::metalCymbalSuspended },
         { uuid::TamTam,                         SoundID::metalTamtam },
         { uuid::Gong,                           SoundID::metalGong },
         { uuid::AgogoBells,                     SoundID::metalBellsAgogo },
@@ -863,7 +876,31 @@ std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_vi
     if (iter == table.end()) {
         return std::nullopt;
     }
-    return iter->soundId;
+
+    static const auto ambiguousSoundIds = [](const auto& mappings) {
+        constexpr unsigned soloBit = 1U << 0;
+        constexpr unsigned ensembleBit = 1U << 1;
+        std::map<SoundID, unsigned> classifications;
+        for (const auto& mapping : mappings) {
+            switch (instrumentSoloOrEnsembleFromUuid(mapping.instUuid)) {
+                case SoloOrEnsemble::Solo: classifications[mapping.soundId] |= soloBit; break;
+                case SoloOrEnsemble::Ensemble: classifications[mapping.soundId] |= ensembleBit; break;
+                case SoloOrEnsemble::Unspecified: break;
+            }
+        }
+        std::set<SoundID> result;
+        for (const auto& [soundId, classification] : classifications) {
+            if (classification == (soloBit | ensembleBit)) {
+                result.emplace(soundId);
+            }
+        }
+        return result;
+    }(table);
+
+    const auto soloOrEnsemble = ambiguousSoundIds.contains(iter->soundId)
+        ? instrumentSoloOrEnsembleFromUuid(instUuid)
+        : SoloOrEnsemble::Unspecified;
+    return MusicXmlInstrumentSound{ iter->soundId, soloOrEnsemble };
 }
 
 } // namespace detail
