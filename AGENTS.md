@@ -13,6 +13,7 @@ covers, so read the relevant one before starting that kind of work rather than a
 - `classifier-design` — creating or editing classifiers in `src/classify`, or shared classification helpers used by exporters.
 - `denigma-test-harness` — building, running tests, interpreting test failures, or choosing the test executable's working directory.
 - `enum-mappings` — adding or modifying enum conversions in any `<exporter>_enums.cpp`.
+- `mnx-optional-export` — exporting MNX `OPTIONAL` and `OPTIONAL_WITH_DEFAULT` properties, with a preference for omitting values when possible.
 - `nested-namespaces` — any C++ namespace declaration.
 - `optional-usage` — `std::optional` fields or return values, especially for enum or bool state.
 - `string-lookups` — hard-coded string-to-value lookups or dispatch, especially repeated literal comparisons.

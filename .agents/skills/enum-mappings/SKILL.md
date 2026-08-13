@@ -25,3 +25,4 @@ Rules:
 - Keep enum class-name blocks alphabetized within each `<exporter>_enums.cpp`, ignoring namespaces.
 - Do not add one-off switch helpers for enum conversion when an `enumConvert` specialization is appropriate.
 - Include the target API header in the enum TU when the mapped target enum is not already visible there.
+- Give every mapped source enum option its own `case ...: return ...;` line. Do not group multiple source cases before one shared return; explicit one-to-one entries make the mapping auditable.

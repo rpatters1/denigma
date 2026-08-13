@@ -26,6 +26,7 @@
 
 #include "mnx.h"
 #include "denigma/classify/barlines.h"
+#include "denigma/classify/articulations.h"
 #include "denigma/classify/classifier_common.h"
 #include "denigma/classify/dynamics.h"
 #include "formats/enum_conversion_macros.h"
@@ -64,6 +65,26 @@ BEGIN_ENUM_CONVERSION(classify::barline::Type, mnxdom::BarlineType)
     case classify::barline::Type::Dashed: return mnxdom::BarlineType::Dashed;
     case classify::barline::Type::Tick: return mnxdom::BarlineType::Tick;
     default: break; // causes a throw
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(details::Bracket::BracketStyle, mnxdom::LayoutSymbol)
+    case details::Bracket::BracketStyle::None: return mnxdom::LayoutSymbol::NoSymbol;
+    case details::Bracket::BracketStyle::PianoBrace: return mnxdom::LayoutSymbol::Brace;
+    case details::Bracket::BracketStyle::DeskBracket: return mnxdom::LayoutSymbol::Brace;
+    case details::Bracket::BracketStyle::ThickLine: return mnxdom::LayoutSymbol::Bracket;
+    case details::Bracket::BracketStyle::BracketStraightHooks: return mnxdom::LayoutSymbol::Bracket;
+    case details::Bracket::BracketStyle::Unknown4: return mnxdom::LayoutSymbol::NoSymbol;
+    case details::Bracket::BracketStyle::Unknown5: return mnxdom::LayoutSymbol::NoSymbol;
+    case details::Bracket::BracketStyle::BracketCurvedHooks: return mnxdom::LayoutSymbol::Bracket;
+    case details::Bracket::BracketStyle::Unknown7: return mnxdom::LayoutSymbol::NoSymbol;
+END_ENUM_CONVERSION
+
+BEGIN_ENUM_CONVERSION(classify::articulation::BreathMark::Type, mnxdom::BreathMarkSymbol)
+    case classify::articulation::BreathMark::Type::Unspecified: return mnxdom::BreathMarkSymbol::Auto;
+    case classify::articulation::BreathMark::Type::Comma: return mnxdom::BreathMarkSymbol::Comma;
+    case classify::articulation::BreathMark::Type::Tick: return mnxdom::BreathMarkSymbol::Tick;
+    case classify::articulation::BreathMark::Type::Upbow: return mnxdom::BreathMarkSymbol::Upbow;
+    case classify::articulation::BreathMark::Type::Salzedo: return mnxdom::BreathMarkSymbol::Salzedo;
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(classify::GlyphStyle::Placement, mnxdom::MarkingUpDownAuto)

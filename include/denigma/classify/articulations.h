@@ -226,6 +226,7 @@ struct BreathMark
     /// @brief Breath mark type.
     enum class Type
     {
+        Unspecified,
         Comma,
         Tick,
         Upbow,

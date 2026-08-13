@@ -696,6 +696,9 @@ static PrivateClassification classifyGlyphName(std::string glyphName)
         } },
 
         // BreathMark
+        { "breathMark", [](std::string glyphName) -> PrivateClassification {
+            return makeBreathMark(BreathMark::Type::Unspecified, std::move(glyphName));
+        } },
         { "breathMarkComma", [](std::string glyphName) -> PrivateClassification {
             return makeBreathMark(BreathMark::Type::Comma, std::move(glyphName));
         } },

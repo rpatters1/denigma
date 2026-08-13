@@ -1,0 +1,4 @@
+interface:
+  display_name: "MNX Optional Export"
+  short_description: "Omit default MNX properties when possible"
+  default_prompt: "Use $mnx-optional-export when implementing or reviewing MNX property serialization."
