@@ -61,10 +61,14 @@ void populatePartMetadata(MusicXmlMusxMapping& context, mx::api::PartData& part,
 {
     part.uniqueId = id;
     part.instrumentData.uniqueId = id + "-I1";
+    part.instrumentData.name = staff->getPlaybackRouteName();
     context.partIdToPitchContext[id] = MusicXmlPitchContext::Concert;
-    if (const auto soundId = musicXmlSoundIdFromInstrumentUuid(staff->instUuid)) {
-        part.instrumentData.soundID = *soundId;
-        part.instrumentData.name = mx::api::SoundIDToString(*soundId);
+    if (const auto sound = musicXmlInstrumentSoundFromUuid(staff->instUuid)) {
+        part.instrumentData.soundID = sound->soundId;
+        part.instrumentData.soloOrEnsemble = enumConvert<mx::api::SoloOrEnsemble>(sound->soloOrEnsemble);
+        if (part.instrumentData.name.empty()) {
+            part.instrumentData.name = mx::api::SoundIDToString(sound->soundId);
+        }
     }
 
     const auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
@@ -80,13 +84,10 @@ void populatePartMetadata(MusicXmlMusxMapping& context, mx::api::PartData& part,
         }
     }
 
-    const auto fullName = utils::trimAscii(staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode));
     if (part.instrumentData.name.empty()) {
-        part.instrumentData.name = utils::trimNewLineFromString(fullName);
-        if (part.instrumentData.name.empty()) {
-            part.instrumentData.name = staff->instUuid;
-        }
+        part.instrumentData.name = staff->instUuid;
     }
+    const auto fullName = utils::trimAscii(staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode));
     if (!fullName.empty()) {
         part.name = utils::trimNewLineFromString(fullName);
         if (!staff->showNamesForPart(context.finaleOptions.forPartId)) {

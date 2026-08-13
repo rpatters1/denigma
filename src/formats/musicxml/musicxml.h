@@ -68,7 +68,13 @@ inline int musicXmlFloatingAnchorVoiceNumber(size_t staffIndex)
 }
 
 MusicXmlPitchContext pitchContextForPart(const MusicXmlMusxMapping& context, const std::string& partId);
-std::optional<mx::api::SoundID> musicXmlSoundIdFromInstrumentUuid(std::string_view instUuid);
+struct MusicXmlInstrumentSound
+{
+    mx::api::SoundID soundId{};
+    musx::dom::SoloOrEnsemble soloOrEnsemble{};
+};
+
+std::optional<MusicXmlInstrumentSound> musicXmlInstrumentSoundFromUuid(std::string_view instUuid);
 mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacement placement);
 mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fermata);
 mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLocation& location);
