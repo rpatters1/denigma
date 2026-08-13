@@ -64,6 +64,7 @@ void populatePartMetadata(MusicXmlMusxMapping& context, mx::api::PartData& part,
     context.partIdToPitchContext[id] = MusicXmlPitchContext::Concert;
     if (const auto soundId = musicXmlSoundIdFromInstrumentUuid(staff->instUuid)) {
         part.instrumentData.soundID = *soundId;
+        part.instrumentData.name = mx::api::SoundIDToString(*soundId);
     }
 
     const auto [transpositionDisp, transpositionAlt] = staff->calcTranspositionInterval();
@@ -80,6 +81,12 @@ void populatePartMetadata(MusicXmlMusxMapping& context, mx::api::PartData& part,
     }
 
     const auto fullName = utils::trimAscii(staff->getFullInstrumentName(EnigmaString::AccidentalStyle::Unicode));
+    if (part.instrumentData.name.empty()) {
+        part.instrumentData.name = utils::trimNewLineFromString(fullName);
+        if (part.instrumentData.name.empty()) {
+            part.instrumentData.name = staff->instUuid;
+        }
+    }
     if (!fullName.empty()) {
         part.name = utils::trimNewLineFromString(fullName);
         if (!staff->showNamesForPart(context.finaleOptions.forPartId)) {

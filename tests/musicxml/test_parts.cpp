@@ -675,6 +675,26 @@ TEST(MusicXmlParts, IndependentKeySignaturesMatchFinale)
     compareKeySignatures(*actualScore, *expectedScore);
 }
 
+TEST(MusicXmlParts, InstrumentNameUsesSoundIdString)
+{
+    setupTestDataPaths();
+
+    const auto score = createScoreDataFromMusxPath(std::filesystem::path(MUSX_TEST_DATA_PATH) / "keysigs.musx");
+    ASSERT_TRUE(score);
+    ASSERT_EQ(score->parts.size(), 1);
+    const auto& instrument = score->parts.front().instrumentData;
+    EXPECT_EQ(instrument.soundID, mx::api::SoundID::unspecified);
+    EXPECT_EQ(instrument.name, musx::dom::uuid::BlankStaff);
+
+    const auto mappedScore = createScoreDataFromMusicXmlFixture("transposition.musx");
+    ASSERT_TRUE(mappedScore);
+    ASSERT_FALSE(mappedScore->parts.empty());
+    for (const auto& part : mappedScore->parts) {
+        ASSERT_NE(part.instrumentData.soundID, mx::api::SoundID::unspecified);
+        EXPECT_EQ(part.instrumentData.name, mx::api::SoundIDToString(part.instrumentData.soundID));
+    }
+}
+
 TEST(MusicXmlParts, StandardDiatonicModesUseMusicXmlModes)
 {
     const std::array expected{

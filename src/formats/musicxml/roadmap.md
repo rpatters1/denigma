@@ -20,15 +20,15 @@ Extend the nontraditional key-signature mapping to microtonal signatures by conv
 
 ## Instruments, transpositions, and instrument changes
 
-Treat a part's instrument as one subject rather than the handful of unrelated fields it is today. `populatePartMetadata` sets only `instrumentData.uniqueId` and, when the staff's `instUuid` is recognized, `instrumentData.soundID`. Everything else about the instrument is left default.
+Treat a part's instrument as one subject rather than the handful of unrelated fields it is today. `populatePartMetadata` sets `instrumentData.uniqueId`, its required name, and, when the staff's `instUuid` is recognized, `instrumentData.soundID`. `soloOrEnsemble` remains unset even though Finale knows which staves are solo.
 
-The visible defect is the name. `mx::api::InstrumentData::name` and `abbreviation` are never set, so every `<score-instrument>` carries an empty `<instrument-name/>`, a required element with nothing in it. Finale writes its playback device name there; the staff's full and abbreviated names, or the name of the Finale instrument behind `instUuid`, are the better sources. `soloOrEnsemble` is likewise unset even though Finale knows which staves are solo.
+The instrument name uses the standardized SoundID string when one is available, allowing consumers to localize the semantic identifier. It falls back to Finale's authored full instrument name and then to the raw instrument UUID. Do not add an English-language UUID-to-name table to Denigma or MUSX DOM.
 
 Instrument sound coverage is partial in a way that hides itself. `musicXmlSoundIdFromInstrumentUuid` maps a fixed table of Finale instrument uuids, several entries are commented out, and an unrecognized uuid simply yields no `<instrument-sound>` with no diagnostic. Decide whether an unmapped instrument deserves a Verbose log, and extend the table.
 
 Transposition is exported once per part, from the staff that was current when the part was built, and gated on `showTransposed`. Finale can change an instrument's transposition mid-piece through a staff style, and nothing captures that. The related concert-score `<for-part>` support is an MX API gap; see [mx-api-gaps.md](mx-api-gaps.md).
 
-Instrument changes are the largest piece and are blocked upstream: `mx::api::PartData` holds exactly one `InstrumentData` for the whole part, so neither a mid-piece instrument change nor two simultaneous instruments can be expressed. That limitation, and the multiple-`<score-instrument>` model needed to lift it, are described under instrument changes within a part in [mx-api-gaps.md](mx-api-gaps.md). Naming, `soloOrEnsemble`, sound coverage, and initial transposition can all proceed ahead of it.
+Instrument changes are the largest piece and are blocked upstream: `mx::api::PartData` holds exactly one `InstrumentData` for the whole part, so neither a mid-piece instrument change nor two simultaneous instruments can be expressed. That limitation, and the multiple-`<score-instrument>` model needed to lift it, are described under instrument changes within a part in [mx-api-gaps.md](mx-api-gaps.md). `soloOrEnsemble`, sound coverage, and initial transposition can all proceed ahead of it.
 
 Two neighbouring items overlap this one and should stay separate. MIDI channels below covers the playback assignment that hangs off the instrument, and percussion covers the per-note instrument identity that drum kits need.
 
