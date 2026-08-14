@@ -324,6 +324,7 @@ void applyMusicXmlTies(MusicXmlMusxMapping& context, mx::api::NoteData& note, co
 void applyLyrics(MusicXmlMusxMapping& context, mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
 {
     const auto entry = entryInfo->getEntry();
+    const auto entryNumber = entry->getEntryNumber();
 
     auto applyLyricType = [&](const auto& lyricAssignments) {
         using PtrType = typename std::decay_t<decltype(lyricAssignments)>::value_type;
@@ -347,6 +348,14 @@ void applyLyrics(MusicXmlMusxMapping& context, mx::api::NoteData& note, const En
             /// @todo Check whether Finale exports displayVerseNum by prepending the verse number to lyric text.
             lyric.verseNumber = std::string(T::TextType::XmlNodeName.substr(0, 1)) + std::to_string(assignment->lyricNumber);
             lyric.hasExtend = assignment->wext != 0 || lyricText->syllables[syllableIndex]->strippedUnderscores > 0;
+            if (const auto endpoint = assignment->calcWordExtensionEndpoint()) {
+                lyric.extendType = mx::api::LyricExtendType::start;
+                auto stopLyric = mx::api::LyricData{};
+                stopLyric.verseNumber = lyric.verseNumber;
+                stopLyric.hasExtend = true;
+                stopLyric.extendType = mx::api::LyricExtendType::stop;
+                context.pendingLyricStops[endpoint->getEntry()->getEntryNumber()].emplace_back(std::move(stopLyric));
+            }
             if (assignment->horzOffset != 0) {
                 lyric.positionData.relativeX = context.musicXmlTenthsFromEvpu(assignment->horzOffset);
                 lyric.positionData.isRelativeXSpecified = true;
@@ -369,6 +378,13 @@ void applyLyrics(MusicXmlMusxMapping& context, mx::api::NoteData& note, const En
     applyLyricType(entry->getDocument()->getDetails()->getArray<details::LyricAssignVerse>(SCORE_PARTID, entry->getEntryNumber()));
     applyLyricType(entry->getDocument()->getDetails()->getArray<details::LyricAssignChorus>(SCORE_PARTID, entry->getEntryNumber()));
     applyLyricType(entry->getDocument()->getDetails()->getArray<details::LyricAssignSection>(SCORE_PARTID, entry->getEntryNumber()));
+
+    if (const auto stops = context.pendingLyricStops.find(entryNumber); stops != context.pendingLyricStops.end()) {
+        for (auto& stopLyric : stops->second) {
+            note.lyrics.emplace_back(std::move(stopLyric));
+        }
+        context.pendingLyricStops.erase(stops);
+    }
 }
 
 std::vector<mx::api::Beam> createBeamData(const MusicXmlMusxMapping& context, const EntryInfoPtr& entryInfo)

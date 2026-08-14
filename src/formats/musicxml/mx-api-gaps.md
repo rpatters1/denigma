@@ -80,20 +80,6 @@ MX's generated core layer models both elements, and `NotationsChoice` already ad
 
 Needed API shape: a note-attached paired spanner model on `NoteAttachmentData`, which the reserved spanner vectors anticipate. It should carry the element kind (glissando or slide), start/stop state, spanner number, the optional printed text, `LineData` for line type and dash and space lengths, and the shared placement, position, and color attributes. A model general enough to host the wavy-line pairs described above would serve both gaps.
 
-## Lyrics
-
-### Word-extension endpoints
-
-MusicXML `<extend>` carries a `type` of `start`, `continue`, or `stop`. A word extension spanning several notes is written as `<extend type="start"/>` on the syllable and a text-less `<lyric>` holding `<extend type="stop"/>` on the note where the line ends, which is how Finale's own export encodes it. A bare `<extend/>` is the legacy form and says only that the syllable extends, not how far.
-
-`mx::api::LyricData` exposes `bool hasExtend` and nothing else, and its writer emits the bare form. There is also no way to express the terminating lyric, since a `LyricData` with empty `text` and no syllabic would have to write an `<extend>`-only element, which the current model cannot request. Denigma therefore emits a bare `<extend/>` on the syllable and the extension's length is unrecoverable by the importer.
-
-The source data is available. `details::LyricAssign::calcWordExtensionEndpoint` returns the terminating entry directly, so mapping start and stop would be straightforward once the API can express them. One case would remain unmappable regardless: the function returns null for documents using legacy rather than smart word extensions, where `LyricAssign::wext` holds a raw Evpu length instead of an endpoint. Resolving a length into a terminating note requires knowing note spacing, which is engraved layout, so legacy extensions keep the bare `<extend/>` in any event.
-
-`LyricData` is thin in other respects that matter less but would likely be addressed by the same work: it models no `<elision>`, none of `<humming>`, `<laughing>`, `<end-line>`, or `<end-paragraph>`, and carries `positionData` and `printData` but no `FontData`.
-
-Needed API shape: an extend model on `LyricData` carrying the MusicXML type alongside the existing boolean, and a way to write a lyric whose only content is an `<extend>`, so a multi-note extension can name both of its ends.
-
 ## Measures
 
 ### Multimeasure-rest attributes
