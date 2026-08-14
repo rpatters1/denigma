@@ -1267,7 +1267,7 @@ TEST(MusicXmlNotes, VoicesKeyboardUsesStaffQualifiedVoiceNumbers)
 {
     setupTestDataPaths();
 
-    const auto outputPath = exportMusicXmlFixture("voices_keyboard.musx");
+    const auto outputPath = exportMusicXmlFixture("voices_keyboard.musx", true);
     const auto actualScore = loadScoreData(outputPath);
     ASSERT_TRUE(actualScore);
 
