@@ -28,12 +28,15 @@
 
 namespace denigma::test::musicxml {
 
-std::filesystem::path exportMusicXmlFixture(const std::string& musxFile)
+std::filesystem::path exportMusicXmlFixture(const std::string& musxFile, bool useFinaleRestPosition)
 {
     std::filesystem::path inputPath;
     copyInputToOutput(musxFile, inputPath);
 
     ArgList args = { DENIGMA_NAME, "export", pathString(inputPath), "--musicxml" };
+    if (useFinaleRestPosition) {
+        args.add("--finale-rest-position");
+    }
     checkStderr({ "Processing", pathString(inputPath.filename()) }, [&]() {
         EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0) << "export to musicxml: " << pathString(inputPath);
     });

@@ -210,7 +210,7 @@ void applyTupletData(mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
     }
 }
 
-void applyRestPositionIfNeeded(mx::api::NoteData& rest, const EntryInfoPtr& entryInfo)
+void applyRestPositionIfNeeded(const MusicXmlMusxMapping& context, mx::api::NoteData& rest, const EntryInfoPtr& entryInfo)
 {
     if (!entryInfo) {
         return;
@@ -223,11 +223,24 @@ void applyRestPositionIfNeeded(mx::api::NoteData& rest, const EntryInfoPtr& entr
     if (restNoteInfo->getNoteId() != Note::RESTID) {
         return;
     }
-    const auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
+    auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
     (void)alteration;
+    const auto restPositionOffset = calcFinaleToSmuflRestPositionOffset(NoteType::Whole);
+    if (!context.denigmaContext->useFinaleRestPosition
+        && rest.durationData.durationName == mx::api::DurationName::whole
+        && restPositionOffset != 0) {
+        staffPosition += restPositionOffset;
+        switch (noteName) {
+        case music_theory::NoteName::A: noteName = music_theory::NoteName::C; ++octave; break;
+        case music_theory::NoteName::B: noteName = music_theory::NoteName::D; ++octave; break;
+        case music_theory::NoteName::C: noteName = music_theory::NoteName::E; break;
+        case music_theory::NoteName::D: noteName = music_theory::NoteName::F; break;
+        case music_theory::NoteName::E: noteName = music_theory::NoteName::G; break;
+        case music_theory::NoteName::F: noteName = music_theory::NoteName::A; break;
+        case music_theory::NoteName::G: noteName = music_theory::NoteName::B; break;
+        }
+    }
     (void)staffPosition;
-    /// @todo Add a MusicXML option that applies calcFinaleToSmuflRestPositionOffset to the display pitch.
-    /// MusicXML does not specify whether rest display position is the nominal position or the SMuFL glyph origin.
     rest.isDisplayStepOctaveSpecified = true;
     rest.pitchData = mx::api::PitchData(enumConvert<mx::api::Step>(noteName), 0, octave);
 }
@@ -446,7 +459,7 @@ mx::api::NoteData createRestData(
     if (entryInfo) {
         rest.beams = createBeamData(context, entryInfo);
         applyTupletData(rest, entryInfo);
-        applyRestPositionIfNeeded(rest, entryInfo);
+        applyRestPositionIfNeeded(context, rest, entryInfo);
         processArticulations(context, staff, rest, entryInfo, isStaffValueSpecified);
         if (entryIt.getEffectiveHidden() || (effectiveStaff && effectiveStaff->hideRests)) {
             rest.printData.printObject = mx::api::Bool::no;

@@ -901,7 +901,7 @@ TEST(MusicXmlNotes, WholeRestPositionsMatchFinale)
 {
     setupTestDataPaths();
 
-    const auto outputPath = exportMusicXmlFixture("whole_rests.musx");
+    const auto outputPath = exportMusicXmlFixture("whole_rests.musx", true);
     const auto actualScore = loadScoreData(outputPath);
     const auto expectedScore = loadScoreData(getInputPath() / "musicxml/whole_rests-ref.musicxml");
     ASSERT_TRUE(actualScore);
@@ -917,6 +917,26 @@ TEST(MusicXmlNotes, WholeRestPositionsMatchFinale)
         { mx::api::Step::g, 4 },
     };
     EXPECT_EQ(positionedRestDisplayPitches(*expectedScore), expectedPositions);
+    EXPECT_EQ(positionedRestDisplayPitches(*actualScore), expectedPositions);
+}
+
+TEST(MusicXmlNotes, WholeRestPositionsUseSmuflConventionByDefault)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("whole_rests.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+
+    const std::vector<std::pair<mx::api::Step, int>> expectedPositions{
+        { mx::api::Step::a, 5 },
+        { mx::api::Step::f, 5 },
+        { mx::api::Step::d, 5 },
+        { mx::api::Step::b, 4 },
+        { mx::api::Step::g, 4 },
+        { mx::api::Step::e, 4 },
+        { mx::api::Step::b, 4 },
+    };
     EXPECT_EQ(positionedRestDisplayPitches(*actualScore), expectedPositions);
 }
 
@@ -1247,7 +1267,7 @@ TEST(MusicXmlNotes, VoicesKeyboardUsesStaffQualifiedVoiceNumbers)
 {
     setupTestDataPaths();
 
-    const auto outputPath = exportMusicXmlFixture("voices_keyboard.musx");
+    const auto outputPath = exportMusicXmlFixture("voices_keyboard.musx", true);
     const auto actualScore = loadScoreData(outputPath);
     ASSERT_TRUE(actualScore);
 

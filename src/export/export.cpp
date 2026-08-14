@@ -75,6 +75,7 @@ formats::musicxml::Options makeMusicXmlOptions(const DenigmaContext& denigmaCont
     formats::musicxml::Options options;
     options.common = makeCommonOptions(denigmaContext);
     options.includeTempoTool = denigmaContext.includeTempoTool;
+    options.useFinaleRestPosition = denigmaContext.useFinaleRestPosition;
     options.cueLayer = denigmaContext.cueLayer;
     options.allPartsAndScore = denigmaContext.allPartsAndScore;
     options.partName = denigmaContext.partName;
@@ -390,6 +391,8 @@ int ExportCommand::showHelpPage(const std::string_view& programName, const std::
     std::cout << indentSpaces << "Specific options:" << std::endl;
     std::cout << indentSpaces << "  --all-fonts-available          Tells " << DENIGMA_NAME
               << " that every source font will be available when the output is read." << std::endl;
+    std::cout << indentSpaces << "  --smufl-rest-position          Shift non-floating whole rests to the SMuFL glyph-origin position (default)." << std::endl;
+    std::cout << indentSpaces << "  --finale-rest-position         Preserve Finale's nominal position for non-floating whole rests." << std::endl;
     std::cout << indentSpaces << "  --cue-layer <1..4>              Treat entries in this Finale layer as cue material." << std::endl;
     std::cout << indentSpaces << "  --mnx-schema [file-path]        Validate against this json schema file rather than the embedded one." << std::endl;
     std::cout << indentSpaces << "  --include-tempo-tool            Include tempo changes created with the Tempo Tool." << std::endl;

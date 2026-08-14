@@ -8,12 +8,6 @@ Export standards-compliant compressed MusicXML in addition to uncompressed `.mus
 
 Initially, write one `.mxl` archive for each score or part document that Denigma currently emits separately. Packaging the score and all linked parts into one MusicXML 4.0 archive through `<part-link>` can be considered as a later extension rather than a prerequisite for basic compressed output.
 
-## Whole-rest position convention
-
-Add a MusicXML export option that selects whether an explicitly positioned whole rest preserves Finale's nominal rest position or shifts upward one staff space to the SMuFL glyph origin. MusicXML does not define which interpretation `<display-step>` and `<display-octave>` require; see [MusicXML issue #681](https://github.com/w3c-cg/musicxml/issues/681) and its predecessor, [issue #5](https://github.com/w3c-cg/musicxml/issues/5).
-
-The default should remain Finale-compatible and apply no adjustment, matching round trips through Finale and MuseScore. The optional SMuFL-origin behavior should use `calcFinaleToSmuflRestPositionOffset`, matching Dorico's current interpretation. Apply the selected convention consistently to ordinary and complete-measure whole rests; other rest durations are unaffected.
-
 ## Microtonal key signatures
 
 Extend the nontraditional key-signature mapping to microtonal signatures by converting Finale's EDO divisions into MusicXML semitone alterations and suitable accidental values. Preserve the effective written or concert-pitch signature independently for each staff, as the exporter already does for traditional keys.

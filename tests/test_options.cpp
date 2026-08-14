@@ -271,6 +271,22 @@ TEST(Options, ParseOptions)
     }
     {
         static const std::string fileName = "notAscii-其れ";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx", "--musicxml", "--smufl-rest-position" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 3);
+        EXPECT_FALSE(ctx.useFinaleRestPosition);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ";
+        ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx", "--musicxml", "--finale-rest-position" };
+        DenigmaContext ctx(DENIGMA_NAME);
+        auto newArgs = ctx.parseOptions(args.argc(), args.argv());
+        EXPECT_EQ(newArgs.size(), 3);
+        EXPECT_TRUE(ctx.useFinaleRestPosition);
+    }
+    {
+        static const std::string fileName = "notAscii-其れ";
         ArgList args = { DENIGMA_NAME, "--testing", "export", fileName + ".musx", "--svg", "--shape-def", "3,5", "--shape-def", "5,7",
                          "--svg-unit", "px", "--no-svg-page-scale", "--svg-scale", "1.25" };
         DenigmaContext ctx(DENIGMA_NAME);
