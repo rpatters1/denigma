@@ -2,6 +2,24 @@
 
 Notes collected while implementing Denigma's MusicXML exporter. These are MusicXML features or Finale/MUSX requirements that are currently difficult or impossible to express through `mx::api`. Denigma implementation work and MusicXML specification limitations belong in the [MusicXML feature roadmap](roadmap.md), not here.
 
+## Compressed MusicXML Archives
+
+### Score, linked parts, and archive relationships
+
+The MusicXML archive format can contain a root score document and related part documents. For Denigma, a useful `.mxl` export must package the score and every linked part that the converter can emit, rather than placing only the score in an archive. The archive must preserve the relationship between those documents through the appropriate MusicXML linking model and identify the score as the package root.
+
+Denigma's converter currently emits the score and parts as independent multi-output documents. `mx::api` has no package-level model for collecting those documents, assigning their archive paths, expressing the score-to-part relationships, or coordinating the root `META-INF/container.xml` entry with the linked documents. The existing ZIP utilities can write archive entries, but they do not provide this semantic layer.
+
+Needed API shape: a package or multi-document export model that owns the score and linked parts, assigns stable document names, records the score/part relationships, and exposes the root document and archive entries to the writer. This is the prerequisite for meaningful compressed export. A score-only archive is a possible mechanical proof of concept, but is not a useful user-facing Denigma feature by itself.
+
+### Embedded SVG shape resources
+
+Finale's compressed MusicXML files may also carry SVG resources for Shape Designer artwork and link those resources from the MusicXML documents. The exporter already has SVG shape generation, but `mx::api` has no package-resource model for declaring embedded graphics, assigning archive paths, or linking them from the relevant MusicXML elements.
+
+Properly converting Finale shapes that contain embedded text also requires access to the fonts used by those shapes and a font rasterization or outline library such as FreeType. That is a particular deployment challenge for WebAssembly builds, but it affects any environment where the source Finale fonts are unavailable. Without those fonts, an SVG conversion may preserve the shape geometry while rendering embedded text incorrectly or not at all.
+
+Needed API shape: optional package resources with MIME type, stable archive path, and links from the MusicXML representation to the resource. The rendering path additionally needs a reliable font-loading and FreeType-compatible policy for the target environment. This should remain separate from the score/part packaging work: SVG shape embedding may improve fidelity, but it is not a prerequisite for the core linked-score-and-parts archive, and importer support appears inconsistent.
+
 ## Staff Details
 
 ### Staff-details fields beyond staff-lines and staff-size
