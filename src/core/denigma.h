@@ -251,6 +251,7 @@ public:
     bool quiet{};
     bool noValidate{};
     bool allFontsAvailable{};
+    bool useFinaleRestPosition{};
     std::optional<int> cueLayer;
     std::optional<std::filesystem::path> excludeFolder;
     std::optional<std::string> partName;

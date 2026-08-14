@@ -37,6 +37,9 @@ struct Options final : public IOptions
     /// Options common to all converters.
     CommonOptions common;
     bool includeTempoTool{ false };
+    /// Shift non-floating whole rests to the SMuFL glyph-origin position.
+    /// Preserve Finale's nominal position for non-floating whole rests instead of using the SMuFL default.
+    bool useFinaleRestPosition{ false };
     /// Optional 1-based Finale layer to treat as cue material in addition to automatically detected cues.
     std::optional<int> cueLayer;
     /// Emit the score plus all linked parts for multi-output conversion.

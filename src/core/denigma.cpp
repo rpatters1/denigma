@@ -159,6 +159,10 @@ std::vector<const arg_char*> DenigmaContext::parseOptions(int argc, arg_char* ar
             noValidate = true;
         } else if (next == _ARG("--all-fonts-available")) {
             allFontsAvailable = true;
+        } else if (next == _ARG("--smufl-rest-position")) {
+            useFinaleRestPosition = false;
+        } else if (next == _ARG("--finale-rest-position")) {
+            useFinaleRestPosition = true;
         } else if (next == _ARG("--cue-layer")) {
             const std::string layerValue = std::string(_ARG_CONV(getNextArg()));
             if (layerValue.empty()) {

@@ -74,7 +74,7 @@ An explicitly positioned rest is the opposite case. There the author overrode th
 
 Finale's own export writes a resolved position for every rest, floating or not, which discards the distinction entirely.
 
-The separate question of whether an explicitly positioned rest's display pitch means Finale's nominal position or the SMuFL glyph origin is unsettled in MusicXML itself; see the whole-rest position item in the [roadmap](roadmap.md).
+The exporter defaults to the SMuFL glyph-origin convention for non-floating whole rests, which shifts the display pitch upward by one staff space. The `--finale-rest-position` option preserves Finale's nominal position for compatibility.
 
 ### Lyric verse numbers carry their Finale lyric type
 
