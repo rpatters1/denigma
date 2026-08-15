@@ -44,6 +44,7 @@ enum class Quality
     Augmented,          ///< Augmented triad.
     Diminished,         ///< Diminished triad.
     Dominant,           ///< Dominant (minor) seventh.
+    AugmentedSeventh,   ///< Augmented triad with a minor seventh.
     MajorSeventh,       ///< Major seventh.
     MinorSeventh,       ///< Minor seventh.
     DiminishedSeventh,  ///< Diminished seventh.

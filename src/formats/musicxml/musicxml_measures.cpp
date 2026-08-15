@@ -1028,6 +1028,62 @@ void processChords(
             chord.bassAlter = bass.alteration;
         }
 
+        // calcFretboardDisplayData owns the whole visibility decision, so a value here means Finale displays
+        // a structured fretboard for this chord and an empty result needs no further checks of our own.
+        if (const auto fretboard = calcFretboardDisplayData(assignment, keySignature, keyContext)) {
+            chord.hasFrameData = true;
+            chord.frameData.stringCount = fretboard->stringCount;
+            chord.frameData.fretCount = fretboard->fretCount;
+            switch (fretboard->unplayedStringDisplay) {
+            case UnplayedStringDisplay::None: break;
+            case UnplayedStringDisplay::Blank: chord.frameData.unplayed = ""; break;
+            case UnplayedStringDisplay::Muted: chord.frameData.unplayed = "x"; break;
+            }
+            if (fretboard->showFretboardNumber && fretboard->fretboardNumber > 1) {
+                chord.frameData.isFirstFretSpecified = true;
+                chord.frameData.firstFret = fretboard->fretboardNumber;
+            }
+
+            for (const auto& cell : fretboard->cells) {
+                // MusicXML marks an unplayed string with the frame's unplayed attribute, not a frame note.
+                if (cell.shape == details::FretboardDiagram::Shape::Muted) {
+                    continue;
+                }
+                auto note = mx::api::FrameNoteData{};
+                note.stringNumber = cell.string;
+                note.fretNumber = cell.fret;
+                if (cell.finger != 0) {
+                    note.fingering = cell.finger;
+                    note.isFingeringSpecified = true;
+                }
+                chord.frameData.notes.emplace_back(note);
+            }
+
+            const auto findFrameNote = [&](int stringNumber) {
+                return std::find_if(chord.frameData.notes.begin(), chord.frameData.notes.end(),
+                    [stringNumber](const auto& candidate) {
+                        return candidate.stringNumber == stringNumber;
+                    });
+            };
+            for (const auto& barre : fretboard->barres) {
+                // Finale anchors a barre to its endpoint strings whatever fret is played there, so a
+                // string stopped above the barre still carries the marker. Frame notes are emitted from
+                // the highest string number down, so the barre starts on Finale's end string (the
+                // highest) and stops on its start string (the lowest).
+                const auto start = findFrameNote(barre.endString);
+                const auto stop = findFrameNote(barre.startString);
+                // MusicXML cannot express half a barre, so emit one only when both ends have a note.
+                if (start != chord.frameData.notes.end() && stop != chord.frameData.notes.end()) {
+                    start->barre = mx::api::FrameBarre::start;
+                    stop->barre = mx::api::FrameBarre::stop;
+                }
+            }
+            std::stable_sort(chord.frameData.notes.begin(), chord.frameData.notes.end(),
+                [](const auto& left, const auto& right) {
+                    return left.stringNumber > right.stringNumber;
+                });
+        }
+
         auto direction = mx::api::DirectionData{};
         direction.tickTimePosition = context.timing.calcNearestMusicXmlDivisions(
             Fraction::fromEdu((std::max)(Edu{}, assignment->horzEdu)));

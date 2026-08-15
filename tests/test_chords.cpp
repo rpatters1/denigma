@@ -327,6 +327,165 @@ TEST(ChordSuffixClassifier, TreatsPlainSuspensionResolutionsAsDisplayOnly)
     EXPECT_TRUE(classification.degrees.empty());
 }
 
+TEST(ChordSuffixClassifier, SplitsAdjacentDegreesThatNormalizationRunsTogether)
+{
+    // Normalization strips the parentheses, so "7♭9(13)" arrives as "b913". Consuming the digits greedily
+    // would yield a single degree numbered 913, which drops both degrees on export.
+    const auto context = makeFontContext("Times New Roman");
+    auto suffix = makeSuffix(context, U'7');
+    appendSuffixElement(suffix, context, U'♭', 1);
+    appendSuffixElement(suffix, context, U'9', 2);
+    appendSuffixElement(suffix, context, U'(', 3);
+    appendSuffixElement(suffix, context, U'1', 4);
+    appendSuffixElement(suffix, context, U'3', 5);
+    appendSuffixElement(suffix, context, U')', 6);
+
+    const auto classification = denigma::classify::classifyChordSuffix(suffix);
+    ASSERT_TRUE(classification.quality);
+    EXPECT_EQ(*classification.quality, denigma::classify::chord::Quality::Dominant);
+    ASSERT_EQ(classification.degrees.size(), 2);
+    EXPECT_EQ(classification.degrees[0].value, 9);
+    EXPECT_EQ(classification.degrees[0].alteration, -1);
+    // A dominant seventh has no ninth of its own, so its flat ninth is added rather than altered.
+    EXPECT_EQ(classification.degrees[0].type, denigma::classify::chord::Degree::Type::Add);
+    EXPECT_EQ(classification.degrees[1].value, 13);
+    EXPECT_EQ(classification.degrees[1].alteration, 0);
+    EXPECT_EQ(classification.degrees[1].type, denigma::classify::chord::Degree::Type::Add);
+}
+
+TEST(ChordSuffixClassifier, AltersOnlyDegreesTheQualityAlreadySounds)
+{
+    // A minor seventh sounds its own fifth, so "m7(♭5)" alters that fifth instead of adding a new one.
+    const auto context = makeFontContext("Times New Roman");
+    auto suffix = makeSuffix(context, U'm');
+    appendSuffixElement(suffix, context, U'7', 1);
+    appendSuffixElement(suffix, context, U'(', 2);
+    appendSuffixElement(suffix, context, U'♭', 3);
+    appendSuffixElement(suffix, context, U'5', 4);
+    appendSuffixElement(suffix, context, U')', 5);
+
+    const auto classification = denigma::classify::classifyChordSuffix(suffix);
+    ASSERT_TRUE(classification.quality);
+    EXPECT_EQ(*classification.quality, denigma::classify::chord::Quality::MinorSeventh);
+    ASSERT_EQ(classification.degrees.size(), 1);
+    EXPECT_EQ(classification.degrees.front().value, 5);
+    EXPECT_EQ(classification.degrees.front().type, denigma::classify::chord::Degree::Type::Alter);
+}
+
+TEST(ChordSuffixClassifier, TreatsPlusSevenAsAnAugmentedSeventh)
+{
+    // The plus of "+7" raises the fifth of a seventh chord; it does not add a seventh to a major triad.
+    const auto context = makeFontContext("Times New Roman");
+    auto suffix = makeSuffix(context, U'+');
+    appendSuffixElement(suffix, context, U'7', 1);
+
+    const auto classification = denigma::classify::classifyChordSuffix(suffix);
+    ASSERT_TRUE(classification.quality);
+    EXPECT_EQ(*classification.quality, denigma::classify::chord::Quality::AugmentedSeventh);
+    EXPECT_TRUE(classification.degrees.empty());
+}
+
+TEST(ChordSuffixClassifier, TreatsSixNineAsASixthChordWithAnAddedNinth)
+{
+    // Both degrees are spelled out in "69", so the ninth must not print a second time.
+    const auto context = makeFontContext("Times New Roman");
+    auto suffix = makeSuffix(context, U'6');
+    appendSuffixElement(suffix, context, U'9', 1);
+
+    const auto classification = denigma::classify::classifyChordSuffix(suffix);
+    ASSERT_TRUE(classification.quality);
+    EXPECT_EQ(*classification.quality, denigma::classify::chord::Quality::MajorSixth);
+    ASSERT_EQ(classification.degrees.size(), 1);
+    EXPECT_EQ(classification.degrees.front().value, 9);
+    EXPECT_EQ(classification.degrees.front().type, denigma::classify::chord::Degree::Type::Add);
+    EXPECT_TRUE(classification.degrees.front().impliedByText);
+}
+
+TEST(ChordSuffixClassifier, ConsumesADiminishedSeventhBeforeItsDegrees)
+{
+    // "°7(addmaj7)" is a diminished seventh with an added major seventh. Matching only the "°" would
+    // leave the "7" to be read as a separate added degree.
+    const auto context = makeFontContext("Times New Roman");
+    auto suffix = makeSuffix(context, U'°');
+    appendSuffixElement(suffix, context, U'7', 1);
+    appendSuffixElement(suffix, context, U'(', 2);
+    appendSuffixElement(suffix, context, U'a', 3);
+    appendSuffixElement(suffix, context, U'd', 4);
+    appendSuffixElement(suffix, context, U'd', 5);
+    appendSuffixElement(suffix, context, U'm', 6);
+    appendSuffixElement(suffix, context, U'a', 7);
+    appendSuffixElement(suffix, context, U'j', 8);
+    appendSuffixElement(suffix, context, U'7', 9);
+    appendSuffixElement(suffix, context, U')', 10);
+
+    const auto classification = denigma::classify::classifyChordSuffix(suffix);
+    ASSERT_TRUE(classification.quality);
+    EXPECT_EQ(*classification.quality, denigma::classify::chord::Quality::DiminishedSeventh);
+    ASSERT_EQ(classification.degrees.size(), 1);
+    EXPECT_EQ(classification.degrees.front().value, 7);
+    EXPECT_EQ(classification.degrees.front().alteration, 1);
+    EXPECT_EQ(classification.degrees.front().type, denigma::classify::chord::Degree::Type::Add);
+}
+
+TEST(ChordSuffixClassifier, KeepsAMajorSixthOutOfTheDegreeList)
+{
+    // "maj6" normalizes to "M6", which must stay a major sixth chord rather than a raised sixth degree.
+    const auto context = makeFontContext("Times New Roman");
+    auto suffix = makeSuffix(context, U'm');
+    appendSuffixElement(suffix, context, U'a', 1);
+    appendSuffixElement(suffix, context, U'j', 2);
+    appendSuffixElement(suffix, context, U'6', 3);
+
+    const auto classification = denigma::classify::classifyChordSuffix(suffix);
+    ASSERT_TRUE(classification.quality);
+    EXPECT_EQ(*classification.quality, denigma::classify::chord::Quality::MajorSixth);
+    EXPECT_TRUE(classification.degrees.empty());
+}
+
+TEST(ChordSuffixClassifier, QualifiesAnExtendedChordWithAnAddedDegree)
+{
+    // "maj9(13)" is a major ninth with an added thirteenth, not a major triad.
+    const auto context = makeFontContext("Times New Roman");
+    auto suffix = makeSuffix(context, U'm');
+    appendSuffixElement(suffix, context, U'a', 1);
+    appendSuffixElement(suffix, context, U'j', 2);
+    appendSuffixElement(suffix, context, U'9', 3);
+    appendSuffixElement(suffix, context, U'(', 4);
+    appendSuffixElement(suffix, context, U'1', 5);
+    appendSuffixElement(suffix, context, U'3', 6);
+    appendSuffixElement(suffix, context, U')', 7);
+
+    const auto classification = denigma::classify::classifyChordSuffix(suffix);
+    ASSERT_TRUE(classification.quality);
+    EXPECT_EQ(*classification.quality, denigma::classify::chord::Quality::MajorNinth);
+    ASSERT_EQ(classification.degrees.size(), 1);
+    EXPECT_EQ(classification.degrees.front().value, 13);
+    EXPECT_EQ(classification.degrees.front().alteration, 0);
+    EXPECT_EQ(classification.degrees.front().type, denigma::classify::chord::Degree::Type::Add);
+}
+
+TEST(ChordSuffixClassifier, ReadsAParenthesizedMajorSeventhAsARaisedDegree)
+{
+    // "m9(maj7)" is a minor ninth whose implied minor seventh is raised, not an added degree.
+    const auto context = makeFontContext("Times New Roman");
+    auto suffix = makeSuffix(context, U'm');
+    appendSuffixElement(suffix, context, U'9', 1);
+    appendSuffixElement(suffix, context, U'(', 2);
+    appendSuffixElement(suffix, context, U'm', 3);
+    appendSuffixElement(suffix, context, U'a', 4);
+    appendSuffixElement(suffix, context, U'j', 5);
+    appendSuffixElement(suffix, context, U'7', 6);
+    appendSuffixElement(suffix, context, U')', 7);
+
+    const auto classification = denigma::classify::classifyChordSuffix(suffix);
+    ASSERT_TRUE(classification.quality);
+    EXPECT_EQ(*classification.quality, denigma::classify::chord::Quality::MinorNinth);
+    ASSERT_EQ(classification.degrees.size(), 1);
+    EXPECT_EQ(classification.degrees.front().value, 7);
+    EXPECT_EQ(classification.degrees.front().alteration, 1);
+    EXPECT_EQ(classification.degrees.front().type, denigma::classify::chord::Degree::Type::Alter);
+}
+
 TEST(ChordSuffixClassifierFixture, ReconstructsEveryDisplayedSuffix)
 {
     const auto document = loadChordsFixture();
@@ -363,3 +522,5 @@ TEST(ChordSuffixClassifierFixture, RetainsInternalParenthesesAndStackedStrings)
     EXPECT_GT(stacked->strings.size(), 1);
     EXPECT_TRUE(stacked->stackDegrees) << stacked->calcText();
 }
+
+

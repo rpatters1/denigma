@@ -98,6 +98,7 @@ BEGIN_ENUM_CONVERSION(classify::chord::Quality, mx::api::ChordKind)
     case classify::chord::Quality::Augmented: return mx::api::ChordKind::augmented;
     case classify::chord::Quality::Diminished: return mx::api::ChordKind::diminished;
     case classify::chord::Quality::Dominant: return mx::api::ChordKind::dominant;
+    case classify::chord::Quality::AugmentedSeventh: return mx::api::ChordKind::augmentedSeventh;
     case classify::chord::Quality::MajorSeventh: return mx::api::ChordKind::majorSeventh;
     case classify::chord::Quality::MinorSeventh: return mx::api::ChordKind::minorSeventh;
     case classify::chord::Quality::DiminishedSeventh: return mx::api::ChordKind::diminishedSeventh;
