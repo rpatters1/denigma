@@ -2,6 +2,24 @@
 
 Notes collected while implementing Denigma's MusicXML exporter. These are MusicXML features or Finale/MUSX requirements that are currently difficult or impossible to express through `mx::api`. Denigma implementation work and MusicXML specification limitations belong in the [MusicXML feature roadmap](roadmap.md), not here.
 
+## Compressed MusicXML Archives
+
+### Score, linked parts, and archive relationships
+
+The MusicXML archive format can contain a root score document and related part documents. For Denigma, a useful `.mxl` export must package the score and every linked part that the converter can emit, rather than placing only the score in an archive. The archive must preserve the relationship between those documents through the appropriate MusicXML linking model and identify the score as the package root.
+
+Denigma's converter currently emits the score and parts as independent multi-output documents. `mx::api` has no package-level model for collecting those documents, assigning their archive paths, expressing the score-to-part relationships, or coordinating the root `META-INF/container.xml` entry with the linked documents. The existing ZIP utilities can write archive entries, but they do not provide this semantic layer.
+
+Needed API shape: a package or multi-document export model that owns the score and linked parts, assigns stable document names, records the score/part relationships, and exposes the root document and archive entries to the writer. This is the prerequisite for meaningful compressed export. A score-only archive is a possible mechanical proof of concept, but is not a useful user-facing Denigma feature by itself.
+
+### Embedded SVG shape resources
+
+Finale's compressed MusicXML files may also carry SVG resources for Shape Designer artwork and link those resources from the MusicXML documents. The exporter already has SVG shape generation, but `mx::api` has no package-resource model for declaring embedded graphics, assigning archive paths, or linking them from the relevant MusicXML elements.
+
+Properly converting Finale shapes that contain embedded text also requires access to the fonts used by those shapes and a font rasterization or outline library such as FreeType. That is a particular deployment challenge for WebAssembly builds, but it affects any environment where the source Finale fonts are unavailable. Without those fonts, an SVG conversion may preserve the shape geometry while rendering embedded text incorrectly or not at all.
+
+Needed API shape: optional package resources with MIME type, stable archive path, and links from the MusicXML representation to the resource. The rendering path additionally needs a reliable font-loading and FreeType-compatible policy for the target environment. This should remain separate from the score/part packaging work: SVG shape embedding may improve fidelity, but it is not a prerequisite for the core linked-score-and-parts archive, and importer support appears inconsistent.
+
 ## Staff Details
 
 ### Staff-details fields beyond staff-lines and staff-size
@@ -79,20 +97,6 @@ MusicXML represents both markings as note-attached paired spanners inside `<nota
 MX's generated core layer models both elements, and `NotationsChoice` already admits them, but `mx::api` exposes neither. `CurveType` offers only `slur` and `tie`, and `NotationsWriter` skips any entry in `curveStarts`, `curveContinuations`, or `curveStops` whose type is not one of those two, so the generic curve path cannot carry a glissando. `MarkData` has no glissando or slide member either. `NoteAttachmentData` reserves `spannerStarts` and `spannerStops` vectors, but they are commented out and unimplemented. Denigma therefore has no way to write either element, and drops all Finale glissandi and tab slides.
 
 Needed API shape: a note-attached paired spanner model on `NoteAttachmentData`, which the reserved spanner vectors anticipate. It should carry the element kind (glissando or slide), start/stop state, spanner number, the optional printed text, `LineData` for line type and dash and space lengths, and the shared placement, position, and color attributes. A model general enough to host the wavy-line pairs described above would serve both gaps.
-
-## Lyrics
-
-### Word-extension endpoints
-
-MusicXML `<extend>` carries a `type` of `start`, `continue`, or `stop`. A word extension spanning several notes is written as `<extend type="start"/>` on the syllable and a text-less `<lyric>` holding `<extend type="stop"/>` on the note where the line ends, which is how Finale's own export encodes it. A bare `<extend/>` is the legacy form and says only that the syllable extends, not how far.
-
-`mx::api::LyricData` exposes `bool hasExtend` and nothing else, and its writer emits the bare form. There is also no way to express the terminating lyric, since a `LyricData` with empty `text` and no syllabic would have to write an `<extend>`-only element, which the current model cannot request. Denigma therefore emits a bare `<extend/>` on the syllable and the extension's length is unrecoverable by the importer.
-
-The source data is available. `details::LyricAssign::calcWordExtensionEndpoint` returns the terminating entry directly, so mapping start and stop would be straightforward once the API can express them. One case would remain unmappable regardless: the function returns null for documents using legacy rather than smart word extensions, where `LyricAssign::wext` holds a raw Evpu length instead of an endpoint. Resolving a length into a terminating note requires knowing note spacing, which is engraved layout, so legacy extensions keep the bare `<extend/>` in any event.
-
-`LyricData` is thin in other respects that matter less but would likely be addressed by the same work: it models no `<elision>`, none of `<humming>`, `<laughing>`, `<end-line>`, or `<end-paragraph>`, and carries `positionData` and `printData` but no `FontData`.
-
-Needed API shape: an extend model on `LyricData` carrying the MusicXML type alongside the existing boolean, and a way to write a lyric whose only content is an `<extend>`, so a multi-note extension can name both of its ends.
 
 ## Measures
 

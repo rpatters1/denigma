@@ -4,9 +4,9 @@ This is the implementation backlog for larger user-facing MusicXML export featur
 
 ## Compressed MusicXML (`.mxl`) output
 
-Export standards-compliant compressed MusicXML in addition to uncompressed `.musicxml` files. Each archive should contain an uncompressed `mimetype` entry first, a `META-INF/container.xml` file that identifies the root MusicXML document, and the compressed score document. The existing ZIP utilities and MXL massage support should supply most of the required archive infrastructure.
+Export useful standards-compliant compressed MusicXML in addition to uncompressed `.musicxml` files. A useful Denigma archive must package the score together with all linked part documents that the exporter already knows how to produce, and must preserve the relationships between them. The archive should contain an uncompressed `mimetype` entry first, a `META-INF/container.xml` file that identifies the root MusicXML document, and the linked score and part documents.
 
-Initially, write one `.mxl` archive for each score or part document that Denigma currently emits separately. Packaging the score and all linked parts into one MusicXML 4.0 archive through `<part-link>` can be considered as a later extension rather than a prerequisite for basic compressed output.
+The existing ZIP utilities and MXL massage support can supply archive mechanics, but they do not solve the packaging model. A score-only archive is technically possible, but it provides no added user value for Denigma's current multi-output workflow and should not be treated as the feature's initial completion criterion. See [mx-api-gaps.md](mx-api-gaps.md) for the missing score/part relationship support.
 
 ## Microtonal key signatures
 

@@ -36,6 +36,7 @@
 #include "musx/util/Arpeggio.h"
 #include "mx/api/FontData.h"
 #include "mx/api/CurveData.h"
+#include "mx/api/LyricData.h"
 #include "mx/api/PartData.h"
 #include "mx/api/PartSymbolData.h"
 #include "mx/api/ScoreData.h"
@@ -196,6 +197,7 @@ struct MusicXmlMusxMapping
     std::unordered_map<std::string, MusicXmlPitchContext> partIdToPitchContext;
     std::unordered_map<musx::dom::EntryNumber, MusicXmlNoteLocation> entryNumberToFirstNote;
     std::unordered_map<std::uint64_t, MusicXmlNoteLocation> noteLocations;
+    std::unordered_map<musx::dom::EntryNumber, std::vector<mx::api::LyricData>> pendingLyricStops;
     std::unordered_map<std::uint64_t, CueStaffMeasurePlan> cuePlansByMeasureStaff;
     std::unordered_set<musx::dom::EntryNumber> beamedEntries;
     std::unordered_set<std::uint64_t> pendingTieStopKeys;
@@ -212,6 +214,7 @@ struct MusicXmlMusxMapping
         layout.clear();
         entryNumberToFirstNote.clear();
         noteLocations.clear();
+        pendingLyricStops.clear();
         cuePlansByMeasureStaff.clear();
         pendingTieStopKeys.clear();
         processedPseudoLvTieEntries.clear();
