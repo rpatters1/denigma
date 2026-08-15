@@ -333,6 +333,47 @@ TEST(ExpressionClassification, ClassifiesStringMuteGlyphExpressions)
     }
 }
 
+TEST(ExpressionClassification, ClassifiesAccordionRegistrationGlyph)
+{
+    const auto context = makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)" + makeGlyphText(u8"\uE8A1"),
+        ExpressionCategoryType::Misc, {}, false, "Bravura");
+    const auto result = classifyExpression(context.def);
+
+    ASSERT_EQ(result.type, ExpressionType::AccordionRegistration);
+    EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
+    ASSERT_EQ(result.accordionRegistration().glyphNames.size(), 1u);
+    EXPECT_EQ(result.accordionRegistration().glyphNames.front(), "accdnRH3RanksClarinet");
+    EXPECT_EQ(result.accordionRegistration().hand, articulation::AccordionRegistration::Hand::Right);
+    EXPECT_EQ(result.accordionRegistration().rankCount, articulation::AccordionRegistration::RankCount::Three);
+    EXPECT_EQ(result.accordionRegistration().instrumentType, articulation::AccordionRegistration::InstrumentType::Clarinet);
+    ASSERT_EQ(result.accordionRegistration().dots.size(), 1u);
+    EXPECT_EQ(result.accordionRegistration().dots.front().position, articulation::AccordionRegistration::DotPosition::Middle);
+    EXPECT_FALSE(result.accordionRegistration().dots.front().baselineOffset.has_value());
+}
+
+TEST(ExpressionClassification, ClassifiesAccordionRegistrationCombiningGlyphSequence)
+{
+    const auto context = makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)" + makeGlyphText(u8"\uE8C6\uE8CA\uE8CA"),
+        ExpressionCategoryType::Misc, {}, false, "Bravura");
+    const auto result = classifyExpression(context.def);
+
+    ASSERT_EQ(result.type, ExpressionType::AccordionRegistration);
+    ASSERT_EQ(result.accordionRegistration().glyphNames.size(), 3u);
+    EXPECT_EQ(result.accordionRegistration().glyphNames[0], "accdnCombRH3RanksEmpty");
+    EXPECT_EQ(result.accordionRegistration().glyphNames[1], "accdnCombDot");
+    EXPECT_EQ(result.accordionRegistration().glyphNames[2], "accdnCombDot");
+    EXPECT_EQ(result.accordionRegistration().hand, articulation::AccordionRegistration::Hand::Right);
+    EXPECT_EQ(result.accordionRegistration().rankCount, articulation::AccordionRegistration::RankCount::Three);
+    ASSERT_EQ(result.accordionRegistration().dots.size(), 2u);
+    for (const auto& dot : result.accordionRegistration().dots) {
+        EXPECT_EQ(dot.position, articulation::AccordionRegistration::DotPosition::Other);
+        ASSERT_TRUE(dot.baselineOffset.has_value());
+        EXPECT_EQ(*dot.baselineOffset, 0);
+    }
+}
+
 TEST(ExpressionClassification, ClassifiesHarpPedalDiagramGlyphSequence)
 {
     const auto context = makeTextExpressionContext(

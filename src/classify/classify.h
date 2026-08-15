@@ -21,6 +21,7 @@
  */
 #pragma once
 
+#include "denigma/classify/articulations.h"
 #include "denigma/classify/dynamics.h"
 #include "musx/musx.h"
 
@@ -28,11 +29,16 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace denigma::classify {
 
 using ExpressionCategoryType = musx::dom::others::MarkingCategory::CategoryType;
+
+/// Classifies a canonical SMuFL accordion-registration glyph name for use by classifiers.
+/// @return The registration facts, or std::nullopt when the glyph name is not an accordion registration.
+std::optional<articulation::AccordionRegistration> classifyAccordionRegistrationGlyph(std::string_view glyphName);
 
 inline ExpressionCategoryType categoryTypeFromId(musx::dom::Cmper categoryId)
 {

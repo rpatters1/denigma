@@ -154,6 +154,25 @@ TEST(ArticulationClassification, ClassifiesUnicodeArticulationMarks)
     EXPECT_EQ(articulation->marks.front().glyphStyle.placement, GlyphStyle::Placement::Automatic);
 }
 
+TEST(ArticulationClassification, ClassifiesAccordionRegistrationGlyph)
+{
+    const auto context = makeFontContext("Bravura", 4095);
+    const auto result = classifyArticulationSymbol(context.fontInfo, U'\uE8A1');
+
+    const auto* accordion = result.as<articulation::AccordionRegistration>();
+    ASSERT_NE(accordion, nullptr);
+    ASSERT_EQ(accordion->glyphNames.size(), 1u);
+    EXPECT_EQ(accordion->glyphNames.front(), "accdnRH3RanksClarinet");
+    EXPECT_EQ(accordion->hand, articulation::AccordionRegistration::Hand::Right);
+    EXPECT_EQ(accordion->rankCount, articulation::AccordionRegistration::RankCount::Three);
+    EXPECT_EQ(accordion->instrumentType, articulation::AccordionRegistration::InstrumentType::Clarinet);
+    ASSERT_EQ(accordion->dots.size(), 1u);
+    EXPECT_EQ(accordion->dots.front().position, articulation::AccordionRegistration::DotPosition::Middle);
+    EXPECT_FALSE(accordion->dots.front().baselineOffset.has_value());
+    ASSERT_TRUE(result.glyphName.has_value());
+    EXPECT_EQ(*result.glyphName, "accdnRH3RanksClarinet");
+}
+
 TEST(ArticulationClassification, ClassifiesLegacyGlyphArticulationMarks)
 {
     const auto fontContext = makeFontContext();

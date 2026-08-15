@@ -25,6 +25,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "classify/classify.h"
 #include "smufl_mapping.h"
 
 namespace denigma::classify {
@@ -142,6 +143,107 @@ static ArticulationClassification makeStringMute(StringMuteType type, std::optio
     ArticulationClassification result;
     result.value = StringMute{ type, glyphStyleFromGlyphName(glyphName) };
     setGlyphMetadata(result, std::move(glyphName));
+    return result;
+}
+
+} // namespace
+
+std::optional<AccordionRegistration> classifyAccordionRegistrationGlyph(std::string_view glyphName)
+{
+    using Hand = AccordionRegistration::Hand;
+    using RankCount = AccordionRegistration::RankCount;
+    using InstrumentType = AccordionRegistration::InstrumentType;
+    using DotPosition = AccordionRegistration::DotPosition;
+
+    AccordionRegistration result;
+    result.glyphNames.emplace_back(glyphName);
+
+    const std::string_view name = glyphName;
+    if (name.starts_with("accdnRH3Ranks") || name == "accdnCombRH3RanksEmpty") {
+        result.hand = Hand::Right;
+        result.rankCount = RankCount::Three;
+    } else if (name.starts_with("accdnRH4Ranks") || name == "accdnCombRH4RanksEmpty") {
+        result.hand = Hand::Right;
+        result.rankCount = RankCount::Four;
+    } else if (name.starts_with("accdnLH2Ranks") || name == "accdnCombLH2RanksEmpty") {
+        result.hand = Hand::Left;
+        result.rankCount = RankCount::Two;
+    } else if (name.starts_with("accdnLH3Ranks") || name == "accdnCombLH3RanksEmptySquare") {
+        result.hand = Hand::Left;
+        result.rankCount = RankCount::Three;
+    } else {
+        return std::nullopt;
+    }
+
+    static const std::unordered_map<std::string_view, InstrumentType> instrumentTypes = {
+        { "accdnRH3RanksPiccolo", InstrumentType::Piccolo },
+        { "accdnRH3RanksClarinet", InstrumentType::Clarinet },
+        { "accdnRH3RanksBassoon", InstrumentType::Bassoon },
+        { "accdnRH3RanksOboe", InstrumentType::Oboe },
+        { "accdnRH3RanksViolin", InstrumentType::Violin },
+        { "accdnRH3RanksImitationMusette", InstrumentType::ImitationMusette },
+        { "accdnRH3RanksAuthenticMusette", InstrumentType::AuthenticMusette },
+        { "accdnRH3RanksOrgan", InstrumentType::Organ },
+        { "accdnRH3RanksHarmonium", InstrumentType::Harmonium },
+        { "accdnRH3RanksBandoneon", InstrumentType::Bandoneon },
+        { "accdnRH3RanksAccordion", InstrumentType::Accordion }
+    };
+    if (const auto found = instrumentTypes.find(name); found != instrumentTypes.end()) {
+        result.instrumentType = found->second;
+    }
+
+    static const std::unordered_map<std::string_view, std::vector<DotPosition>> dotPositions = {
+        { "accdnRH3RanksPiccolo", { DotPosition::Top } },
+        { "accdnRH3RanksClarinet", { DotPosition::Middle } },
+        { "accdnRH3RanksUpperTremolo8", { DotPosition::UpperMiddle } },
+        { "accdnRH3RanksLowerTremolo8", { DotPosition::LowerMiddle } },
+        { "accdnRH3RanksBassoon", { DotPosition::Bottom } },
+        { "accdnRH3RanksOboe", { DotPosition::Top, DotPosition::Middle } },
+        { "accdnRH3RanksViolin", { DotPosition::Middle, DotPosition::UpperMiddle } },
+        { "accdnRH3RanksImitationMusette", { DotPosition::Top, DotPosition::Middle, DotPosition::UpperMiddle } },
+        { "accdnRH3RanksAuthenticMusette", { DotPosition::LowerMiddle, DotPosition::Middle, DotPosition::UpperMiddle } },
+        { "accdnRH3RanksOrgan", { DotPosition::Top, DotPosition::Bottom } },
+        { "accdnRH3RanksHarmonium", { DotPosition::Top, DotPosition::Middle, DotPosition::Bottom } },
+        { "accdnRH3RanksBandoneon", { DotPosition::Middle, DotPosition::Bottom } },
+        { "accdnRH3RanksAccordion", { DotPosition::Middle, DotPosition::UpperMiddle, DotPosition::Bottom } },
+        { "accdnRH3RanksMaster", { DotPosition::Top, DotPosition::LowerMiddle, DotPosition::UpperMiddle, DotPosition::Bottom } },
+        { "accdnRH3RanksTwoChoirs", { DotPosition::LowerMiddle, DotPosition::UpperMiddle } },
+        { "accdnRH3RanksTremoloLower8ve", { DotPosition::LowerMiddle, DotPosition::UpperMiddle, DotPosition::Bottom } },
+        { "accdnRH3RanksTremoloUpper8ve", { DotPosition::Top, DotPosition::LowerMiddle, DotPosition::UpperMiddle } },
+        { "accdnRH3RanksDoubleTremoloLower8ve", { DotPosition::LowerMiddle, DotPosition::Middle, DotPosition::UpperMiddle, DotPosition::Bottom } },
+        { "accdnRH3RanksDoubleTremoloUpper8ve", { DotPosition::Top, DotPosition::LowerMiddle, DotPosition::Middle, DotPosition::UpperMiddle } },
+        { "accdnRH3RanksFullFactory", { DotPosition::Top, DotPosition::LowerMiddle, DotPosition::Middle, DotPosition::UpperMiddle, DotPosition::Bottom } },
+        { "accdnLH2Ranks8Round", { DotPosition::Top } },
+        { "accdnLH2Ranks16Round", { DotPosition::Bottom } },
+        { "accdnLH2Ranks8Plus16Round", { DotPosition::Top, DotPosition::Bottom } },
+        { "accdnLH2RanksMasterRound", { DotPosition::Top, DotPosition::Bottom } },
+        { "accdnLH2RanksMasterPlus16Round", { DotPosition::Top, DotPosition::Bottom } },
+        { "accdnLH2RanksFullMasterRound", { DotPosition::Top, DotPosition::Bottom } },
+        { "accdnLH3Ranks8Square", { DotPosition::Middle } },
+        { "accdnLH3Ranks2Square", { DotPosition::Top } },
+        { "accdnLH3RanksDouble8Square", { DotPosition::Middle, DotPosition::Bottom } },
+        { "accdnLH3Ranks2Plus8Square", { DotPosition::Top, DotPosition::Middle } },
+        { "accdnLH3RanksTuttiSquare", { DotPosition::Top, DotPosition::Middle, DotPosition::Bottom } }
+    };
+    if (const auto found = dotPositions.find(name); found != dotPositions.end()) {
+        for (const auto position : found->second) {
+            result.dots.push_back({ position, std::nullopt });
+        }
+    }
+    return result;
+}
+
+namespace {
+
+static std::optional<ArticulationClassification> makeAccordionRegistration(std::string glyphName)
+{
+    auto registration = classifyAccordionRegistrationGlyph(glyphName);
+    if (!registration) {
+        return std::nullopt;
+    }
+    ArticulationClassification result;
+    result.value = std::move(*registration);
+    result.glyphName = std::move(glyphName);
     return result;
 }
 
@@ -361,16 +463,16 @@ static ArticulationClassification classifyShape(
         default:
             break;
         }
-        std::visit([&](auto& value) {
+            std::visit([&](auto& value) {
                 using T = std::decay_t<decltype(value)>;
+                constexpr bool hasGlyphStyle = !std::is_same_v<T, std::monostate> && !std::is_same_v<T, PseudoTie>
+                    && !std::is_same_v<T, AccordionRegistration>;
 
                 if constexpr (std::is_same_v<T, ArticulationMarks>) {
                     for (auto& mark : value.marks) {
                         mark.glyphStyle = glyphStyleFromKnownShapeDefType(recognizedShapeType);
                     }
-                } else if constexpr (std::is_same_v<T, TechniqueMark> || std::is_same_v<T, HarmonMute>) {
-                    value.glyphStyle = glyphStyleFromKnownShapeDefType(recognizedShapeType);
-                } else if constexpr (!std::is_same_v<T, std::monostate> && !std::is_same_v<T, PseudoTie>) {
+                } else if constexpr (hasGlyphStyle) {
                     value.glyphStyle = glyphStyleFromKnownShapeDefType(recognizedShapeType);
                 }
             },
@@ -905,6 +1007,9 @@ static PrivateClassification classifyGlyphName(std::string glyphName)
     const std::string_view glyph = glyphName;
     if (const auto it = glyphClassifiers.find(glyph); it != glyphClassifiers.end()) {
         return it->second(std::move(glyphName));
+    }
+    if (auto accordionRegistration = makeAccordionRegistration(std::move(glyphName))) {
+        return std::move(*accordionRegistration);
     }
     return {};
 }
