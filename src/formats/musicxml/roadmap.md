@@ -56,9 +56,7 @@ First export the basic diagram and its note/fingering/barre details, then assess
 
 ## Additional direction types
 
-Use the principal-voice, other-direction, image, and accordion-registration models now exposed by `mx::api`.
-
-Begin with accordion registrations. Classify single-glyph Finale expressions using the `accdnRH3Ranks*` SMuFL names and map their 4′, 8′, and 16′ stops to `AccordionRegistrationData::high`, `middle`, and `low`. Assess the right-hand four-rank and left-hand glyph families separately where MusicXML cannot preserve their exact rank layout.
+Use the principal-voice, other-direction, and image models now exposed by `mx::api`.
 
 For principal voice, obtain representative Finale Hauptstimme and Nebenstimme smart-line fixtures before implementing the mapping. The exporter must identify both ends of the span and choose the appropriate principal-voice symbol; an isolated `analyticsHauptstimme` or `analyticsNebenstimme` expression glyph is not enough to infer a matching stop.
 

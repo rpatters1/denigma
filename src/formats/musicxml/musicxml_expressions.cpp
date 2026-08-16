@@ -71,6 +71,41 @@ mx::api::HarpPedalsData musicXmlHarpPedals(const classify::expression::HarpDiagr
     return result;
 }
 
+std::optional<mx::api::AccordionRegistrationData> musicXmlAccordionRegistration(
+    const classify::articulation::AccordionRegistration& registration,
+    VerticalPlacement placement)
+{
+    using DotPosition = classify::articulation::AccordionRegistration::DotPosition;
+
+    mx::api::AccordionRegistrationData result;
+    int middleDots = 0;
+    for (const auto& dot : registration.dots) {
+        switch (dot.position) {
+        case DotPosition::Top:
+            result.high = true;
+            break;
+        case DotPosition::UpperMiddle:
+        case DotPosition::Middle:
+        case DotPosition::LowerMiddle:
+            ++middleDots;
+            break;
+        case DotPosition::Bottom:
+            result.low = true;
+            break;
+        case DotPosition::Other:
+            return std::nullopt;
+        }
+    }
+    if (middleDots > 3) {
+        return std::nullopt;
+    }
+    if (middleDots > 0) {
+        result.middle = middleDots;
+    }
+    result.positionData.placement = enumConvert<mx::api::Placement>(placement);
+    return result;
+}
+
 bool isTopStaffAssignment(const MusxInstance<others::MeasureExprAssign>& assignment)
 {
     return assignment->staffAssign == static_cast<StaffCmper>(others::StaffList::FloatingValues::TopStaff);
@@ -303,6 +338,30 @@ std::optional<mx::api::DirectionData> createHarpDiagramExpressionDirection(
     auto harpPedals = musicXmlHarpPedals(classification.harpDiagram());
     harpPedals.positionData.horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
     direction.directionTypes.emplace_back(std::move(harpPedals));
+    return direction;
+}
+
+std::optional<mx::api::DirectionData> createAccordionRegistrationExpressionDirection(
+    const MusicXmlMusxMapping& context,
+    size_t staffIndex,
+    const MusxInstance<others::MeasureExprAssign>& assignment,
+    const classify::ExpressionClassification& classification,
+    VerticalPlacement placement,
+    bool isStaffValueSpecified)
+{
+    const auto accordion = musicXmlAccordionRegistration(classification.accordionRegistration(), placement);
+    if (!accordion) {
+        return std::nullopt;
+    }
+    auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
+    auto accordionData = std::move(*accordion);
+    accordionData.positionData.horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
+    if (classification.enigmaCtx) {
+        if (const auto font = classify::singleVisibleFont(*classification.enigmaCtx); font && font->calcIsSMuFL()) {
+            accordionData.fontData = context.musicXmlFontDataFromFontInfo(*font);
+        }
+    }
+    direction.directionTypes.emplace_back(std::move(accordionData));
     return direction;
 }
 
@@ -610,6 +669,16 @@ void processExpressions(
             emitGroupedDirection(createHarpDiagramExpressionDirection(
                 context, staffIndex, assignment, classification, placement, isStaffValueSpecified));
             break;
+        case classify::ExpressionType::AccordionRegistration: {
+            auto direction = createAccordionRegistrationExpressionDirection(
+                context, staffIndex, assignment, classification, placement, isStaffValueSpecified);
+            if (!direction) {
+                direction = createWordsExpressionDirection(
+                    context, staffIndex, assignment, classification, placement, isStaffValueSpecified);
+            }
+            emitGroupedDirection(std::move(direction));
+            break;
+        }
         case classify::ExpressionType::NonArpeggio:
             appendArpeggioCandidate(context, classification.nonArpeggio().candidate);
             break;

@@ -29,6 +29,7 @@
 #include "denigma/classify/expressions.h"
 #include "musicxml_mapping.h"
 #include "mx/api/DirectionData.h"
+#include "mx/api/AccordionRegistrationData.h"
 #include "mx/api/MeasureData.h"
 #include "mx/api/MarkData.h"
 #include "mx/api/NoteData.h"
@@ -89,6 +90,10 @@ mx::api::TempoData musicXmlMetronomeMark(
     const classify::ExpressionClassification& classification);
 /// Converts a classified Finale harp diagram to ordered MusicXML pedal tunings.
 mx::api::HarpPedalsData musicXmlHarpPedals(const classify::expression::HarpDiagram& diagram);
+/// Converts a classified Finale accordion registration when MusicXML can represent all its dots.
+std::optional<mx::api::AccordionRegistrationData> musicXmlAccordionRegistration(
+    const classify::articulation::AccordionRegistration& registration,
+    musx::dom::VerticalPlacement placement = musx::dom::VerticalPlacement::NotApplicable);
 mx::api::ScoreData createMusicXmlDocument(
     const CommandInputData& inputData,
     const DenigmaContext& denigmaContext,

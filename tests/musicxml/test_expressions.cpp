@@ -514,6 +514,41 @@ TEST(MusicXmlExpressions, HarpPedalDiagramMapsToOrderedPedalTunings)
     EXPECT_EQ(harpPedals.pedalTunings, expected);
 }
 
+TEST(MusicXmlExpressions, AccordionRegistrationMapsToMusicXmlStops)
+{
+    using Registration = classify::articulation::AccordionRegistration;
+    using Dot = Registration::Dot;
+    using DotPosition = Registration::DotPosition;
+
+    Registration registration;
+    registration.dots = {
+        Dot{ DotPosition::Top, std::nullopt },
+        Dot{ DotPosition::UpperMiddle, std::nullopt },
+        Dot{ DotPosition::Middle, std::nullopt },
+        Dot{ DotPosition::Bottom, std::nullopt }
+    };
+
+    const auto accordion = formats::musicxml::detail::musicXmlAccordionRegistration(
+        registration, musx::dom::VerticalPlacement::Above);
+    ASSERT_TRUE(accordion.has_value());
+    EXPECT_TRUE(accordion->high);
+    ASSERT_TRUE(accordion->middle.has_value());
+    EXPECT_EQ(*accordion->middle, 2);
+    EXPECT_TRUE(accordion->low);
+    EXPECT_EQ(accordion->positionData.placement, mx::api::Placement::above);
+}
+
+TEST(MusicXmlExpressions, UnresolvedAccordionRegistrationFallsBackFromMusicXmlMapping)
+{
+    using Registration = classify::articulation::AccordionRegistration;
+    using DotPosition = Registration::DotPosition;
+
+    Registration registration;
+    registration.dots.push_back({ DotPosition::Other, 0 });
+
+    EXPECT_FALSE(formats::musicxml::detail::musicXmlAccordionRegistration(registration).has_value());
+}
+
 TEST(MusicXmlExpressions, GenericTextDirectionsMatchReference)
 {
     setupTestDataPaths();
