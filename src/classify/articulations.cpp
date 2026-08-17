@@ -25,7 +25,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "classify/classify.h"
 #include "smufl_mapping.h"
 
 namespace denigma::classify {
@@ -146,9 +145,7 @@ static ArticulationClassification makeStringMute(StringMuteType type, std::optio
     return result;
 }
 
-} // namespace
-
-std::optional<AccordionRegistration> classifyAccordionRegistrationGlyph(std::string_view glyphName)
+static std::optional<AccordionRegistration> classifyAccordionRegistrationGlyph(std::string_view glyphName)
 {
     using Hand = AccordionRegistration::Hand;
     using RankCount = AccordionRegistration::RankCount;
@@ -227,13 +224,11 @@ std::optional<AccordionRegistration> classifyAccordionRegistrationGlyph(std::str
     };
     if (const auto found = dotPositions.find(name); found != dotPositions.end()) {
         for (const auto position : found->second) {
-            result.dots.push_back({ position, std::nullopt });
+            result.dots.push_back({ position });
         }
     }
     return result;
 }
-
-namespace {
 
 static std::optional<ArticulationClassification> makeAccordionRegistration(std::string glyphName)
 {

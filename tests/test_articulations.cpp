@@ -168,7 +168,6 @@ TEST(ArticulationClassification, ClassifiesAccordionRegistrationGlyph)
     EXPECT_EQ(accordion->instrumentType, articulation::AccordionRegistration::InstrumentType::Clarinet);
     ASSERT_EQ(accordion->dots.size(), 1u);
     EXPECT_EQ(accordion->dots.front().position, articulation::AccordionRegistration::DotPosition::Middle);
-    EXPECT_FALSE(accordion->dots.front().baselineOffset.has_value());
     ASSERT_TRUE(result.glyphName.has_value());
     EXPECT_EQ(*result.glyphName, "accdnRH3RanksClarinet");
 }

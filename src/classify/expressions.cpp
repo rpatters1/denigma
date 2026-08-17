@@ -792,64 +792,6 @@ static std::optional<ExpressionClassification> classifySymbolExpression(const Re
     return std::nullopt;
 }
 
-static bool isAccordionRegistrationBase(std::string_view glyphName)
-{
-    return glyphName == "accdnCombRH3RanksEmpty" || glyphName == "accdnCombRH4RanksEmpty"
-        || glyphName == "accdnCombLH2RanksEmpty" || glyphName == "accdnCombLH3RanksEmptySquare";
-}
-
-static std::optional<ExpressionClassification> classifyAccordionRegistrationExpression(
-    const ResolvedTextExpression& resolved)
-{
-    const auto chunks = collectVisibleExpressionChunks(resolved.rawTextCtx);
-    if (chunks.empty()) {
-        return std::nullopt;
-    }
-
-    articulation::AccordionRegistration registration;
-    bool firstGlyphIsCombiningBase = false;
-    for (const auto& chunk : chunks) {
-        bool utf8Valid = true;
-        for (utils::Utf8Iterator iter(chunk.text); !iter.atEnd(); iter.next()) {
-            if (!iter.valid()) {
-                utf8Valid = false;
-                break;
-            }
-            const auto glyphName = detail::glyphNameForFont(chunk.styles.font, iter->codepoint);
-            if (!glyphName) {
-                return std::nullopt;
-            }
-            if (auto accordion = classifyAccordionRegistrationGlyph(*glyphName)) {
-                if (!registration.glyphNames.empty()) {
-                    return std::nullopt;
-                }
-                registration = std::move(*accordion);
-                firstGlyphIsCombiningBase = isAccordionRegistrationBase(*glyphName);
-                continue;
-            }
-            if (!firstGlyphIsCombiningBase || *glyphName != "accdnCombDot") {
-                return std::nullopt;
-            }
-            registration.glyphNames.push_back(*glyphName);
-            registration.dots.push_back({ articulation::AccordionRegistration::DotPosition::Other,
-                chunk.styles.baseline + chunk.styles.superscript });
-        }
-        if (!utf8Valid) {
-            return std::nullopt;
-        }
-    }
-
-    if (registration.glyphNames.empty()) {
-        return std::nullopt;
-    }
-
-    ExpressionClassification result;
-    result.type = ExpressionType::AccordionRegistration;
-    result.basis = basisForSymbolRecognition(resolved.categoryType);
-    result.value = std::move(registration);
-    return result;
-}
-
 static std::optional<HarpDiagram::PedalPosition> harpPedalPositionFromGlyphName(std::string_view glyphName)
 {
     using PedalPosition = HarpDiagram::PedalPosition;
@@ -1198,9 +1140,6 @@ static std::optional<ExpressionClassification> classifyResolvedTextExpressionBef
 
     if (const auto error = classifyTextExpressionError(resolved)) {
         return error;
-    }
-    if (const auto accordionRegistration = classifyAccordionRegistrationExpression(resolved)) {
-        return withEnigmaCtx(*accordionRegistration, resolved);
     }
     if (const auto harpDiagram = classifyHarpDiagramExpression(resolved)) {
         return withEnigmaCtx(*harpDiagram, resolved);

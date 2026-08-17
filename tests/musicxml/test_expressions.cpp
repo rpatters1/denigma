@@ -522,10 +522,10 @@ TEST(MusicXmlExpressions, AccordionRegistrationMapsToMusicXmlStops)
 
     Registration registration;
     registration.dots = {
-        Dot{ DotPosition::Top, std::nullopt },
-        Dot{ DotPosition::UpperMiddle, std::nullopt },
-        Dot{ DotPosition::Middle, std::nullopt },
-        Dot{ DotPosition::Bottom, std::nullopt }
+        Dot{ DotPosition::Top },
+        Dot{ DotPosition::UpperMiddle },
+        Dot{ DotPosition::Middle },
+        Dot{ DotPosition::Bottom }
     };
 
     const auto accordion = formats::musicxml::detail::musicXmlAccordionRegistration(
@@ -544,7 +544,7 @@ TEST(MusicXmlExpressions, UnresolvedAccordionRegistrationFallsBackFromMusicXmlMa
     using DotPosition = Registration::DotPosition;
 
     Registration registration;
-    registration.dots.push_back({ DotPosition::Other, 0 });
+    registration.dots.push_back({ DotPosition::Other });
 
     EXPECT_FALSE(formats::musicxml::detail::musicXmlAccordionRegistration(registration).has_value());
 }

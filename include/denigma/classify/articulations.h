@@ -162,12 +162,12 @@ struct StringMute
 };
 
 /// @struct AccordionRegistration
-/// @brief SMuFL accordion-registration glyphs found in Finale notation.
+/// @brief A precomposed SMuFL accordion-registration glyph found in Finale notation.
 ///
-/// The sequence contains canonical SMuFL glyph names in source order. A precomposed
-/// registration has one name. A combining registration has one combining base followed
-/// by one or more combining dots. The sequence preserves the source facts without
-/// reducing them to a target-format representation.
+/// Classification currently covers only a single precomposed registration glyph (e.g.
+/// `accdnRH3RanksClarinet`). Combining sequences, where a Finale user assembles a custom
+/// diagram from a combining base glyph plus one or more `accdnCombDot` glyphs, are not
+/// classified; see the accordion registration entry in the MusicXML roadmap.
 struct AccordionRegistration
 {
     /// @enum Hand
@@ -220,13 +220,11 @@ struct AccordionRegistration
     };
 
     /// @struct Dot
-    /// @brief One registration dot and its available source placement information.
+    /// @brief One registration dot decoded from the precomposed glyph.
     struct Dot
     {
-        /// Logical position decoded from a precomposed glyph or derived from source placement.
+        /// Logical position decoded from the precomposed glyph.
         DotPosition position{};
-        /// Enigma baseline displacement for a combining dot, if the source supplied one.
-        std::optional<musx::dom::Evpu> baselineOffset;
     };
 
     /// Hand encoded by the source glyph family.
@@ -235,9 +233,9 @@ struct AccordionRegistration
     RankCount rankCount{};
     /// Named instrument or reed preset, when the source glyph identifies one.
     InstrumentType instrumentType{};
-    /// Registration dots, preserving multiplicity and any source placement information.
+    /// Registration dots, preserving multiplicity.
     std::vector<Dot> dots;
-    /// Canonical SMuFL names for the recognized registration glyph sequence.
+    /// Canonical SMuFL name for the recognized registration glyph, as a single-element sequence.
     std::vector<std::string> glyphNames;
 };
 
