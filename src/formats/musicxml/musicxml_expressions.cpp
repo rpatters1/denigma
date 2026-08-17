@@ -354,7 +354,7 @@ std::optional<mx::api::DirectionData> createAccordionRegistrationExpressionDirec
         return std::nullopt;
     }
     auto direction = createExpressionDirection(context, staffIndex, assignment, placement, isStaffValueSpecified);
-    auto accordionData = std::move(*accordion);
+    auto accordionData = *accordion;
     accordionData.positionData.horizontalAlignment = musicXmlHorizontalAlignmentForTextExpression(assignment);
     if (classification.enigmaCtx) {
         if (const auto font = classify::singleVisibleFont(*classification.enigmaCtx); font && font->calcIsSMuFL()) {
