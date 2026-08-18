@@ -6,7 +6,7 @@
     <rights>2012</rights>
     <encoding>
       <software>Finale v27.4 for Mac</software>
-      <encoding-date>2026-07-13</encoding-date>
+      <encoding-date>2026-08-15</encoding-date>
       <supports attribute="new-system" element="print" type="yes" value="yes"/>
       <supports attribute="new-page" element="print" type="yes" value="yes"/>
       <supports element="accidental" type="yes"/>
@@ -105,13 +105,13 @@
           <straight/>
         </swing>
       </sound>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>C</root-step>
         </root>
         <kind halign="center" text="">major</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>C</root-step>
         </root>
@@ -126,13 +126,13 @@
     </measure>
     <!--=======================================================-->
     <measure number="2" width="309">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>C</root-step>
         </root>
         <kind halign="center" text="5">power</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>C</root-step>
         </root>
@@ -147,13 +147,13 @@
     </measure>
     <!--=======================================================-->
     <measure number="3" width="309">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>D</root-step>
         </root>
         <kind halign="center" text="m6">minor-sixth</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>D</root-step>
         </root>
@@ -169,14 +169,14 @@
     <!--=======================================================-->
     <measure number="4" width="328">
       <print new-system="yes"/>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>B</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="maj7">major-seventh</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>A</root-step>
         </root>
@@ -191,13 +191,13 @@
     </measure>
     <!--=======================================================-->
     <measure number="5" width="258">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>E</root-step>
         </root>
         <kind halign="center" text="m(maj7)">major-minor</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>C</root-step>
         </root>
@@ -212,13 +212,13 @@
     </measure>
     <!--=======================================================-->
     <measure number="6" width="257">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>G</root-step>
         </root>
         <kind halign="center" text="dim7">diminished-seventh</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>G</root-step>
         </root>
@@ -233,7 +233,7 @@
     </measure>
     <!--=======================================================-->
     <measure number="7" width="257">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>C</root-step>
         </root>
@@ -252,7 +252,7 @@
     </measure>
     <!--=======================================================-->
     <measure number="8" width="257">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>A</root-step>
           <root-alter>-1</root-alter>
@@ -264,7 +264,7 @@
           <degree-type>add</degree-type>
         </degree>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>C</root-step>
         </root>
@@ -290,13 +290,13 @@
     <!--=======================================================-->
     <measure number="9" width="375">
       <print new-system="yes"/>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>D</root-step>
         </root>
         <kind halign="center" text="11">dominant-11th</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>D</root-step>
         </root>
@@ -311,7 +311,7 @@
     </measure>
     <!--=======================================================-->
     <measure number="10" width="305">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>C</root-step>
         </root>
@@ -322,7 +322,7 @@
           <degree-type>add</degree-type>
         </degree>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>D</root-step>
         </root>
@@ -347,7 +347,7 @@
     </measure>
     <!--=======================================================-->
     <measure number="11" width="305">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>D</root-step>
         </root>
@@ -361,7 +361,7 @@
         <duration>32</duration>
         <voice>1</voice>
       </note>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>D</root-step>
         </root>
@@ -390,14 +390,14 @@
           <mode>major</mode>
         </key>
       </attributes>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>G</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="">major</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>G</root-step>
           <root-alter>-1</root-alter>
@@ -413,14 +413,14 @@
     </measure>
     <!--=======================================================-->
     <measure number="14" width="254">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>G</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="5">power</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>G</root-step>
           <root-alter>-1</root-alter>
@@ -436,14 +436,14 @@
     </measure>
     <!--=======================================================-->
     <measure number="15" width="254">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>A</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="m6">minor-sixth</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>A</root-step>
           <root-alter>-1</root-alter>
@@ -459,19 +459,65 @@
     </measure>
     <!--=======================================================-->
     <measure number="16" width="254">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>F</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="maj7">major-seventh</kind>
+        <frame default-y="83" halign="center" unplayed="x" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <frame-note>
+            <string>6</string>
+            <fret>0</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>2</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>4</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>4</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>4</fret>
+            <barre type="stop"/>
+          </frame-note>
+        </frame>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>E</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="m7">minor-seventh</kind>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <frame-note>
+            <string>4</string>
+            <fret>1</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>2</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>2</fret>
+          </frame-note>
+        </frame>
         <offset>16</offset>
       </harmony>
       <note>
@@ -482,19 +528,71 @@
     </measure>
     <!--=======================================================-->
     <measure number="17" width="255">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>B</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="m(maj7)">major-minor</kind>
+        <frame default-y="83" halign="center" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="6fr.">6</first-fret>
+          <frame-note>
+            <string>6</string>
+            <fret>6</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>5</string>
+            <fret>8</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>7</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>6</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>6</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>6</fret>
+            <barre type="stop"/>
+          </frame-note>
+        </frame>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>G</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" use-symbols="yes">diminished</kind>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="4fr.">4</first-fret>
+          <frame-note>
+            <string>4</string>
+            <fret>4</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>5</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>7</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>5</fret>
+          </frame-note>
+        </frame>
         <offset>16</offset>
       </harmony>
       <note>
@@ -506,19 +604,61 @@
     <!--=======================================================-->
     <measure number="18" width="341">
       <print new-system="yes"/>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>D</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="dim7">diminished-seventh</kind>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="3fr.">3</first-fret>
+          <frame-note>
+            <string>5</string>
+            <fret>4</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>5</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>5</fret>
+          </frame-note>
+        </frame>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>D</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="7" use-symbols="yes">diminished-seventh</kind>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="3fr.">3</first-fret>
+          <frame-note>
+            <string>5</string>
+            <fret>4</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>5</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>5</fret>
+          </frame-note>
+        </frame>
         <offset>16</offset>
       </harmony>
       <note>
@@ -529,7 +669,7 @@
     </measure>
     <!--=======================================================-->
     <measure number="19" width="254">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>G</root-step>
           <root-alter>-1</root-alter>
@@ -540,6 +680,26 @@
           <degree-alter>-1</degree-alter>
           <degree-type>alter</degree-type>
         </degree>
+        <frame default-y="83" halign="center" unplayed="x" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <frame-note>
+            <string>6</string>
+            <fret>2</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>2</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>2</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>1</fret>
+          </frame-note>
+        </frame>
       </harmony>
       <note>
         <rest measure="yes"/>
@@ -549,7 +709,7 @@
     </measure>
     <!--=======================================================-->
     <measure number="20" width="254">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>E</root-step>
           <root-alter>-2</root-alter>
@@ -561,7 +721,7 @@
           <degree-type>add</degree-type>
         </degree>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>G</root-step>
           <root-alter>-1</root-alter>
@@ -587,19 +747,44 @@
     </measure>
     <!--=======================================================-->
     <measure number="21" width="254">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>A</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="11">dominant-11th</kind>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>A</root-step>
           <root-alter>-1</root-alter>
         </root>
         <kind halign="center" text="13">dominant-13th</kind>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="6fr.">6</first-fret>
+          <frame-note>
+            <string>5</string>
+            <fret>7</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>6</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>7</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>7</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>9</fret>
+          </frame-note>
+        </frame>
         <offset>16</offset>
       </harmony>
       <note>
@@ -610,7 +795,7 @@
     </measure>
     <!--=======================================================-->
     <measure number="22" width="255">
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>G</root-step>
           <root-alter>-1</root-alter>
@@ -621,8 +806,28 @@
           <degree-alter>-1</degree-alter>
           <degree-type>add</degree-type>
         </degree>
+        <frame default-y="83" halign="center" unplayed="x" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <frame-note>
+            <string>6</string>
+            <fret>2</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>2</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>3</fret>
+          </frame-note>
+        </frame>
       </harmony>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>A</root-step>
           <root-alter>-1</root-alter>
@@ -638,6 +843,33 @@
           <degree-alter>-1</degree-alter>
           <degree-type text="add">add</degree-type>
         </degree>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="10fr.">10</first-fret>
+          <frame-note>
+            <string>5</string>
+            <fret>11</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>10</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>11</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>12</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>12</fret>
+            <barre type="stop"/>
+          </frame-note>
+        </frame>
         <offset>16</offset>
       </harmony>
       <note>
@@ -649,7 +881,7 @@
     <!--=======================================================-->
     <measure number="23" width="341">
       <print new-system="yes"/>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>A</root-step>
           <root-alter>-1</root-alter>
@@ -665,7 +897,7 @@
         <duration>32</duration>
         <voice>1</voice>
       </note>
-      <harmony default-y="40" font-family="Geneva" font-size="8.4" font-style="normal">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
         <root>
           <root-step>A</root-step>
           <root-alter>-1</root-alter>
@@ -680,6 +912,49 @@
     </measure>
     <!--=======================================================-->
     <measure number="24" width="254">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" parentheses-degrees="yes" text="m9">minor-ninth</kind>
+        <degree>
+          <degree-value text="maj7">7</degree-value>
+          <degree-alter>1</degree-alter>
+          <degree-type>alter</degree-type>
+        </degree>
+        <frame default-y="83" halign="center" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="8fr.">8</first-fret>
+          <frame-note>
+            <string>6</string>
+            <fret>8</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>5</string>
+            <fret>10</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>9</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>8</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>8</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>10</fret>
+            <barre type="stop"/>
+          </frame-note>
+        </frame>
+        <offset>8</offset>
+      </harmony>
       <note>
         <rest measure="yes"/>
         <duration>32</duration>
@@ -688,14 +963,165 @@
     </measure>
     <!--=======================================================-->
     <measure number="25" width="254">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" parentheses-degrees="yes" text="maj9">major-ninth</kind>
+        <degree>
+          <degree-value>13</degree-value>
+          <degree-alter>0</degree-alter>
+          <degree-type text="">add</degree-type>
+        </degree>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="3fr.">3</first-fret>
+          <frame-note>
+            <string>5</string>
+            <fret>3</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>5</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>4</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>5</fret>
+            <barre type="stop"/>
+          </frame-note>
+        </frame>
+      </harmony>
       <note>
         <rest measure="yes"/>
         <duration>32</duration>
         <voice>1</voice>
       </note>
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" parentheses-degrees="yes" text="9">dominant-ninth</kind>
+        <degree>
+          <degree-value>5</degree-value>
+          <degree-alter>-1</degree-alter>
+          <degree-type>alter</degree-type>
+        </degree>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <frame-note>
+            <string>5</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>2</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>2</fret>
+            <barre type="stop"/>
+          </frame-note>
+        </frame>
+        <offset>-8</offset>
+      </harmony>
     </measure>
     <!--=======================================================-->
     <measure number="26" width="254">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" parentheses-degrees="yes" text="13">dominant-13th</kind>
+        <degree>
+          <degree-value>9</degree-value>
+          <degree-alter>-1</degree-alter>
+          <degree-type>alter</degree-type>
+        </degree>
+        <frame default-y="83" halign="center" unplayed="x" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="8fr.">8</first-fret>
+          <frame-note>
+            <string>4</string>
+            <fret>8</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>9</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>10</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>9</fret>
+          </frame-note>
+        </frame>
+      </harmony>
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" parentheses-degrees="yes" text="m9">minor-ninth</kind>
+        <degree>
+          <degree-value>5</degree-value>
+          <degree-alter>-1</degree-alter>
+          <degree-type>alter</degree-type>
+        </degree>
+        <frame default-y="83" halign="center" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="8fr.">8</first-fret>
+          <frame-note>
+            <string>6</string>
+            <fret>8</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>5</string>
+            <fret>9</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>8</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>8</fret>
+            <barre type="stop"/>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>11</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>10</fret>
+          </frame-note>
+        </frame>
+        <offset>16</offset>
+      </harmony>
       <note>
         <rest measure="yes"/>
         <duration>32</duration>
@@ -704,6 +1130,81 @@
     </measure>
     <!--=======================================================-->
     <measure number="27" width="255">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" parentheses-degrees="yes" text="7b9">dominant</kind>
+        <degree>
+          <degree-value>9</degree-value>
+          <degree-alter>-1</degree-alter>
+          <degree-type>add</degree-type>
+        </degree>
+        <degree>
+          <degree-value>13</degree-value>
+          <degree-alter>0</degree-alter>
+          <degree-type text="">add</degree-type>
+        </degree>
+        <frame default-y="83" halign="center" unplayed="x" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="8fr.">8</first-fret>
+          <frame-note>
+            <string>4</string>
+            <fret>8</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>9</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>10</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>9</fret>
+          </frame-note>
+        </frame>
+      </harmony>
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" text="69">major-sixth</kind>
+        <degree print-object="no">
+          <degree-value>9</degree-value>
+          <degree-alter>0</degree-alter>
+          <degree-type>add</degree-type>
+        </degree>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <frame-note>
+            <string>5</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>2</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>2</fret>
+            <barre type="stop"/>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>3</fret>
+          </frame-note>
+        </frame>
+        <offset>16</offset>
+      </harmony>
       <note>
         <rest measure="yes"/>
         <duration>32</duration>
@@ -713,6 +1214,74 @@
     <!--=======================================================-->
     <measure number="28" width="405">
       <print new-system="yes"/>
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" text="maj6">major-sixth</kind>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <frame-note>
+            <string>5</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>2</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>0</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>0</fret>
+          </frame-note>
+        </frame>
+      </harmony>
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" parentheses-degrees="yes" text="maj9">major-ninth</kind>
+        <degree>
+          <degree-value>5</degree-value>
+          <degree-alter>-1</degree-alter>
+          <degree-type>alter</degree-type>
+        </degree>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <frame-note>
+            <string>5</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>2</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>4</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>2</fret>
+            <barre type="stop"/>
+          </frame-note>
+        </frame>
+        <offset>16</offset>
+      </harmony>
       <note>
         <rest measure="yes"/>
         <duration>32</duration>
@@ -721,6 +1290,82 @@
     </measure>
     <!--=======================================================-->
     <measure number="29" width="318">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" parentheses-degrees="yes" text="m11">minor-11th</kind>
+        <degree>
+          <degree-value text="maj7">7</degree-value>
+          <degree-alter>1</degree-alter>
+          <degree-type>alter</degree-type>
+        </degree>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <frame-note>
+            <string>5</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>1</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>4</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>1</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>1</fret>
+            <barre type="stop"/>
+          </frame-note>
+        </frame>
+      </harmony>
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" parentheses-degrees="yes" use-symbols="yes">diminished-seventh</kind>
+        <degree>
+          <degree-value text="maj7">7</degree-value>
+          <degree-alter>1</degree-alter>
+          <degree-type text="add">add</degree-type>
+        </degree>
+        <frame default-y="83" halign="center" unplayed="" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="7fr.">7</first-fret>
+          <frame-note>
+            <string>6</string>
+            <fret>8</fret>
+          </frame-note>
+          <frame-note>
+            <string>4</string>
+            <fret>7</fret>
+            <barre type="start"/>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>8</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>7</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>7</fret>
+            <barre type="stop"/>
+          </frame-note>
+        </frame>
+        <offset>16</offset>
+      </harmony>
       <note>
         <rest measure="yes"/>
         <duration>32</duration>
@@ -729,6 +1374,33 @@
     </measure>
     <!--=======================================================-->
     <measure number="30" width="318">
+      <harmony default-y="100" font-family="Geneva" font-size="8.4" font-style="normal">
+        <root>
+          <root-step>C</root-step>
+        </root>
+        <kind halign="center" text="7" use-symbols="yes">augmented-seventh</kind>
+        <frame default-y="83" halign="center" unplayed="x" valign="top">
+          <frame-strings>6</frame-strings>
+          <frame-frets>4</frame-frets>
+          <first-fret location="right" text="3fr.">3</first-fret>
+          <frame-note>
+            <string>5</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>3</string>
+            <fret>3</fret>
+          </frame-note>
+          <frame-note>
+            <string>2</string>
+            <fret>5</fret>
+          </frame-note>
+          <frame-note>
+            <string>1</string>
+            <fret>4</fret>
+          </frame-note>
+        </frame>
+      </harmony>
       <note>
         <rest measure="yes"/>
         <duration>32</duration>

@@ -161,6 +161,84 @@ struct StringMute
     GlyphStyle glyphStyle{};
 };
 
+/// @struct AccordionRegistration
+/// @brief A precomposed SMuFL accordion-registration glyph found in Finale notation.
+///
+/// Classification currently covers only a single precomposed registration glyph (e.g.
+/// `accdnRH3RanksClarinet`). Combining sequences, where a Finale user assembles a custom
+/// diagram from a combining base glyph plus one or more `accdnCombDot` glyphs, are not
+/// classified; see the accordion registration entry in the MusicXML roadmap.
+struct AccordionRegistration
+{
+    /// @enum Hand
+    /// @brief Hand designation encoded by the registration diagram.
+    enum class Hand
+    {
+        Other,
+        Right,
+        Left
+    };
+
+    /// @enum RankCount
+    /// @brief Number of reed ranks in the registration diagram.
+    enum class RankCount
+    {
+        Other,
+        Two,
+        Three,
+        Four
+    };
+
+    /// @enum InstrumentType
+    /// @brief Named accordion instrument or reed preset encoded by a glyph.
+    enum class InstrumentType
+    {
+        Other,
+        Piccolo,
+        Clarinet,
+        Bassoon,
+        Oboe,
+        Violin,
+        ImitationMusette,
+        AuthenticMusette,
+        Organ,
+        Harmonium,
+        Bandoneon,
+        Accordion
+    };
+
+    /// @enum DotPosition
+    /// @brief Logical vertical position of a registration dot, from top to bottom.
+    enum class DotPosition
+    {
+        Other,
+        Top,
+        UpperMiddle,
+        Middle,
+        LowerMiddle,
+        Bottom
+    };
+
+    /// @struct Dot
+    /// @brief One registration dot decoded from the precomposed glyph.
+    struct Dot
+    {
+        /// Logical position decoded from the precomposed glyph.
+        DotPosition position{};
+    };
+
+    /// Hand encoded by the source glyph family.
+    Hand hand{};
+    /// Number of ranks encoded by the source glyph family.
+    RankCount rankCount{};
+    /// Named instrument or reed preset, when the source glyph identifies one.
+    InstrumentType instrumentType{};
+    /// Registration dots, preserving multiplicity.
+    std::vector<Dot> dots;
+    /// Canonical SMuFL name for the recognized registration glyph, as a single-element sequence.
+    std::vector<std::string> glyphNames;
+};
+
 /// @struct Tremolo
 /// @brief Classification for tremolo articulation marks.
 struct Tremolo
@@ -378,7 +456,8 @@ using ArticulationValue = std::variant<
     std::monostate, articulation::ArticulationMarks, articulation::TechniqueMark, articulation::HarmonMute,
     articulation::PluckedDamp, articulation::StringMute, articulation::Tremolo, articulation::Fermata,
     articulation::BreathMark, articulation::Caesura, articulation::Arpeggio, articulation::Ornament,
-    articulation::VerticalEntryBracket, articulation::Parenthesis, PseudoTie, articulation::OtherMark>;
+    articulation::AccordionRegistration, articulation::VerticalEntryBracket, articulation::Parenthesis, PseudoTie,
+    articulation::OtherMark>;
 
 /// @struct ArticulationClassification
 /// @brief Result returned by articulation classification.

@@ -21,6 +21,7 @@
  */
 #pragma once
 
+#include "denigma/classify/articulations.h"
 #include "denigma/classify/dynamics.h"
 #include "musx/musx.h"
 
@@ -28,6 +29,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace denigma::classify {

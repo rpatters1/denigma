@@ -333,6 +333,24 @@ TEST(ExpressionClassification, ClassifiesStringMuteGlyphExpressions)
     }
 }
 
+TEST(ExpressionClassification, ClassifiesAccordionRegistrationGlyph)
+{
+    const auto context = makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)" + makeGlyphText(u8"\uE8A1"),
+        ExpressionCategoryType::Misc, {}, false, "Bravura");
+    const auto result = classifyExpression(context.def);
+
+    ASSERT_EQ(result.type, ExpressionType::AccordionRegistration);
+    EXPECT_EQ(result.basis, ClassificationBasis::Heuristic);
+    ASSERT_EQ(result.accordionRegistration().glyphNames.size(), 1u);
+    EXPECT_EQ(result.accordionRegistration().glyphNames.front(), "accdnRH3RanksClarinet");
+    EXPECT_EQ(result.accordionRegistration().hand, articulation::AccordionRegistration::Hand::Right);
+    EXPECT_EQ(result.accordionRegistration().rankCount, articulation::AccordionRegistration::RankCount::Three);
+    EXPECT_EQ(result.accordionRegistration().instrumentType, articulation::AccordionRegistration::InstrumentType::Clarinet);
+    ASSERT_EQ(result.accordionRegistration().dots.size(), 1u);
+    EXPECT_EQ(result.accordionRegistration().dots.front().position, articulation::AccordionRegistration::DotPosition::Middle);
+}
+
 TEST(ExpressionClassification, ClassifiesHarpPedalDiagramGlyphSequence)
 {
     const auto context = makeTextExpressionContext(

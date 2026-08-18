@@ -237,3 +237,29 @@ MusicXML uses `<time-modification>` on notes for the cumulative timing effect of
 `mx::api::NoteData` can store multiple `TupletStart` and `TupletStop` objects, and `mx::api::DurationData` has the single cumulative time-modification slot that MusicXML requires. However, `mx::impl::NoteWriter` currently searches sibling notes for exactly one tuplet start and exactly one tuplet stop while writing a note's `<time-modification>` normal-type data. Denigma can compute the cumulative ratio, but nested tuplets may still be unreliable through the current writer path.
 
 Needed API shape: writer support for nested tuplets, probably by matching `TupletStart` / `TupletStop` by `numberLevel` and allowing `DurationData` to express cumulative time modification independently of the visual tuplet-start search.
+
+## Harmony and Fretboards
+
+### Printed text on chord degrees
+
+MusicXML lets each `<degree>` child carry the text that should be printed for it: `<degree-value text="maj7">7</degree-value>` and `<degree-type text="add">add</degree-type>`. Finale relies on this. It writes the chord's base spelling in `<kind text="m9">` and moves the parenthesized remainder onto the degree elements, so the whole suffix renders exactly once.
+
+`mx::api::Extension` models `extensionType`, `extensionAlter`, `extensionNumber`, and `printObject`, but has no text member, so Denigma cannot place the printed spelling on a degree. Denigma therefore writes the entire displayed suffix in `ChordData::text` and must suppress each degree with `print-object="no"` to avoid rendering the parenthesized text twice, which loses the degree text that Finale exports.
+
+Needed API shape: an optional printed-text member on `Extension` for the `degree-value` and `degree-type` `text` attributes, so an exporter can split a suffix between the kind and its degrees the way Finale does.
+
+### Bass note arrangement
+
+Finale exports an altered-bass chord as `<bass arrangement="horizontal">`, choosing between a horizontal, diagonal, or vertical arrangement of the root and bass.
+
+`mx::api::ChordData` exposes `bass` and `bassAlter` but no arrangement member, so Denigma cannot record Finale's choice and the reading application picks its own layout.
+
+Needed API shape: an optional bass arrangement enumeration on `ChordData` covering the MusicXML `arrangement` values.
+
+### First-fret display on a fretboard diagram
+
+MusicXML's `<first-fret>` carries the display attributes alongside its value: Finale writes `<first-fret location="right" text="6fr.">6</first-fret>`, giving both the label to print and the side of the diagram to print it on.
+
+`mx::api::FrameData` exposes `firstFret` and `isFirstFretSpecified` only. Denigma exports the correct fret number, but drops the printed label and its location, so a reading application must invent both.
+
+Needed API shape: optional text and location members accompanying `FrameData::firstFret`.

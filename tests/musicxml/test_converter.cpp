@@ -346,6 +346,50 @@ TEST(MusicXmlChordFixture, ExportsChordsForInspection)
     ASSERT_TRUE(firstKind);
     EXPECT_STREQ(firstKind.child_value(), "major");
     EXPECT_FALSE(firstKind.attribute("text"));
+
+    const auto firstFrame = document.select_node("//harmony[1]/frame").node();
+    ASSERT_TRUE(firstFrame);
+    EXPECT_EQ(firstFrame.child("frame-strings").text().as_int(), 6);
+    EXPECT_EQ(firstFrame.child("frame-frets").text().as_int(), 4);
+    // The mx writer now uses the first supplied frame note instead of serializing its default
+    // string-1/fret-0 placeholder.
+    EXPECT_EQ(firstFrame.select_nodes("frame-note").size(), 5u);
+    EXPECT_EQ(document.select_nodes("//measure[@number='15']//frame").size(), 1u);
+    EXPECT_EQ(document.select_nodes("//measure[@number='16']//frame").size(), 2u);
+    EXPECT_EQ(document.select_nodes("//measure[@number='20']//frame").size(), 0u);
+    EXPECT_EQ(document.select_nodes("//measure[@number='21']//frame").size(), 1u);
+    EXPECT_EQ(document.select_nodes("//measure[@number='22']//frame").size(), 2u);
+
+    const auto expectBarre = [](const pugi::xml_node& frame, int startString, int startFret, int stopString, int stopFret) {
+        const auto start = frame.select_node("frame-note[barre/@type='start']").node();
+        ASSERT_TRUE(start);
+        EXPECT_EQ(start.child("string").text().as_int(), startString);
+        EXPECT_EQ(start.child("fret").text().as_int(), startFret);
+        const auto stop = frame.select_node("frame-note[barre/@type='stop']").node();
+        ASSERT_TRUE(stop);
+        EXPECT_EQ(stop.child("string").text().as_int(), stopString);
+        EXPECT_EQ(stop.child("fret").text().as_int(), stopFret);
+    };
+
+    // Finale's start string is the lowest-numbered string, which is the last frame note emitted, so it
+    // carries the stop rather than the start.
+    const auto barredFrame = document.select_node("//measure[@number='17']//frame[1]").node();
+    ASSERT_TRUE(barredFrame);
+    EXPECT_EQ(barredFrame.child("first-fret").text().as_int(), 6);
+    expectBarre(barredFrame, 6, 6, 1, 6);
+
+    // A barre anchors to its endpoint strings whatever fret is played there. Here string 1 is stopped at
+    // fret 10, two frets above the barre, and still carries the stop.
+    const auto highStopFrame = document.select_node("//measure[@number='24']//frame[1]").node();
+    ASSERT_TRUE(highStopFrame);
+    EXPECT_EQ(highStopFrame.child("first-fret").text().as_int(), 8);
+    expectBarre(highStopFrame, 6, 8, 1, 10);
+
+    // The same, for a barre that spans only part of the fretboard.
+    const auto partialFrame = document.select_node("//measure[@number='25']//frame[1]").node();
+    ASSERT_TRUE(partialFrame);
+    EXPECT_EQ(partialFrame.child("first-fret").text().as_int(), 3);
+    expectBarre(partialFrame, 5, 3, 1, 5);
 }
 
 TEST(MusicXmlChordFixture, WritesDegreeLayoutAttributesFromTheSuffix)

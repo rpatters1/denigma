@@ -51,6 +51,7 @@ enum class ExpressionType
     Fermata, ///< A fermata symbol.
     BreathMark, ///< A breath-mark symbol.
     StringMute, ///< A string-mute on/off symbol.
+    AccordionRegistration, ///< An accordion-registration glyph or combining glyph sequence.
     HarpDiagram, ///< A harp-pedal diagram.
     KeyboardPedal, ///< A keyboard-pedal marking.
     PseudoTie, ///< A shape expression used as a stand-in for a tie.
@@ -316,7 +317,7 @@ struct RunClassification
 /// @brief Semantic payload associated with an @ref ExpressionClassification.
 using ExpressionValue = std::variant<
     std::monostate, dynamics::Mark, expression::Fermata, expression::BreathMark,
-    articulation::StringMute, expression::HarpDiagram, keyboardpedal::Type, PseudoTie,
+    articulation::StringMute, articulation::AccordionRegistration, expression::HarpDiagram, keyboardpedal::Type, PseudoTie,
     expression::NonArpeggio, expression::TempoText, expression::MetronomeMark, expression::TempoAlteration,
     expression::TechniqueText, expression::RehearsalMark, expression::MultimeasureRestNumber,
     expression::MeasureRepeatCount, expression::GenericText, expression::Error, expression::Suppress>;
@@ -375,6 +376,11 @@ public:
     /// @throws std::logic_error if #type is not ExpressionType::StringMute.
     const articulation::StringMute& stringMute() const
     { return checkedPayload<articulation::StringMute, ExpressionType::StringMute>("StringMute"); }
+
+    /// @brief Returns the classified accordion-registration glyph sequence.
+    /// @throws std::logic_error if #type is not ExpressionType::AccordionRegistration.
+    const articulation::AccordionRegistration& accordionRegistration() const
+    { return checkedPayload<articulation::AccordionRegistration, ExpressionType::AccordionRegistration>("AccordionRegistration"); }
 
     /// @brief Returns the classified harp-pedal diagram.
     /// @throws std::logic_error if #type is not ExpressionType::HarpDiagram.

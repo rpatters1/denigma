@@ -54,11 +54,17 @@ MUSX DOM exposes the fretboard groups, styles, and diagrams referenced by `detai
 
 First export the basic diagram and its note/fingering/barre details, then assess specialized frame appearance, diagram placement, and capo behavior.
 
+## Accordion registration: combining glyph sequences and legacy fonts
+
+Denigma classifies and exports only a single precomposed accordion-registration glyph today (e.g. `accdnRH3RanksClarinet`), matching the standard right-hand three-/four-rank and left-hand two-/three-rank diagrams. SMuFL also defines combining glyphs (`accdnCombRH3RanksEmpty`, `accdnCombDot`, and their siblings) meant for a custom diagram outside that fixed set, but Denigma does not attempt to reassemble one from source glyphs.
+
+An earlier version of this classifier tried to recognize a combining sequence by reading multiple font-character runs from a Finale Text Expression, using each run's baseline/superscript shift as a dot's position. That was removed: nothing confirmed it matches how Finale users actually build these diagrams, and Shape Designer's `DrawChar` instruction is arguably the more natural tool for placing dots at arbitrary positions, which would make it a Shape Expression instead. `classifyAssignedShapeExpression` has no accordion case, and `musx::dom::KnownShapeDefType` has no accordion entry, so that route is equally unhandled.
+
+Revisit this only when a real Finale file exhibits a custom accordion registration, and let that fixture settle which route (Shape Designer shape vs. baseline-shifted text runs, or both) is worth supporting. The same discipline applies to legacy, pre-SMuFL accordion registration fonts: `smufl_mapping` has no such font mappings today, and none should be added speculatively — add one only against a real fixture that needs it.
+
 ## Additional direction types
 
-Use the principal-voice, other-direction, image, and accordion-registration models now exposed by `mx::api`.
-
-Begin with accordion registrations. Classify single-glyph Finale expressions using the `accdnRH3Ranks*` SMuFL names and map their 4′, 8′, and 16′ stops to `AccordionRegistrationData::high`, `middle`, and `low`. Assess the right-hand four-rank and left-hand glyph families separately where MusicXML cannot preserve their exact rank layout.
+Use the principal-voice, other-direction, and image models now exposed by `mx::api`.
 
 For principal voice, obtain representative Finale Hauptstimme and Nebenstimme smart-line fixtures before implementing the mapping. The exporter must identify both ends of the span and choose the appropriate principal-voice symbol; an isolated `analyticsHauptstimme` or `analyticsNebenstimme` expression glyph is not enough to infer a matching stop.
 

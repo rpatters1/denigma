@@ -760,6 +760,13 @@ static std::optional<ExpressionClassification> classifySymbolExpression(const Re
     }
 
     const auto classification = classifyArticulationSymbol(resolved.rawTextCtx.parseFirstFontInfo(), *symbol);
+    if (const auto* accordion = classification.as<articulation::AccordionRegistration>()) {
+        ExpressionClassification result;
+        result.type = ExpressionType::AccordionRegistration;
+        result.basis = basisForSymbolRecognition(resolved.categoryType);
+        result.value = *accordion;
+        return result;
+    }
     if (const auto* fermata = classification.as<articulation::Fermata>()) {
         ExpressionClassification result;
         result.type = ExpressionType::Fermata;
