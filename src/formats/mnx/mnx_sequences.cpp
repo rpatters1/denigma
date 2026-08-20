@@ -336,11 +336,13 @@ static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnxdom
 
     auto mnxRest = mnxEvent.ensure_rest();
     // If a rest is hidden, it has been detected as a beam workaround, so its staff position is meaningless
-    if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
-        auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
-        auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView());
-        staffPosition += calcFinaleToSmuflRestPositionOffset(std::get<0>(musxEntry->calcDurationInfo()));
-        mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
+    if (!musxEntry->isHidden && !musxEntry->floatRest) {
+        const auto staffPosition = musxEntry->notes.empty()
+            ? musxEntryInfo.calcZeroNoteRestStaffPosition()
+            : std::get<3>(NoteInfoPtr(musxEntryInfo, 0).calcNotePropertiesInView());
+        auto adjustedStaffPosition = staffPosition;
+        adjustedStaffPosition += calcFinaleToSmuflRestPositionOffset(std::get<0>(musxEntry->calcDurationInfo()));
+        mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, adjustedStaffPosition));
     }
 }
 
@@ -358,12 +360,13 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnxdom::sequ
     context->entryTargetByNumber.insert_or_assign(
         musxEntry->getEntryNumber(),
         EntryTarget{ EntryTargetKind::FullMeasureRest, fullMeasure.pointer() });
-    if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
+    if (!musxEntry->isHidden && !musxEntry->floatRest) {
         if (const auto musxStaff = musxEntryInfo.createCurrentStaff()) {
-            auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
-            auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView())
-                + calcFinaleToSmuflRestPositionOffset(NoteType::Whole);
-            fullMeasure.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
+            const auto staffPosition = musxEntry->notes.empty()
+                ? musxEntryInfo.calcZeroNoteRestStaffPosition()
+                : std::get<3>(NoteInfoPtr(musxEntryInfo, 0).calcNotePropertiesInView());
+            const auto adjustedStaffPosition = staffPosition + calcFinaleToSmuflRestPositionOffset(NoteType::Whole);
+            fullMeasure.set_staffPosition(mnxStaffPosition(musxStaff, adjustedStaffPosition));
         }
     }
     processArticulations(context, fullMeasure, musxEntryInfo);

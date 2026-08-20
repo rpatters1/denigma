@@ -217,6 +217,10 @@ void applyRestPositionIfNeeded(const MusicXmlMusxMapping& context, mx::api::Note
     }
     const auto entry = entryInfo->getEntry();
     if (entry->floatRest || entry->notes.empty()) {
+        /// @todo Use calcZeroNoteRestStaffPosition() for legacy non-floating
+        /// rests with no note data. (Requires new musxdom API to convert
+        /// a staff position to a pitch.) Floating rests should continue
+        /// to omit an explicit position.
         return;
     }
     const NoteInfoPtr restNoteInfo(entryInfo, 0);
