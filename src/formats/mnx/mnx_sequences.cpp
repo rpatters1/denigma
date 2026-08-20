@@ -338,7 +338,7 @@ static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnxdom
     // If a rest is hidden, it has been detected as a beam workaround, so its staff position is meaningless
     if (!musxEntry->isHidden && !musxEntry->floatRest) {
         const auto staffPosition = musxEntry->notes.empty()
-            ? musxEntryInfo.calcZeroNoteRestStaffPosition()
+            ? musxEntryInfo.calcZeroNotePosition()
             : std::get<3>(NoteInfoPtr(musxEntryInfo, 0).calcNotePropertiesInView());
         auto adjustedStaffPosition = staffPosition;
         adjustedStaffPosition += calcFinaleToSmuflRestPositionOffset(std::get<0>(musxEntry->calcDurationInfo()));
@@ -363,7 +363,7 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnxdom::sequ
     if (!musxEntry->isHidden && !musxEntry->floatRest) {
         if (const auto musxStaff = musxEntryInfo.createCurrentStaff()) {
             const auto staffPosition = musxEntry->notes.empty()
-                ? musxEntryInfo.calcZeroNoteRestStaffPosition()
+                ? musxEntryInfo.calcZeroNotePosition()
                 : std::get<3>(NoteInfoPtr(musxEntryInfo, 0).calcNotePropertiesInView());
             const auto adjustedStaffPosition = staffPosition + calcFinaleToSmuflRestPositionOffset(NoteType::Whole);
             fullMeasure.set_staffPosition(mnxStaffPosition(musxStaff, adjustedStaffPosition));
@@ -411,7 +411,24 @@ static std::optional<mnxdom::sequence::Event> createEvent(const MnxMusxMappingPt
     const auto musxEntry = musxEntryInfo->getEntry();
 
     if (effectiveHidden) {
+        if (musxEntry->graceNote) {
+            context->logMessage(LogMsg() << "Skipping hidden entry " << musxEntry->getEntryNumber()
+                << " in an MNX grace-note run.", MessageSeverity::Info);
+            return std::nullopt;
+        }
         /// @todo include hidden entries perhaps, if MNX starts allowing them.
+        content.appendSpace(mnxFractionFromEdu(musxEntry->duration));
+        return std::nullopt;
+    }
+
+    if (musxEntry->isNote && musxEntry->notes.empty()) {
+        if (musxEntry->graceNote) {
+            context->logMessage(LogMsg() << "Skipping zero-note entry " << musxEntry->getEntryNumber()
+                << " in an MNX grace-note run.", MessageSeverity::Info);
+            return std::nullopt;
+        }
+        context->logMessage(LogMsg() << "Emitting zero-note entry " << musxEntry->getEntryNumber()
+            << " as an MNX spacer.", MessageSeverity::Info);
         content.appendSpace(mnxFractionFromEdu(musxEntry->duration));
         return std::nullopt;
     }
