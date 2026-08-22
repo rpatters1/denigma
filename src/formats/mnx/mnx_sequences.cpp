@@ -224,15 +224,17 @@ static void deferJumpTies(const MnxMusxMappingPtr& context, const NoteInfoPtr& m
 
 mnxdom::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote)
 {
-    auto [noteName, octave, alteration, _] = musxNote.calcNotePropertiesConcert();
-    octave += calcOttavaOctaveAdjustment(
+    const auto properties = musxNote.calcNoteProperties({
+        .pitchMode = PitchMode::Concert,
+    });
+    const int octave = properties.octave + calcOttavaOctaveAdjustment(
         context->current.ottavasApplicableInMeasure,
         musxNote,
         [&](const NoteInfoPtr&) {
             context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", MessageSeverity::Verbose);
         });
     auto mnxNote = mnxEvent.ensure_notes().append(
-        mnxdom::sequence::Pitch::make(enumConvert<mnxdom::NoteStep>(noteName), octave, alteration));
+        mnxdom::sequence::Pitch::make(enumConvert<mnxdom::NoteStep>(properties.noteName), octave, properties.alteration));
     if (musxNote->freezeAcci || musxNote->parenAcci) {
         auto acciDisp = mnxNote.ensure_accidentalDisplay(musxNote->showAcci);
         acciDisp.set_or_clear_force(musxNote->freezeAcci);
@@ -336,11 +338,13 @@ static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnxdom
 
     auto mnxRest = mnxEvent.ensure_rest();
     // If a rest is hidden, it has been detected as a beam workaround, so its staff position is meaningless
-    if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
-        auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
-        auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView());
-        staffPosition += calcFinaleToSmuflRestPositionOffset(std::get<0>(musxEntry->calcDurationInfo()));
-        mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
+    if (!musxEntry->isHidden && !musxEntry->floatRest) {
+        const auto staffPosition = musxEntry->notes.empty()
+            ? musxEntryInfo.calcZeroNotePosition()
+            : NoteInfoPtr(musxEntryInfo, 0).calcNoteProperties().staffPosition;
+        auto adjustedStaffPosition = staffPosition;
+        adjustedStaffPosition += calcFinaleToSmuflRestPositionOffset(std::get<0>(musxEntry->calcDurationInfo()));
+        mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, adjustedStaffPosition));
     }
 }
 
@@ -358,12 +362,13 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnxdom::sequ
     context->entryTargetByNumber.insert_or_assign(
         musxEntry->getEntryNumber(),
         EntryTarget{ EntryTargetKind::FullMeasureRest, fullMeasure.pointer() });
-    if (!musxEntry->isHidden && !musxEntry->floatRest && !musxEntry->notes.empty()) {
+    if (!musxEntry->isHidden && !musxEntry->floatRest) {
         if (const auto musxStaff = musxEntryInfo.createCurrentStaff()) {
-            auto musxRest = NoteInfoPtr(musxEntryInfo, 0);
-            auto staffPosition = std::get<3>(musxRest.calcNotePropertiesInView())
-                + calcFinaleToSmuflRestPositionOffset(NoteType::Whole);
-            fullMeasure.set_staffPosition(mnxStaffPosition(musxStaff, staffPosition));
+            const auto staffPosition = musxEntry->notes.empty()
+                ? musxEntryInfo.calcZeroNotePosition()
+                : NoteInfoPtr(musxEntryInfo, 0).calcNoteProperties().staffPosition;
+            const auto adjustedStaffPosition = staffPosition + calcFinaleToSmuflRestPositionOffset(NoteType::Whole);
+            fullMeasure.set_staffPosition(mnxStaffPosition(musxStaff, adjustedStaffPosition));
         }
     }
     processArticulations(context, fullMeasure, musxEntryInfo);
@@ -408,7 +413,24 @@ static std::optional<mnxdom::sequence::Event> createEvent(const MnxMusxMappingPt
     const auto musxEntry = musxEntryInfo->getEntry();
 
     if (effectiveHidden) {
+        if (musxEntry->graceNote) {
+            context->logMessage(LogMsg() << "Skipping hidden entry " << musxEntry->getEntryNumber()
+                << " in an MNX grace-note run.", MessageSeverity::Info);
+            return std::nullopt;
+        }
         /// @todo include hidden entries perhaps, if MNX starts allowing them.
+        content.appendSpace(mnxFractionFromEdu(musxEntry->duration));
+        return std::nullopt;
+    }
+
+    if (musxEntry->isNote && musxEntry->notes.empty()) {
+        if (musxEntry->graceNote) {
+            context->logMessage(LogMsg() << "Skipping zero-note entry " << musxEntry->getEntryNumber()
+                << " in an MNX grace-note run.", MessageSeverity::Info);
+            return std::nullopt;
+        }
+        context->logMessage(LogMsg() << "Emitting zero-note entry " << musxEntry->getEntryNumber()
+            << " as an MNX spacer.", MessageSeverity::Info);
         content.appendSpace(mnxFractionFromEdu(musxEntry->duration));
         return std::nullopt;
     }

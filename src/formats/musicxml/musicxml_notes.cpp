@@ -216,33 +216,32 @@ void applyRestPositionIfNeeded(const MusicXmlMusxMapping& context, mx::api::Note
         return;
     }
     const auto entry = entryInfo->getEntry();
-    if (entry->floatRest || entry->notes.empty()) {
+    if (entry->floatRest) {
         return;
     }
-    const NoteInfoPtr restNoteInfo(entryInfo, 0);
-    if (restNoteInfo->getNoteId() != Note::RESTID) {
+    const auto staffPosition = [&]() -> std::optional<int> {
+        if (entry->notes.empty()) {
+            return entryInfo.calcZeroNotePosition();
+        }
+        const NoteInfoPtr restNoteInfo(entryInfo, 0);
+        if (restNoteInfo->getNoteId() != Note::RESTID) {
+            return std::nullopt;
+        }
+        return restNoteInfo.calcNoteProperties().staffPosition;
+    }();
+    if (!staffPosition) {
         return;
     }
-    auto [noteName, octave, alteration, staffPosition] = restNoteInfo.calcNotePropertiesInView();
-    (void)alteration;
+    int adjustedStaffPosition = *staffPosition;
     const auto restPositionOffset = calcFinaleToSmuflRestPositionOffset(NoteType::Whole);
     if (!context.denigmaContext->useFinaleRestPosition
         && rest.durationData.durationName == mx::api::DurationName::whole
         && restPositionOffset != 0) {
-        staffPosition += restPositionOffset;
-        switch (noteName) {
-        case music_theory::NoteName::A: noteName = music_theory::NoteName::C; ++octave; break;
-        case music_theory::NoteName::B: noteName = music_theory::NoteName::D; ++octave; break;
-        case music_theory::NoteName::C: noteName = music_theory::NoteName::E; break;
-        case music_theory::NoteName::D: noteName = music_theory::NoteName::F; break;
-        case music_theory::NoteName::E: noteName = music_theory::NoteName::G; break;
-        case music_theory::NoteName::F: noteName = music_theory::NoteName::A; break;
-        case music_theory::NoteName::G: noteName = music_theory::NoteName::B; break;
-        }
+        adjustedStaffPosition += restPositionOffset;
     }
-    (void)staffPosition;
+    const auto pitch = entryInfo.calcPitchFromStaffPosition(adjustedStaffPosition);
     rest.isDisplayStepOctaveSpecified = true;
-    rest.pitchData = mx::api::PitchData(enumConvert<mx::api::Step>(noteName), 0, octave);
+    rest.pitchData = mx::api::PitchData(enumConvert<mx::api::Step>(pitch.noteName), 0, pitch.octave);
 }
 
 MusicXmlPitchContext pitchContextForStaff(const MusicXmlMusxMapping& context, StaffCmper staffId)
@@ -256,13 +255,9 @@ MusicXmlPitchContext pitchContextForStaff(const MusicXmlMusxMapping& context, St
 
 mx::api::PitchData createPitchData(MusicXmlMusxMapping& context, const NoteInfoPtr& noteInfo, MusicXmlPitchContext pitchContext)
 {
-    const auto [noteName, octave, alteration, staffPosition] = [&]() {
-        if (pitchContext == MusicXmlPitchContext::Concert) {
-            return noteInfo.calcNotePropertiesConcert();
-        }
-        return noteInfo.calcNoteProperties();
-    }();
-    (void)staffPosition;
+    const auto properties = noteInfo.calcNoteProperties({
+        .pitchMode = pitchContext == MusicXmlPitchContext::Concert ? PitchMode::Concert : PitchMode::Written,
+    });
     const auto octaveAdjustment = calcOttavaOctaveAdjustment(
         context.current.ottavasApplicableInMeasure,
         noteInfo,
@@ -271,7 +266,8 @@ mx::api::PitchData createPitchData(MusicXmlMusxMapping& context, const NoteInfoP
                 LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava",
                 MessageSeverity::Verbose);
         });
-    return mx::api::PitchData(enumConvert<mx::api::Step>(noteName), alteration, octave + octaveAdjustment);
+    return mx::api::PitchData(
+        enumConvert<mx::api::Step>(properties.noteName), properties.alteration, properties.octave + octaveAdjustment);
 }
 
 void applyAccidentalData(mx::api::NoteData& note, const NoteInfoPtr& noteInfo)
