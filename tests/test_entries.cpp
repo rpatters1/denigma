@@ -73,9 +73,9 @@ struct ExpectedPitch
 void expectPitch(const NoteInfoPtr& note, const ExpectedPitch& expected, size_t index)
 {
     const auto properties = note.calcNoteProperties();
-    EXPECT_EQ(std::get<0>(properties), expected.noteName) << "harmonic " << index;
-    EXPECT_EQ(std::get<1>(properties), expected.octave) << "harmonic " << index;
-    EXPECT_EQ(std::get<2>(properties), expected.alteration) << "harmonic " << index;
+    EXPECT_EQ(properties.noteName, expected.noteName) << "harmonic " << index;
+    EXPECT_EQ(properties.octave, expected.octave) << "harmonic " << index;
+    EXPECT_EQ(properties.alteration, expected.alteration) << "harmonic " << index;
 }
 
 } // namespace

@@ -114,10 +114,6 @@ The assertion may eventually inform other portability choices too. Generic font-
 
 ## Text and custom-line fidelity
 
-## Legacy zero-note rest positions
-
-Export the staff position of legacy non-floating rests whose entry has no note data. MNX can carry the position directly through `EntryInfoPtr::calcZeroNotePosition()`, but MusicXML requires a display step and octave rather than a raw staff position. This needs a musxdom inverse conversion from a staff position and active clef to diatonic pitch data, with the MusicXML mapping applying it only to non-floating rests; floating rests should remain unpositioned.
-
 Convert eligible music-font characters in expression text to `SymbolData` within the ordered `DirectionChoice::wordsRun` model, particularly for legacy symbol fonts that may not be installed on the receiving system. Preserve unknown or intentionally font-specific characters as `WordsData`.
 
 Use page-specific `PageData` layout overrides when computing absolute credit anchors. The exporter currently uses the score's default odd/even page size and margins, so credits on pages with Finale layout overrides may be misplaced.

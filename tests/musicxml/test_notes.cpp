@@ -940,6 +940,38 @@ TEST(MusicXmlNotes, WholeRestPositionsUseSmuflConventionByDefault)
     EXPECT_EQ(positionedRestDisplayPitches(*actualScore), expectedPositions);
 }
 
+TEST(MusicXmlNotes, LegacyZeroNoteFixedRestExportsDisplayPosition)
+{
+    setupTestDataPaths();
+
+    const auto sourcePath = std::filesystem::path(MUSX_TEST_DATA_PATH) / "zero_tuplet.enigmaxml";
+    pugi::xml_document document;
+    ASSERT_TRUE(document.load_file(sourcePath.c_str()));
+    auto restEntry = document.select_node("//*[local-name()='entry' and @entnum='5']").node();
+    ASSERT_TRUE(restEntry);
+    ASSERT_TRUE(restEntry.remove_child("floatRest"));
+
+    const auto fixedRestPath = getOutputPath() / "zero_tuplet-fixed-rest.enigmaxml";
+    ASSERT_TRUE(document.save_file(fixedRestPath.c_str()));
+
+    ArgList args = { DENIGMA_NAME, "export", pathString(fixedRestPath), "--force" };
+    EXPECT_EQ(denigmaTestMain(args.argc(), args.argv()), 0);
+    auto fixedRestMusxPath = fixedRestPath;
+    fixedRestMusxPath.replace_extension(".musx");
+    ASSERT_TRUE(std::filesystem::exists(fixedRestMusxPath));
+
+    const auto floatingScore = createScoreDataFromMusxPath(std::filesystem::path(MUSX_TEST_DATA_PATH) / "zero_tuplet.musx");
+    const auto fixedScore = createScoreDataFromMusxPath(fixedRestMusxPath);
+    ASSERT_TRUE(floatingScore);
+    ASSERT_TRUE(fixedScore);
+
+    EXPECT_TRUE(positionedRestDisplayPitches(*floatingScore).empty());
+    const std::vector<std::pair<mx::api::Step, int>> expectedPositions{
+        { mx::api::Step::b, 4 },
+    };
+    EXPECT_EQ(positionedRestDisplayPitches(*fixedScore), expectedPositions);
+}
+
 TEST(MusicXmlNotes, ArtificialHarmonicsExportSmoke)
 {
     setupTestDataPaths();

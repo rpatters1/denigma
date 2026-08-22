@@ -224,15 +224,17 @@ static void deferJumpTies(const MnxMusxMappingPtr& context, const NoteInfoPtr& m
 
 mnxdom::sequence::Note createNormalNote(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const NoteInfoPtr& musxNote)
 {
-    auto [noteName, octave, alteration, _] = musxNote.calcNotePropertiesConcert();
-    octave += calcOttavaOctaveAdjustment(
+    const auto properties = musxNote.calcNoteProperties({
+        .pitchMode = PitchMode::Concert,
+    });
+    const int octave = properties.octave + calcOttavaOctaveAdjustment(
         context->current.ottavasApplicableInMeasure,
         musxNote,
         [&](const NoteInfoPtr&) {
             context->logMessage(LogMsg() << "skipping ottava octave setting for tied-to note since the tied-from note is not under the ottava", MessageSeverity::Verbose);
         });
     auto mnxNote = mnxEvent.ensure_notes().append(
-        mnxdom::sequence::Pitch::make(enumConvert<mnxdom::NoteStep>(noteName), octave, alteration));
+        mnxdom::sequence::Pitch::make(enumConvert<mnxdom::NoteStep>(properties.noteName), octave, properties.alteration));
     if (musxNote->freezeAcci || musxNote->parenAcci) {
         auto acciDisp = mnxNote.ensure_accidentalDisplay(musxNote->showAcci);
         acciDisp.set_or_clear_force(musxNote->freezeAcci);
@@ -339,7 +341,7 @@ static void createRest([[maybe_unused]] const MnxMusxMappingPtr& context, mnxdom
     if (!musxEntry->isHidden && !musxEntry->floatRest) {
         const auto staffPosition = musxEntry->notes.empty()
             ? musxEntryInfo.calcZeroNotePosition()
-            : std::get<3>(NoteInfoPtr(musxEntryInfo, 0).calcNotePropertiesInView());
+            : NoteInfoPtr(musxEntryInfo, 0).calcNoteProperties().staffPosition;
         auto adjustedStaffPosition = staffPosition;
         adjustedStaffPosition += calcFinaleToSmuflRestPositionOffset(std::get<0>(musxEntry->calcDurationInfo()));
         mnxRest.set_staffPosition(mnxStaffPosition(musxStaff, adjustedStaffPosition));
@@ -364,7 +366,7 @@ static void createFullMeasureRest(const MnxMusxMappingPtr& context, mnxdom::sequ
         if (const auto musxStaff = musxEntryInfo.createCurrentStaff()) {
             const auto staffPosition = musxEntry->notes.empty()
                 ? musxEntryInfo.calcZeroNotePosition()
-                : std::get<3>(NoteInfoPtr(musxEntryInfo, 0).calcNotePropertiesInView());
+                : NoteInfoPtr(musxEntryInfo, 0).calcNoteProperties().staffPosition;
             const auto adjustedStaffPosition = staffPosition + calcFinaleToSmuflRestPositionOffset(NoteType::Whole);
             fullMeasure.set_staffPosition(mnxStaffPosition(musxStaff, adjustedStaffPosition));
         }
