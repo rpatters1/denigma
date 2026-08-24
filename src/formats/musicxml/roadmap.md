@@ -72,6 +72,30 @@ Use `OtherDirectionData` only for recognized direction semantics that lack a ded
 
 Export measure-attached Finale graphics from `details::MeasureGraphicAssign` as MusicXML `<image>` directions. Resolve embedded and external graphic sources, emit required image files through the multi-output callback, determine MIME types, and convert Finale position and size values to MusicXML tenths. Page graphics and graphics embedded in Shape Designer objects remain separate mapping tasks.
 
+## Tuplet numbering scope
+
+Tuplet `numberLevel` comes from the tuplet's index within its entry frame (`applyTupletData` in
+`musicxml_notes.cpp`). That is stable for a tuplet's whole extent, so a start always pairs with its
+stop, but a frame is one layer of one staff while MusicXML's `number` is scoped to the part. Two
+layers each numbering from 1 can therefore hand the same level to two unrelated tuplets, and
+nothing currently prevents it.
+
+No fixture demonstrates this yet, so it is a latent risk rather than a known defect; a two-layer
+measure with a tuplet in each layer would settle it. The fix is a number allocated per part and
+released when a tuplet ends, which is what `mx::impl::SpannerResolver` already does for every other
+spanner family. Tuplets are excluded from it because `TupletStart` and `TupletStop` carry a raw
+`numberLevel` int rather than an `api::SpannerNumber`, so either Denigma allocates part-scoped
+levels itself or MX extends the resolver to tuplets. Note that MusicXML makes `number` optional and
+defaults it to 1, and MX omits the attribute when the level is unspecified, so a measure with no
+overlapping tuplets needs no numbering at all.
+
+Two neighbouring tuplet defects are MX's and are filed there, not here: `<normal-type>` is written
+from a sibling search rather than from the API field ([webern/mx#428](https://github.com/webern/mx/issues/428)),
+and a single-note tuplet has its stop written before its start
+([webern/mx#429](https://github.com/webern/mx/issues/429)). `MusicXmlTuplets` in
+`tests/musicxml/test_tuplets.cpp` carries a disabled test for each, asserting the intended output
+and naming the issue to re-enable it with.
+
 ## Glissandi and slides: remaining sources
 
 Finale glissandi and tab slides export as `<glissando>` and `<slide>`, and an entry-attached line

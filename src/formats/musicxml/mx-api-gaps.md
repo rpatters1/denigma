@@ -216,9 +216,27 @@ Needed API shape: direction-level playback or technical modeling for the remaini
 
 MusicXML uses `<time-modification>` on notes for the cumulative timing effect of tuplets, with `<tuplet>` notations identifying the visual start and stop points.
 
-`mx::api::NoteData` can store multiple `TupletStart` and `TupletStop` objects, and `mx::api::DurationData` has the single cumulative time-modification slot that MusicXML requires. However, `mx::impl::NoteWriter` currently searches sibling notes for exactly one tuplet start and exactly one tuplet stop while writing a note's `<time-modification>` normal-type data. Denigma can compute the cumulative ratio, but nested tuplets may still be unreliable through the current writer path.
+`mx::api::NoteData` can store multiple `TupletStart` and `TupletStop` objects, and `mx::api::DurationData` has the single cumulative time-modification slot that MusicXML requires. However, `mx::impl::NoteWriter` ignores `DurationData::timeModificationNormalType` and instead infers `<normal-type>` by searching sibling notes for exactly one tuplet start and exactly one tuplet stop.
 
-Needed API shape: writer support for nested tuplets, probably by matching `TupletStart` / `TupletStop` by `numberLevel` and allowing `DurationData` to express cumulative time modification independently of the visual tuplet-start search.
+The observable effect is over-emission rather than corruption. Denigma sets the field only when the tuplet's reference duration differs from the note's own type, because MusicXML reads an absent `<normal-type>` as the note type. The writer instead emits one on every note of a tuplet: for `zwei_gesange.musx` Denigma requests 11 and the file receives 253, of which 242 merely repeat the note's own `<type>`, where Finale's own export writes 4. Nested tuplets take the opposite path: the sibling search finds two starts, matches nothing, and omits `<normal-type>` altogether. That happens to be correct for `tuplets_nested.musx`, where the tuplet's normal value is the note's own duration, but it is correct by luck rather than by design.
+
+`MusicXmlTuplets.DISABLED_NormalTypeIsWrittenOnlyWhereRequested` in [tests/musicxml/test_tuplets.cpp](../../../tests/musicxml/test_tuplets.cpp) asserts the intended behavior and is disabled until this is fixed. Run it with `--gtest_also_run_disabled_tests` to see the current counts.
+
+Needed API shape: writer support for nested tuplets, probably by matching `TupletStart` / `TupletStop` by `numberLevel` and honoring `DurationData`'s cumulative time modification and normal type independently of the visual tuplet-start search. Filed upstream as [webern/mx#428](https://github.com/webern/mx/issues/428).
+
+### Tuplet notation order on a single-note tuplet
+
+A tuplet may cover exactly one note, in which case both of its ends belong to that note and MusicXML wants `<tuplet type="start">` before `<tuplet type="stop">`.
+
+`mx::impl::NotationsWriter` writes every entry of `NoteAttachmentData::tupletStops` before every entry of `tupletStarts`. That is the right convention for a note that closes one tuplet and opens another, but it inverts a single-note tuplet: on `tuplet-nested-singleton.musx` the inner tuplet emits `stop` for number 2 before `start` for number 2, so the tuplet closes before it opens. The numbers pair correctly; only the order is wrong. Denigma cannot correct it through the API, because starts and stops are separate vectors with no way to interleave them.
+
+Needed API shape: none. This is a writer ordering fix: when a start and a stop on one note share a `numberLevel`, write the start first. Filed upstream as [webern/mx#429](https://github.com/webern/mx/issues/429). `MusicXmlTuplets.DISABLED_SingleNoteTupletWritesStartBeforeStop` asserts the intended order and is disabled until then.
+
+### Tuplet spanner numbers are unmanaged
+
+`TupletStart` and `TupletStop` carry a raw `int numberLevel` rather than an `api::SpannerNumber`, so tuplets are the one spanner family `mx::impl::SpannerResolver` does not handle: `NotationsWriter` writes the level verbatim while curves, wedges, octave shifts, brackets, dashes, glissandi, slides, and wavy lines all route through `emittedNumber`. The author therefore owns allocating and recycling tuplet levels, including keeping them distinct across the whole part.
+
+Needed API shape: `SpannerNumber` on `TupletStart`/`TupletStop` with resolver support, extending the writer-side assignment that the other families received in MX PR #320. Denigma's current part-scope exposure is recorded in [roadmap.md](roadmap.md).
 
 ## Harmony and Fretboards
 
