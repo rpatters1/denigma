@@ -441,6 +441,37 @@ TEST(MusicXmlExpressions, TempoMarksExportDirectionAndSound)
     EXPECT_TRUE(foundSoundOnlyTempo);
 }
 
+TEST(MusicXmlExpressions, StartTimeSigAlignedExpressionExportsDirective)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("tempo_text_shape.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    // The sound-only tempo mark in this fixture's first measure is a text expression whose
+    // textExprDef has horzMeasExprAlign=startTimeSig (and useCategoryPos, whose category also
+    // resolves to startTimeSig) -- it should carry MusicXML directive="yes". Every other
+    // direction in the fixture is anchored elsewhere and must leave directive unspecified.
+    size_t directiveYesCount = 0;
+    size_t directiveUnspecifiedCount = 0;
+    for (const auto& measure : actualScore->parts.front().measures) {
+        for (const auto& staff : measure.staves) {
+            for (const auto& direction : staff.directions) {
+                if (direction.directive == mx::api::Bool::yes) {
+                    ++directiveYesCount;
+                } else {
+                    EXPECT_EQ(direction.directive, mx::api::Bool::unspecified);
+                    ++directiveUnspecifiedCount;
+                }
+            }
+        }
+    }
+    EXPECT_EQ(directiveYesCount, 1u);
+    EXPECT_GT(directiveUnspecifiedCount, 0u);
+}
+
 TEST(MusicXmlExpressions, ConvertedSymbolsCarrySizeOnlyFromEngravingFonts)
 {
     const auto makeFont = [](const std::string& fontName) {

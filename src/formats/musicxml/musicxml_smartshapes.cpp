@@ -512,11 +512,6 @@ void appendOttava(
         auto ottavaStop = mx::api::OttavaStop{};
         ottavaStop.spannerStop.tickTimePosition = stopDirection.tickTimePosition;
         ottavaStop.spannerStop.number = smartShapeSpannerNumber(shape);
-        constexpr int kOttavaSize = 8;
-        constexpr int k15maSize = 15;
-        constexpr int k22maSize = 22;
-        const auto octaveCount = std::abs(ottava.octaveShift);
-        ottavaStop.size = octaveCount == 1 ? kOttavaSize : (octaveCount == 2 ? k15maSize : k22maSize);
         stopDirection.directionTypes.emplace_back(std::move(ottavaStop));
         stopStaff->directions.emplace_back(std::move(stopDirection));
     }

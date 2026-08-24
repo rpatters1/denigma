@@ -172,16 +172,6 @@ inline std::string calcSystemLayoutId(Cmper partId, Cmper systemId)
     return "S" + std::to_string(partId) + "-Sys" + std::to_string(systemId);
 }
 
-inline std::string calcEventId(EntryNumber entryNum)
-{
-    return "ev" + std::to_string(entryNum);
-}
-
-inline std::string calcNoteId(const NoteInfoPtr& noteInfo)
-{
-    return calcEventId(noteInfo.getEntryInfo()->getEntry()->getEntryNumber()) + "n" + std::to_string(noteInfo->getNoteId());
-}
-
 inline std::string calcVoice(int partStaffNum, LayerIndex idx, int voice)
 {
     std::string result = "s" + std::to_string(partStaffNum) + "layer" + std::to_string(idx + 1);
@@ -189,11 +179,6 @@ inline std::string calcVoice(int partStaffNum, LayerIndex idx, int voice)
         result += "v" + std::to_string(voice);
     }
     return result;
-}
-
-inline std::string calcGlobalMeasureId(Cmper cmperValue)
-{
-    return "m" + std::to_string(cmperValue);
 }
 
 inline std::string calcLyricLineId(const std::string& type, Cmper textNumber)

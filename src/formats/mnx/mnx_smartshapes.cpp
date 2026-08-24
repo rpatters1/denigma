@@ -22,6 +22,7 @@
 
 #include <type_traits>
 
+#include "core/element_ids.h"
 #include "denigma/classify/smartshapes.h"
 #include "mnx.h"
 #include "mnx_articulations.h"
@@ -38,7 +39,7 @@ void appendHairpin(const MnxMusxMappingPtr&, mnxdom::part::Measure& mnxMeasure, 
 {
     const auto startPos = mnxFractionFromFraction(shape->startTermSeg->endPoint->calcGlobalPosition());
     const auto endPos = mnxdom::MeasureRhythmicPosition::make(
-        calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
+        core::calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
         mnxFractionFromFraction(shape->endTermSeg->endPoint->calcGlobalPosition()));
     auto mnxDynamic = mnxMeasure.ensure_dynamics().appendGradual(wedgeType, startPos, endPos);
     /// @todo Perhaps get smarter about setting start/end grace index using situational heuristics
@@ -98,7 +99,7 @@ void processSlurs(const MnxMusxMappingPtr&, mnxdom::sequence::Event& mnxEvent, c
     const auto currentEntryNumber = musxEntry->getEntryNumber();
     auto createOneSlur = [&](const EntryNumber targetEntry) -> mnxdom::sequence::Slur {
         auto mnxSlurs = mnxEvent.ensure_slurs();
-        return mnxSlurs.append(calcEventId(targetEntry));
+        return mnxSlurs.append(core::calcEventId(targetEntry));
     };
     if (musxEntry->smartShapeDetail) {
         auto shapeAssigns = musxEntry->getDocument()->getDetails()->getArray<details::SmartShapeEntryAssign>(
@@ -154,7 +155,7 @@ void createOttavas(const MnxMusxMappingPtr& context, const MusxInstance<others::
                         auto mnxOttava = mnxMeasure.ensure_ottavas().append(
                             static_cast<mnxdom::OttavaAmount>(it->second.classification.octaveShift),
                             mnxFractionFromSmartShapeEndPoint(shape->startTermSeg->endPoint),
-                            mnxdom::MeasureRhythmicPosition::make(calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
+                            mnxdom::MeasureRhythmicPosition::make(core::calcGlobalMeasureId(shape->endTermSeg->endPoint->measId),
                                                                mnxFractionFromSmartShapeEndPoint(shape->endTermSeg->endPoint)));
                         mnxOttava.end().position().set_graceIndex(0);   // guarantees inclusion of any grace notes at the end of the ottava
                         if (mnxStaffNumber) {

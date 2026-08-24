@@ -31,6 +31,7 @@ endfunction()
         test_noteheads.cpp
         test_octave_lines.cpp
         test_dynamics.cpp
+        test_element_ids.cpp
         test_conversion_result.cpp
         test_logging.cpp
         test_massage.cpp
@@ -57,6 +58,7 @@ endfunction()
         musicxml/test_converter.cpp
         musicxml/test_defaults.cpp
         musicxml/test_expressions.cpp
+        musicxml/test_lyrics.cpp
         musicxml/test_metadata.cpp
         musicxml/test_notes.cpp
         musicxml/test_parts.cpp

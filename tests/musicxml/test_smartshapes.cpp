@@ -376,7 +376,7 @@ TEST(MusicXmlSmartShapes, OttavaEndOfBar)
 }
 
 static void expectOttava(const mx::api::PartData& part, size_t startMeasureIdx, size_t startNoteIdx, mx::api::OttavaType ottavaType,
-    mx::api::Placement placement, size_t endMeasureIdx, size_t endNoteIdx, int expectedStopSize)
+    mx::api::Placement placement, size_t endMeasureIdx, size_t endNoteIdx)
 {
     {
         const auto& staff = part.measures.at(startMeasureIdx).staves.at(0);
@@ -399,8 +399,6 @@ static void expectOttava(const mx::api::PartData& part, size_t startMeasureIdx, 
         ASSERT_FALSE(staff.directions.empty());
         const auto stops = directionOttavaStops(staff.directions.back());
         ASSERT_FALSE(stops.empty());
-        ASSERT_TRUE(stops.front().size.has_value());
-        EXPECT_EQ(*stops.front().size, expectedStopSize);
         EXPECT_EQ(staff.directions.back().placement, placement);
         const auto& voice = staff.voices.at(0);
         ASSERT_GT(voice.notes.size(), endNoteIdx);
@@ -421,10 +419,10 @@ TEST(MusicXmlSmartShapes, OttavasSimpleMatchesExpectedOttavas)
     const auto& part = score->parts.at(0);
     ASSERT_GE(part.measures.size(), 4);
 
-    expectOttava(part, 0, 0, mx::api::OttavaType::o8va, mx::api::Placement::above, 0, 2, 8);
-    expectOttava(part, 1, 0, mx::api::OttavaType::o8vb, mx::api::Placement::below, 1, 2, 8);
-    expectOttava(part, 2, 0, mx::api::OttavaType::o15ma, mx::api::Placement::above, 2, 1, 15);
-    expectOttava(part, 3, 0, mx::api::OttavaType::o15mb, mx::api::Placement::below, 3, 1, 15);
+    expectOttava(part, 0, 0, mx::api::OttavaType::o8va, mx::api::Placement::above, 0, 2);
+    expectOttava(part, 1, 0, mx::api::OttavaType::o8vb, mx::api::Placement::below, 1, 2);
+    expectOttava(part, 2, 0, mx::api::OttavaType::o15ma, mx::api::Placement::above, 2, 1);
+    expectOttava(part, 3, 0, mx::api::OttavaType::o15mb, mx::api::Placement::below, 3, 1);
 }
 
 TEST(MusicXmlSmartShapes, OttavasEdgeMatchesExpectedOttavas)
@@ -438,10 +436,10 @@ TEST(MusicXmlSmartShapes, OttavasEdgeMatchesExpectedOttavas)
     const auto& part = score->parts.at(0);
     ASSERT_GE(part.measures.size(), 4);
 
-    expectOttava(part, 0, 1, mx::api::OttavaType::o8va, mx::api::Placement::above, 1, 0, 8);
-    expectOttava(part, 2, 1, mx::api::OttavaType::o8va, mx::api::Placement::above, 2, 2, 8);
-    expectOttava(part, 4, 0, mx::api::OttavaType::o8va, mx::api::Placement::above, 4, 3, 8);
-    expectOttava(part, 5, 1, mx::api::OttavaType::o15mb, mx::api::Placement::below, 5, 4, 15);
+    expectOttava(part, 0, 1, mx::api::OttavaType::o8va, mx::api::Placement::above, 1, 0);
+    expectOttava(part, 2, 1, mx::api::OttavaType::o8va, mx::api::Placement::above, 2, 2);
+    expectOttava(part, 4, 0, mx::api::OttavaType::o8va, mx::api::Placement::above, 4, 3);
+    expectOttava(part, 5, 1, mx::api::OttavaType::o15mb, mx::api::Placement::below, 5, 4);
 }
 
 TEST(MusicXmlSmartShapes, BlankLinePedalExportsAsSignOnlyMarks)
@@ -563,8 +561,6 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaCarriers)
         EXPECT_EQ(countOttavaStarts(staff1.measures.at(15).staves.at(0)), 0u);
         const auto stop = firstOttavaStop(staff1.measures.at(22).staves.at(0));
         ASSERT_TRUE(stop.has_value());
-        ASSERT_TRUE(stop->size.has_value());
-        EXPECT_EQ(*stop->size, 15);
         EXPECT_EQ(noteOctaves(m14), (std::vector<int>{ 6, 6, 6, 7 }));
     }
 
@@ -588,8 +584,6 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesOttavaCarriers)
         EXPECT_EQ(start->ottavaType, mx::api::OttavaType::o8va);
         const auto stop = firstOttavaStop(staff1.measures.at(27).staves.at(0));
         ASSERT_TRUE(stop.has_value());
-        ASSERT_TRUE(stop->size.has_value());
-        EXPECT_EQ(*stop->size, 8);
         EXPECT_EQ(noteOctaves(m26), (std::vector<int>{ 5, 5, 5, 6 }));
         EXPECT_EQ(noteOctaves(staff1.measures.at(27).staves.at(0)), (std::vector<int>{ 5, 5, 4, 5 }));
     }
@@ -733,15 +727,16 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesTrillMark)
     });
     EXPECT_NE(trillIt, note.noteAttachmentData.marks.end());
 
-    // The built-in trill extension (staff 3, m3-m6) is omitted: mx::api cannot pair
-    // wavy-line start/stop. (See mx-api-gaps.md.)
+    // The built-in trill extension (staff 3, m3-m6) is omitted: denigma does not yet emit
+    // mx::api's wavy-line spanner (WavyLineStart/Continue/Stop on NoteAttachmentData) for it.
+    // (See mx-api-gaps.md.)
     const auto& m3 = staff3.measures.at(2).staves.at(0);
     const auto m3VoiceIt = m3.voices.find(0);
     if (m3VoiceIt != m3.voices.end()) {
         for (const auto& m3Note : m3VoiceIt->second.notes) {
-            for (const auto& mark : m3Note.noteAttachmentData.marks) {
-                EXPECT_NE(mark.markType, mx::api::MarkType::wavyLine);
-            }
+            EXPECT_TRUE(m3Note.noteAttachmentData.wavyLineStarts.empty());
+            EXPECT_TRUE(m3Note.noteAttachmentData.wavyLineContinuations.empty());
+            EXPECT_TRUE(m3Note.noteAttachmentData.wavyLineStops.empty());
         }
     }
 }

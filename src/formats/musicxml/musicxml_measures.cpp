@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include "core/element_ids.h"
 #include "denigma/classify/barlines.h"
 #include "denigma/classify/chords.h"
 #include "denigma/classify/clefs.h"
@@ -1236,6 +1237,7 @@ void createMeasuresForPart(MusicXmlMusxMapping& context, mx::api::PartData& part
         const auto& musxMeasure = musxMeasures[measureIndex];
         const bool isFinalMeasure = measureIndex + 1 == musxMeasures.size();
         auto& measure = part.measures.emplace_back(mx::api::MeasureData{});
+        measure.id = mx::api::Id{core::calcPartMeasureId(part.uniqueId, musxMeasure->getCmper())};
         if (const auto multimeasureRest = context.document->getOthers()->get<others::MultimeasureRest>(
                 context.forPartId, musxMeasure->getCmper())) {
             if (const int measureCount = multimeasureRest->calcNumberOfMeasures(); measureCount > 0) {

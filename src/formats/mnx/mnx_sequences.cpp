@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "core/element_ids.h"
 #include "mnx.h"
 #include "mnx_smartshapes.h"
 #include "utils/smufl_support.h"
@@ -142,7 +143,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnxdom::sequence::NoteB
         auto tiedTo = musxNote.calcTieTo();
         auto mnxTie = mnxTies.append();
         if (tiedTo && tiedTo->tieEnd && !tiedTo.getEntryInfo()->getEntry()->isHidden) {
-            mnxTie.set_target(calcNoteId(tiedTo));
+            mnxTie.set_target(core::calcNoteId(tiedTo));
         } else {
             mnxTie.set_lv(true);
         }
@@ -165,7 +166,7 @@ static void createTies(const MnxMusxMappingPtr& context, mnxdom::sequence::NoteB
         const NoteInfoPtr musxTargetNote(tiedToInfo->targetEntry, tiedToInfo->targetNoteIndex);
         auto mnxTies = mnxNote.ensure_ties();
         auto mnxTie = mnxTies.append();
-        mnxTie.set_target(calcNoteId(musxTargetNote));
+        mnxTie.set_target(core::calcNoteId(musxTargetNote));
         mnxTie.set_targetType(mnxdom::TieTargetType::Arpeggio);
         if (tiedToInfo->direction != Curve::Unspecified) {
             mnxTie.set_side(tiedToInfo->direction == Curve::Up ? mnxdom::SlurTieSide::Up : mnxdom::SlurTieSide::Down);
@@ -199,12 +200,12 @@ static void deferJumpTies(const MnxMusxMappingPtr& context, const NoteInfoPtr& m
         return;
     }
 
-    const auto endNoteId = calcNoteId(musxNote);
+    const auto endNoteId = core::calcNoteId(musxNote);
     for (const auto& [startNote, direction] : jumpTies) {
         if (!startNote || startNote.getEntryInfo()->getEntry()->isHidden) {
             continue;
         }
-        const auto startNoteId = calcNoteId(startNote);
+        const auto startNoteId = core::calcNoteId(startNote);
         const std::string key = startNoteId + "->" + endNoteId;
         if (!context->deferredJumpTieKeys.emplace(key).second) {
             continue;
@@ -300,7 +301,7 @@ static void createNote(const MnxMusxMappingPtr& context, mnxdom::sequence::Event
             return createKitNote(context, mnxEvent, percNoteInfo, musxStaff);
         }
     }();
-    const auto noteId = calcNoteId(musxNote);
+    const auto noteId = core::calcNoteId(musxNote);
     mnxNote.set_id(noteId);
     context->noteJsonById.emplace(noteId, mnxNote.pointer());
     if (musxNote->crossStaff && !mnxEvent.staff()) { // createEvent already handled cross-staffing if the entire entry is crossed
@@ -447,7 +448,7 @@ static std::optional<mnxdom::sequence::Event> createEvent(const MnxMusxMappingPt
     }
     const auto noteValue = mnxNoteValueFromEdu(effectiveDura);
     auto mnxEvent = content.appendEvent(noteValue.base, noteValue.dots);
-    mnxEvent.set_id(calcEventId(musxEntry->getEntryNumber()));
+    mnxEvent.set_id(core::calcEventId(musxEntry->getEntryNumber()));
     context->entryTargetByNumber.insert_or_assign(
         musxEntry->getEntryNumber(),
         EntryTarget{ EntryTargetKind::Event, mnxEvent.pointer() });
