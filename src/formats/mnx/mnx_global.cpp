@@ -25,6 +25,7 @@
 #include <map>
 #include <unordered_map>
 
+#include "core/element_ids.h"
 #include "denigma/classify/barlines.h"
 #include "denigma/classify/expressions.h"
 #include "mnx.h"
@@ -366,7 +367,7 @@ static void createGlobalMeasures(const MnxMusxMappingPtr& context)
     std::optional<mnxdom::TimeSignatureDisplay> prevTimeSigDisplay;
     for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxDocument->global().measures().append();
-        mnxMeasure.set_id(calcGlobalMeasureId(musxMeasure->getCmper()));
+        mnxMeasure.set_id(core::calcGlobalMeasureId(musxMeasure->getCmper()));
         assignBarline(context, mnxMeasure, musxMeasure, musxBarlineOptions, musxMeasure->getCmper() == musxMeasures.size());
         createEnding(mnxMeasure, musxMeasure);
         createBarlineFermata(context, mnxMeasure, musxMeasure);

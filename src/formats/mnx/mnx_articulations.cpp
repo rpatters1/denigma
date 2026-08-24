@@ -23,6 +23,7 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include "core/element_ids.h"
 #include "denigma/classify/articulations.h"
 #include "mnx.h"
 #include "mnx_mapping.h"
@@ -196,10 +197,10 @@ static void appendArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottom
     const auto startId = [&]() -> std::string {
         switch (candidate.direction) {
         case musx::util::ArpeggioDirection::Down:
-            return calcNoteId(topNote);
+            return core::calcNoteId(topNote);
         case musx::util::ArpeggioDirection::Auto:
         case musx::util::ArpeggioDirection::Up:
-            return calcNoteId(bottomNote);
+            return core::calcNoteId(bottomNote);
         }
         ASSERT_IF(true) {
             throw std::logic_error("Unhandled arpeggio direction.");
@@ -209,10 +210,10 @@ static void appendArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bottom
     const auto endId = [&]() -> std::string {
         switch (candidate.direction) {
         case musx::util::ArpeggioDirection::Down:
-            return calcNoteId(bottomNote);
+            return core::calcNoteId(bottomNote);
         case musx::util::ArpeggioDirection::Auto:
         case musx::util::ArpeggioDirection::Up:
-            return calcNoteId(topNote);
+            return core::calcNoteId(topNote);
         }
         ASSERT_IF(true) {
             throw std::logic_error("Unhandled arpeggio direction.");
@@ -254,7 +255,7 @@ static void appendNonArpeggio(const NoteInfoPtr& topNote, const NoteInfoPtr& bot
 {
     auto mnxNonArpeggio = mnxPartMeasure.ensure_nonArpeggios().append(
         mnxFractionFromFraction(candidate.sourceEntry.calcGlobalElapsedDuration()),
-        mnxdom::IdPair::make(calcNoteId(bottomNote), calcNoteId(topNote)));
+        mnxdom::IdPair::make(core::calcNoteId(bottomNote), core::calcNoteId(topNote)));
     setArpeggioGraceIndex(mnxNonArpeggio.position(), candidate);
 }
 

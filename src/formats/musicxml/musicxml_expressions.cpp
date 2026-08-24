@@ -133,6 +133,26 @@ mx::api::HorizontalAlignment musicXmlJustifyForTextExpression(
 
 namespace {
 
+/// MusicXML's <direction directive="yes"> means the direction aligns with the time signature
+/// rather than with the note/beat it is anchored to. StartTimeSig is the only Finale horizontal
+/// placement that means this. Every other alignment (barline, notehead/stem, manual click
+/// position, measure-width centering) belongs over its note instead.
+mx::api::Bool musicXmlDirectiveForExpression(const MusxInstance<others::MeasureExprAssign>& assignment)
+{
+    if (!assignment) {
+        return mx::api::Bool::unspecified;
+    }
+    others::HorizontalMeasExprAlign align = others::HorizontalMeasExprAlign::LeftBarline;
+    if (const auto textExpression = assignment->getTextExpression()) {
+        align = textExpression->horzMeasExprAlign;
+    } else if (const auto shapeExpression = assignment->getShapeExpression()) {
+        align = shapeExpression->horzMeasExprAlign;
+    }
+    return align == others::HorizontalMeasExprAlign::StartTimeSig
+        ? mx::api::Bool::yes
+        : mx::api::Bool::unspecified;
+}
+
 void appendTechniquePlayback(mx::api::DirectionData& direction, const classify::expression::TechniqueText& technique)
 {
     // @todo Revisit this when mx::api exposes richer direction playback or technical modeling.
@@ -166,6 +186,7 @@ mx::api::DirectionData createExpressionDirection(
         direction.systemRelation = mx::api::SystemRelation::onlyTop;
     }
     direction.isStaffValueSpecified = isStaffValueSpecified;
+    direction.directive = musicXmlDirectiveForExpression(assignment);
     if (assignment->layer > 0 || assignment->voice2) {
         const LayerIndex layer = assignment->layer > 0 ? assignment->layer - 1 : 0;
         direction.voice = musicXmlVoiceNumber(staffIndex, layer, assignment->voice2 ? 2 : 1);

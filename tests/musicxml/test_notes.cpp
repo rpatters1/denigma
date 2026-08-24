@@ -20,7 +20,9 @@
 #include <algorithm>
 #include <filesystem>
 #include <optional>
+#include <set>
 #include <stdexcept>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -1486,4 +1488,46 @@ TEST(MusicXmlNotes, HiddenCustomStemsExportAsStemNone)
                                  mx::api::Stem::unspecified,
                                  mx::api::Stem::none,
                                  mx::api::Stem::none }));
+}
+
+TEST(MusicXmlNotes, NoteAndMeasureIdsUseMnxScheme)
+{
+    setupTestDataPaths();
+
+    const auto outputPath = exportMusicXmlFixture("voices.musx");
+    const auto actualScore = loadScoreData(outputPath);
+    ASSERT_TRUE(actualScore);
+    ASSERT_FALSE(actualScore->parts.empty());
+
+    std::set<std::string> noteIds;
+    std::set<std::string> measureIds;
+    for (const auto& part : actualScore->parts) {
+        for (const auto& measure : part.measures) {
+            ASSERT_TRUE(measure.id.has_value());
+            // Part-measure ids are the part id, a dot, then the bare measure id (e.g. "P1.m1"),
+            // matching MNX's part::Measure id scheme for the same musx Cmper.
+            EXPECT_EQ(measure.id->value().rfind(part.uniqueId + ".m", 0), 0u) << measure.id->value();
+            EXPECT_TRUE(measureIds.insert(measure.id->value()).second) << "duplicate measure id " << measure.id->value();
+
+            for (const auto& staff : measure.staves) {
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    (void)voiceIndex;
+                    for (const auto& note : voice.notes) {
+                        ASSERT_TRUE(note.id.has_value());
+                        // Event/note ids follow "ev<entryNumber>" or "ev<entryNumber>n<noteId>",
+                        // matching MNX's calcEventId/calcNoteId for the same musx entry/note.
+                        EXPECT_EQ(note.id->value().rfind("ev", 0), 0u) << note.id->value();
+                        if (!note.isRest) {
+                            EXPECT_NE(note.id->value().find('n'), std::string::npos) << note.id->value();
+                        }
+                        // Note ids are unique; a rest's event id may repeat across tied/synthetic
+                        // rest paths, so only pitched notes are checked for uniqueness here.
+                        if (!note.isRest) {
+                            EXPECT_TRUE(noteIds.insert(note.id->value()).second) << "duplicate note id " << note.id->value();
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

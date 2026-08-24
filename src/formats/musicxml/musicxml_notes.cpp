@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "core/cue_plan.h"
+#include "core/element_ids.h"
 #include "musicxml_formatted_text.h"
 #include "mx/api/DurationData.h"
 #include "mx/api/MarkData.h"
@@ -470,6 +471,7 @@ mx::api::NoteData createRestData(
         const auto entry = entryInfo->getEntry();
         rest.isGrace = entry->graceNote;
         rest.durationData = createDurationData(context, entryInfo, entryIt.getEffectiveActualDuration(/*global*/ true));
+        rest.id = mx::api::Id{core::calcEventId(entry->getEntryNumber())};
     } else {
         rest.durationData.durationName = mx::api::DurationName::whole;
     }
@@ -571,6 +573,7 @@ void appendEntryNotes(
         const size_t noteIndex = includedNoteIndices[includedPosition];
         NoteInfoPtr noteInfo(entryInfo, noteIndex);
         auto note = mx::api::NoteData{};
+        note.id = mx::api::Id{core::calcNoteId(noteInfo)};
         note.isCue = isCue;
         // MX uses this as "is in a chord group"; it suppresses <chord/> on the first note internally.
         note.isChord = includedNoteIndices.size() > 1;

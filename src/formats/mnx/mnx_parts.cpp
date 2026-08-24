@@ -30,6 +30,7 @@
 #include "mnx_expressions.h"
 #include "mnx_smartshapes.h"
 
+#include "core/element_ids.h"
 #include "denigma/classify/clefs.h"
 #include "denigma/classify/dynamics.h"
 #include "utils/stringutils.h"
@@ -59,13 +60,13 @@ static void createBeams(
                     const auto entry = next->getEntry();
                     const EntryNumber entryNumber = entry->getEntryNumber();
                     context->beamedEntries.emplace(entryNumber);
-                    beam.events().push_back(calcEventId(entryNumber));
+                    beam.events().push_back(core::calcEventId(entryNumber));
                     if (unsigned lowestBeamStart = next.calcLowestBeamStart(/*considerBeamOverBarlines*/true)) {
                         unsigned nextBeamNumber = beamNumber + 1;
                         unsigned lowestBeamStub = next.calcLowestBeamStub();
                         if (lowestBeamStub && lowestBeamStub <= nextBeamNumber && next.calcNumberOfBeams() >= nextBeamNumber) {
                             auto hookBeam = beam.ensure_beams().append();
-                            hookBeam.events().push_back(calcEventId(entryNumber));
+                            hookBeam.events().push_back(core::calcEventId(entryNumber));
                             if (entry->stemDetail) {
                                 if (auto manual = musxDocument->getDetails()->get<details::BeamStubDirection>(partId, entryNumber)) {
                                     mnxdom::BeamHookDirection hookDir = manual->isLeft()
@@ -410,7 +411,7 @@ static void createMeasures(const MnxMusxMappingPtr& context, mnxdom::Part& part)
     for (const auto& musxMeasure : musxMeasures) {
         auto mnxMeasure = mnxMeasures.at(measureIndex++);
         if (const auto partId = part.id()) {
-            mnxMeasure.set_id(partId.value() + "." + calcGlobalMeasureId(musxMeasure->getCmper()));
+            mnxMeasure.set_id(core::calcPartMeasureId(partId.value(), musxMeasure->getCmper()));
         }
         for (size_t x = 0; x < context->currPartStaves.size(); x++) {
             const StaffCmper staffCmper = context->currPartStaves[x];
