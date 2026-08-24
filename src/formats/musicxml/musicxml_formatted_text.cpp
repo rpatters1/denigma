@@ -149,6 +149,24 @@ std::optional<mx::api::WordsData> musicXmlWordsFromEnigmaTextChunk(const MusicXm
     return result;
 }
 
+namespace {
+
+// A run's hasHyphenBefore/hasHyphenAfter (see musx::dom::LyricsSyllableInfo::calcElisionRuns)
+// map directly onto MusicXML's syllabic values.
+mx::api::LyricSyllabic lyricSyllabicForRun(bool hasHyphenBefore, bool hasHyphenAfter)
+{
+    if (hasHyphenBefore && hasHyphenAfter) {
+        return mx::api::LyricSyllabic::middle;
+    } else if (hasHyphenBefore) {
+        return mx::api::LyricSyllabic::end;
+    } else if (hasHyphenAfter) {
+        return mx::api::LyricSyllabic::begin;
+    }
+    return mx::api::LyricSyllabic::single;
+}
+
+} // namespace
+
 mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
     const musx::dom::texts::LyricsTextBase& lyricText, size_t syllableIndex, const MusicXmlFormattedTextOptions& options)
 {
@@ -158,20 +176,7 @@ mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
 
     const auto& syllable = lyricText.syllables[syllableIndex];
     mx::api::LyricData result;
-    result.text = syllable->syllable;
-    result.syllabic = [&] {
-        if (syllable->hasHyphenBefore && syllable->hasHyphenAfter) {
-            return mx::api::LyricSyllabic::middle;
-        } else if (syllable->hasHyphenBefore) {
-            return mx::api::LyricSyllabic::end;
-        } else if (syllable->hasHyphenAfter) {
-            return mx::api::LyricSyllabic::begin;
-        }
-        return mx::api::LyricSyllabic::single;
-    }();
 
-    auto fontData = mx::api::FontData{};
-    auto foundFont = false;
     const auto matchesDefaultLyricFont = [&](const mx::api::FontData& candidate) {
         if (!context.musicXmlScore) {
             return false;
@@ -183,24 +188,42 @@ mx::api::LyricData musicXmlLyricFromSyllable(const MusicXmlMusxMapping& context,
         }
         return false;
     };
-    result.text.clear();
-    lyricText.iterateStylesForSyllable(syllableIndex, [&](const std::string& chunk, const musx::util::EnigmaStyles& styles) -> bool {
-        result.text += chunk;
-        if (!foundFont) {
-            ASSERT_IF(!styles.font) {
-                throw std::logic_error("MusicXML lyric syllable chunk has no font data.");
-            }
-            fontData = context.musicXmlFontDataFromFontInfo(*styles.font, options.fallback);
-            if (!matchesDefaultLyricFont(fontData)) {
-                result.printData.fontData = fontData;
-            }
-            foundFont = true;
+
+    const auto runs = syllable->calcElisionRuns();
+    ASSERT_IF(runs.empty()) {
+        throw std::logic_error("MusicXML lyric syllable produced no elision runs.");
+    }
+
+    result.text = runs.front().text();
+    result.syllabic = lyricSyllabicForRun(runs.front().hasHyphenBefore, runs.front().hasHyphenAfter);
+
+    // mx::api::LyricData carries one font for the whole lyric (continuations have no font field
+    // of their own), so only the first run's own first style chunk is consulted here.
+    runs.front().iterateStyles([&](const std::string&, const musx::util::EnigmaStyles& styles) -> bool {
+        ASSERT_IF(!styles.font) {
+            throw std::logic_error("MusicXML lyric syllable chunk has no font data.");
         }
-        return true;
+        const auto fontData = context.musicXmlFontDataFromFontInfo(*styles.font, options.fallback);
+        if (!matchesDefaultLyricFont(fontData)) {
+            result.printData.fontData = fontData;
+        }
+        return false;
     });
+
     if (options.onChunk) {
         options.onChunk(result.printData.fontData, result.text);
     }
+
+    for (size_t i = 1; i < runs.size(); ++i) {
+        mx::api::LyricTextSegment segment;
+        segment.text = runs[i].text();
+        segment.syllabic = lyricSyllabicForRun(runs[i].hasHyphenBefore, runs[i].hasHyphenAfter);
+        if (runs[i].joinMarker) {
+            segment.elisionText = musx::util::EnigmaString::toU8(*runs[i].joinMarker);
+        }
+        result.continuations.emplace_back(std::move(segment));
+    }
+
     return result;
 }
 
