@@ -161,6 +161,25 @@ struct VibratoLine
     GeneralLine line;               ///< Appearance of the vibrato line. (Always a custom line.)
 };
 
+/// @struct Glissando
+/// @brief A pitch-motion line drawn from one note to another.
+///
+/// Finale draws these with the glissando tool, with the tab slide tool, or as an ordinary
+/// entry-attached line. The source tool is @ref SmartShapeClassification::shapeType; a tab slide
+/// is not confined to tablature, so both dedicated tools classify here.
+///
+/// #line is the authority for what was actually drawn. A shape keeps the line definition that was
+/// in effect when it was created, so its shape type says nothing about its appearance: a
+/// stepped, wavy glissando and a continuous, straight slide are both
+/// @ref musx::dom::others::SmartShape::ShapeType::Glissando. Consumers that distinguish the two
+/// markings should read #line.
+struct Glissando
+{
+    musx::dom::NoteInfoPtr startNote;   ///< The note the line starts from.
+    musx::dom::NoteInfoPtr endNote;     ///< The note the line ends on. May be a grace note.
+    GeneralLine line;                   ///< Appearance of the line.
+};
+
 } // namespace smartshape
 
 /// @brief The semantic payload of a classified smart shape.
@@ -180,6 +199,7 @@ using SmartShapeValue = std::variant<
     smartshape::KeyboardPedal,
     smartshape::TrillLine,
     smartshape::VibratoLine,
+    smartshape::Glissando,
     smartshape::GeneralLine>;
 
 /// @struct SmartShapeClassification

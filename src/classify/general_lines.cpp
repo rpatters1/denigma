@@ -131,6 +131,21 @@ GeneralLine classifyBuiltInLine(
     return result;
 }
 
+// Shape types that keep their appearance in a SmartShapeCustomLine referenced by
+// SmartShape::lineStyleId, rather than in the shape type itself.
+bool usesCustomLineStyle(musx::dom::others::SmartShape::ShapeType shapeType)
+{
+    using ShapeType = musx::dom::others::SmartShape::ShapeType;
+    switch (shapeType) {
+    case ShapeType::CustomLine:
+    case ShapeType::Glissando:
+    case ShapeType::TabSlide:
+        return true;
+    default:
+        return false;
+    }
+}
+
 } // namespace
 
 std::optional<GeneralLine> classifyGeneralLine(
@@ -184,13 +199,21 @@ std::optional<GeneralLine> classifyGeneralLine(
 std::optional<GeneralLine> classifyGeneralLine(
     const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape)
 {
-    using ShapeType = musx::dom::others::SmartShape::ShapeType;
     if (!shape || shape->entryBased) {
         // Entry-attached shapes carry specific meanings (e.g., glissandi, bends)
         // and are classified separately.
         return std::nullopt;
     }
-    if (shape->shapeType == ShapeType::CustomLine) {
+    return classifyGeneralLineAppearance(shape);
+}
+
+std::optional<GeneralLine> classifyGeneralLineAppearance(
+    const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape)
+{
+    if (!shape) {
+        return std::nullopt;
+    }
+    if (usesCustomLineStyle(shape->shapeType)) {
         if (shape->lineStyleId == 0) {
             return std::nullopt;
         }

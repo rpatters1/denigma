@@ -173,12 +173,19 @@ TEST(SmartShapeLinesFixture, NeutralWiggleCharLineStaysDescriptive)
     EXPECT_EQ(*line->lineCharGlyphName, "wiggleCircularConstant");
 }
 
-TEST(SmartShapeLinesFixture, EntryAttachedGlissandoIsNotClassified)
+TEST(SmartShapeLinesFixture, EntryAttachedGlissandoClassifies)
 {
     const auto document = loadFixture();
     ASSERT_TRUE(document);
     const auto classification = classifyByCmper(document, kEntryAttachedGlissando);
-    EXPECT_TRUE(std::holds_alternative<std::monostate>(classification.value));
+    EXPECT_EQ(classification.shapeType, others::SmartShape::ShapeType::Glissando);
+    const auto* glissando = classification.as<classifiedshape::Glissando>();
+    ASSERT_NE(glissando, nullptr);
+    ASSERT_TRUE(glissando->startNote);
+    ASSERT_TRUE(glissando->endNote);
+    // The marking spans two pitches; that is what a reader draws the line between.
+    EXPECT_NE(glissando->startNote.calcNoteProperties().noteName,
+        glissando->endNote.calcNoteProperties().noteName);
 }
 
 TEST(SmartShapeLinesFixture, BuiltInTrillShapesClassify)

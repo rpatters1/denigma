@@ -147,3 +147,25 @@ Copying Finale's display numbers into `<time-modification>` instead would be wro
 Nothing is lost by reducing, and that holds unconditionally. `createTupletStart` always populates the display and reference numbers, including for a hidden tuplet, where `TupletDef::hidden` suppresses the show flags but leaves the values intact.
 
 A related difference is not Denigma's doing. Denigma sets `<normal-type>` only when the tuplet's reference duration differs from the note's own type, but `mx::impl::NoteWriter` ignores that field and infers the element by scanning sibling notes, so it appears far more often than Denigma requests. See the nested-tuplet entry in [mx-api-gaps.md](mx-api-gaps.md).
+
+### The line a glissando was drawn with, not the tool, chooses `<glissando>` or `<slide>`
+
+`<glissando>` and `<slide>` are notated identically and differ only in the pitch motion they imply: a glissando sounds the discrete pitches in between, a slide is a continuous portamento. Denigma picks between them from the `others::SmartShapeCustomLine` the shape references, treating a character line as a glissando and a solid or dashed line as a slide, and ignores whether the shape came from the glissando tool or the tab slide tool.
+
+The shape type cannot answer the question. Each shape keeps the line definition that was in effect when it was created, so a `ShapeType::Glissando` may be straight and a `ShapeType::TabSlide` may be wavy, and neither changes when the tool is later reconfigured. `SmartShapeOptions::ssLineStyleCmpGlissando` and `ssLineStyleCmpTabSlide` name only what those tools would draw now. The line definition is the only record of what the user actually sees, and MusicXML's own element defaults read the same way: wavy for a glissando, solid for a slide.
+
+A dashed line resolves to a slide. It is a straight line, so it is not the stepped, wavy case, and the emitted `line-type` carries the dash geometry either way. That a tab slide on an ordinary staff exports as a glissando-family marking is intentional: the tool is meant for tablature, but it is routinely used as a note-attached glissando elsewhere.
+
+Classification stays neutral about all of this. `classify::smartshape::Glissando` reports the two notes and the line, and each exporter decides what to call it; the vocabulary choice is MusicXML's, not the source's.
+
+### A glissando's printed label comes from the line's center text
+
+`<glissando>` and `<slide>` carry one unformatted string, which is the only place MusicXML has for the "gliss." label Finale keeps on a custom line. Denigma takes it from the center full text, falling back to the center abbreviated, start, and end texts in that order.
+
+The label's own font, size, and styling are dropped, because the element has no attributes for them. That is the trade this element forces, and it is worth taking: the alternative is the label vanishing entirely, which is what `appendGeneralLine` still logs for center text on a bracket or dashes line, where MusicXML offers no home at all.
+
+### A wavy line keeps its SMuFL glyph only when MusicXML can name it
+
+`<wavy-line smufl="...">` accepts only the multi-segment `wiggle*` glyphs and the guitar vibrato strokes. Denigma sets the attribute for a line character in that vocabulary, meaning the `wiggleVibrato*`, `wiggleSawtooth*`, `guitarVibratoStroke`, and `guitarWideVibratoStroke` families a vibrato line uses, and omits it otherwise, notably for the `ornamentZigZagLine*` characters a trill line may use.
+
+Omitting is not merely conservative. `mx::core::SmuflWavyLineGlyphName` repairs an unparseable value rather than rejecting it, rewriting an out-of-vocabulary name to a `wiggle` placeholder, so passing one through would silently substitute a different glyph. Losing the override leaves the reader to draw its default trill or vibrato line, which is closer to the source than a wrong glyph.

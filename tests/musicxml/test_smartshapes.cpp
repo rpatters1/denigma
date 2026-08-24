@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "mx/api/CurveData.h"
+#include "mx/api/GlissandoData.h"
 #include "mx/api/NoteData.h"
 #include "mx/api/ScoreData.h"
 #include "pugixml.hpp"
@@ -727,16 +728,86 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesTrillMark)
     });
     EXPECT_NE(trillIt, note.noteAttachmentData.marks.end());
 
-    // The built-in trill extension (staff 3, m3-m6) is omitted: denigma does not yet emit
-    // mx::api's wavy-line spanner (WavyLineStart/Continue/Stop on NoteAttachmentData) for it.
-    // (See mx-api-gaps.md.)
-    const auto& m3 = staff3.measures.at(2).staves.at(0);
-    const auto m3VoiceIt = m3.voices.find(0);
-    if (m3VoiceIt != m3.voices.end()) {
-        for (const auto& m3Note : m3VoiceIt->second.notes) {
-            EXPECT_TRUE(m3Note.noteAttachmentData.wavyLineStarts.empty());
-            EXPECT_TRUE(m3Note.noteAttachmentData.wavyLineContinuations.empty());
-            EXPECT_TRUE(m3Note.noteAttachmentData.wavyLineStops.empty());
+    // Counts the wavy-line ends across every voice of one measure's staff, so the assertions do
+    // not depend on which note or voice an endpoint resolved to.
+    const auto wavyLineEnds = [](const mx::api::StaffData& staff) {
+        struct Counts { size_t starts{}; size_t continues{}; size_t stops{}; };
+        Counts counts;
+        for (const auto& [voiceIndex, voice] : staff.voices) {
+            static_cast<void>(voiceIndex);
+            for (const auto& voiceNote : voice.notes) {
+                counts.starts += voiceNote.noteAttachmentData.wavyLineStarts.size();
+                counts.continues += voiceNote.noteAttachmentData.wavyLineContinuations.size();
+                counts.stops += voiceNote.noteAttachmentData.wavyLineStops.size();
+            }
+        }
+        return counts;
+    };
+
+    // The trill's own extension line spans m11-m13, so the tr symbol's note also starts a
+    // wavy line. MusicXML wants both inside one <ornaments>, the mark first.
+    EXPECT_EQ(note.noteAttachmentData.wavyLineStarts.size(), 1u);
+    EXPECT_EQ(wavyLineEnds(staff3.measures.at(12).staves.at(0)).stops, 1u);
+
+    // The built-in trill extension (staff 3, m3-m6) carries no tr symbol. It is a wavy-line pair
+    // and nothing else.
+    ASSERT_GE(staff3.measures.size(), 7u);
+    const auto m3Counts = wavyLineEnds(staff3.measures.at(2).staves.at(0));
+    EXPECT_EQ(m3Counts.starts, 1u);
+    EXPECT_EQ(m3Counts.stops, 0u);
+    const auto m6Counts = wavyLineEnds(staff3.measures.at(5).staves.at(0));
+    EXPECT_EQ(m6Counts.starts, 0u);
+    EXPECT_EQ(m6Counts.stops, 1u);
+    for (const auto& [voiceIndex, voice] : staff3.measures.at(2).staves.at(0).voices) {
+        static_cast<void>(voiceIndex);
+        for (const auto& m3Note : voice.notes) {
+            EXPECT_TRUE(std::ranges::none_of(m3Note.noteAttachmentData.marks, [](const mx::api::MarkData& mark) {
+                return mark.markType == mx::api::MarkType::trillMark;
+            }));
         }
     }
+}
+
+TEST(MusicXmlSmartShapes, SmartShapeLinesEntryAttachedGlissando)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("smartshape_lines.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+    ASSERT_GE(score->parts.size(), 1u);
+
+    // The fixture's entry-attached glissando runs from m12 to m13 of staff 1. Its line style is
+    // dashed rather than a character line, so it is a continuous slide rather than a stepped
+    // glissando, and the dash geometry travels with it.
+    const auto& staff1 = score->parts.at(0);
+    ASSERT_GE(staff1.measures.size(), 13u);
+
+    const auto findGlissando = [](const mx::api::StaffData& staff, bool wantStart) {
+        std::vector<std::pair<mx::api::GlissandoType, mx::api::LineType>> found;
+        for (const auto& [voiceIndex, voice] : staff.voices) {
+            static_cast<void>(voiceIndex);
+            for (const auto& note : voice.notes) {
+                if (wantStart) {
+                    for (const auto& start : note.noteAttachmentData.glissandoStarts) {
+                        found.emplace_back(start.glissandoType, start.lineData.lineType);
+                    }
+                } else {
+                    for (const auto& stop : note.noteAttachmentData.glissandoStops) {
+                        found.emplace_back(stop.glissandoType, stop.lineData.lineType);
+                    }
+                }
+            }
+        }
+        return found;
+    };
+
+    const auto starts = findGlissando(staff1.measures.at(11).staves.at(0), true);
+    ASSERT_EQ(starts.size(), 1u);
+    EXPECT_EQ(starts.front().first, mx::api::GlissandoType::slide);
+    EXPECT_EQ(starts.front().second, mx::api::LineType::dashed);
+
+    const auto stops = findGlissando(staff1.measures.at(12).staves.at(0), false);
+    ASSERT_EQ(stops.size(), 1u);
+    EXPECT_EQ(stops.front().first, mx::api::GlissandoType::slide);
+    EXPECT_EQ(stops.front().second, mx::api::LineType::dashed);
 }

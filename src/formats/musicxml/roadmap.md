@@ -72,23 +72,21 @@ Use `OtherDirectionData` only for recognized direction semantics that lack a ded
 
 Export measure-attached Finale graphics from `details::MeasureGraphicAssign` as MusicXML `<image>` directions. Resolve embedded and external graphic sources, emit required image files through the multi-output callback, determine MIME types, and convert Finale position and size values to MusicXML tenths. Page graphics and graphics embedded in Shape Designer objects remain separate mapping tasks.
 
-## Glissandi and slides
+## Glissandi and slides: remaining sources
 
-Export Finale glissandi as MusicXML `<glissando>` and `<slide>` notations. Nothing is exported today: these are entry-attached smart shapes, and `classifySmartShape` has no case for them, so they classify as `std::monostate` and the MusicXML smart-shape visitor drops them without even a Verbose log. Adding that log is a worthwhile interim step, since a silent omission is currently indistinguishable from a shape Denigma never saw.
+Finale glissandi and tab slides export as `<glissando>` and `<slide>`, and an entry-attached line
+drawn as a pitch slide is recognized when the shape corroborates the reading. Two pieces are left.
 
-Two `others::SmartShape::ShapeType` values matter. `Glissando` is the obvious one. `TabSlide` is the one easily missed: it is a solid line intended for tablature, but it is frequently used as a note-attached glissando on ordinary staves, so it must map as well rather than being treated as a tablature-only feature. Keep both on one classification path so a tab slide on a standard staff still produces a glissando-family marking.
+The corroboration predicate is provisional. `classifyGlissando` requires two notes of differing
+pitch, no hooks or arrowheads, a visible non-horizontal line, and either text naming the marking or
+a line style one of the dedicated tools currently draws. That last clause leans on
+`SmartShapeOptions::ssLineStyleCmpGlissando` and `ssLineStyleCmpTabSlide`, which describe only what
+those tools would draw now; a match is suggestive and a mismatch proves nothing. Only
+`smartshape_lines.musx` exercises any of this, and only through the dedicated glissando tool, so the
+predicate needs real drawn-line fixtures with negative controls before it can be trusted or tightened.
 
-Neither shape type describes what was actually drawn. Each shape instance captures the line definition that was in effect when it was created and keeps it in its own `lineStyleId`. Configure the glissando tool as a straight line and assign one, then reconfigure it as a wavy line and assign another: the first stays straight and the second stays wavy, though both are `ShapeType::Glissando` and neither changes when the tool is reconfigured again. `options::SmartShapeOptions::ssLineStyleCmpGlissando` and `ssLineStyleCmpTabSlide` therefore name only what those tools would draw now, not what the shapes already in the document look like. The `others::SmartShapeCustomLine` each shape references is the authority for that shape's appearance, and it is what should drive both the choice between `<glissando>` and `<slide>` and the emitted `line-type`. MusicXML's own defaults give the reading: a wavy or character line is a glissando, a plain straight line is a slide.
-
-Classification belongs in `src/classify`, alongside the other smart-shape classifiers and therefore available to MNX as well. It should resolve both endpoint notes, not merely their entries, since MusicXML attaches the start and stop to specific notes; note that a glissando may end on a grace note, for which MUSX DOM provides `Entry::calcIsGlissToGraceEntry`. It should also surface the custom line's appearance and its text, since the line style is where Finale keeps a "gliss." label. That text has a home in MusicXML only here: `appendGeneralLine` currently logs that custom-line center text has no MusicXML equivalent "outside of glissando text", and this is that exception.
-
-A third source is less certain: the plain line tool. Any built-in solid or dashed line shape, and any custom line, can be entry-attached, and users draw slide and glissando marks that way instead of reaching for the dedicated tools. Those shapes are dropped today for the same reason the dedicated ones are: `classifyGeneralLine` returns no classification for any entry-based shape, and `classifySmartShape` keeps entry-based shapes out of the custom-line path, so they reach the exporter as `std::monostate`.
-
-No single signal makes such a line certainly a glissando, and the current-style cmpers are worth little here for the reason given above: they describe what the glissando and tab slide tools would draw now, so a match is suggestive while a mismatch proves nothing. The available evidence is in the shape and its line definition together: text that names the marking, `startNoteId` and `endNoteId` both resolving to notes of differing pitch, the absence of hooks and arrowheads, and a line that is not forced horizontal, since a horizontal line is not a pitch slide. Gate this on real fixtures rather than inference, and let an entry-attached line with no corroborating evidence keep whatever general-line treatment is decided for it. That treatment is its own open question: such a line currently vanishes silently, and the beat-attached bracket or dashes path in `appendGeneralLine` is the obvious fallback, at the cost of the note attachment the user drew.
-
-Bends are related but separate. `BendHat` and `BendCurve` are entry-attached shapes with their own MusicXML vocabulary under `<technical>`, and they should not be folded into this work.
-
-The export half is gated on MX API support. `mx::api` models neither element, so this cannot be completed until the note-attached spanner model described in [mx-api-gaps.md](mx-api-gaps.md) exists. Classification, endpoint resolution, and fixtures can proceed ahead of it.
+Bends are related but separate. `BendHat` and `BendCurve` are entry-attached shapes with their own
+MusicXML vocabulary under `<technical>`, and they should not be folded into this work.
 
 ## Shape-replaced stems
 

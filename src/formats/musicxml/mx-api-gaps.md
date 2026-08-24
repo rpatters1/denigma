@@ -80,24 +80,6 @@ Finale can freeze a tie's curvature direction on a per-note basis (`details::Tie
 
 Needed API shape: the same tie-notation data model requested above should also carry the shared curve attributes (orientation, placement, position, color) available on `CurveStart`/`CurveStop`, so a paired tie can be decorated without a second, conflicting `<notations>` block or the loss of `<tie>`.
 
-## Smart Shapes And Spanners
-
-### Paired wavy-line start/stop (trill extensions and vibrato lines)
-
-MusicXML represents trill extensions and vibrato lines as `<ornaments><wavy-line type="start|continue|stop">` pairs attached to notes.
-
-`mx::api::MarkData` includes `MarkType::wavyLine`, but `NotationsWriter` never sets the required `type` attribute on the emitted `<wavy-line>`, so only an untyped (default) element can be written and start/stop cannot be paired. Denigma exports the `trill-mark` for trill lines that include the tr symbol and omits the extension; pure trill-extension lines and vibrato lines are omitted entirely.
-
-Needed API shape: wavy-line start/stop data on `MarkData` (or a dedicated paired-spanner model for note-attached wavy lines).
-
-### Note-attached glissandi and slides
-
-MusicXML represents both markings as note-attached paired spanners inside `<notations>`: `<glissando type="start|stop">` and `<slide type="start|stop">`. The two carry the same information and differ only in what they imply about the pitch motion between the notes. A glissando defaults to a wavy line and covers the discrete case, while a slide is continuous between the two pitches and defaults to a solid line. Both take an optional `number` for overlapping spans, an optional `line-type` with dash and space lengths, the usual print-style attributes, and optional text content that is printed alongside the line, which is where a marking such as "gliss." belongs.
-
-MX's generated core layer models both elements, and `NotationsChoice` already admits them, but `mx::api` exposes neither. `CurveType` offers only `slur` and `tie`, and `NotationsWriter` skips any entry in `curveStarts`, `curveContinuations`, or `curveStops` whose type is not one of those two, so the generic curve path cannot carry a glissando. `MarkData` has no glissando or slide member either. `NoteAttachmentData` reserves `spannerStarts` and `spannerStops` vectors, but they are commented out and unimplemented. Denigma therefore has no way to write either element, and drops all Finale glissandi and tab slides.
-
-Needed API shape: a note-attached paired spanner model on `NoteAttachmentData`, which the reserved spanner vectors anticipate. It should carry the element kind (glissando or slide), start/stop state, spanner number, the optional printed text, `LineData` for line type and dash and space lengths, and the shared placement, position, and color attributes. A model general enough to host the wavy-line pairs described above would serve both gaps.
-
 ## Measures
 
 ### Multimeasure-rest attributes
