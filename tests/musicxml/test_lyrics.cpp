@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -35,12 +36,12 @@ namespace {
 // denigma's own verse/chorus/section numbering ("v1"/"c1"/"s1") does not necessarily iterate in
 // the same order Finale's own exporter declared its <lyric> elements in, so tests look a lyric up
 // by its verseNumber suffix rather than relying on vector position.
-const mx::api::LyricData& findLyric(const std::vector<mx::api::LyricData>& lyrics, const std::string& verseNumber)
+const mx::api::LyricData& findLyric(const std::vector<mx::api::LyricData>& lyrics, std::string_view verseNumber)
 {
     const auto it = std::find_if(lyrics.begin(), lyrics.end(),
         [&](const mx::api::LyricData& lyric) { return lyric.verseNumber == verseNumber; });
     if (it == lyrics.end()) {
-        throw std::out_of_range("No lyric found with verseNumber " + verseNumber);
+        throw std::out_of_range("No lyric found with verseNumber " + std::string(verseNumber));
     }
     return *it;
 }
