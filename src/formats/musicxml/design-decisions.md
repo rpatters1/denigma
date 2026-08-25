@@ -148,15 +148,27 @@ Nothing is lost by reducing, and that holds unconditionally. `createTupletStart`
 
 A related difference is not Denigma's doing. Denigma sets `<normal-type>` only when the tuplet's reference duration differs from the note's own type, but `mx::impl::NoteWriter` ignores that field and infers the element by scanning sibling notes, so it appears far more often than Denigma requests. See the nested-tuplet entry in [mx-api-gaps.md](mx-api-gaps.md).
 
-### The line a glissando was drawn with, not the tool, chooses `<glissando>` or `<slide>`
+### The tool a glissando was drawn with, not its line, chooses `<glissando>` or `<slide>`
 
-`<glissando>` and `<slide>` are notated identically and differ only in the pitch motion they imply: a glissando sounds the discrete pitches in between, a slide is a continuous portamento. Denigma picks between them from the `others::SmartShapeCustomLine` the shape references, treating a character line as a glissando and a solid or dashed line as a slide, and ignores whether the shape came from the glissando tool or the tab slide tool.
+`<glissando>` and `<slide>` are notated identically and differ only in the pitch motion they imply: a glissando sounds the discrete pitches in between, a slide is a continuous portamento. Denigma picks between them from the shape type, so the glissando tool yields `<glissando>` and the tab slide tool yields `<slide>`, whatever line either was drawn with. Finale's own export does the same.
 
-The shape type cannot answer the question. Each shape keeps the line definition that was in effect when it was created, so a `ShapeType::Glissando` may be straight and a `ShapeType::TabSlide` may be wavy, and neither changes when the tool is later reconfigured. `SmartShapeOptions::ssLineStyleCmpGlissando` and `ssLineStyleCmpTabSlide` name only what those tools would draw now. The line definition is the only record of what the user actually sees, and MusicXML's own element defaults read the same way: wavy for a glissando, solid for a slide.
+The distinction is one of intent, and the tool the user reached for is where intent lives. The line's appearance travels separately in `line-type`, so nothing is lost by not consulting it, and consulting it would only restate what `line-type` already says. Deciding from appearance instead would discard the tool distinction entirely and preserve strictly less: in `glissando.musx` it disagrees with Finale on five of seventeen shapes, calling a wavy tab slide a glissando and a straight glissando a slide.
 
-A dashed line resolves to a slide. It is a straight line, so it is not the stepped, wavy case, and the emitted `line-type` carries the dash geometry either way. That a tab slide on an ordinary staff exports as a glissando-family marking is intentional: the tool is meant for tablature, but it is routinely used as a note-attached glissando elsewhere.
+The roadmap once argued the opposite, that the referenced `others::SmartShapeCustomLine` should choose the element because a shape's type says nothing about its appearance. The premise is true and the conclusion does not follow. That a shape keeps whichever line style was in effect when it was created makes the style partly accidental, which is a reason to distrust it as a statement of intent, not a reason to promote it over the deliberate act of choosing a tool.
 
-Classification stays neutral about all of this. `classify::smartshape::Glissando` reports the two notes and the line, and each exporter decides what to call it; the vocabulary choice is MusicXML's, not the source's.
+A tab slide on an ordinary staff still exports as a slide. The tool is meant for tablature but is routinely used elsewhere, and its meaning does not change with the staff it lands on.
+
+Appearance remains the tiebreaker in exactly one place: a line drawn with the plain line tool, which records no tool intent at all. There MusicXML's element defaults give the reading, a character line being a glissando and a straight line a slide.
+
+Classification stays neutral about all of this. `classify::smartshape::Glissando` reports the two notes and the line, and `SmartShapeClassification::shapeType` reports the source tool; each exporter decides what to call it, because the vocabulary is MusicXML's, not the source's.
+
+### An ornament attaches to the note sounding under it
+
+A wavy line's endpoint may fall where no entry begins, since these shapes are beat-attached. Denigma resolves such an endpoint to the note whose duration spans that tick, rather than synthesizing the hidden anchor rest that hosts a floating curve endpoint.
+
+An ornament belongs to a note in a way a curve does not. A slur may legitimately begin in empty space, and its anchor rest carries a real position that the curve is drawn from. A trill beginning halfway through a whole note is still that whole note's trill, and MusicXML has no way to express an ornament floating between notes: `<wavy-line>` lives inside a note's `<ornaments>` or nowhere. Anchoring it to a hidden rest in a reserved voice would technically place it while leaving readers to render an ornament on a rest, or ignore it.
+
+The anchor rest remains the last resort, for an endpoint with no sounding note under it at all.
 
 ### A glissando's printed label comes from the line's center text
 

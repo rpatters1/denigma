@@ -763,11 +763,25 @@ void appendGeneralLine(
 
 // `<glissando>` and `<slide>` are notated identically and differ only in the pitch motion they
 // imply: a glissando sounds the discrete pitches in between, a slide is a continuous portamento.
-// The line Finale actually drew is what distinguishes them, since a shape's type says nothing
-// about its appearance. MusicXML's element defaults give the reading: a wavy or character line is
-// a glissando, a plain straight line is a slide.
-mx::api::GlissandoType glissandoTypeFromGeneralLine(const classify::smartshape::GeneralLine& line)
+// That is a statement of intent, and the tool the user reached for is where the intent lives. The
+// line's appearance travels separately in `line-type`, so nothing is lost by not consulting it
+// here, and consulting it would only restate what `line-type` already says. This is also what
+// Finale's own export does.
+//
+// A line drawn with the plain line tool records no such intent, and for it the appearance is the
+// only signal there is; MusicXML's element defaults then give the reading.
+mx::api::GlissandoType glissandoTypeForShape(
+    const MusxInstance<others::SmartShape>& shape,
+    const classify::smartshape::GeneralLine& line)
 {
+    switch (shape->shapeType) {
+    case others::SmartShape::ShapeType::Glissando:
+        return mx::api::GlissandoType::glissando;
+    case others::SmartShape::ShapeType::TabSlide:
+        return mx::api::GlissandoType::slide;
+    default:
+        break;
+    }
     return line.lineStyle == others::SmartShapeCustomLine::LineStyle::Char
         ? mx::api::GlissandoType::glissando
         : mx::api::GlissandoType::slide;
@@ -816,7 +830,7 @@ void appendGlissando(
         return;
     }
 
-    const auto glissandoType = glissandoTypeFromGeneralLine(glissando.line);
+    const auto glissandoType = glissandoTypeForShape(shape, glissando.line);
     const auto lineType = lineTypeFromGeneralLine(glissando.line);
 
     auto start = mx::api::GlissandoStart{ glissandoType };
@@ -856,16 +870,68 @@ bool shapeSpansMusic(const MusxInstance<others::SmartShape>& shape)
     return endPoint->calcGlobalPosition() > startPoint->calcGlobalPosition();
 }
 
+// Finds the note sounding at an endpoint's tick, meaning the one whose duration spans it rather
+// than one that happens to begin there.
+//
+// An ornament belongs to a note. A curve endpoint can hang in empty space and needs an anchor of
+// its own, but a trill that begins halfway through a whole note is still that whole note's trill,
+// and MusicXML has no way to say otherwise. Finale's own export attaches these the same way.
+std::optional<MusicXmlNoteLocation> findSoundingNoteLocation(
+    MusicXmlMusxMapping& context,
+    const std::shared_ptr<smartshape::EndPoint>& endpoint)
+{
+    const auto staffLocation = staffLocationForEndpoint(context, endpoint);
+    if (!staffLocation) {
+        return std::nullopt;
+    }
+    const auto& staff = context.currentPart->measures[staffLocation->measureIndex]
+        .staves[staffLocation->staffIndex];
+    const auto tick = calcEndpointTick(context, endpoint);
+
+    for (const auto& [voiceIndex, voice] : staff.voices) {
+        for (size_t noteIndex = 0; noteIndex < voice.notes.size(); ++noteIndex) {
+            const auto& note = voice.notes[noteIndex];
+            if (note.isRest || note.isChord) {
+                continue;
+            }
+            const auto noteEnd = note.tickTimePosition + (std::max)(0, note.durationData.durationTimeTicks);
+            if (note.tickTimePosition <= tick && tick < noteEnd) {
+                return MusicXmlNoteLocation{
+                    .measureIndex = staffLocation->measureIndex,
+                    .staffIndex = staffLocation->staffIndex,
+                    .userVoiceNumber = int(voiceIndex) + 1,
+                    .noteIndex = noteIndex
+                };
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 // Trill extensions and vibrato lines are both `<ornaments><wavy-line>` pairs.
 void appendWavyLine(
     MusicXmlMusxMapping& context,
     const MusxInstance<others::SmartShape>& shape,
     const std::optional<std::string>& glyphName)
 {
-    const auto endpoints = resolveSpanEndpoints(
-        context, shape,
-        shape->startTermSeg->endPoint->calcAssociatedEntry(),
-        shape->endTermSeg->endPoint->calcAssociatedEntry());
+    // An endpoint that coincides with no entry still belongs to whatever is sounding under it, so
+    // unlike a curve this looks for a spanning note before resorting to an anchor rest.
+    const auto resolveEnd = [&context](const std::shared_ptr<smartshape::EndPoint>& endpoint,
+                                       const EntryInfoPtr& entry, NoteNumber noteId) {
+        if (auto location = findEntryNoteLocation(context, entry, noteId)) {
+            return location;
+        }
+        if (auto location = findSoundingNoteLocation(context, endpoint)) {
+            return location;
+        }
+        return createFloatingSpanAnchor(context, endpoint);
+    };
+
+    MusicXmlSpanEndpoints endpoints;
+    endpoints.start.location = resolveEnd(shape->startTermSeg->endPoint,
+        shape->startTermSeg->endPoint->calcAssociatedEntry(), shape->startNoteId);
+    endpoints.end.location = resolveEnd(shape->endTermSeg->endPoint,
+        shape->endTermSeg->endPoint->calcAssociatedEntry(), shape->endNoteId);
     auto* startNote = endpoints.start.location ? noteDataAt(context, *endpoints.start.location) : nullptr;
     auto* endNote = endpoints.end.location ? noteDataAt(context, *endpoints.end.location) : nullptr;
     if (!startNote || !endNote) {

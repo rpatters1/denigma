@@ -441,9 +441,15 @@ bool isSamePitch(const musx::dom::NoteInfoPtr& left, const musx::dom::NoteInfoPt
 }
 
 // Whether any of a line's texts names a pitch-slide marking.
+//
+// This can only ever be a hint. The label may be in any language, or absent, so a shape that fails
+// here is not thereby something else; see the caller for what happens to it.
 bool namesPitchMotion(const GeneralLine& line)
 {
-    static constexpr std::array<std::string_view, 4> markingWords{ "gliss", "port", "slide", "smear" };
+    // Matched as word prefixes, so "gliss." and "glissando" both hit while "gripping" does not.
+    // Short entries like "rip" make prefix matching rather than substring matching necessary.
+    static constexpr std::array<std::string_view, 5> markingWords{
+        "gliss", "port", "slide", "smear", "rip" };
 
     const auto namesMarking = [](const musx::util::EnigmaParsingContext& textContext) {
         if (!textContext) {
@@ -457,12 +463,31 @@ bool namesPitchMotion(const GeneralLine& line)
             }
             text += chunk.text;
         }
-        for (auto& character : text) {
-            character = static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
+
+        // Fold to lowercase and drop punctuation, keeping spaces so word boundaries survive.
+        // Removing spaces too would let "big lissome" match "gliss".
+        std::string normalized;
+        normalized.reserve(text.size());
+        for (const unsigned char character : text) {
+            if (std::isspace(character)) {
+                normalized.push_back(' ');
+            } else if (std::isalnum(character)) {
+                normalized.push_back(static_cast<char>(std::tolower(character)));
+            }
         }
-        return std::ranges::any_of(markingWords, [&text](std::string_view word) {
-            return text.find(word) != std::string::npos;
-        });
+
+        for (const auto word : std::views::split(std::string_view{ normalized }, ' ')) {
+            const std::string_view candidate{ word.begin(), word.end() };
+            if (candidate.empty()) {
+                continue;
+            }
+            if (std::ranges::any_of(markingWords, [candidate](std::string_view marking) {
+                    return candidate.starts_with(marking);
+                })) {
+                return true;
+            }
+        }
+        return false;
     };
 
     return namesMarking(line.startText) || namesMarking(line.centerFullText)
@@ -639,9 +664,12 @@ SmartShapeClassification classifySmartShape(
             }
         } else if (shape->lineStyleId != 0 && shape->entryBased) {
             // Users draw pitch slides with the line tools instead of reaching for the dedicated
-            // ones. Such a line has no inherent meaning, so it must corroborate the reading.
+            // ones. Such a line has no inherent meaning, so it must corroborate the reading; a
+            // line that does not is still a line, and stays one rather than being discarded.
             if (auto glissando = classifyGlissando(shape, /* requireEvidence */ true)) {
                 result.value = std::move(*glissando);
+            } else if (auto generalLine = classifyGeneralLineAppearance(shape)) {
+                result.value = std::move(*generalLine);
             }
         }
         return result;
@@ -665,9 +693,13 @@ SmartShapeClassification classifySmartShape(
     case ShapeType::DashLineDownUp:
         if (shape->entryBased) {
             // As with an entry-attached custom line: a built-in line drawn between two entries
-            // may be a pitch slide, but only the shape's own evidence can say so.
+            // may be a pitch slide, but only the shape's own evidence can say so. In practice a
+            // built-in line carries none, since it has no texts and no custom line style, so this
+            // all but always falls through to the line itself.
             if (auto glissando = classifyGlissando(shape, /* requireEvidence */ true)) {
                 result.value = std::move(*glissando);
+            } else if (auto generalLine = classifyGeneralLineAppearance(shape)) {
+                result.value = std::move(*generalLine);
             }
         } else if (auto generalLine = classifyGeneralLine(shape)) {
             result.value = std::move(*generalLine);

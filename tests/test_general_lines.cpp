@@ -329,14 +329,19 @@ TEST(GeneralLineClassification, PedalEvidenceStillClassifiesAsKeyboardPedal)
     EXPECT_EQ(classification.as<classifiedshape::GeneralLine>(), nullptr);
 }
 
-TEST(GeneralLineClassification, EntryAttachedLineIsNotClassified)
+TEST(GeneralLineClassification, EntryAttachedLineFallsBackToTheLine)
 {
+    // An entry-attached line may be a pitch slide drawn with the line tool, but a built-in line
+    // carries no evidence for that: it has no texts and no custom line style. Rather than being
+    // discarded, it keeps its identity as a line, so an exporter can still render something.
     const auto context = makeBuiltInLine("solidLineUp", true, "      <entryBased/>\n");
     ASSERT_TRUE(context.shape);
     EXPECT_TRUE(context.shape->entryBased);
     const auto classification = classifySmartShape(context.shape);
-    EXPECT_EQ(classification.as<classifiedshape::GeneralLine>(), nullptr);
-    EXPECT_TRUE(std::holds_alternative<std::monostate>(classification.value));
+    EXPECT_EQ(classification.as<classifiedshape::Glissando>(), nullptr);
+    const auto* line = classification.as<classifiedshape::GeneralLine>();
+    ASSERT_NE(line, nullptr);
+    EXPECT_EQ(line->lineStyle, others::SmartShapeCustomLine::LineStyle::Solid);
 }
 
 TEST(GeneralLineClassification, MissingLineStyleYieldsMonostate)

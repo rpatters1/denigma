@@ -96,18 +96,32 @@ and a single-note tuplet has its stop written before its start
 `tests/musicxml/test_tuplets.cpp` carries a disabled test for each, asserting the intended output
 and naming the issue to re-enable it with.
 
-## Glissandi and slides: remaining sources
+## Glissandi and slides: the drawn-line heuristic
 
-Finale glissandi and tab slides export as `<glissando>` and `<slide>`, and an entry-attached line
-drawn as a pitch slide is recognized when the shape corroborates the reading. Two pieces are left.
+Finale glissandi and tab slides export as `<glissando>` and `<slide>`, chosen by the tool the shape
+was drawn with; `glissando.musx` matches Finale's own export on all seventeen shapes. What remains
+is the third source the original survey identified: an ordinary line, built-in or custom, that a
+user drew between two notes as a pitch slide instead of reaching for the dedicated tools.
 
-The corroboration predicate is provisional. `classifyGlissando` requires two notes of differing
-pitch, no hooks or arrowheads, a visible non-horizontal line, and either text naming the marking or
-a line style one of the dedicated tools currently draws. That last clause leans on
-`SmartShapeOptions::ssLineStyleCmpGlissando` and `ssLineStyleCmpTabSlide`, which describe only what
-those tools would draw now; a match is suggestive and a mismatch proves nothing. Only
-`smartshape_lines.musx` exercises any of this, and only through the dedicated glissando tool, so the
-predicate needs real drawn-line fixtures with negative controls before it can be trusted or tightened.
+`classifyGlissando` accepts such a line only on corroborating evidence: two notes of differing
+written pitch, no hooks or arrowheads, a visible non-horizontal line, and either a label naming the
+marking or a line style one of the dedicated tools currently draws. A line that fails is not
+discarded, it stays a `GeneralLine` and exports as a bracket or dashes direction, so nothing
+vanishes; what it loses is the note attachment the user drew.
+
+Two things keep this provisional. No fixture exercises it at all: every shape in `glissando.musx`
+uses a dedicated tool, so the predicate has never run on real data. And the label clause cannot be
+made complete, because a label may be in any language; the word list (`gliss`, `port`, `slide`,
+`smear`, `rip`, matched as word prefixes after folding case and dropping punctuation) is a
+convenience for the common spellings rather than a definition. The line-style clause is weaker
+still, since `SmartShapeOptions::ssLineStyleCmpGlissando` and `ssLineStyleCmpTabSlide` describe only
+what those tools would draw now.
+
+Settle it with fixtures carrying negative controls, a forced-horizontal line, a hooked line, an
+arrowheaded line, and a line between two notes of the same pitch. If the predicate cannot clear
+them, narrow it to the label alone or drop it and let every drawn line take the general-line
+fallback. Note that a built-in line can never satisfy it as written, having neither texts nor a
+custom line style, so only custom lines can currently qualify.
 
 Bends are related but separate. `BendHat` and `BendCurve` are entry-attached shapes with their own
 MusicXML vocabulary under `<technical>`, and they should not be folded into this work.

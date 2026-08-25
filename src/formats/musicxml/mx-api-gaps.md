@@ -224,13 +224,18 @@ The observable effect is over-emission rather than corruption. Denigma sets the 
 
 Needed API shape: writer support for nested tuplets, probably by matching `TupletStart` / `TupletStop` by `numberLevel` and honoring `DurationData`'s cumulative time modification and normal type independently of the visual tuplet-start search. Filed upstream as [webern/mx#428](https://github.com/webern/mx/issues/428).
 
-### Tuplet notation order on a single-note tuplet
+### Notation order on a span contained in one note
 
-A tuplet may cover exactly one note, in which case both of its ends belong to that note and MusicXML wants `<tuplet type="start">` before `<tuplet type="stop">`.
+A span may begin and end on the same note. Both of its ends then belong to that note, and MusicXML wants the `start` before the `stop`.
 
-`mx::impl::NotationsWriter` writes every entry of `NoteAttachmentData::tupletStops` before every entry of `tupletStarts`. That is the right convention for a note that closes one tuplet and opens another, but it inverts a single-note tuplet: on `tuplet-nested-singleton.musx` the inner tuplet emits `stop` for number 2 before `start` for number 2, so the tuplet closes before it opens. The numbers pair correctly; only the order is wrong. Denigma cannot correct it through the API, because starts and stops are separate vectors with no way to interleave them.
+`mx::impl::NotationsWriter` writes every stop before every start, per notation family: `tupletStops` before `tupletStarts`, `glissandoStops` before `glissandoStarts`, and likewise for wavy lines. That is the right convention for a note that closes one span and opens another, but it inverts a span contained in a single note, which then closes before it opens. Two fixtures show it:
 
-Needed API shape: none. This is a writer ordering fix: when a start and a stop on one note share a `numberLevel`, write the start first. Filed upstream as [webern/mx#429](https://github.com/webern/mx/issues/429). `MusicXmlTuplets.DISABLED_SingleNoteTupletWritesStartBeforeStop` asserts the intended order and is disabled until then.
+- `tuplet_singletons.musx`: two tuplets, each covering one note. Finale writes `start` then `stop`; Denigma writes `stop` then `start`, with the same `number` on both, so a reader sees a stop for a tuplet that was never open.
+- `glissando.musx`: a glissando whose start and stop are both on note `ev88n1`. Same inversion.
+
+The numbers pair correctly in both cases; only the order is wrong. Denigma cannot correct it through the API, because starts and stops are separate vectors with no way to interleave them.
+
+Needed API shape: none. This is a writer ordering fix: when a start and a stop on one note belong to the same span, write the start first. Filed upstream as [webern/mx#429](https://github.com/webern/mx/issues/429). `MusicXmlTuplets.DISABLED_SingleNoteTupletWritesStartBeforeStop` and `MusicXmlSmartShapes.DISABLED_SingleNoteGlissandoWritesStartBeforeStop` assert the intended order and are disabled until then.
 
 ### Tuplet spanner numbers are unmanaged
 
