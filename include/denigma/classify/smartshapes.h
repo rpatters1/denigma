@@ -164,9 +164,10 @@ struct VibratoLine
 /// @struct Glissando
 /// @brief A pitch-motion line drawn from one note to another.
 ///
-/// Finale draws these with the glissando tool, with the tab slide tool, or as an ordinary
-/// entry-attached line. The source tool is @ref SmartShapeClassification::shapeType; a tab slide
-/// is not confined to tablature, so both dedicated tools classify here.
+/// Finale draws these with the glissando tool or the tab slide tool, which are the only line
+/// tools it attaches to noteheads apart from bends; a plain custom line is always beat-attached.
+/// The source tool is @ref SmartShapeClassification::shapeType, and a tab slide is not confined to
+/// tablature, so both dedicated tools classify here.
 ///
 /// #line is the authority for what was actually drawn. A shape keeps the line definition that was
 /// in effect when it was created, so its shape type says nothing about its appearance: a

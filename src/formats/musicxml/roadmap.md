@@ -138,40 +138,28 @@ which is chord diagrams rather than staff content, though both read `FretInstrum
 work below.
 
 Percussion staves have a parallel gap and are covered by the percussion item above. One detail
-belongs here because it is shared: a percussion-aware notion of "same pitch" would have to compare
-percussion note type, not merely staff position, since one position can host different instruments
-and one instrument can move position. `classifyGlissando`'s `isSamePitch` compares written pitch
-only, which is adequate for gating a heuristic but is not a percussion identity test.
+belongs here because it is shared: any future notion of "the same note" on a percussion staff would
+have to compare percussion note type, not merely staff position, since one position can host
+different instruments and one instrument can move position. Nothing depends on that today.
 
-## Glissandi and slides: the drawn-line heuristic
+## Bends
 
-Finale glissandi and tab slides export as `<glissando>` and `<slide>`, chosen by the tool the shape
-was drawn with; `glissando.musx` matches Finale's own export on all seventeen shapes. What remains
-is the third source the original survey identified: an ordinary line, built-in or custom, that a
-user drew between two notes as a pitch slide instead of reaching for the dedicated tools.
+Export Finale's `BendHat` and `BendCurve` smart shapes as MusicXML `<technical><bend>`, which the
+spec describes as "used in guitar notation and tablature". A bend carries `<bend-alter>` for the
+interval, an optional `<pre-bend>` or `<release>`, `<with-bar>` for whammy-bar notation, and a
+`bend-shape` attribute distinguishing the angled symbols of standard notation from the curved ones
+common to tablature. `<bend>` also shares the `bend-sound` attribute group with `<slide>`, so its
+playback approximation is expressible.
 
-`classifyGlissando` accepts such a line only on corroborating evidence: two notes of differing
-written pitch, no hooks or arrowheads, a visible non-horizontal line, and either a label naming the
-marking or a line style one of the dedicated tools currently draws. A line that fails is not
-discarded, it stays a `GeneralLine` and exports as a bracket or dashes direction, so nothing
-vanishes; what it loses is the note attachment the user drew.
+These are the third and last family of note-attached Finale lines, alongside glissandi and tab
+slides, and the only remaining one Finale attaches to noteheads. They are dropped today: neither
+shape type is classified, so both reach the exporter as `std::monostate` and are logged by the
+unclassified-shape path.
 
-Two things keep this provisional. No fixture exercises it at all: every shape in `glissando.musx`
-uses a dedicated tool, so the predicate has never run on real data. And the label clause cannot be
-made complete, because a label may be in any language; the word list (`gliss`, `port`, `slide`,
-`smear`, `rip`, matched as word prefixes after folding case and dropping punctuation) is a
-convenience for the common spellings rather than a definition. The line-style clause is weaker
-still, since `SmartShapeOptions::ssLineStyleCmpGlissando` and `ssLineStyleCmpTabSlide` describe only
-what those tools would draw now.
-
-Settle it with fixtures carrying negative controls, a forced-horizontal line, a hooked line, an
-arrowheaded line, and a line between two notes of the same pitch. If the predicate cannot clear
-them, narrow it to the label alone or drop it and let every drawn line take the general-line
-fallback. Note that a built-in line can never satisfy it as written, having neither texts nor a
-custom line style, so only custom lines can currently qualify.
-
-Bends are related but separate. `BendHat` and `BendCurve` are entry-attached shapes with their own
-MusicXML vocabulary under `<technical>`, and they should not be folded into this work.
+Nothing here is blocked upstream in an obvious way, but `mx::api` coverage of `<bend>` has not been
+surveyed. Check it before starting, and record whatever is missing in
+[mx-api-gaps.md](mx-api-gaps.md). Tablature staves above is a neighbour rather than a prerequisite:
+a bend is notated in standard notation too, so this does not wait on TAB support.
 
 ## Shape-replaced stems
 

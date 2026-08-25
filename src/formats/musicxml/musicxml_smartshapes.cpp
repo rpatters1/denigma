@@ -25,6 +25,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -768,11 +769,9 @@ void appendGeneralLine(
 // here, and consulting it would only restate what `line-type` already says. This is also what
 // Finale's own export does.
 //
-// A line drawn with the plain line tool records no such intent, and for it the appearance is the
-// only signal there is; MusicXML's element defaults then give the reading.
-mx::api::GlissandoType glissandoTypeForShape(
-    const MusxInstance<others::SmartShape>& shape,
-    const classify::smartshape::GeneralLine& line)
+// Only the two dedicated tools produce a Glissando classification, because Finale attaches a line
+// to noteheads only for those and for bends, so there is no third case to fall back on.
+mx::api::GlissandoType glissandoTypeForShape(const MusxInstance<others::SmartShape>& shape)
 {
     switch (shape->shapeType) {
     case others::SmartShape::ShapeType::Glissando:
@@ -782,9 +781,10 @@ mx::api::GlissandoType glissandoTypeForShape(
     default:
         break;
     }
-    return line.lineStyle == others::SmartShapeCustomLine::LineStyle::Char
-        ? mx::api::GlissandoType::glissando
-        : mx::api::GlissandoType::slide;
+    ASSERT_IF(true) {
+        throw std::logic_error("Glissando classification from unexpected smart shape type.");
+    }
+    return mx::api::GlissandoType::glissando;
 }
 
 // The printed label alongside the line. Center text is where Finale keeps a "gliss." label, and
@@ -830,7 +830,7 @@ void appendGlissando(
         return;
     }
 
-    const auto glissandoType = glissandoTypeForShape(shape, glissando.line);
+    const auto glissandoType = glissandoTypeForShape(shape);
     const auto lineType = lineTypeFromGeneralLine(glissando.line);
 
     auto start = mx::api::GlissandoStart{ glissandoType };

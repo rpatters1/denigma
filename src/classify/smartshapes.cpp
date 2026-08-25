@@ -21,11 +21,7 @@
  */
 #include "denigma/classify/smartshapes.h"
 
-#include <algorithm>
-#include <array>
-#include <cctype>
 #include <cstdlib>
-#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -429,114 +425,8 @@ musx::dom::NoteInfoPtr resolveEntryNote(
     return musx::dom::NoteInfoPtr(entry, 0);
 }
 
-bool isSamePitch(const musx::dom::NoteInfoPtr& left, const musx::dom::NoteInfoPtr& right)
-{
-    // Compare written pitch only. staffPosition, which NoteProperties::operator== also covers,
-    // moves with cross-staff notation and would report two same-pitch notes as differing.
-    const auto leftPitch = left.calcNoteProperties();
-    const auto rightPitch = right.calcNoteProperties();
-    return leftPitch.noteName == rightPitch.noteName
-        && leftPitch.octave == rightPitch.octave
-        && leftPitch.alteration == rightPitch.alteration;
-}
-
-// Whether any of a line's texts names a pitch-slide marking.
-//
-// This can only ever be a hint. The label may be in any language, or absent, so a shape that fails
-// here is not thereby something else; see the caller for what happens to it.
-bool namesPitchMotion(const GeneralLine& line)
-{
-    // Matched as word prefixes, so "gliss." and "glissando" both hit while "gripping" does not.
-    // Short entries like "rip" make prefix matching rather than substring matching necessary.
-    static constexpr std::array<std::string_view, 5> markingWords{
-        "gliss", "port", "slide", "smear", "rip" };
-
-    const auto namesMarking = [](const musx::util::EnigmaParsingContext& textContext) {
-        if (!textContext) {
-            return false;
-        }
-        std::string text;
-        for (const auto& chunk : textContext.collectEnigmaTextChunks(
-                 musx::util::EnigmaString::EnigmaParsingOptions())) {
-            if (chunk.styles.font && chunk.styles.font->hidden) {
-                continue;
-            }
-            text += chunk.text;
-        }
-
-        // Fold to lowercase and drop punctuation, keeping spaces so word boundaries survive.
-        // Removing spaces too would let "big lissome" match "gliss".
-        std::string normalized;
-        normalized.reserve(text.size());
-        for (const unsigned char character : text) {
-            if (std::isspace(character)) {
-                normalized.push_back(' ');
-            } else if (std::isalnum(character)) {
-                normalized.push_back(static_cast<char>(std::tolower(character)));
-            }
-        }
-
-        for (const auto word : std::views::split(std::string_view{ normalized }, ' ')) {
-            const std::string_view candidate{ word.begin(), word.end() };
-            if (candidate.empty()) {
-                continue;
-            }
-            if (std::ranges::any_of(markingWords, [candidate](std::string_view marking) {
-                    return candidate.starts_with(marking);
-                })) {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    return namesMarking(line.startText) || namesMarking(line.centerFullText)
-        || namesMarking(line.centerAbbrText) || namesMarking(line.endText);
-}
-
-// Whether the shape uses whichever line style the glissando or tab slide tool is currently
-// configured to draw. A match is suggestive only: the tools' current styles say nothing about
-// what an existing shape looks like, so a mismatch proves nothing either way.
-bool matchesPitchMotionLineStyle(const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape)
-{
-    const auto options = shape->getDocument()->getOptions()->get<musx::dom::options::SmartShapeOptions>();
-    if (!options || shape->lineStyleId == 0) {
-        return false;
-    }
-    return shape->lineStyleId == options->ssLineStyleCmpGlissando
-        || shape->lineStyleId == options->ssLineStyleCmpTabSlide;
-}
-
-// Whether an ordinary line drawn between two entries is evidence of a pitch slide rather than a
-// bracket. Finale gives such a line no marker of its own, so the shape and its line definition
-// together have to carry the case: it connects two notes of differing pitch, carries no bracket
-// hardware, follows its endpoints instead of being pinned flat, and either names the marking or
-// uses a line style one of the dedicated tools currently draws.
-bool isPitchMotionEvidence(
-    const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape,
-    const GeneralLine& line,
-    const musx::dom::NoteInfoPtr& startNote,
-    const musx::dom::NoteInfoPtr& endNote)
-{
-    if (line.horizontal || !line.lineVisible) {
-        // A horizontal line is not a pitch slide, and neither is a line that draws nothing.
-        return false;
-    }
-    if (line.startCap.type != LineCap::Type::None || line.endCap.type != LineCap::Type::None) {
-        // Hooks and arrowheads belong to brackets and arrows.
-        return false;
-    }
-    if (isSamePitch(startNote, endNote)) {
-        return false;
-    }
-    return namesPitchMotion(line) || matchesPitchMotionLineStyle(shape);
-}
-
-/// @param requireEvidence True for a line that carries no inherent pitch-slide meaning, so that
-/// the shape must corroborate the reading. (See @ref isPitchMotionEvidence.)
 std::optional<Glissando> classifyGlissando(
-    const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape,
-    bool requireEvidence)
+    const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape)
 {
     auto line = classifyGeneralLineAppearance(shape);
     if (!line) {
@@ -547,9 +437,6 @@ std::optional<Glissando> classifyGlissando(
     if (!startNote || !endNote) {
         // A glissando is a marking between two notes. A line with an endpoint on no note is not
         // one, whatever it was drawn with.
-        return std::nullopt;
-    }
-    if (requireEvidence && !isPitchMotionEvidence(shape, *line, startNote, endNote)) {
         return std::nullopt;
     }
     return Glissando{ startNote, endNote, std::move(*line) };
@@ -633,7 +520,7 @@ SmartShapeClassification classifySmartShape(
         // but it is routinely drawn as a note-attached glissando on an ordinary staff, so it is
         // not a tablature-only feature. Neither shape type is required to be entry-attached for
         // the marking to make sense, and neither describes its own appearance.
-        if (auto glissando = classifyGlissando(shape, /* requireEvidence */ false)) {
+        if (auto glissando = classifyGlissando(shape)) {
             result.value = std::move(*glissando);
         }
         return result;
@@ -662,15 +549,6 @@ SmartShapeClassification classifySmartShape(
                     result.value = std::move(*generalLine);
                 }
             }
-        } else if (shape->lineStyleId != 0 && shape->entryBased) {
-            // Users draw pitch slides with the line tools instead of reaching for the dedicated
-            // ones. Such a line has no inherent meaning, so it must corroborate the reading; a
-            // line that does not is still a line, and stays one rather than being discarded.
-            if (auto glissando = classifyGlissando(shape, /* requireEvidence */ true)) {
-                result.value = std::move(*glissando);
-            } else if (auto generalLine = classifyGeneralLineAppearance(shape)) {
-                result.value = std::move(*generalLine);
-            }
         }
         return result;
     case ShapeType::SolidLine:
@@ -691,17 +569,7 @@ SmartShapeClassification classifySmartShape(
     case ShapeType::DashLineDownLeft:
     case ShapeType::DashLineUpDown:
     case ShapeType::DashLineDownUp:
-        if (shape->entryBased) {
-            // As with an entry-attached custom line: a built-in line drawn between two entries
-            // may be a pitch slide, but only the shape's own evidence can say so. In practice a
-            // built-in line carries none, since it has no texts and no custom line style, so this
-            // all but always falls through to the line itself.
-            if (auto glissando = classifyGlissando(shape, /* requireEvidence */ true)) {
-                result.value = std::move(*glissando);
-            } else if (auto generalLine = classifyGeneralLineAppearance(shape)) {
-                result.value = std::move(*generalLine);
-            }
-        } else if (auto generalLine = classifyGeneralLine(shape)) {
+        if (auto generalLine = classifyGeneralLine(shape)) {
             result.value = std::move(*generalLine);
         }
         return result;
