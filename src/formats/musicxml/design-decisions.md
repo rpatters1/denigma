@@ -76,15 +76,23 @@ Finale's own export writes a resolved position for every rest, floating or not, 
 
 The exporter defaults to the SMuFL glyph-origin convention for non-floating whole rests, which shifts the display pitch upward by one staff space. The `--finale-rest-position` option preserves Finale's nominal position for compatibility.
 
-### Lyric verse numbers carry their Finale lyric type
+### A lyric line is identified by its name and its number together
 
-`<lyric number>` is written as the first letter of the Finale lyric block's node name followed by that block's number, so Verse 1 becomes `v1`, Chorus 1 becomes `c1`, and Section 1 becomes `s1`. Finale keeps three independent lyric blocks, each numbered from 1, and a note can carry a syllable from more than one at once. A plain integer would collide Verse 1 with Chorus 1 and merge two distinct lyric lines into one.
+`<lyric number>` carries the Finale lyric block's own number and `<lyric name>` carries the block's type, so Verse 1 is `number="1" name="verse"` and Chorus 1 is `number="1" name="chorus"`. Finale keeps three independent lyric blocks, each numbered from 1, and a note can carry a syllable from more than one at once, so the number alone does not identify a line. The pair does.
 
-MusicXML permits this. `<lyric number>` is an NMTOKEN, an identifier used to distinguish and align lyric lines, not an ordinal, and nothing in the specification requires it to be numeric.
+This is what MusicXML intends. The reference describes `number` as specifying "the lyric line when multiple lines are present" and `name` as indicating "the name of the lyric type", giving verse and chorus as its examples, and both `<lyric-font>` and `<lyric-language>` are keyed by "a particular name and number of lyric". Neither attribute is required to be unique on its own. It is also what Finale writes: in `verse_chorus_section.musx` it emits `number` 1 and 2 within each of `verse`, `chorus`, and `section`, placing both numbers at the same `default-y` regardless of type.
 
-Importers vary in how well they honor that. Dorico handles the scheme correctly. MuseScore assigns a new vertical line per distinct number value rather than inferring from usage how the lines are actually laid out, so a document that switches between numbers marches its lyrics down the page. That is MuseScore reading an identifier as an ordinal, and it is tracked as a MuseScore issue rather than a reason to change the scheme; note that MuseScore's MNX importer infers this correctly, so the behavior is not inherent to the problem.
+Denigma previously encoded the pair in `number` alone, as `v1`, `c1`, `s1`. That is valid, since `number` is an NMTOKEN and nothing requires it to be numeric, but it fails in practice. Dorico stacks two verses on one line because it reads `number` as the line position and cannot parse the value; MuseScore assigns a new line per distinct value. Every importer tested misread it, which is a poor trade for information the format has a dedicated attribute for.
 
-This is held until real-world evidence argues otherwise. The cost is confined to one importer, while the benefit, not merging distinct lyric blocks, applies everywhere.
+`name` is emitted always, including for a verse-only document, where Finale omits it. Emitting it costs a few bytes, avoids pre-scanning a document to decide whether the type is needed, and makes a file easier to analyze when one arrives for diagnosis. The consequence is that a verse-only export does not match Finale's byte for byte.
+
+### A word extension needs a span, not just a flag
+
+`details::LyricAssign::wext` marks a syllable as having a word extension, but it does not say how far the extension reaches. Finale stores most of these shapes with both termination segments on the syllable's own entry and resolves the length at layout time, so `calcWordExtensionEndpoint` frequently returns the entry it started from. Denigma emits `<extend>` only when that endpoint is a different entry.
+
+Both halves of the rule are visible in the fixtures. `zwei_gesange.musx` has two assignments carrying `wext` and exactly two `wordExt` shapes that reach another entry, and Finale exports two extension pairs. `for_health_and_strength.musx` has one assignment carrying `wext` and not one of its 27 shapes spans, and Finale exports none: the syllable at the end of the first ending continues into the second, so no extension is wanted.
+
+Trusting the flag alone produced an `<extend type="start">` and its `<extend type="stop">` on the same note, which says nothing. MuseScore and Dorico both drew an extension there; Finale, reading its own file, did not.
 
 ### The Finale title becomes work-title, not movement-title
 

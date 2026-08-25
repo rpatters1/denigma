@@ -358,12 +358,26 @@ void applyLyrics(MusicXmlMusxMapping& context, mx::api::NoteData& note, const En
                 lyric.text = *numberText;
                 lyric.syllabic = mx::api::LyricSyllabic::single;
             }
-            lyric.verseNumber = std::string(T::TextType::XmlNodeName.substr(0, 1)) + std::to_string(assignment->lyricNumber);
-            lyric.hasExtend = assignment->wext != 0 || lyricText->syllables[syllableIndex]->strippedUnderscores > 0;
-            if (const auto endpoint = assignment->calcWordExtensionEndpoint()) {
+            // `number` is the block's own number and `name` is its type, which is how MusicXML
+            // divides the two and what Finale itself writes. Identity is the pair, so Verse 1 and
+            // Chorus 1 stay distinct while both keep the plain number readers place lines by.
+            lyric.verseNumber = std::to_string(assignment->lyricNumber);
+            lyric.verseName = std::string(T::TextType::XmlNodeName);
+            // Finale stores most word extensions with both ends on the syllable's own entry and
+            // works out how far to draw them at layout time, so `wext` marks a candidate rather
+            // than a span. Only a shape that reaches a different entry is an extension MusicXML
+            // can express, and only those are what Finale itself exports: of 27 such shapes in
+            // for_health_and_strength.musx none spans, and Finale writes no extension there.
+            const auto endpoint = assignment->calcWordExtensionEndpoint();
+            const bool extensionSpansEntries = endpoint
+                && endpoint->getEntry()->getEntryNumber() != entryInfo->getEntry()->getEntryNumber();
+            lyric.hasExtend = (assignment->wext != 0 && extensionSpansEntries)
+                || lyricText->syllables[syllableIndex]->strippedUnderscores > 0;
+            if (extensionSpansEntries) {
                 lyric.extendType = mx::api::LyricExtendType::start;
                 auto stopLyric = mx::api::LyricData{};
                 stopLyric.verseNumber = lyric.verseNumber;
+                stopLyric.verseName = lyric.verseName;
                 stopLyric.hasExtend = true;
                 stopLyric.extendType = mx::api::LyricExtendType::stop;
                 context.pendingLyricStops[endpoint->getEntry()->getEntryNumber()].emplace_back(std::move(stopLyric));
