@@ -36,7 +36,7 @@ The source data requires musxdom effort first: Finale's channel assignments live
 
 Export Finale percussion staves using their effective percussion maps rather than treating every staff as one pitched instrument. MUSX DOM exposes the staff or staff-style percussion map, each `PercussionNoteInfo` assignment, per-note `PercussionNoteCode` overrides, and the underlying percussion note-type metadata. Use these together to determine each note's displayed staff position and notehead, semantic instrument identity, and playback mapping in both the score and linked parts.
 
-Represent drum kits and other multi-instrument staves with separate MusicXML `<score-instrument>` / `<midi-instrument>` definitions and a matching `<instrument id="…">` on each unpitched note. Preserve `midi-unpitched`, effective staff-style map changes, duplicated note types distinguished by their order IDs, and custom notehead glyphs. The current `mx::api` model exposes only one `InstrumentData` per part and no per-note instrument ID, so full per-position instrument assignment requires additional MX API support.
+Represent drum kits and other multi-instrument staves with separate MusicXML `<score-instrument>` / `<midi-instrument>` definitions and a matching `<instrument id="…">` on each unpitched note. Preserve `midi-unpitched`, effective staff-style map changes, duplicated note types distinguished by their order IDs, and custom notehead glyphs. This half is blocked upstream: `mx::api` exposes one `InstrumentData` per part and no per-note instrument reference, so no note can be pointed at an instrument. The unpitched note itself, its display position, `<midi-unpitched>`, and the `<percussion>` pictogram are all already expressible; see per-note instrument assignment in [mx-api-gaps.md](mx-api-gaps.md) for what is and is not available.
 
 Also export Finale percussion pictogram expressions as semantic MusicXML `<percussion>` directions. Add an exporter-neutral classifier for exact `pict*` SMuFL glyphs, including valid beater and stick combinations with tip direction, material, parentheses, dashed circles, and strike location. Map Finale expression enclosures where supported, retain canonical SMuFL overrides, and leave mixed text or unrecognized glyph sequences as general text. Do not infer direction pictograms from percussion-note assignments; note identity and performance-direction symbols are separate concerns.
 
@@ -95,6 +95,53 @@ and a single-note tuplet has its stop written before its start
 ([webern/mx#429](https://github.com/webern/mx/issues/429)). `MusicXmlTuplets` in
 `tests/musicxml/test_tuplets.cpp` carries a disabled test for each, asserting the intended output
 and naming the issue to re-enable it with.
+
+## Tablature staves
+
+Export Finale tablature staves as MusicXML tablature rather than as ordinary pitched staves.
+Nothing reads `others::Staff::notationStyle` today, so a TAB staff exports as though it were
+standard: the pitches are correct and everything that makes it tablature is dropped, with no
+diagnostic. `Staff::NotationStyle` distinguishes `Standard`, `Percussion`, and `Tablature`, and it
+can be overridden by a staff style, so the effective value is what matters.
+
+Four pieces make up the feature:
+
+- The TAB clef. MusicXML spells it `<clef><sign>TAB</sign>`, and its presence is what tells a
+  reader that noteheads are fret numbers; the spec notes that a TAB clef alone is sufficient to
+  imply that, so no per-note text is needed. `Staff::showTabClefAllSys` says whether Finale repeats
+  it on every system.
+- Staff details. `<staff-tuning>` per line, from the `others::FretInstrument` at
+  `Staff::fretInstId`, whose `StringInfo::pitch` gives each open string's MIDI pitch and whose
+  `nutOffset` shifts it. `<capo>` comes from `Staff::capoPos`, and `<show-frets>` from
+  `Staff::useTabLetters`, which selects letters over numbers. `Staff::lowestFret` and `numFrets`
+  have no direct MusicXML equivalent on a staff.
+- Per-note string and fret, as `<technical><string>` and `<fret>`. This is the hard part, see
+  below.
+- Layout specifics with no MusicXML equivalent: `Staff::vertTabNumOff`,
+  `breakTabLinesAtNotes`, and `hideTuplets`. Decide a downgrade policy rather than attempting them.
+
+The per-note half needs real work in MUSX DOM terms. Finale does not store fret numbers.
+`details::TablatureNoteMods` ("tabAlter") records only a `stringNumber`, and only for notes whose
+string assignment was overridden; its documentation states that Finale derives the fret from the
+open-string pitch and the fret intervals in the staff's `FretInstrument`. So Denigma must compute
+the fret from the note's pitch, the string's open pitch and nut offset, and the capo, and must also
+reproduce Finale's automatic string assignment for every note that carries no override. That
+algorithm is not documented in MUSX DOM and would need to be established, ideally as a musxdom
+helper rather than in the exporter, so MNX can share it.
+
+The export half is additionally blocked upstream: `mx::api` models neither `<string>` nor `<fret>`.
+See the tablature entry in [mx-api-gaps.md](mx-api-gaps.md).
+
+Two neighbours are related but separate. Fretboard diagrams above cover `<frame>` on `<harmony>`,
+which is chord diagrams rather than staff content, though both read `FretInstrument`. Bends
+(`BendHat`, `BendCurve`) are guitar technique under `<technical>` and are noted with the glissando
+work below.
+
+Percussion staves have a parallel gap and are covered by the percussion item above. One detail
+belongs here because it is shared: a percussion-aware notion of "same pitch" would have to compare
+percussion note type, not merely staff position, since one position can host different instruments
+and one instrument can move position. `classifyGlissando`'s `isSamePitch` compares written pitch
+only, which is adequate for gating a heuristic but is not a percussion identity test.
 
 ## Glissandi and slides: the drawn-line heuristic
 
