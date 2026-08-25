@@ -935,42 +935,34 @@ TEST(MusicXmlSmartShapes, WavyLinesMatchReference)
     EXPECT_EQ(reference, ours);
 }
 
+TEST(MusicXmlSmartShapes, GlissToRestMatchesReference)
+{
+    setupTestDataPaths();
+
+    // A glissando or slide drawn to a rest. Finale offers only beat- or notehead-attachment for
+    // custom lines, so it cannot attach one to a rest: both ends anchor to the notehead and the
+    // line merely extends toward the rest. Each shape therefore begins and ends on one note.
+    const auto ours = comparableSpanEventsForFixture("gliss_to_rest.musx");
+    const auto reference = comparableSpanEventsForReference("gliss_to_rest-ref.musicxml");
+    ASSERT_FALSE(reference.empty());
+    EXPECT_EQ(reference, ours);
+}
+
 // DISABLED: fails against mx as pinned. Re-enable when webern/mx#429 is fixed.
 //
-// glissando.musx contains a glissando whose start and stop are both on one note. Finale writes
-// start then stop; NotationsWriter writes every glissandoStop before every glissandoStart, so it
-// comes out inverted, with number 1 closing before it opens. Same defect as the single-note tuplet
-// in test_tuplets.cpp, so the fix is one ordering rule covering both.
+// gliss_to_rest.musx holds one glissando and one tab slide, each drawn to a rest and so each
+// beginning and ending on a single note. Finale writes start then stop for both;
+// NotationsWriter writes every glissandoStop before every glissandoStart, so both come out
+// inverted, with number 1 closing before it opens. Same defect as the single-note tuplet in
+// test_tuplets.cpp, so one ordering rule covers both.
 TEST(MusicXmlSmartShapes, DISABLED_SingleNoteGlissandoWritesStartBeforeStop)
 {
     setupTestDataPaths();
-    const auto score = loadScoreData(exportMusicXmlFixture("glissando.musx"));
-    ASSERT_TRUE(score.has_value());
-
-    size_t notesCarryingBothEnds = 0;
-    for (const auto& part : score->parts) {
-        for (const auto& measure : part.measures) {
-            for (const auto& staff : measure.staves) {
-                for (const auto& [voiceIndex, voice] : staff.voices) {
-                    static_cast<void>(voiceIndex);
-                    for (const auto& note : voice.notes) {
-                        const auto& attachments = note.noteAttachmentData;
-                        if (attachments.glissandoStarts.empty() || attachments.glissandoStops.empty()) {
-                            continue;
-                        }
-                        ++notesCarryingBothEnds;
-                        // mx::api keeps starts and stops in separate vectors, so the emitted order
-                        // is not observable here. Read it from the file instead.
-                    }
-                }
-            }
-        }
-    }
-    ASSERT_EQ(notesCarryingBothEnds, 1u) << "fixture should contain exactly one single-note glissando";
-
     pugi::xml_document document;
-    ASSERT_TRUE(document.load_file(exportMusicXmlFixture("glissando.musx").c_str()));
-    for (const auto node : document.select_nodes(".//note[notations/glissando][notations/slide] | .//note")) {
+    ASSERT_TRUE(document.load_file(exportMusicXmlFixture("gliss_to_rest.musx").c_str()));
+
+    size_t notesChecked = 0;
+    for (const auto node : document.select_nodes(".//note")) {
         std::vector<std::string> types;
         for (auto notations = node.node().child("notations"); notations;
              notations = notations.next_sibling("notations")) {
@@ -984,7 +976,9 @@ TEST(MusicXmlSmartShapes, DISABLED_SingleNoteGlissandoWritesStartBeforeStop)
         if (types.size() < 2) {
             continue;
         }
+        ++notesChecked;
         EXPECT_EQ(types.front(), "start") << "note " << node.node().attribute("id").value();
         EXPECT_EQ(types.back(), "stop") << "note " << node.node().attribute("id").value();
     }
+    EXPECT_EQ(notesChecked, 2u) << "expected one glissando and one slide, each on a single note";
 }

@@ -231,7 +231,7 @@ A span may begin and end on the same note. Both of its ends then belong to that 
 `mx::impl::NotationsWriter` writes every stop before every start, per notation family: `tupletStops` before `tupletStarts`, `glissandoStops` before `glissandoStarts`, and likewise for wavy lines. That is the right convention for a note that closes one span and opens another, but it inverts a span contained in a single note, which then closes before it opens. Two fixtures show it:
 
 - `tuplet_singletons.musx`: two tuplets, each covering one note. Finale writes `start` then `stop`; Denigma writes `stop` then `start`, with the same `number` on both, so a reader sees a stop for a tuplet that was never open.
-- `glissando.musx`: a glissando whose start and stop are both on note `ev88n1`. Same inversion.
+- `gliss_to_rest.musx`: one glissando and one tab slide, each drawn to a rest. Finale offers only beat- or notehead-attachment for custom lines, so it cannot attach one to a rest; both ends anchor to the notehead and the line extends toward the rest. Each shape therefore begins and ends on one note, and each comes out inverted. `glissando.musx` shape 18 is the same case.
 
 The numbers pair correctly in both cases; only the order is wrong. Denigma cannot correct it through the API, because starts and stops are separate vectors with no way to interleave them.
 
