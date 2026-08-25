@@ -158,7 +158,7 @@ The roadmap once argued the opposite, that the referenced `others::SmartShapeCus
 
 A tab slide on an ordinary staff still exports as a slide. The tool is meant for tablature but is routinely used elsewhere, and its meaning does not change with the staff it lands on.
 
-There is no third case to fall back on. Finale attaches a line to noteheads only for the glissando, tab slide, and bend tools; a plain custom line is always beat-attached, so a note-attached pitch slide always carries a tool, and appearance is never consulted for this choice.
+There is no third case to fall back on. Finale attaches a line to noteheads only for the glissando, tab slide, and bend tools; a plain custom line is always beat-attached, so a note-attached pitch slide always carries a tool, and appearance is never consulted for this choice. Data outside what the Finale UI can author is not classified at all, for the reasons given under scope in the `classifier-design` skill.
 
 Classification stays neutral about all of this. `classify::smartshape::Glissando` reports the two notes and the line, and `SmartShapeClassification::shapeType` reports the source tool; each exporter decides what to call it, because the vocabulary is MusicXML's, not the source's.
 
