@@ -92,7 +92,7 @@ Denigma previously encoded the pair in `number` alone, as `v1`, `c1`, `s1`. That
 
 Both halves of the rule are visible in the fixtures. `zwei_gesange.musx` has two assignments carrying `wext` and exactly two `wordExt` shapes that reach another entry, and Finale exports two extension pairs. `for_health_and_strength.musx` has one assignment carrying `wext` and not one of its 27 shapes spans, and Finale exports none: the syllable at the end of the first ending continues into the second, so no extension is wanted.
 
-Trusting the flag alone produced an `<extend type="start">` and its `<extend type="stop">` on the same note, which says nothing. MuseScore and Dorico both drew an extension there; Finale, reading its own file, did not.
+Trusting the flag alone produced an `<extend type="start">` and its `<extend type="stop">` on the same note, which says nothing. MuseScore and Dorico both drew an extension there; Finale, reading its own file, did not. Other importer behavior around lyrics is recorded in [implementation_notes.md](implementation_notes.md).
 
 ### The Finale title becomes work-title, not movement-title
 
