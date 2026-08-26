@@ -1029,6 +1029,12 @@ void processChords(
             chord.bassAlter = bass.alteration;
         }
 
+        // A font fretboard resolves to one character and has no fret positions to export. The
+        // assignment's own flags decide this; see the font-fretboard entry in design-decisions.md.
+        if (assignment->useFretboardFont && assignment->showFretboard) {
+            context.fontFretboardChordCount++;
+        }
+
         // calcFretboardDisplayData owns the whole visibility decision, so a value here means Finale displays
         // a structured fretboard for this chord and an empty result needs no further checks of our own.
         if (const auto fretboard = calcFretboardDisplayData(assignment, keySignature, keyContext)) {
@@ -1043,6 +1049,12 @@ void processChords(
             if (fretboard->showFretboardNumber && fretboard->fretboardNumber > 1) {
                 chord.frameData.isFirstFretSpecified = true;
                 chord.frameData.firstFret = fretboard->fretboardNumber;
+                // The label is the fret number followed by the style's text, giving "4fr.". Finale
+                // has no setting for the side; see the first-fret entry in design-decisions.md.
+                if (const auto fretStyle = assignment->getFretboardStyle()) {
+                    chord.frameData.firstFretText = std::to_string(fretboard->fretboardNumber) + fretStyle->fretNumText;
+                    chord.frameData.firstFretLocation = mx::api::FirstFretLocation::right;
+                }
             }
 
             for (const auto& cell : fretboard->cells) {

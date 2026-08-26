@@ -183,6 +183,11 @@ struct MusicXmlMusxMapping
     /// Saved geometry and saved per-measure flags remain valid either way.
     bool partLayoutIsCalculated{};
 
+    /// Chord assignments in this document asking for a fretboard drawn with the fretboard font,
+    /// which carries no fret positions and so cannot become a MusicXML frame. Document-scoped, so
+    /// #clearCurrent leaves it alone.
+    int fontFretboardChordCount{};
+
     /// Lazily fetched backing store for #systemForMeasure. Callers previously hoisted this array out
     /// of their loops; caching it here keeps the shared lookup equally cheap per call.
     mutable std::optional<musx::dom::MusxInstanceList<musx::dom::others::StaffSystem>> cachedStaffSystems;

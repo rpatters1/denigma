@@ -292,11 +292,3 @@ Finale exports an altered-bass chord as `<bass arrangement="horizontal">`, choos
 `mx::api::ChordData` exposes `bass` and `bassAlter` but no arrangement member, so Denigma cannot record Finale's choice and the reading application picks its own layout.
 
 Needed API shape: an optional bass arrangement enumeration on `ChordData` covering the MusicXML `arrangement` values.
-
-### First-fret display on a fretboard diagram
-
-MusicXML's `<first-fret>` carries the display attributes alongside its value: Finale writes `<first-fret location="right" text="6fr.">6</first-fret>`, giving both the label to print and the side of the diagram to print it on.
-
-`mx::api::FrameData` exposes `firstFret` and `isFirstFretSpecified` only. Denigma exports the correct fret number, but drops the printed label and its location, so a reading application must invent both.
-
-Needed API shape: optional text and location members accompanying `FrameData::firstFret`.
