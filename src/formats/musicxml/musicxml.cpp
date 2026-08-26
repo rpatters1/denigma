@@ -86,6 +86,13 @@ mx::api::ScoreData createMusicXmlDocumentFromDocument(
     createParts(context);
     createMeasures(context);
 
+    if (context.fontFretboardChordCount > 0) {
+        denigmaContext.logMessage(LogMsg() << "skipped " << context.fontFretboardChordCount
+            << " fretboard(s) that Finale draws with the fretboard font: the font stores only a character,"
+            << " so there is no string, fret, or barre data to export as a MusicXML frame.",
+            MessageSeverity::Info);
+    }
+
     context.musicXmlScore->sort();
     return *context.musicXmlScore;
 }

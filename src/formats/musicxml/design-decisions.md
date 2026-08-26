@@ -189,3 +189,31 @@ The label's own font, size, and styling are dropped, because the element has no 
 `<wavy-line smufl="...">` accepts only the multi-segment `wiggle*` glyphs and the guitar vibrato strokes. Denigma sets the attribute for a line character in that vocabulary, meaning the `wiggleVibrato*`, `wiggleSawtooth*`, `guitarVibratoStroke`, and `guitarWideVibratoStroke` families a vibrato line uses, and omits it otherwise, notably for the `ornamentZigZagLine*` characters a trill line may use.
 
 Omitting is not merely conservative. `mx::core::SmuflWavyLineGlyphName` repairs an unparseable value rather than rejecting it, rewriting an out-of-vocabulary name to a `wiggle` placeholder, so passing one through would silently substitute a different glyph. Losing the override leaves the reader to draw its default trill or vibrato line, which is closer to the source than a wrong glyph.
+### A font-based fretboard is recognized from the chord assignment alone
+
+Finale can draw a chord's fretboard from a font character instead of a diagram. Denigma counts those
+so it can report them, and decides from `details::ChordAssign::useFretboardFont` together with that
+assignment's own `showFretboard`.
+
+`options::ChordOptions` is not consulted, even though it carries `useFretboardFont`, `fretStyleId`,
+and `fretInstId`. Those are the values Finale copies into a chord when the chord is created; they do
+not override it afterwards. A document whose option is off can hold chords whose own flag is on, so
+reading the option would misreport every chord changed after creation.
+
+Staff-level hiding is a genuine suppression rather than a creation default, but it stays with
+`musx::util::calcFretboardDisplayData`, which owns the visibility decision. The count can therefore
+include a chord whose fretboard the staff hides. That is accepted so the rules are not forked: the
+report says these chords ask for a font fretboard, which those two flags establish on their own.
+
+### A first-fret label is always printed to the right of the frame
+
+MusicXML's `<first-fret>` takes a `location` of `left` or `right`. Denigma always writes `right`.
+
+Finale offers no choice of side. Its fretboard style has a Show Fret Number option and a label
+string, and that is all; `others::FretboardStyle` matches, carrying `fretNumText` and offsets for
+nudging the label but no field for which side it sits on. Finale's own exports write
+`location="right"` throughout. Emitting anything else would invent a distinction Finale does not
+make.
+
+The label itself is the fret number followed by `fretNumText`, giving `4fr.` for a diagram starting
+on the fourth fret. Both attributes are omitted when the chord assignment has no fretboard style.
