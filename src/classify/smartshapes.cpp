@@ -401,30 +401,6 @@ std::optional<VibratoLine> classifyVibratoLine(const GeneralLine& line)
     return VibratoLine{ line };
 }
 
-// Resolves one end of an entry-attached line to a specific note. A shape names a note explicitly
-// when its endpoint is on a chord; otherwise the entry's first note carries the line.
-musx::dom::NoteInfoPtr resolveEntryNote(
-    const std::shared_ptr<musx::dom::others::SmartShape::TerminationSeg>& termSeg,
-    musx::dom::NoteNumber noteId)
-{
-    if (!termSeg) {
-        return {};
-    }
-    const auto entry = termSeg->endPoint->calcAssociatedEntry();
-    if (!entry) {
-        return {};
-    }
-    if (noteId != 0) {
-        if (const auto note = entry.findNoteId(noteId)) {
-            return note;
-        }
-    }
-    if (entry->getEntry()->notes.empty()) {
-        return {};
-    }
-    return musx::dom::NoteInfoPtr(entry, 0);
-}
-
 std::optional<Glissando> classifyGlissando(
     const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape)
 {
@@ -432,8 +408,8 @@ std::optional<Glissando> classifyGlissando(
     if (!line) {
         return std::nullopt;
     }
-    const auto startNote = resolveEntryNote(shape->startTermSeg, shape->startNoteId);
-    const auto endNote = resolveEntryNote(shape->endTermSeg, shape->endNoteId);
+    const auto startNote = shape->calcStartNote();
+    const auto endNote = shape->calcEndNote();
     if (!startNote || !endNote) {
         // A glissando is a marking between two notes. A line with an endpoint on no note is not
         // one, whatever it was drawn with.
