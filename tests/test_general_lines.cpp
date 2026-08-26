@@ -331,6 +331,9 @@ TEST(GeneralLineClassification, PedalEvidenceStillClassifiesAsKeyboardPedal)
 
 TEST(GeneralLineClassification, EntryAttachedLineIsNotClassified)
 {
+    // Finale attaches a line to noteheads only for the glissando, tab slide, and bend tools, so an
+    // entry-attached plain line does not arise from the application. This synthesizes one anyway,
+    // to pin down that the line classifiers keep refusing it rather than guessing at a meaning.
     const auto context = makeBuiltInLine("solidLineUp", true, "      <entryBased/>\n");
     ASSERT_TRUE(context.shape);
     EXPECT_TRUE(context.shape->entryBased);

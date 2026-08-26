@@ -23,6 +23,7 @@
 
 #include <cstdlib>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -400,6 +401,23 @@ std::optional<VibratoLine> classifyVibratoLine(const GeneralLine& line)
     return VibratoLine{ line };
 }
 
+std::optional<Glissando> classifyGlissando(
+    const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape)
+{
+    auto line = classifyGeneralLineAppearance(shape);
+    if (!line) {
+        return std::nullopt;
+    }
+    const auto startNote = shape->calcStartNote();
+    const auto endNote = shape->calcEndNote();
+    if (!startNote || !endNote) {
+        // A glissando is a marking between two notes. A line with an endpoint on no note is not
+        // one, whatever it was drawn with.
+        return std::nullopt;
+    }
+    return Glissando{ startNote, endNote, std::move(*line) };
+}
+
 } // namespace
 
 bool smartshape::KeyboardPedal::isUnaCorda() const noexcept
@@ -470,6 +488,16 @@ SmartShapeClassification classifySmartShape(
     case ShapeType::TrillExtension:
         if (!shape->entryBased) {
             result.value = TrillLine{ shape->shapeType == ShapeType::Trill, std::nullopt };
+        }
+        return result;
+    case ShapeType::Glissando:
+    case ShapeType::TabSlide:
+        // Both dedicated tools take one path. A tab slide is a solid line meant for tablature,
+        // but it is routinely drawn as a note-attached glissando on an ordinary staff, so it is
+        // not a tablature-only feature. Neither shape type is required to be entry-attached for
+        // the marking to make sense, and neither describes its own appearance.
+        if (auto glissando = classifyGlissando(shape)) {
+            result.value = std::move(*glissando);
         }
         return result;
     case ShapeType::Crescendo:

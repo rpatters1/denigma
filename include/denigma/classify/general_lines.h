@@ -109,5 +109,17 @@ std::optional<smartshape::GeneralLine> classifyGeneralLine(
 std::optional<smartshape::GeneralLine> classifyGeneralLine(
     const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape);
 
+/// @brief Describes a line-type smart shape's appearance, ignoring how it is attached.
+///
+/// Unlike @ref classifyGeneralLine, this accepts an entry-attached shape, and it resolves the
+/// line style of the shape types that keep their appearance in a
+/// @ref musx::dom::others::SmartShapeCustomLine rather than in the shape type itself. It answers
+/// only what the line looks like; the caller owns what the line means.
+/// @return std::nullopt when the shape is null, is not a line type, or its line style cannot be
+/// resolved.
+[[nodiscard]]
+std::optional<smartshape::GeneralLine> classifyGeneralLineAppearance(
+    const musx::dom::MusxInstance<musx::dom::others::SmartShape>& shape);
+
 } // namespace classify
 } // namespace denigma

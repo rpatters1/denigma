@@ -23,12 +23,15 @@
 #include <filesystem>
 #include <ostream>
 #include <set>
+#include <algorithm>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "mx/api/CurveData.h"
+#include "mx/api/GlissandoData.h"
 #include "mx/api/NoteData.h"
+#include "mx/api/WavyLineData.h"
 #include "mx/api/ScoreData.h"
 #include "pugixml.hpp"
 #include "test_utils.h"
@@ -727,16 +730,255 @@ TEST(MusicXmlSmartShapes, SmartShapeLinesTrillMark)
     });
     EXPECT_NE(trillIt, note.noteAttachmentData.marks.end());
 
-    // The built-in trill extension (staff 3, m3-m6) is omitted: denigma does not yet emit
-    // mx::api's wavy-line spanner (WavyLineStart/Continue/Stop on NoteAttachmentData) for it.
-    // (See mx-api-gaps.md.)
-    const auto& m3 = staff3.measures.at(2).staves.at(0);
-    const auto m3VoiceIt = m3.voices.find(0);
-    if (m3VoiceIt != m3.voices.end()) {
-        for (const auto& m3Note : m3VoiceIt->second.notes) {
-            EXPECT_TRUE(m3Note.noteAttachmentData.wavyLineStarts.empty());
-            EXPECT_TRUE(m3Note.noteAttachmentData.wavyLineContinuations.empty());
-            EXPECT_TRUE(m3Note.noteAttachmentData.wavyLineStops.empty());
+    // Counts the wavy-line ends across every voice of one measure's staff, so the assertions do
+    // not depend on which note or voice an endpoint resolved to.
+    const auto wavyLineEnds = [](const mx::api::StaffData& staff) {
+        struct Counts { size_t starts{}; size_t continues{}; size_t stops{}; };
+        Counts counts;
+        for (const auto& [voiceIndex, voice] : staff.voices) {
+            static_cast<void>(voiceIndex);
+            for (const auto& voiceNote : voice.notes) {
+                counts.starts += voiceNote.noteAttachmentData.wavyLineStarts.size();
+                counts.continues += voiceNote.noteAttachmentData.wavyLineContinuations.size();
+                counts.stops += voiceNote.noteAttachmentData.wavyLineStops.size();
+            }
+        }
+        return counts;
+    };
+
+    // The trill's own extension line spans m11-m13, so the tr symbol's note also starts a
+    // wavy line. MusicXML wants both inside one <ornaments>, the mark first.
+    EXPECT_EQ(note.noteAttachmentData.wavyLineStarts.size(), 1u);
+    EXPECT_EQ(wavyLineEnds(staff3.measures.at(12).staves.at(0)).stops, 1u);
+
+    // The built-in trill extension (staff 3, m3-m6) carries no tr symbol. It is a wavy-line pair
+    // and nothing else.
+    ASSERT_GE(staff3.measures.size(), 7u);
+    const auto m3Counts = wavyLineEnds(staff3.measures.at(2).staves.at(0));
+    EXPECT_EQ(m3Counts.starts, 1u);
+    EXPECT_EQ(m3Counts.stops, 0u);
+    const auto m6Counts = wavyLineEnds(staff3.measures.at(5).staves.at(0));
+    EXPECT_EQ(m6Counts.starts, 0u);
+    EXPECT_EQ(m6Counts.stops, 1u);
+    for (const auto& [voiceIndex, voice] : staff3.measures.at(2).staves.at(0).voices) {
+        static_cast<void>(voiceIndex);
+        for (const auto& m3Note : voice.notes) {
+            EXPECT_TRUE(std::ranges::none_of(m3Note.noteAttachmentData.marks, [](const mx::api::MarkData& mark) {
+                return mark.markType == mx::api::MarkType::trillMark;
+            }));
         }
     }
+}
+
+TEST(MusicXmlSmartShapes, SmartShapeLinesEntryAttachedGlissando)
+{
+    setupTestDataPaths();
+    const auto outputPath = exportMusicXmlFixture("smartshape_lines.musx");
+    const auto score = loadScoreData(outputPath);
+    ASSERT_TRUE(score.has_value());
+    ASSERT_GE(score->parts.size(), 1u);
+
+    // The fixture's entry-attached glissando runs from m12 to m13 of staff 1. It was drawn with
+    // the glissando tool, so it is a <glissando> even though its line style is dashed; the dash
+    // geometry travels separately in line-type.
+    const auto& staff1 = score->parts.at(0);
+    ASSERT_GE(staff1.measures.size(), 13u);
+
+    const auto findGlissando = [](const mx::api::StaffData& staff, bool wantStart) {
+        std::vector<std::pair<mx::api::GlissandoType, mx::api::LineType>> found;
+        for (const auto& [voiceIndex, voice] : staff.voices) {
+            static_cast<void>(voiceIndex);
+            for (const auto& note : voice.notes) {
+                if (wantStart) {
+                    for (const auto& start : note.noteAttachmentData.glissandoStarts) {
+                        found.emplace_back(start.glissandoType, start.lineData.lineType);
+                    }
+                } else {
+                    for (const auto& stop : note.noteAttachmentData.glissandoStops) {
+                        found.emplace_back(stop.glissandoType, stop.lineData.lineType);
+                    }
+                }
+            }
+        }
+        return found;
+    };
+
+    const auto starts = findGlissando(staff1.measures.at(11).staves.at(0), true);
+    ASSERT_EQ(starts.size(), 1u);
+    EXPECT_EQ(starts.front().first, mx::api::GlissandoType::glissando);
+    EXPECT_EQ(starts.front().second, mx::api::LineType::dashed);
+
+    const auto stops = findGlissando(staff1.measures.at(12).staves.at(0), false);
+    ASSERT_EQ(stops.size(), 1u);
+    EXPECT_EQ(stops.front().first, mx::api::GlissandoType::glissando);
+    EXPECT_EQ(stops.front().second, mx::api::LineType::dashed);
+}
+
+namespace {
+
+// One end of a note-attached spanner, keyed by where it lands rather than by note index, so that a
+// synthesized anchor rest on one side of the comparison cannot shift the alignment.
+struct ComparableSpanEvent
+{
+    std::string element;    ///< "glissando", "slide", or "wavy-line".
+    std::string endpoint;   ///< "start", "continue", or "stop".
+    size_t partIndex{};
+    std::string measureNumber;
+    mx::api::Step step{};
+    int octave{};
+    int numberLevel{};
+    mx::api::LineType lineType{};
+
+    // Ordering exists only so the two sides can be compared as sorted sets; the member order it
+    // falls out of carries no meaning.
+    bool operator==(const ComparableSpanEvent&) const = default;
+    auto operator<=>(const ComparableSpanEvent&) const = default;
+};
+
+std::ostream& operator<<(std::ostream& os, const ComparableSpanEvent& event)
+{
+    return os << event.element << ' ' << event.endpoint
+              << " part=" << event.partIndex
+              << " measure=" << event.measureNumber
+              << " step=" << static_cast<int>(event.step)
+              << " octave=" << event.octave
+              << " number=" << event.numberLevel
+              << " lineType=" << static_cast<int>(event.lineType);
+}
+
+std::vector<ComparableSpanEvent> createComparableSpanEvents(const mx::api::ScoreData& score)
+{
+    std::vector<ComparableSpanEvent> result;
+    for (size_t partIndex = 0; partIndex < score.parts.size(); ++partIndex) {
+        const auto& part = score.parts.at(partIndex);
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    static_cast<void>(voiceIndex);
+                    for (const auto& note : voice.notes) {
+                        const auto append = [&](std::string element, std::string endpoint,
+                                                int numberLevel, mx::api::LineType lineType) {
+                            result.push_back({ std::move(element), std::move(endpoint), partIndex,
+                                measure.number, note.isRest ? mx::api::Step::unspecified : note.pitchData.step,
+                                note.isRest ? 0 : note.pitchData.octave, numberLevel, lineType });
+                        };
+                        const auto glissandoElement = [](mx::api::GlissandoType type) {
+                            return type == mx::api::GlissandoType::slide ? "slide" : "glissando";
+                        };
+                        for (const auto& start : note.noteAttachmentData.glissandoStarts) {
+                            append(glissandoElement(start.glissandoType), "start",
+                                start.number.level(), start.lineData.lineType);
+                        }
+                        for (const auto& stop : note.noteAttachmentData.glissandoStops) {
+                            append(glissandoElement(stop.glissandoType), "stop",
+                                stop.number.level(), stop.lineData.lineType);
+                        }
+                        for (const auto& start : note.noteAttachmentData.wavyLineStarts) {
+                            append("wavy-line", "start", start.number.level(), mx::api::LineType::unspecified);
+                        }
+                        for (const auto& cont : note.noteAttachmentData.wavyLineContinuations) {
+                            append("wavy-line", "continue", cont.number.level(), mx::api::LineType::unspecified);
+                        }
+                        for (const auto& stop : note.noteAttachmentData.wavyLineStops) {
+                            append("wavy-line", "stop", stop.number.level(), mx::api::LineType::unspecified);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::ranges::sort(result);
+    return result;
+}
+
+std::vector<ComparableSpanEvent> comparableSpanEventsForFixture(const std::string& musxFile)
+{
+    const auto score = loadScoreData(exportMusicXmlFixture(musxFile));
+    EXPECT_TRUE(score.has_value()) << musxFile;
+    return score ? createComparableSpanEvents(*score) : std::vector<ComparableSpanEvent>{};
+}
+
+std::vector<ComparableSpanEvent> comparableSpanEventsForReference(const std::string& referenceFile)
+{
+    const auto score = loadScoreData(std::filesystem::path("inputs") / "musicxml" / referenceFile);
+    EXPECT_TRUE(score.has_value()) << referenceFile;
+    return score ? createComparableSpanEvents(*score) : std::vector<ComparableSpanEvent>{};
+}
+
+} // namespace
+
+TEST(MusicXmlSmartShapes, GlissandiMatchReference)
+{
+    setupTestDataPaths();
+
+    // Every shape in the fixture is drawn with the glissando or tab slide tool. The element choice
+    // follows the tool, so this agrees with Finale on all of them; see design-decisions.md.
+    // Compared as a sorted set, because a single-note glissando's two ends come out in the wrong
+    // order (webern/mx#429), which the disabled test below covers.
+    const auto ours = comparableSpanEventsForFixture("glissando.musx");
+    const auto reference = comparableSpanEventsForReference("glissando-ref.musicxml");
+    ASSERT_FALSE(reference.empty());
+    EXPECT_EQ(reference, ours);
+}
+
+TEST(MusicXmlSmartShapes, WavyLinesMatchReference)
+{
+    setupTestDataPaths();
+
+    // Beat-attached trills, trill extensions, and vibrato lines. Compared as a sorted set: one
+    // note both stops one wavy line and starts another, and mx writes stops before starts, so the
+    // two appear in the opposite order from Finale. The numbers differ, so either order reads
+    // unambiguously.
+    const auto ours = comparableSpanEventsForFixture("wavy_lines.musx");
+    const auto reference = comparableSpanEventsForReference("wavy_lines-ref.musicxml");
+    ASSERT_FALSE(reference.empty());
+    EXPECT_EQ(reference, ours);
+}
+
+TEST(MusicXmlSmartShapes, GlissToRestMatchesReference)
+{
+    setupTestDataPaths();
+
+    // A glissando or slide drawn to a rest. Finale offers only beat- or notehead-attachment for
+    // custom lines, so it cannot attach one to a rest: both ends anchor to the notehead and the
+    // line merely extends toward the rest. Each shape therefore begins and ends on one note.
+    const auto ours = comparableSpanEventsForFixture("gliss_to_rest.musx");
+    const auto reference = comparableSpanEventsForReference("gliss_to_rest-ref.musicxml");
+    ASSERT_FALSE(reference.empty());
+    EXPECT_EQ(reference, ours);
+}
+
+// DISABLED: fails against mx as pinned. Re-enable when webern/mx#429 is fixed.
+//
+// gliss_to_rest.musx holds one glissando and one tab slide, each drawn to a rest and so each
+// beginning and ending on a single note. Finale writes start then stop for both;
+// NotationsWriter writes every glissandoStop before every glissandoStart, so both come out
+// inverted, with number 1 closing before it opens. Same defect as the single-note tuplet in
+// test_tuplets.cpp, so one ordering rule covers both.
+TEST(MusicXmlSmartShapes, DISABLED_SingleNoteGlissandoWritesStartBeforeStop)
+{
+    setupTestDataPaths();
+    pugi::xml_document document;
+    ASSERT_TRUE(document.load_file(exportMusicXmlFixture("gliss_to_rest.musx").c_str()));
+
+    size_t notesChecked = 0;
+    for (const auto node : document.select_nodes(".//note")) {
+        std::vector<std::string> types;
+        for (auto notations = node.node().child("notations"); notations;
+             notations = notations.next_sibling("notations")) {
+            for (auto child = notations.first_child(); child; child = child.next_sibling()) {
+                const std::string name = child.name();
+                if (name == "glissando" || name == "slide") {
+                    types.emplace_back(child.attribute("type").value());
+                }
+            }
+        }
+        if (types.size() < 2) {
+            continue;
+        }
+        ++notesChecked;
+        EXPECT_EQ(types.front(), "start") << "note " << node.node().attribute("id").value();
+        EXPECT_EQ(types.back(), "stop") << "note " << node.node().attribute("id").value();
+    }
+    EXPECT_EQ(notesChecked, 2u) << "expected one glissando and one slide, each on a single note";
 }

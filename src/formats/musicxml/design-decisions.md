@@ -76,15 +76,23 @@ Finale's own export writes a resolved position for every rest, floating or not, 
 
 The exporter defaults to the SMuFL glyph-origin convention for non-floating whole rests, which shifts the display pitch upward by one staff space. The `--finale-rest-position` option preserves Finale's nominal position for compatibility.
 
-### Lyric verse numbers carry their Finale lyric type
+### A lyric line is identified by its name and its number together
 
-`<lyric number>` is written as the first letter of the Finale lyric block's node name followed by that block's number, so Verse 1 becomes `v1`, Chorus 1 becomes `c1`, and Section 1 becomes `s1`. Finale keeps three independent lyric blocks, each numbered from 1, and a note can carry a syllable from more than one at once. A plain integer would collide Verse 1 with Chorus 1 and merge two distinct lyric lines into one.
+`<lyric number>` carries the Finale lyric block's own number and `<lyric name>` carries the block's type, so Verse 1 is `number="1" name="verse"` and Chorus 1 is `number="1" name="chorus"`. Finale keeps three independent lyric blocks, each numbered from 1, and a note can carry a syllable from more than one at once, so the number alone does not identify a line. The pair does.
 
-MusicXML permits this. `<lyric number>` is an NMTOKEN, an identifier used to distinguish and align lyric lines, not an ordinal, and nothing in the specification requires it to be numeric.
+This is what MusicXML intends. The reference describes `number` as specifying "the lyric line when multiple lines are present" and `name` as indicating "the name of the lyric type", giving verse and chorus as its examples, and both `<lyric-font>` and `<lyric-language>` are keyed by "a particular name and number of lyric". Neither attribute is required to be unique on its own. It is also what Finale writes: in `verse_chorus_section.musx` it emits `number` 1 and 2 within each of `verse`, `chorus`, and `section`, placing both numbers at the same `default-y` regardless of type.
 
-Importers vary in how well they honor that. Dorico handles the scheme correctly. MuseScore assigns a new vertical line per distinct number value rather than inferring from usage how the lines are actually laid out, so a document that switches between numbers marches its lyrics down the page. That is MuseScore reading an identifier as an ordinal, and it is tracked as a MuseScore issue rather than a reason to change the scheme; note that MuseScore's MNX importer infers this correctly, so the behavior is not inherent to the problem.
+Denigma previously encoded the pair in `number` alone, as `v1`, `c1`, `s1`. That is valid, since `number` is an NMTOKEN and nothing requires it to be numeric, but it fails in practice. Dorico stacks two verses on one line because it reads `number` as the line position and cannot parse the value; MuseScore assigns a new line per distinct value. Every importer tested misread it, which is a poor trade for information the format has a dedicated attribute for.
 
-This is held until real-world evidence argues otherwise. The cost is confined to one importer, while the benefit, not merging distinct lyric blocks, applies everywhere.
+`name` is emitted always, including for a verse-only document, where Finale omits it. Emitting it costs a few bytes, avoids pre-scanning a document to decide whether the type is needed, and makes a file easier to analyze when one arrives for diagnosis. The consequence is that a verse-only export does not match Finale's byte for byte.
+
+### A word extension needs a span, not just a flag
+
+`details::LyricAssign::wext` marks a syllable as having a word extension, but it does not say how far the extension reaches. Finale stores most of these shapes with both termination segments on the syllable's own entry and resolves the length at layout time, so `calcWordExtensionEndpoint` frequently returns the entry it started from. Denigma emits `<extend>` only when that endpoint is a different entry.
+
+Both halves of the rule are visible in the fixtures. `zwei_gesange.musx` has two assignments carrying `wext` and exactly two `wordExt` shapes that reach another entry, and Finale exports two extension pairs. `for_health_and_strength.musx` has one assignment carrying `wext` and not one of its 27 shapes spans, and Finale exports none: the syllable at the end of the first ending continues into the second, so no extension is wanted.
+
+Trusting the flag alone produced an `<extend type="start">` and its `<extend type="stop">` on the same note, which says nothing. MuseScore and Dorico both drew an extension there; Finale, reading its own file, did not. Other importer behavior around lyrics is recorded in [implementation_notes.md](implementation_notes.md).
 
 ### The Finale title becomes work-title, not movement-title
 
@@ -147,3 +155,37 @@ Copying Finale's display numbers into `<time-modification>` instead would be wro
 Nothing is lost by reducing, and that holds unconditionally. `createTupletStart` always populates the display and reference numbers, including for a hidden tuplet, where `TupletDef::hidden` suppresses the show flags but leaves the values intact.
 
 A related difference is not Denigma's doing. Denigma sets `<normal-type>` only when the tuplet's reference duration differs from the note's own type, but `mx::impl::NoteWriter` ignores that field and infers the element by scanning sibling notes, so it appears far more often than Denigma requests. See the nested-tuplet entry in [mx-api-gaps.md](mx-api-gaps.md).
+
+### The tool a glissando was drawn with, not its line, chooses `<glissando>` or `<slide>`
+
+`<glissando>` and `<slide>` are notated identically and differ only in the pitch motion they imply: a glissando sounds the discrete pitches in between, a slide is a continuous portamento. Denigma picks between them from the shape type, so the glissando tool yields `<glissando>` and the tab slide tool yields `<slide>`, whatever line either was drawn with. Finale's own export does the same.
+
+The distinction is one of intent, and the tool the user reached for is where intent lives. The line's appearance travels separately in `line-type`, so nothing is lost by not consulting it, and consulting it would only restate what `line-type` already says. Deciding from appearance instead would discard the tool distinction entirely and preserve strictly less: in `glissando.musx` it disagrees with Finale on five of seventeen shapes, calling a wavy tab slide a glissando and a straight glissando a slide.
+
+The roadmap once argued the opposite, that the referenced `others::SmartShapeCustomLine` should choose the element because a shape's type says nothing about its appearance. The premise is true and the conclusion does not follow. That a shape keeps whichever line style was in effect when it was created makes the style partly accidental, which is a reason to distrust it as a statement of intent, not a reason to promote it over the deliberate act of choosing a tool.
+
+A tab slide on an ordinary staff still exports as a slide. The tool is meant for tablature but is routinely used elsewhere, and its meaning does not change with the staff it lands on.
+
+There is no third case to fall back on. Finale attaches a line to noteheads only for the glissando, tab slide, and bend tools; a plain custom line is always beat-attached, so a note-attached pitch slide always carries a tool, and appearance is never consulted for this choice. Data outside what the Finale UI can author is not classified at all, for the reasons given under scope in the `classifier-design` skill.
+
+Classification stays neutral about all of this. `classify::smartshape::Glissando` reports the two notes and the line, and `SmartShapeClassification::shapeType` reports the source tool; each exporter decides what to call it, because the vocabulary is MusicXML's, not the source's.
+
+### An ornament attaches to the note sounding under it
+
+A wavy line's endpoint may fall where no entry begins, since these shapes are beat-attached. Denigma resolves such an endpoint to the note whose duration spans that tick, rather than synthesizing the hidden anchor rest that hosts a floating curve endpoint.
+
+An ornament belongs to a note in a way a curve does not. A slur may legitimately begin in empty space, and its anchor rest carries a real position that the curve is drawn from. A trill beginning halfway through a whole note is still that whole note's trill, and MusicXML has no way to express an ornament floating between notes: `<wavy-line>` lives inside a note's `<ornaments>` or nowhere. Anchoring it to a hidden rest in a reserved voice would technically place it while leaving readers to render an ornament on a rest, or ignore it.
+
+The anchor rest remains the last resort, for an endpoint with no sounding note under it at all.
+
+### A glissando's printed label comes from the line's center text
+
+`<glissando>` and `<slide>` carry one unformatted string, which is the only place MusicXML has for the "gliss." label Finale keeps on a custom line. Denigma takes it from the center full text, falling back to the center abbreviated, start, and end texts in that order.
+
+The label's own font, size, and styling are dropped, because the element has no attributes for them. That is the trade this element forces, and it is worth taking: the alternative is the label vanishing entirely, which is what `appendGeneralLine` still logs for center text on a bracket or dashes line, where MusicXML offers no home at all.
+
+### A wavy line keeps its SMuFL glyph only when MusicXML can name it
+
+`<wavy-line smufl="...">` accepts only the multi-segment `wiggle*` glyphs and the guitar vibrato strokes. Denigma sets the attribute for a line character in that vocabulary, meaning the `wiggleVibrato*`, `wiggleSawtooth*`, `guitarVibratoStroke`, and `guitarWideVibratoStroke` families a vibrato line uses, and omits it otherwise, notably for the `ornamentZigZagLine*` characters a trill line may use.
+
+Omitting is not merely conservative. `mx::core::SmuflWavyLineGlyphName` repairs an unparseable value rather than rejecting it, rewriting an out-of-vocabulary name to a `wiggle` placeholder, so passing one through would silently substitute a different glyph. Losing the override leaves the reader to draw its default trill or vibrato line, which is closer to the source than a wrong glyph.

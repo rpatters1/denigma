@@ -80,24 +80,6 @@ Finale can freeze a tie's curvature direction on a per-note basis (`details::Tie
 
 Needed API shape: the same tie-notation data model requested above should also carry the shared curve attributes (orientation, placement, position, color) available on `CurveStart`/`CurveStop`, so a paired tie can be decorated without a second, conflicting `<notations>` block or the loss of `<tie>`.
 
-## Smart Shapes And Spanners
-
-### Paired wavy-line start/stop (trill extensions and vibrato lines)
-
-MusicXML represents trill extensions and vibrato lines as `<ornaments><wavy-line type="start|continue|stop">` pairs attached to notes.
-
-`mx::api::MarkData` includes `MarkType::wavyLine`, but `NotationsWriter` never sets the required `type` attribute on the emitted `<wavy-line>`, so only an untyped (default) element can be written and start/stop cannot be paired. Denigma exports the `trill-mark` for trill lines that include the tr symbol and omits the extension; pure trill-extension lines and vibrato lines are omitted entirely.
-
-Needed API shape: wavy-line start/stop data on `MarkData` (or a dedicated paired-spanner model for note-attached wavy lines).
-
-### Note-attached glissandi and slides
-
-MusicXML represents both markings as note-attached paired spanners inside `<notations>`: `<glissando type="start|stop">` and `<slide type="start|stop">`. The two carry the same information and differ only in what they imply about the pitch motion between the notes. A glissando defaults to a wavy line and covers the discrete case, while a slide is continuous between the two pitches and defaults to a solid line. Both take an optional `number` for overlapping spans, an optional `line-type` with dash and space lengths, the usual print-style attributes, and optional text content that is printed alongside the line, which is where a marking such as "gliss." belongs.
-
-MX's generated core layer models both elements, and `NotationsChoice` already admits them, but `mx::api` exposes neither. `CurveType` offers only `slur` and `tie`, and `NotationsWriter` skips any entry in `curveStarts`, `curveContinuations`, or `curveStops` whose type is not one of those two, so the generic curve path cannot carry a glissando. `MarkData` has no glissando or slide member either. `NoteAttachmentData` reserves `spannerStarts` and `spannerStops` vectors, but they are commented out and unimplemented. Denigma therefore has no way to write either element, and drops all Finale glissandi and tab slides.
-
-Needed API shape: a note-attached paired spanner model on `NoteAttachmentData`, which the reserved spanner vectors anticipate. It should carry the element kind (glissando or slide), start/stop state, spanner number, the optional printed text, `LineData` for line type and dash and space lengths, and the shared placement, position, and color attributes. A model general enough to host the wavy-line pairs described above would serve both gaps.
-
 ## Measures
 
 ### Multimeasure-rest attributes
@@ -137,6 +119,18 @@ MusicXML supports multiple instruments per part and can represent changes via sc
 `mx::api::PartData` currently has one `InstrumentData instrumentData` for the part. Denigma can set initial part/instrument metadata, but cannot express Finale staff-style instrument changes or multiple simultaneous instruments within the same part through the current simple field.
 
 Needed API shape: multiple score instruments per part, plus positionable instrument-change or playback-change data that can be emitted where the instrument changes.
+
+### Per-note instrument assignment
+
+MusicXML assigns a note to one of a part's instruments with `<note><instrument id="..."/>`, an IDREF back to a `<score-instrument>`. The spec is explicit about when it is required: "If multiple score-instruments are specified in a score-part, there should be an instrument element for each note in the part." A note shared between instruments may carry more than one. This is what makes a drum kit expressible, since each staff position is a different instrument within one part.
+
+Most of the surrounding percussion vocabulary is already available, and it is worth recording so it is not re-derived. `mx::api::NoteData::isUnpitched` selects `<unpitched>` over `<pitch>`, with `pitchData`'s step and octave serving as display step and octave, which is what the spec requires for notes in a percussion clef. `MidiData::unpitched` carries `<midi-unpitched>`. `PercussionData` models the `<percussion>` pictogram direction.
+
+What is missing is the link between a note and an instrument: `NoteData` has no instrument member, so every note in a part is implicitly the part's single instrument. Combined with `PartData` holding one `InstrumentData` (see instrument changes within a part, above), a multi-instrument percussion staff cannot be expressed at all: neither the several `<score-instrument>` definitions nor the per-note references to them. Denigma consequently exports a drum kit as one pitched instrument.
+
+Needed API shape: an instrument reference on `NoteData`, allowing more than one, keyed to whatever identity the multiple-score-instruments support settles on. The two are one feature in practice and should be designed together; per-note references are useless without several instruments to point at, and several instruments are unusable without per-note references, since the spec expects one on every note once a part has more than one instrument.
+
+Denigma-side work is tracked under percussion in [roadmap.md](roadmap.md).
 
 ### Nested sound children
 
@@ -234,9 +228,52 @@ Needed API shape: direction-level playback or technical modeling for the remaini
 
 MusicXML uses `<time-modification>` on notes for the cumulative timing effect of tuplets, with `<tuplet>` notations identifying the visual start and stop points.
 
-`mx::api::NoteData` can store multiple `TupletStart` and `TupletStop` objects, and `mx::api::DurationData` has the single cumulative time-modification slot that MusicXML requires. However, `mx::impl::NoteWriter` currently searches sibling notes for exactly one tuplet start and exactly one tuplet stop while writing a note's `<time-modification>` normal-type data. Denigma can compute the cumulative ratio, but nested tuplets may still be unreliable through the current writer path.
+`mx::api::NoteData` can store multiple `TupletStart` and `TupletStop` objects, and `mx::api::DurationData` has the single cumulative time-modification slot that MusicXML requires. However, `mx::impl::NoteWriter` ignores `DurationData::timeModificationNormalType` and instead infers `<normal-type>` by searching sibling notes for exactly one tuplet start and exactly one tuplet stop.
 
-Needed API shape: writer support for nested tuplets, probably by matching `TupletStart` / `TupletStop` by `numberLevel` and allowing `DurationData` to express cumulative time modification independently of the visual tuplet-start search.
+The observable effect is over-emission rather than corruption. Denigma sets the field only when the tuplet's reference duration differs from the note's own type, because MusicXML reads an absent `<normal-type>` as the note type. The writer instead emits one on every note of a tuplet: for `zwei_gesange.musx` Denigma requests 11 and the file receives 253, of which 242 merely repeat the note's own `<type>`, where Finale's own export writes 4. Nested tuplets take the opposite path: the sibling search finds two starts, matches nothing, and omits `<normal-type>` altogether. That happens to be correct for `tuplets_nested.musx`, where the tuplet's normal value is the note's own duration, but it is correct by luck rather than by design.
+
+`MusicXmlTuplets.DISABLED_NormalTypeIsWrittenOnlyWhereRequested` in [tests/musicxml/test_tuplets.cpp](../../../tests/musicxml/test_tuplets.cpp) asserts the intended behavior and is disabled until this is fixed. Run it with `--gtest_also_run_disabled_tests` to see the current counts.
+
+Needed API shape: writer support for nested tuplets, probably by matching `TupletStart` / `TupletStop` by `numberLevel` and honoring `DurationData`'s cumulative time modification and normal type independently of the visual tuplet-start search. Filed upstream as [webern/mx#428](https://github.com/webern/mx/issues/428).
+
+### Notation order on a span contained in one note
+
+A span may begin and end on the same note. Both of its ends then belong to that note, and MusicXML wants the `start` before the `stop`.
+
+`mx::impl::NotationsWriter` writes every stop before every start, per notation family: `tupletStops` before `tupletStarts`, `glissandoStops` before `glissandoStarts`, and likewise for wavy lines. That is the right convention for a note that closes one span and opens another, but it inverts a span contained in a single note, which then closes before it opens. Two fixtures show it:
+
+- `tuplet_singletons.musx`: two tuplets, each covering one note. Finale writes `start` then `stop`; Denigma writes `stop` then `start`, with the same `number` on both, so a reader sees a stop for a tuplet that was never open.
+- `gliss_to_rest.musx`: one glissando and one tab slide, each drawn to a rest. Finale offers only beat- or notehead-attachment for custom lines, so it cannot attach one to a rest; both ends anchor to the notehead and the line extends toward the rest. Each shape therefore begins and ends on one note, and each comes out inverted. `glissando.musx` shape 18 is the same case.
+
+The numbers pair correctly in both cases; only the order is wrong. Denigma cannot correct it through the API, because starts and stops are separate vectors with no way to interleave them.
+
+Needed API shape: none. This is a writer ordering fix: when a start and a stop on one note belong to the same span, write the start first. Filed upstream as [webern/mx#429](https://github.com/webern/mx/issues/429). `MusicXmlTuplets.DISABLED_SingleNoteTupletWritesStartBeforeStop` and `MusicXmlSmartShapes.DISABLED_SingleNoteGlissandoWritesStartBeforeStop` assert the intended order and are disabled until then.
+
+### Tuplet spanner numbers are unmanaged
+
+`TupletStart` and `TupletStop` carry a raw `int numberLevel` rather than an `api::SpannerNumber`, so tuplets are the one spanner family `mx::impl::SpannerResolver` does not handle: `NotationsWriter` writes the level verbatim while curves, wedges, octave shifts, brackets, dashes, glissandi, slides, and wavy lines all route through `emittedNumber`. The author therefore owns allocating and recycling tuplet levels, including keeping them distinct across the whole part.
+
+Needed API shape: `SpannerNumber` on `TupletStart`/`TupletStop` with resolver support, extending the writer-side assignment that the other families received in MX PR #320. Denigma's current part-scope exposure is recorded in [roadmap.md](roadmap.md).
+
+## Tablature
+
+### Per-note string and fret
+
+MusicXML notates tablature with `<notations><technical><string>N</string><fret>N</fret></technical>` on each note, alongside a `<clef><sign>TAB</sign>` and the staff tuning described below. The two values are the whole of tablature's note content: the spec says a TAB clef is sufficient to indicate that noteheads are fret numbers, so nothing else per-note is required.
+
+`mx::api` exposes neither. `NoteData` and `NoteAttachmentData` have no string or fret member, and `MarkType` covers only the valueless technical marks such as `upBow`, `openString`, and `thumbPosition`, so there is no existing slot a numeric value could ride in. String numbers are modeled in exactly one place, `AccordData::stringNumber` for `<scordatura>`, which is a direction rather than a note attachment and cannot carry a fret. Denigma therefore cannot express tablature note content at all, and a Finale TAB staff exports as ordinary pitched notes.
+
+Needed API shape: string and fret members on the note-attached technical data, with reader, writer, and comparison support. `<string>` and `<fret>` are ordinary `<technical>` children, so a general technical-data object holding both the valued and valueless members would serve this and the remaining `<technical>` vocabulary at once.
+
+### Tablature staff details
+
+A tablature staff also needs `<staff-details>` carrying `<staff-tuning>` for each line, with its `<tuning-step>`, `<tuning-octave>`, and `<tuning-alter>`, plus `<capo>` and `<show-frets>` for the numbers-or-letters choice. Finale supplies all of these: the `others::FretInstrument` at `Staff::fretInstId` gives each open string's pitch, `Staff::capoPos` the capo, and `Staff::useTabLetters` the letter display.
+
+`mx::api::StaffData` exposes `staffLines`, `staffSize`, and `staffScaling` only. This is the tablature-specific face of the staff-details gap recorded above under Staff Details, and the two should be solved together rather than as separate features.
+
+Needed API shape: as in that entry, a staff-details data object with optional fields for the `<staff-details>` children, including a staff-tuning collection keyed by line, capo, and show-frets.
+
+Denigma-side work is tracked under tablature staves in [roadmap.md](roadmap.md), including the fret computation that Finale leaves implicit.
 
 ## Harmony and Fretboards
 

@@ -25,6 +25,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -34,11 +35,13 @@
 #include "musicxml_formatted_text.h"
 #include "mx/api/CurveData.h"
 #include "mx/api/DirectionData.h"
+#include "mx/api/GlissandoData.h"
 #include "mx/api/LineData.h"
 #include "mx/api/MarkData.h"
 #include "mx/api/OttavaData.h"
 #include "mx/api/SpannerData.h"
 #include "mx/api/SpannerNumber.h"
+#include "mx/api/WavyLineData.h"
 #include "mx/api/WedgeData.h"
 #include "mx/api/WordsData.h"
 
@@ -208,13 +211,13 @@ mx::api::StaffData* staffDataForEndpoint(
     return &context.currentPart->measures[location->measureIndex].staves[location->staffIndex];
 }
 
-// Hosts a floating curve endpoint. MusicXML curve notations can only hang off a
-// <note>, so an endpoint with no coinciding entry anchors to a hidden rest at the
-// endpoint's tick in a reserved voice. The tick, not graphical offsets, carries the
-// horizontal position: readers re-lay out curves from their anchors and ignore
-// exported offsets. Idempotent: concurrent floating endpoints at one tick share a
-// single anchor rest, and re-resolving an endpoint returns its current location.
-std::optional<MusicXmlNoteLocation> createFloatingCurveAnchor(
+// Hosts a floating span endpoint. The MusicXML notations that span two points -- curves, wavy
+// lines -- can only hang off a <note>, so an endpoint with no coinciding entry anchors to a hidden
+// rest at the endpoint's tick in a reserved voice. The tick, not graphical offsets, carries the
+// horizontal position: readers re-lay out these notations from their anchors and ignore exported
+// offsets. Idempotent: concurrent floating endpoints at one tick share a single anchor rest, and
+// re-resolving an endpoint returns its current location.
+std::optional<MusicXmlNoteLocation> createFloatingSpanAnchor(
     MusicXmlMusxMapping& context,
     const std::shared_ptr<smartshape::EndPoint>& endpoint)
 {
@@ -320,6 +323,46 @@ std::optional<MusicXmlNoteLocation> createFloatingCurveAnchor(
     return location;
 }
 
+struct MusicXmlSpanEndpoint
+{
+    std::optional<MusicXmlNoteLocation> location;
+    bool isFloating{};  ///< True when the endpoint coincided with no entry and was anchored.
+};
+
+struct MusicXmlSpanEndpoints
+{
+    MusicXmlSpanEndpoint start;
+    MusicXmlSpanEndpoint end;
+};
+
+// Resolves both ends of a note-attached span to notes. Endpoints with no coinciding entry anchor
+// to synthesized hidden rests. The end anchor is created after the start anchor, so the start is
+// re-resolved afterward: when both share the anchor voice, the second insertion can shift the
+// first anchor's note index.
+MusicXmlSpanEndpoints resolveSpanEndpoints(
+    MusicXmlMusxMapping& context,
+    const MusxInstance<others::SmartShape>& shape,
+    const EntryInfoPtr& startEntry,
+    const EntryInfoPtr& endEntry)
+{
+    MusicXmlSpanEndpoints result;
+    result.start.location = findEntryNoteLocation(context, startEntry, shape->startNoteId);
+    result.end.location = findEntryNoteLocation(context, endEntry, shape->endNoteId);
+    result.start.isFloating = !result.start.location;
+    result.end.isFloating = !result.end.location;
+
+    if (result.start.isFloating) {
+        result.start.location = createFloatingSpanAnchor(context, shape->startTermSeg->endPoint);
+    }
+    if (result.end.isFloating) {
+        result.end.location = createFloatingSpanAnchor(context, shape->endTermSeg->endPoint);
+        if (result.start.isFloating && result.start.location) {
+            result.start.location = createFloatingSpanAnchor(context, shape->startTermSeg->endPoint);
+        }
+    }
+    return result;
+}
+
 bool processSlur(
     MusicXmlMusxMapping& context,
     const MusxInstance<others::SmartShape>& shape,
@@ -330,32 +373,17 @@ bool processSlur(
         return false;
     }
 
-    auto startLocation = findEntryNoteLocation(context, slur->startEntry, shape->startNoteId);
-    auto endLocation = findEntryNoteLocation(context, slur->endEntry, shape->endNoteId);
-
-    // Endpoints with no coinciding entry anchor to synthesized hidden rests. The end
-    // anchor is created after the start anchor, so re-resolve the start afterward:
-    // when both share the anchor voice, the second insertion can shift the first
-    // anchor's note index.
-    const bool startIsFloating = !startLocation;
-    const bool endIsFloating = !endLocation;
-    if (startIsFloating) {
-        startLocation = createFloatingCurveAnchor(context, shape->startTermSeg->endPoint);
-    }
-    if (endIsFloating) {
-        endLocation = createFloatingCurveAnchor(context, shape->endTermSeg->endPoint);
-        if (startIsFloating && startLocation) {
-            startLocation = createFloatingCurveAnchor(context, shape->startTermSeg->endPoint);
-        }
-    }
-    if (!startLocation || !endLocation) {
+    const auto endpoints = resolveSpanEndpoints(context, shape, slur->startEntry, slur->endEntry);
+    const bool startIsFloating = endpoints.start.isFloating;
+    const bool endIsFloating = endpoints.end.isFloating;
+    if (!endpoints.start.location || !endpoints.end.location) {
         context.logMessage(LogMsg() << "Omitting slur smart shape " << shape->getCmper()
             << " because an endpoint could not be attached or anchored.", MessageSeverity::Verbose);
         return false;
     }
 
-    auto* startNote = noteDataAt(context, *startLocation);
-    auto* endNote = noteDataAt(context, *endLocation);
+    auto* startNote = noteDataAt(context, *endpoints.start.location);
+    auto* endNote = noteDataAt(context, *endpoints.end.location);
     if (!startNote || !endNote) {
         return false;
     }
@@ -734,29 +762,225 @@ void appendGeneralLine(
     }
 }
 
+// `<glissando>` and `<slide>` are notated identically and differ only in the pitch motion they
+// imply: a glissando sounds the discrete pitches in between, a slide is a continuous portamento.
+// That is a statement of intent, and the tool the user reached for is where the intent lives. The
+// line's appearance travels separately in `line-type`, so nothing is lost by not consulting it
+// here, and consulting it would only restate what `line-type` already says. This is also what
+// Finale's own export does.
+//
+// Only the two dedicated tools produce a Glissando classification, because Finale attaches a line
+// to noteheads only for those and for bends, so there is no third case to fall back on.
+mx::api::GlissandoType glissandoTypeForShape(const MusxInstance<others::SmartShape>& shape)
+{
+    switch (shape->shapeType) {
+    case others::SmartShape::ShapeType::Glissando:
+        return mx::api::GlissandoType::glissando;
+    case others::SmartShape::ShapeType::TabSlide:
+        return mx::api::GlissandoType::slide;
+    default:
+        break;
+    }
+    ASSERT_IF(true) {
+        throw std::logic_error("Glissando classification from unexpected smart shape type.");
+    }
+    return mx::api::GlissandoType::glissando;
+}
+
+// The printed label alongside the line. Center text is where Finale keeps a "gliss." label, and
+// these elements are the one place MusicXML has for it; the start and end texts stand in when
+// there is no center text. The element carries a single unformatted string, so a label's own font
+// and styling cannot survive.
+std::string glissandoText(
+    MusicXmlMusxMapping& context,
+    const classify::smartshape::GeneralLine& line)
+{
+    const auto& source = line.centerFullText ? line.centerFullText
+        : line.centerAbbrText ? line.centerAbbrText
+        : line.startText ? line.startText
+        : line.endText;
+    if (!source) {
+        return {};
+    }
+
+    std::string result;
+    auto options = MusicXmlFormattedTextOptions{};
+    options.symbolPolicy = utils::SmuflSymbolPolicy::PreserveText;
+    options.onChunk = [&result](const mx::api::FontData&, const std::string& text) { result += text; };
+    parseMusicXmlFormattedText(context, source, options);
+    return result;
+}
+
+void appendGlissando(
+    MusicXmlMusxMapping& context,
+    const MusxInstance<others::SmartShape>& shape,
+    const classify::smartshape::Glissando& glissando)
+{
+    const auto startLocation = findEntryNoteLocation(
+        context, glissando.startNote.getEntryInfo(), glissando.startNote->getNoteId());
+    const auto endLocation = findEntryNoteLocation(
+        context, glissando.endNote.getEntryInfo(), glissando.endNote->getNoteId());
+    auto* startNote = startLocation ? noteDataAt(context, *startLocation) : nullptr;
+    auto* endNote = endLocation ? noteDataAt(context, *endLocation) : nullptr;
+    if (!startNote || !endNote) {
+        // These markings are note-attached by nature, so unlike a curve there is no anchor rest
+        // that could stand in for a missing endpoint note.
+        context.logMessage(LogMsg() << "Omitting glissando smart shape " << shape->getCmper()
+            << " because an endpoint note is not in the exported music.", MessageSeverity::Verbose);
+        return;
+    }
+
+    const auto glissandoType = glissandoTypeForShape(shape);
+    const auto lineType = lineTypeFromGeneralLine(glissando.line);
+
+    auto start = mx::api::GlissandoStart{ glissandoType };
+    start.number = smartShapeSpannerNumber(shape);
+    start.text = glissandoText(context, glissando.line);
+    start.lineData.lineType = lineType;
+    applyGeneralLineDashes(glissando.line, start.lineData);
+    startNote->noteAttachmentData.glissandoStarts.emplace_back(std::move(start));
+
+    auto stop = mx::api::GlissandoStop{ glissandoType };
+    stop.number = smartShapeSpannerNumber(shape);
+    stop.lineData.lineType = lineType;
+    applyGeneralLineDashes(glissando.line, stop.lineData);
+    endNote->noteAttachmentData.glissandoStops.emplace_back(std::move(stop));
+}
+
+// Whether a SMuFL glyph name is expressible as a MusicXML wavy-line `smufl` attribute, whose
+// vocabulary is the multi-segment `wiggle*` lines plus the guitar vibrato strokes. A name outside
+// it must be omitted: mx repairs an unparseable value to a placeholder rather than rejecting it,
+// so passing one through would silently substitute the wrong glyph.
+bool isMusicXmlWavyLineGlyph(std::string_view glyphName)
+{
+    return glyphName.starts_with("wiggle")
+        || (glyphName.starts_with("guitar") && glyphName.ends_with("VibratoStroke"));
+}
+
+// True when the shape covers music rather than sitting at a single point. A trill drawn without a
+// drag is just the tr symbol and has no extension line to write. calcGlobalPosition is measured
+// within its own measure, so the measures have to be compared first.
+bool shapeSpansMusic(const MusxInstance<others::SmartShape>& shape)
+{
+    const auto& startPoint = shape->startTermSeg->endPoint;
+    const auto& endPoint = shape->endTermSeg->endPoint;
+    if (startPoint->measId != endPoint->measId) {
+        return endPoint->measId > startPoint->measId;
+    }
+    return endPoint->calcGlobalPosition() > startPoint->calcGlobalPosition();
+}
+
+// Finds the note sounding at an endpoint's tick, meaning the one whose duration spans it rather
+// than one that happens to begin there.
+//
+// An ornament belongs to a note. A curve endpoint can hang in empty space and needs an anchor of
+// its own, but a trill that begins halfway through a whole note is still that whole note's trill,
+// and MusicXML has no way to say otherwise. Finale's own export attaches these the same way.
+std::optional<MusicXmlNoteLocation> findSoundingNoteLocation(
+    MusicXmlMusxMapping& context,
+    const std::shared_ptr<smartshape::EndPoint>& endpoint)
+{
+    const auto staffLocation = staffLocationForEndpoint(context, endpoint);
+    if (!staffLocation) {
+        return std::nullopt;
+    }
+    const auto& staff = context.currentPart->measures[staffLocation->measureIndex]
+        .staves[staffLocation->staffIndex];
+    const auto tick = calcEndpointTick(context, endpoint);
+
+    for (const auto& [voiceIndex, voice] : staff.voices) {
+        for (size_t noteIndex = 0; noteIndex < voice.notes.size(); ++noteIndex) {
+            const auto& note = voice.notes[noteIndex];
+            if (note.isRest || note.isChord) {
+                continue;
+            }
+            const auto noteEnd = note.tickTimePosition + (std::max)(0, note.durationData.durationTimeTicks);
+            if (note.tickTimePosition <= tick && tick < noteEnd) {
+                return MusicXmlNoteLocation{
+                    .measureIndex = staffLocation->measureIndex,
+                    .staffIndex = staffLocation->staffIndex,
+                    .userVoiceNumber = int(voiceIndex) + 1,
+                    .noteIndex = noteIndex
+                };
+            }
+        }
+    }
+    return std::nullopt;
+}
+
+// Trill extensions and vibrato lines are both `<ornaments><wavy-line>` pairs.
+void appendWavyLine(
+    MusicXmlMusxMapping& context,
+    const MusxInstance<others::SmartShape>& shape,
+    const std::optional<std::string>& glyphName)
+{
+    // An endpoint that coincides with no entry still belongs to whatever is sounding under it, so
+    // unlike a curve this looks for a spanning note before resorting to an anchor rest.
+    const auto resolveEnd = [&context](const std::shared_ptr<smartshape::EndPoint>& endpoint,
+                                       const EntryInfoPtr& entry, NoteNumber noteId) {
+        if (auto location = findEntryNoteLocation(context, entry, noteId)) {
+            return location;
+        }
+        if (auto location = findSoundingNoteLocation(context, endpoint)) {
+            return location;
+        }
+        return createFloatingSpanAnchor(context, endpoint);
+    };
+
+    MusicXmlSpanEndpoints endpoints;
+    endpoints.start.location = resolveEnd(shape->startTermSeg->endPoint,
+        shape->startTermSeg->endPoint->calcAssociatedEntry(), shape->startNoteId);
+    endpoints.end.location = resolveEnd(shape->endTermSeg->endPoint,
+        shape->endTermSeg->endPoint->calcAssociatedEntry(), shape->endNoteId);
+    auto* startNote = endpoints.start.location ? noteDataAt(context, *endpoints.start.location) : nullptr;
+    auto* endNote = endpoints.end.location ? noteDataAt(context, *endpoints.end.location) : nullptr;
+    if (!startNote || !endNote) {
+        context.logMessage(LogMsg() << "Omitting wavy line of smart shape " << shape->getCmper()
+            << " because an endpoint could not be attached or anchored.", MessageSeverity::Verbose);
+        return;
+    }
+
+    const auto placement = enumConvert<mx::api::Placement>(shape->calcVerticalPlacementForBeatAttached());
+    auto start = mx::api::WavyLineStart{};
+    start.number = smartShapeSpannerNumber(shape);
+    start.positionData.placement = placement;
+    if (glyphName && isMusicXmlWavyLineGlyph(*glyphName)) {
+        start.smufl = *glyphName;
+    }
+    startNote->noteAttachmentData.wavyLineStarts.emplace_back(std::move(start));
+
+    auto stop = mx::api::WavyLineStop{};
+    stop.number = smartShapeSpannerNumber(shape);
+    stop.positionData.placement = placement;
+    endNote->noteAttachmentData.wavyLineStops.emplace_back(std::move(stop));
+}
+
 void appendTrillLine(
     MusicXmlMusxMapping& context,
     const MusxInstance<others::SmartShape>& shape,
     const classify::smartshape::TrillLine& trillLine)
 {
-    /// @todo Emit the wavy-line extension when mx::api can pair wavy-line start/stop.
-    /// (See mx-api-gaps.md.)
-    if (!trillLine.includesTrSymbol) {
+    if (trillLine.includesTrSymbol) {
+        const auto startEntry = shape->startTermSeg->endPoint->calcAssociatedEntry();
+        const auto location = findEntryNoteLocation(context, startEntry, shape->startNoteId);
+        auto* note = location ? noteDataAt(context, *location) : nullptr;
+        if (note) {
+            auto mark = musicXmlMark(mx::api::MarkType::trillMark, shape->calcVerticalPlacementForBeatAttached());
+            mark.tickTimePosition = note->tickTimePosition;
+            note->noteAttachmentData.marks.emplace_back(std::move(mark));
+        } else {
+            // The extension can still be anchored, so lose only the symbol.
+            context.logMessage(LogMsg() << "Omitting trill symbol of smart shape " << shape->getCmper()
+                << " because no note is associated with its start point.", MessageSeverity::Verbose);
+        }
+    }
+    if (shapeSpansMusic(shape)) {
+        appendWavyLine(context, shape, trillLine.line ? trillLine.line->lineCharGlyphName : std::nullopt);
+    } else if (!trillLine.includesTrSymbol) {
+        // No symbol and no extent leaves nothing to write.
         context.logMessage(LogMsg() << "Omitting trill extension smart shape " << shape->getCmper()
-            << " because mx::api cannot pair wavy-line start/stop.", MessageSeverity::Verbose);
-        return;
+            << " because it spans no music.", MessageSeverity::Verbose);
     }
-    const auto startEntry = shape->startTermSeg->endPoint->calcAssociatedEntry();
-    const auto location = findEntryNoteLocation(context, startEntry, shape->startNoteId);
-    auto* note = location ? noteDataAt(context, *location) : nullptr;
-    if (!note) {
-        context.logMessage(LogMsg() << "Omitting trill smart shape " << shape->getCmper()
-            << " because no note is associated with its start point.", MessageSeverity::Verbose);
-        return;
-    }
-    auto mark = musicXmlMark(mx::api::MarkType::trillMark, shape->calcVerticalPlacementForBeatAttached());
-    mark.tickTimePosition = note->tickTimePosition;
-    note->noteAttachmentData.marks.emplace_back(std::move(mark));
 }
 
 void processSmartShapesForStaff(
@@ -812,10 +1036,9 @@ void processSmartShapesForStaff(
             } else if constexpr (std::is_same_v<Value, classify::smartshape::TrillLine>) {
                 appendTrillLine(context, shape, value);
             } else if constexpr (std::is_same_v<Value, classify::smartshape::VibratoLine>) {
-                /// @todo Emit vibrato lines as paired wavy-line ornaments when mx::api
-                /// supports them. (See mx-api-gaps.md.)
-                context.logMessage(LogMsg() << "Omitting vibrato line smart shape " << shape->getCmper()
-                    << " because mx::api cannot pair wavy-line start/stop.", MessageSeverity::Verbose);
+                appendWavyLine(context, shape, value.line.lineCharGlyphName);
+            } else if constexpr (std::is_same_v<Value, classify::smartshape::Glissando>) {
+                appendGlissando(context, shape, value);
             } else if constexpr (std::is_same_v<Value, classify::smartshape::GeneralLine>) {
                 appendGeneralLine(context, staff, staffId, staffIndex, shape, value);
             } else if constexpr (std::is_same_v<Value, classify::smartshape::ArpeggiatedTie>) {
@@ -826,6 +1049,11 @@ void processSmartShapesForStaff(
                 }
             } else if constexpr (std::is_same_v<Value, classify::smartshape::NonArpeggio>) {
                 appendArpeggioCandidate(context, value.candidate);
+            } else if constexpr (std::is_same_v<Value, std::monostate>) {
+                // A silent omission is indistinguishable from a shape Denigma never saw.
+                context.logMessage(LogMsg() << "Omitting smart shape " << shape->getCmper()
+                    << " of unclassified type " << int(classification.shapeType) << ".",
+                    MessageSeverity::Verbose);
             }
         }, classification.value);
     }

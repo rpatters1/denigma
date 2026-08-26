@@ -77,7 +77,8 @@ The repository builds a CLI plus reusable libraries for classification, massage,
 - Prefer horizontal function calls up to about 135 columns. When wrapping is needed, keep as much of the call as practical on the next indented line.
 - Strongly prefer named constants, existing domain constants, or computed values over hardcoded numeric literals other than `0`.
 - Do not place project-internal design notes in top-level `docs`; that directory is primarily for Doxygen/external-library documentation. Keep implementation notes near the relevant source area unless asked otherwise.
-- Record deferred feature work in the relevant `roadmap.md`, concrete third-party API limitations in the matching gaps document, such as `src/formats/musicxml/mx-api-gaps.md`, and deliberate policy choices in the matching design-decisions document, such as `src/formats/musicxml/design-decisions.md`. A decision recorded there is settled; reverse it by deleting the entry, not by leaving it to contradict the code.
+- Record deferred feature work in the relevant `roadmap.md`, concrete third-party API limitations in the matching gaps document, such as `src/formats/musicxml/mx-api-gaps.md`, and deliberate policy choices in the matching design-decisions document, such as `src/formats/musicxml/design-decisions.md`. A decision recorded there is settled; reverse it by deleting the entry, not by leaving it to contradict the code. Findings that fit none of those, notably how other applications treat output believed correct, go in the matching implementation-notes document, such as `src/formats/musicxml/implementation_notes.md`.
+- Write code that compiles at the minimum supported C++ standard, not merely at the one this repository builds with. The default build selects C++23, but consumers may select the minimum: `denigma-online` forces C++20 through `DENIGMA_CXX_STANDARD`. A construct requiring a newer standard therefore passes the local build and breaks them. Where a newer feature is genuinely needed, raise the minimum deliberately rather than by accident.
 - Do not leave a `/// @todo` comment pointing at a roadmap item. Roadmap work may never be done, and the comment becomes clutter. Reserve `/// @todo` for a specific limitation local to the code it sits in.
 
 ## Verification
@@ -85,9 +86,10 @@ The repository builds a CLI plus reusable libraries for classification, massage,
 - For source changes, at minimum run the relevant targeted test subset.
 - For converter or fixture changes, run the most specific affected test target first, then widen to `ctest` if needed.
 - If you change build logic, verify both configure and build steps still succeed.
+- The default build cannot catch a violation of the minimum C++ standard, because it compiles at the newer one. When a change uses a recent library or language feature, build it at the minimum as well, for instance by configuring `denigma-online` against the local checkout.
 
 ## Practical Notes
 
 - The repository is cross-platform but currently has macOS-specific logic in the top-level CMake file.
 - Warnings are treated as errors in both production and test builds.
-- The project targets C++23 by default, with a minimum supported standard of C++20.
+- The project targets C++23 by default, with a minimum supported standard of C++20. Both matter; see the editing rule on the minimum standard.

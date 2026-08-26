@@ -63,6 +63,7 @@ endfunction()
         musicxml/test_notes.cpp
         musicxml/test_parts.cpp
         musicxml/test_smartshapes.cpp
+        musicxml/test_tuplets.cpp
         ${CMAKE_SOURCE_DIR}/src/main.cpp
         ${CMAKE_SOURCE_DIR}/src/about.cpp
     )

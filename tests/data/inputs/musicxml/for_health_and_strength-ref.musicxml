@@ -7,7 +7,7 @@
     <rights>Public Domain</rights>
     <encoding>
       <software>Finale v27.4 for Mac</software>
-      <encoding-date>2026-08-23</encoding-date>
+      <encoding-date>2026-08-25</encoding-date>
       <supports attribute="new-system" element="print" type="yes" value="yes"/>
       <supports attribute="new-page" element="print" type="yes" value="yes"/>
       <supports element="accidental" type="yes"/>
