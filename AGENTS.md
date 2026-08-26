@@ -11,6 +11,7 @@ covers, so read the relevant one before starting that kind of work rather than a
 
 - `accidental-style` — rendering accidentals in names: Unicode for exported content, ASCII for output filenames and log messages.
 - `classifier-design` — creating or editing classifiers in `src/classify`, or shared classification helpers used by exporters.
+- `code-comments` — writing or revising a Doxygen comment in a public header, an implementation comment anywhere in `src`, or reviewing the comments in a change.
 - `denigma-test-harness` — building, running tests, interpreting test failures, or choosing the test executable's working directory.
 - `enum-mappings` — adding or modifying enum conversions in any `<exporter>_enums.cpp`.
 - `marking-categories` — reading any field that both a musx `MarkingCategory` and a `TextExpressionDef`/`ShapeExpressionDef` carry (positioning, fonts, `useCategoryPos`/`useCategoryFonts`).
