@@ -611,6 +611,37 @@ TEST(ExpressionClassification, KeepsMetronomePlaybackSeparateFromTheDisplayedNum
     EXPECT_EQ(mark.tempo.beatUnitEdu, 1024);
 }
 
+TEST(ExpressionClassification, ReadsAFractionalDisplayedMetronomeNumber)
+{
+    const auto result = classifyExpression(makeTextExpressionContext(
+        "^fontid(0)^size(24)^nfx(0)&#xECA5; = 132.5",
+        ExpressionCategoryType::TempoMarks,
+        {},
+        false,
+        "Finale Maestro",
+        4095).def);
+
+    ASSERT_EQ(result.type, ExpressionType::MetronomeMark);
+    const auto& mark = result.metronomeMark();
+    EXPECT_EQ(mark.noteType, NoteType::Quarter);
+    EXPECT_DOUBLE_EQ(mark.displayedBeatsPerMinute, 132.5);
+}
+
+TEST(ExpressionClassification, RejectsAMalformedDecimalMetronomeNumber)
+{
+    const std::vector<std::string> malformed = { "132..5", "132.5.5", ".5", "132." };
+    for (const auto& number : malformed) {
+        const auto result = classifyExpression(makeTextExpressionContext(
+            "^fontid(0)^size(24)^nfx(0)&#xECA5; = " + number,
+            ExpressionCategoryType::TempoMarks,
+            {},
+            false,
+            "Finale Maestro",
+            4095).def);
+        EXPECT_NE(result.type, ExpressionType::MetronomeMark) << number;
+    }
+}
+
 TEST(ExpressionClassification, MapsEverySimpleMetronomeNoteGlyphToANoteType)
 {
     using TestCase = std::pair<std::string, NoteType>;

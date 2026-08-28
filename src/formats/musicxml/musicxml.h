@@ -79,7 +79,7 @@ std::optional<MusicXmlInstrumentSound> musicXmlInstrumentSoundFromUuid(std::stri
 mx::api::MarkData musicXmlMark(mx::api::MarkType type, musx::dom::VerticalPlacement placement);
 mx::api::MarkType musicXmlFermataType(const classify::articulation::Fermata& fermata);
 mx::api::NoteData* noteDataAt(MusicXmlMusxMapping& context, const MusicXmlNoteLocation& location);
-double musicXmlQuarterNotesPerMinute(const classify::expression::TempoInfo& tempo);
+double musicXmlQuarterNotesPerMinute(double beatsPerMinute, musx::dom::Edu beatUnitEdu);
 mx::api::HorizontalAlignment musicXmlHorizontalAlignmentForTextExpression(
     const musx::dom::MusxInstance<musx::dom::others::MeasureExprAssign>& assignment);
 mx::api::HorizontalAlignment musicXmlJustifyForTextExpression(

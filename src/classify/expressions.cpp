@@ -403,6 +403,30 @@ static bool isMetronomeAugmentationDotGlyph(std::string_view glyphName)
     return glyphName == "metAugmentationDot" || glyphName == "augmentationDot";
 }
 
+/// Reads the digits, and at most one decimal point, collected to the right of the equals sign.
+/// The fractional digits are accumulated separately so that an arbitrarily long tail cannot
+/// overflow the integer conversion.
+static std::optional<double> parseDisplayedBeatsPerMinute(std::string_view text)
+{
+    const auto pointPos = text.find('.');
+    const auto integerText = text.substr(0, pointPos);
+    unsigned long long integerValue{};
+    const auto [end, error] = std::from_chars(
+        integerText.data(), integerText.data() + integerText.size(), integerValue);
+    if (error != std::errc{} || end != integerText.data() + integerText.size()) {
+        return std::nullopt;
+    }
+    double result = static_cast<double>(integerValue);
+    if (pointPos != std::string_view::npos) {
+        double scale = 1.0;
+        for (const char digit : text.substr(pointPos + 1)) {
+            scale /= 10.0;
+            result += static_cast<double>(digit - '0') * scale;
+        }
+    }
+    return result;
+}
+
 /// Recognizes a complete, simple metronome equation across source font runs. Resolving each
 /// character against its own font makes a one-font legacy marking and a split SMuFL/text marking
 /// equivalent here, while the retained Enigma context leaves that source distinction to callers.
@@ -426,6 +450,7 @@ static std::optional<ExpressionClassification> classifyMetronomeMark(const Resol
     std::string noteGlyphName;
     size_t augmentationDots = 0;
     std::string displayedBeatsPerMinute;
+    bool seenDecimalPoint = false;
     for (const auto& chunk : chunks) {
         const auto& font = chunk.styles.font;
         if (!font) {
@@ -470,6 +495,14 @@ static std::optional<ExpressionClassification> classifyMetronomeMark(const Resol
                 }
                 return std::nullopt;
             }
+            if (codepoint == U'.') {
+                if (seenDecimalPoint || displayedBeatsPerMinute.empty()) {
+                    return std::nullopt;
+                }
+                seenDecimalPoint = true;
+                displayedBeatsPerMinute.push_back('.');
+                continue;
+            }
             if (codepoint < U'0' || codepoint > U'9') {
                 return std::nullopt;
             }
@@ -477,14 +510,12 @@ static std::optional<ExpressionClassification> classifyMetronomeMark(const Resol
         }
     }
     if ((state != ParseState::BeatsPerMinute && state != ParseState::TrailingSpace)
-        || displayedBeatsPerMinute.empty()) {
+        || displayedBeatsPerMinute.empty() || displayedBeatsPerMinute.back() == '.') {
         return std::nullopt;
     }
 
-    int displayedValue{};
-    const auto [end, error] = std::from_chars(
-        displayedBeatsPerMinute.data(), displayedBeatsPerMinute.data() + displayedBeatsPerMinute.size(), displayedValue);
-    if (error != std::errc{} || end != displayedBeatsPerMinute.data() + displayedBeatsPerMinute.size()) {
+    const auto displayedValue = parseDisplayedBeatsPerMinute(displayedBeatsPerMinute);
+    if (!displayedValue) {
         return std::nullopt;
     }
 
@@ -500,7 +531,7 @@ static std::optional<ExpressionClassification> classifyMetronomeMark(const Resol
     result.type = ExpressionType::MetronomeMark;
     result.basis = basisForRecognition(resolved.categoryType, CategoryType::TempoMarks);
     result.value = MetronomeMark{
-        std::move(tempo), noteType, std::move(noteGlyphName), augmentationDots, displayedValue
+        std::move(tempo), noteType, std::move(noteGlyphName), augmentationDots, *displayedValue
     };
     return result;
 }

@@ -22,7 +22,10 @@
 
 #include "musicxml.h"
 
+#include <array>
+#include <cmath>
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <utility>
 
@@ -253,7 +256,7 @@ std::optional<mx::api::DirectionData> createTempoExpressionDirection(
         tempo = &classification.tempoText().tempo;
     }
 
-    const double quarterNotesPerMinute = musicXmlQuarterNotesPerMinute(*tempo);
+    const double quarterNotesPerMinute = musicXmlQuarterNotesPerMinute(tempo->beatsPerMinute, Edu(tempo->beatUnitEdu));
     if (quarterNotesPerMinute >= 0.0) {
         direction.soundData.tempo = quarterNotesPerMinute;
         direction.isSoundDataSpecified = direction.soundData.isSpecified();
@@ -441,14 +444,58 @@ bool applyMultimeasureRestNumber(
 
 } // namespace
 
-double musicXmlQuarterNotesPerMinute(const classify::expression::TempoInfo& tempo)
+/// Renders a displayed metronome number as the text of a MusicXML `<per-minute>` element, omitting
+/// a fractional part that has nothing left in it. The digits are assembled from integer conversions
+/// so that the decimal separator cannot follow the user's locale; see design-decisions.md.
+///
+/// @note Nothing in the library needs this beyond the metronome mark below, so it is not declared
+/// in musicxml.h. It has external linkage for the tests, which declare it themselves.
+std::string musicXmlPerMinuteText(double beatsPerMinute)
 {
-    if (tempo.beatsPerMinute <= 0 || tempo.beatUnitEdu <= 0) {
+    constexpr int kMaxFractionDigits = 6;
+    constexpr double kMaxExactIntegerValue = 1e15;
+
+    if (!std::isfinite(beatsPerMinute) || std::fabs(beatsPerMinute) >= kMaxExactIntegerValue) {
+        return "0";
+    }
+
+    std::string result;
+    double magnitude = beatsPerMinute;
+    if (magnitude < 0.0) {
+        result.push_back('-');
+        magnitude = -magnitude;
+    }
+
+    double integerPart{};
+    const double fractionPart = std::modf(magnitude, &integerPart);
+    constexpr long long kFractionScale = 1000000; // 10 ^ kMaxFractionDigits
+    long long scaledFraction = std::llround(fractionPart * double(kFractionScale));
+    if (scaledFraction >= kFractionScale) {
+        integerPart += 1.0;
+        scaledFraction = 0;
+    }
+
+    result += std::to_string(static_cast<long long>(integerPart));
+    if (scaledFraction > 0) {
+        std::string fractionDigits = std::to_string(scaledFraction);
+        fractionDigits.insert(fractionDigits.begin(), size_t(kMaxFractionDigits) - fractionDigits.size(), '0');
+        while (fractionDigits.back() == '0') {
+            fractionDigits.pop_back();
+        }
+        result.push_back('.');
+        result += fractionDigits;
+    }
+    return result;
+}
+
+double musicXmlQuarterNotesPerMinute(double beatsPerMinute, Edu beatUnitEdu)
+{
+    if (beatsPerMinute <= 0.0 || beatUnitEdu <= 0) {
         return mx::api::DOUBLE_UNSPECIFIED;
     }
 
     constexpr EduFloat eduPerQuarterNote = EduFloat(NoteType::Quarter);
-    return static_cast<double>(tempo.beatsPerMinute) * static_cast<double>(tempo.beatUnitEdu) / eduPerQuarterNote;
+    return beatsPerMinute * static_cast<double>(beatUnitEdu) / eduPerQuarterNote;
 }
 
 mx::api::TempoData musicXmlMetronomeMark(
@@ -460,7 +507,7 @@ mx::api::TempoData musicXmlMetronomeMark(
     mx::api::BeatsPerMinute beatsPerMinute;
     beatsPerMinute.durationName = enumConvert<mx::api::DurationName>(metronomeMark.noteType);
     beatsPerMinute.dots = static_cast<int>(metronomeMark.augmentationDots);
-    beatsPerMinute.beatsPerMinute = std::to_string(metronomeMark.displayedBeatsPerMinute);
+    beatsPerMinute.beatsPerMinute = musicXmlPerMinuteText(metronomeMark.displayedBeatsPerMinute);
     /// @todo Preserve split fonts by assigning the left-hand font to TempoData::fontData and the
     /// right-hand font to the per-minute element once mx::api::BeatsPerMinute exposes its FontData.
     /// See mx-api-gaps.md.

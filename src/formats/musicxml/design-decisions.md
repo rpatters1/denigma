@@ -144,6 +144,14 @@ The default assumes the worst about the reader's fonts because Denigma has no wa
 
 This is also why MusicXML does not need to parse metronome markings out of expression text. Finale splits its own chunks at font changes, so "Adagio espressivo ♩ = 84" arrives as three chunks and exports as words, symbol, words: faithful text plus a portable glyph, with `<sound tempo>` carrying the playback.
 
+### A displayed metronome number keeps its fractional digits
+
+A metronome equation whose number is written with a decimal point, such as "♩ = 132.5", is classified as a metronome mark and exported with those digits intact. `<per-minute>` is a string in MusicXML, so it carries the printed number as printed. Rounding it would misreport what the page says while gaining nothing.
+
+The digits are assembled from integer conversions rather than from a floating-point conversion. Denigma calls `setlocale(LC_ALL, "")` at startup, so the stream and printf conversions for floating point emit the user's decimal separator, and a European locale would write `132,5` into a file every reader parses as a number. `std::to_chars` for floating point would answer this, but it is unavailable at the minimum macOS deployment target the project builds against.
+
+Only the printed number is fractional. Finale's playback tempo, which is what reaches `<sound tempo>`, is an integer in the document, and the Tempo tool's own values are rounded to an integer inside musxdom before Denigma sees them.
+
 ### Tuplet ratios are reduced, and the printed spelling travels separately
 
 `<time-modification>` is written from the entry's cumulative ratio, so a Finale tuplet of six sixteenths in the space of four is exported as `3:2`. Finale's own export writes the unreduced `6:4`. The printed numbers are unaffected: `<tuplet-actual>` and `<tuplet-normal>` carry Finale's display number and reference number with their durations, so the tuplet still reads as "6 in the space of 4" on the page.
