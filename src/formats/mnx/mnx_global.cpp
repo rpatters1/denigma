@@ -251,14 +251,20 @@ static void createTempos(const MnxMusxMappingPtr& context, mnxdom::global::Measu
                 const auto& classification = expAssignClassification.classification;
                 const auto* tempoText = classification.as<classify::expression::TempoText>();
                 const auto* metronomeMark = classification.as<classify::expression::MetronomeMark>();
+                // An MNX tempo is a playback instruction, so it takes the expression's playback
+                // settings. See design-decisions.md.
+                const classify::expression::TempoInfo* playback = nullptr;
                 if (metronomeMark) {
-                    temposAtPositions.emplace(expAssign->eduPosition, mnxTempoFromMetronomeMark(*metronomeMark));
-                } else if (tempoText && tempoText->tempo.beatsPerMinute > 0 && tempoText->tempo.beatUnitEdu > 0) {
+                    playback = &metronomeMark->tempo;
+                } else if (tempoText) {
+                    playback = &tempoText->tempo;
+                }
+                if (playback && playback->beatsPerMinute > 0 && playback->beatUnitEdu > 0) {
                     temposAtPositions.emplace(
                         expAssign->eduPosition,
-                        mnxdom::global::Tempo::make(
-                            tempoText->tempo.beatsPerMinute,
-                            mnxNoteValueFromEdu(Edu(tempoText->tempo.beatUnitEdu))));
+                        mnxTempoFromPlayback(playback->beatsPerMinute, Edu(playback->beatUnitEdu)));
+                } else if (metronomeMark) {
+                    temposAtPositions.emplace(expAssign->eduPosition, mnxTempoFromMetronomeMark(*metronomeMark));
                 }
             }
         };
