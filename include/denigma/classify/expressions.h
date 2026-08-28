@@ -149,8 +149,8 @@ struct MetronomeMark
     std::string noteGlyphName;
     /// @brief Number of augmentation dots following the note.
     std::size_t augmentationDots{};
-    /// @brief Number displayed to the right of the equals sign.
-    int displayedBeatsPerMinute{};
+    /// @brief Number displayed to the right of the equals sign. It may have a fractional part.
+    double displayedBeatsPerMinute{};
 };
 
 /// @struct TempoAlteration

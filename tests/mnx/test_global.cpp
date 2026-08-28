@@ -21,6 +21,7 @@
  */
 #include <string>
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <iterator>
 #include <fstream>
@@ -49,12 +50,44 @@ TEST(MnxGlobal, MetronomeMarkUsesDisplayedTempoWithoutPlayback)
     };
 
     const auto tempo = formats::mnx::detail::mnxTempoFromMetronomeMark(mark);
-    EXPECT_EQ(tempo.bpm, 72);
+    EXPECT_DOUBLE_EQ(tempo.bpm, 72);
     EXPECT_EQ(tempo.noteValue.base, mnxdom::NoteValueBase::Half);
     EXPECT_EQ(tempo.noteValue.dots, 2u);
 }
 
-TEST(MnxGlobal, MetronomeMarkFixturePreservesEveryDisplayedEquation)
+TEST(MnxGlobal, PlaybackTempoKeepsABeatUnitMnxCanSpell)
+{
+    const auto dottedQuarter = formats::mnx::detail::mnxTempoFromPlayback(72, Edu(NoteType::Quarter) + Edu(NoteType::Eighth));
+    EXPECT_DOUBLE_EQ(dottedQuarter.bpm, 72);
+    EXPECT_EQ(dottedQuarter.noteValue.base, mnxdom::NoteValueBase::Quarter);
+    EXPECT_EQ(dottedQuarter.noteValue.dots, 1u);
+
+    const auto sixteenth = formats::mnx::detail::mnxTempoFromPlayback(160, Edu(NoteType::Note16th));
+    EXPECT_DOUBLE_EQ(sixteenth.bpm, 160);
+    EXPECT_EQ(sixteenth.noteValue.base, mnxdom::NoteValueBase::Note16th);
+    EXPECT_EQ(sixteenth.noteValue.dots, 0u);
+}
+
+TEST(MnxGlobal, PlaybackTempoRestatesABeatUnitMnxCannotSpellInQuarterNotes)
+{
+    // A quarter-note triplet beat: three of them span a half note, so it is no note value at all.
+    const Edu tripletQuarter = Edu(NoteType::Half) / 3;
+    const auto tempo = formats::mnx::detail::mnxTempoFromPlayback(90, tripletQuarter);
+
+    EXPECT_EQ(tempo.noteValue.base, mnxdom::NoteValueBase::Quarter);
+    EXPECT_EQ(tempo.noteValue.dots, 0u);
+    EXPECT_DOUBLE_EQ(tempo.bpm, 90.0 * double(tripletQuarter) / double(Edu(NoteType::Quarter)));
+    EXPECT_NE(tempo.bpm, std::round(tempo.bpm)) << "the restated tempo should keep its fractional part";
+}
+
+TEST(MnxGlobal, PlaybackTempoRestatesAnOutOfRangeBeatUnitInQuarterNotes)
+{
+    const auto tempo = formats::mnx::detail::mnxTempoFromPlayback(60, Edu(NoteType::Maxima) * 2);
+    EXPECT_EQ(tempo.noteValue.base, mnxdom::NoteValueBase::Quarter);
+    EXPECT_DOUBLE_EQ(tempo.bpm, 60.0 * double(Edu(NoteType::Maxima) * 2) / double(Edu(NoteType::Quarter)));
+}
+
+TEST(MnxGlobal, MetronomeMarkFixtureExportsTheTempoFinalePlays)
 {
     setupTestDataPaths();
     std::filesystem::path inputPath;
@@ -70,13 +103,16 @@ TEST(MnxGlobal, MetronomeMarkFixturePreservesEveryDisplayedEquation)
 
     struct ExpectedTempo
     {
-        int bpm;
+        double bpm;
         mnxdom::NoteValueBase base;
         unsigned dots;
     };
+    // Measures 1 and 2 export the quarter and the plain half their playback settings hold, not the
+    // eighth and double-dotted half they display. Measure 3 has no playback settings at all and
+    // falls back to the equation it displays.
     const std::array<ExpectedTempo, 3> expected{ {
-        { 72, mnxdom::NoteValueBase::Eighth, 0 },
-        { 104, mnxdom::NoteValueBase::Half, 2 },
+        { 72, mnxdom::NoteValueBase::Quarter, 0 },
+        { 104, mnxdom::NoteValueBase::Half, 0 },
         { 120, mnxdom::NoteValueBase::Whole, 0 }
     } };
 
@@ -85,7 +121,7 @@ TEST(MnxGlobal, MetronomeMarkFixturePreservesEveryDisplayedEquation)
         ASSERT_TRUE(tempos) << "measure " << (i + 1);
         ASSERT_EQ(tempos->size(), 1u) << "measure " << (i + 1);
         const auto tempo = tempos->front();
-        EXPECT_EQ(tempo.bpm(), expected[i].bpm) << "measure " << (i + 1);
+        EXPECT_DOUBLE_EQ(tempo.bpm(), expected[i].bpm) << "measure " << (i + 1);
         EXPECT_EQ(tempo.value().base(), expected[i].base) << "measure " << (i + 1);
         EXPECT_EQ(tempo.value().dots(), expected[i].dots) << "measure " << (i + 1);
     }
@@ -108,8 +144,8 @@ TEST(MnxGlobal, Tempos)
     ASSERT_TRUE(tempos.has_value()) << "should have tempos in the first measure";
     ASSERT_EQ(tempos.value().size(), 2) << "should have 2 tempos in the first measure";
 
-    auto testTempo = [&](auto tempo, int bpm, int numerator, int denominator) {
-        EXPECT_EQ(tempo.bpm(), bpm);
+    auto testTempo = [&](auto tempo, double bpm, int numerator, int denominator) {
+        EXPECT_DOUBLE_EQ(tempo.bpm(), bpm);
         if (tempo.location().has_value()) {
             EXPECT_EQ(tempo.location().value().fraction().numerator(), numerator);
             EXPECT_EQ(tempo.location().value().fraction().denominator(), denominator);

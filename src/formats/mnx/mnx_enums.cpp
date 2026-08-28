@@ -125,9 +125,11 @@ BEGIN_ENUM_CONVERSION(music_theory::NoteName, mnxdom::NoteStep)
 END_ENUM_CONVERSION
 
 BEGIN_ENUM_CONVERSION(musx::dom::NoteType, mnxdom::NoteValueBase)
+    case NoteType::Note4096th: return mnxdom::NoteValueBase::Note4096th;
     case NoteType::Note2048th: return mnxdom::NoteValueBase::Note2048th;
     case NoteType::Note1024th: return mnxdom::NoteValueBase::Note1024th;
     case NoteType::Note512th: return mnxdom::NoteValueBase::Note512th;
+    case NoteType::Note256th: return mnxdom::NoteValueBase::Note256th;
     case NoteType::Note128th: return mnxdom::NoteValueBase::Note128th;
     case NoteType::Note64th: return mnxdom::NoteValueBase::Note64th;
     case NoteType::Note32nd: return mnxdom::NoteValueBase::Note32nd;

@@ -45,6 +45,11 @@ namespace detail {
 /// MusicXML's count of dynamic elements.
 size_t musicXmlStandardDynamicCount();
 
+/// Defined in musicxml_expressions.cpp and declared here rather than in musicxml.h, for the same
+/// reason: nothing else in the library needs it, and only the test below exercises the values that
+/// no Finale fixture produces.
+std::string musicXmlPerMinuteText(double beatsPerMinute);
+
 } // namespace detail
 } // namespace musicxml
 } // namespace formats
@@ -309,6 +314,16 @@ std::vector<std::vector<ComparableDynamicsComponent>> collectCompoundDynamics(co
 }
 
 } // namespace
+
+TEST(MusicXmlExpressions, PerMinuteTextKeepsOnlyTheDigitsThatAreThere)
+{
+    using denigma::formats::musicxml::detail::musicXmlPerMinuteText;
+
+    EXPECT_EQ(musicXmlPerMinuteText(120.0), "120");
+    EXPECT_EQ(musicXmlPerMinuteText(132.5), "132.5");
+    EXPECT_EQ(musicXmlPerMinuteText(66.25), "66.25");
+    EXPECT_EQ(musicXmlPerMinuteText(0.0), "0");
+}
 
 TEST(MusicXmlExpressions, MetronomeMarkFixtureExportsSemanticDirectionsAndConfiguredPlayback)
 {
@@ -1199,16 +1214,18 @@ TEST(MusicXmlExpressions, TempoToolChanges)
     const auto& measures = actualScore->parts.front().measures;
     ASSERT_GE(measures.size(), 4u);
     std::vector<std::vector<int>> xmlSoundPositions;
-    std::vector<std::vector<int>> xmlTempoValues;
+    std::vector<std::vector<double>> xmlTempoValues;
     for (const auto& measureNode : firstPart.children("measure")) {
         std::vector<int> positions;
-        std::vector<int> tempoValues;
+        std::vector<double> tempoValues;
         for (const auto& soundNode : measureNode.children("sound")) {
             const auto tempoAttribute = soundNode.attribute("tempo");
             if (tempoAttribute.empty()) {
                 continue;
             }
-            tempoValues.emplace_back(tempoAttribute.as_int());
+            // A Tempo tool change rarely lands on a whole number of beats per minute, so the
+            // attribute has to be read as one.
+            tempoValues.emplace_back(tempoAttribute.as_double());
             if (const auto offsetNode = soundNode.child("offset")) {
                 positions.emplace_back(offsetNode.text().as_int());
             } else {
@@ -1227,7 +1244,7 @@ TEST(MusicXmlExpressions, TempoToolChanges)
         ASSERT_TRUE(mnxTempos) << "measure " << (measureIndex + 1);
         ASSERT_EQ(mnxTempos->size(), xmlTempoValues[measureIndex].size()) << "measure " << (measureIndex + 1);
         for (size_t i = 0; i < mnxTempos->size(); ++i) {
-            EXPECT_EQ(mnxTempos->at(i).bpm(), xmlTempoValues[measureIndex][i]) << "measure " << (measureIndex + 1);
+            EXPECT_DOUBLE_EQ(mnxTempos->at(i).bpm(), xmlTempoValues[measureIndex][i]) << "measure " << (measureIndex + 1);
         }
     }
 

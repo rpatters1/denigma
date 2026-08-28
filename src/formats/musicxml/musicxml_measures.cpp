@@ -327,7 +327,7 @@ void processTempoChanges(
         }
         const auto noteType = tempoUnit.value_or(NoteType::Quarter);
         const double quarterNotesPerMinute =
-            musicXmlQuarterNotesPerMinute(classify::expression::TempoInfo{ {}, tempoChange->getAbsoluteTempo(noteType), Edu(noteType) });
+            musicXmlQuarterNotesPerMinute(tempoChange->getAbsoluteTempo(noteType), Edu(noteType));
         if (quarterNotesPerMinute < 0.0) {
             continue;
         }
