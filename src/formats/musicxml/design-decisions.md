@@ -48,7 +48,7 @@ One limitation is accepted rather than solved. MusicXML can force an accidental 
 
 ## Other encoding choices
 
-These do not follow from the first principle. They are cases where Finale's own export takes a lossy or malformed shortcut and Denigma does not follow it.
+These do not follow from the first principle. Most are cases where Finale's own export takes a lossy or malformed shortcut and Denigma does not follow it; the rest are encoding choices MusicXML leaves open.
 
 ### Hidden entries keep their rests
 
@@ -61,6 +61,22 @@ Finale's own export collapses hidden rests into `<forward>`, which advances the 
 After the exporter has created every source entry in a part, a staff with no notes in a measure receives a synthetic complete-measure rest. The rest uses the lowest-numbered voice that contains real notes anywhere on that staff. Only a staff with no real notes at all falls back to its Layer 1/V1 voice.
 
 A synthetic rest must not invent a source voice. If a staff contains only Finale Layer 4, assigning its empty measures to Layer 1 makes MusicXML describe two voices even though the source has one. Importers may then apply multi-voice engraving rules to the Layer 4 passage. Deferring the rests until the real voices are known keeps empty measures in an existing voice without renumbering any source entry.
+
+### Voice numbers run through the part, not through each staff
+
+A voice's MusicXML number is `staffIndex * 8 + layer * 2 + v1v2` (`musicXmlVoiceNumber` in [musicxml.h](musicxml.h)), so the second staff of a part numbers its voices from 9 rather than starting over at 1. Eight numbers per staff cover Finale's four layers, each of which can carry a V1 and a V2 stream. The hidden anchor rests that host floating spanner endpoints take a reserved number far above that range, which also marks them as synthetic in the output.
+
+MusicXML scopes `<voice>` to the part, so two staves that both number from 1 describe one voice appearing on both staves rather than two independent ones. Numbering straight through the part keeps each stream its own voice, and a cross-staff layer keeps its number as it moves.
+
+`mx::api` keys `StaffData::voices` by index and writes each voice's index plus one, so the map key is the number Denigma wants and the gaps left by unused layers cost nothing. `VoiceData::label`, which MX added for sources whose voice names are not their numbers, is therefore not needed here.
+
+### An octave shift wider than MusicXML's widest ottava loses its line, not its pitch
+
+MusicXML's `<octave-shift>` names one of six lines, 8va through 22mb, so the widest displacement it can draw is three octaves. Finale imposes no such limit, since a custom line's transposition is an arbitrary interval. A carrier ottava displacing more than three octaves is therefore written as no direction at all, with a warning, while the notes under it keep the full displacement in their sounding pitch.
+
+Narrowing the line to 22ma instead would draw a shift the music does not have. MusicXML's `<pitch>` is the sounding pitch, so a reader that recovers written pitch by undoing the line would place the passage an octave or more from where Finale had it. Losing the line loses appearance only, and the warning names the shape so the loss is visible.
+
+MX takes the opposite choice on the reading side, narrowing an incoming size above 22 to the widest line it has (MX PR [#423](https://github.com/webern/mx/pull/423)). That is right for a reader, which has to make something of a file it did not write and has no other record of the displacement. An exporter holding the pitch does not face that trade.
 
 ### A floating rest keeps floating
 
@@ -162,7 +178,9 @@ Copying Finale's display numbers into `<time-modification>` instead would be wro
 
 Nothing is lost by reducing, and that holds unconditionally. `createTupletStart` always populates the display and reference numbers, including for a hidden tuplet, where `TupletDef::hidden` suppresses the show flags but leaves the values intact.
 
-A related difference is not Denigma's doing. Denigma sets `<normal-type>` only when the tuplet's reference duration differs from the note's own type, but `mx::impl::NoteWriter` ignores that field and infers the element by scanning sibling notes, so it appears far more often than Denigma requests. See the nested-tuplet entry in [mx-api-gaps.md](mx-api-gaps.md).
+`<normal-type>` follows from the same reasoning. It names the reference duration of the tuplet whose ratio is being stated, so Denigma writes it only where one tuplet is in force and its reference duration differs from the note's own type. MusicXML reads an absent `<normal-type>` as the note's own type, which is what the common case wants and what Finale's own export also relies on.
+
+Nested tuplets get none. There the ratio is cumulative and belongs to no single tuplet, so no reference duration describes it: pairing the innermost tuplet's reference with a cumulative count would state a span neither tuplet has. The default is the honest answer, and `<duration>` carries the timing regardless. This is why `tuplet-nested-singleton.musx` writes `12:1` with no `<normal-type>` on its last note while the first note of the same tuplet, under the outer tuplet alone, writes `6:1` with `<normal-type>quarter`.
 
 ### The tool a glissando was drawn with, not its line, chooses `<glissando>` or `<slide>`
 

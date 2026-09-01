@@ -191,17 +191,21 @@ void applyTupletData(mx::api::NoteData& note, const EntryInfoPtr& entryInfo)
     if (!activeTuplets.empty()) {
         const auto cumulativeRatio = entryInfo->cumulativeRatio;
         if (cumulativeRatio != 1) {
-            const auto& tupletDef = entryInfo.getFrame()->tupletInfo[activeTuplets.back()].tuplet;
-            const auto [normalDurationName, normalDots] = calcDurationInfoFromEdu(tupletDef->referenceDuration);
-            const auto [entryDurationName, entryDots] = entryInfo->getEntry()->calcDurationInfo();
             note.durationData.timeModificationActualNotes = cumulativeRatio.denominator();
             note.durationData.timeModificationNormalNotes = cumulativeRatio.numerator();
-            if (normalDurationName != entryDurationName || normalDots != entryDots) {
-                note.durationData.timeModificationNormalType = enumConvert<mx::api::DurationName>(normalDurationName);
-                note.durationData.timeModificationNormalTypeDots = int(normalDots);
+            // <normal-type> names the reference duration of the tuplet the ratio came from, so one
+            // tuplet has to supply both. Nesting makes the ratio cumulative while no single
+            // reference duration describes it, so the element is left out and MusicXML's default,
+            // the note's own type, applies. See design-decisions.md.
+            if (activeTuplets.size() == 1) {
+                const auto& tupletDef = entryInfo.getFrame()->tupletInfo[activeTuplets.front()].tuplet;
+                const auto [normalDurationName, normalDots] = calcDurationInfoFromEdu(tupletDef->referenceDuration);
+                const auto [entryDurationName, entryDots] = entryInfo->getEntry()->calcDurationInfo();
+                if (normalDurationName != entryDurationName || normalDots != entryDots) {
+                    note.durationData.timeModificationNormalType = enumConvert<mx::api::DurationName>(normalDurationName);
+                    note.durationData.timeModificationNormalTypeDots = int(normalDots);
+                }
             }
-            /// @todo mx::api::NoteWriter currently ignores DurationData::timeModificationNormalType and infers normal-type
-            /// by searching sibling notes for exactly one tuplet start and one tuplet stop. That is fragile for nested tuplets.
         }
     }
 

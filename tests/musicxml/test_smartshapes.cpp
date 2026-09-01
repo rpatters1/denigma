@@ -913,8 +913,9 @@ TEST(MusicXmlSmartShapes, GlissandiMatchReference)
 
     // Every shape in the fixture is drawn with the glissando or tab slide tool. The element choice
     // follows the tool, so this agrees with Finale on all of them; see design-decisions.md.
-    // Compared as a sorted set, because a single-note glissando's two ends come out in the wrong
-    // order (webern/mx#429), which the disabled test below covers.
+    // Compared as a sorted set, because the events are gathered back through mx::api, which
+    // groups a note's starts and stops into separate vectors and so cannot report document order.
+    // SingleNoteGlissandoWritesStartBeforeStop below reads the XML itself to check that order.
     const auto ours = comparableSpanEventsForFixture("glissando.musx");
     const auto reference = comparableSpanEventsForReference("glissando-ref.musicxml");
     ASSERT_FALSE(reference.empty());
@@ -948,14 +949,12 @@ TEST(MusicXmlSmartShapes, GlissToRestMatchesReference)
     EXPECT_EQ(reference, ours);
 }
 
-// DISABLED: fails against mx as pinned. Re-enable when webern/mx#429 is fixed.
-//
 // gliss_to_rest.musx holds one glissando and one tab slide, each drawn to a rest and so each
-// beginning and ending on a single note. Finale writes start then stop for both;
-// NotationsWriter writes every glissandoStop before every glissandoStart, so both come out
-// inverted, with number 1 closing before it opens. Same defect as the single-note tuplet in
-// test_tuplets.cpp, so one ordering rule covers both.
-TEST(MusicXmlSmartShapes, DISABLED_SingleNoteGlissandoWritesStartBeforeStop)
+// beginning and ending on a single note. Finale writes start then stop for both, and mx does the
+// same since webern/mx#429: NotationsWriter still writes stops before starts on a note that chains
+// two spanners, but emits a span contained in one note start-first. Same rule covers the
+// single-note tuplet in test_tuplets.cpp.
+TEST(MusicXmlSmartShapes, SingleNoteGlissandoWritesStartBeforeStop)
 {
     setupTestDataPaths();
     pugi::xml_document document;

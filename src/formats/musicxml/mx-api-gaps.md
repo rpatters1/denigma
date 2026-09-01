@@ -224,31 +224,6 @@ Needed API shape: direction-level playback or technical modeling for the remaini
 
 ## Tuplets
 
-### Nested tuplet time-modification
-
-MusicXML uses `<time-modification>` on notes for the cumulative timing effect of tuplets, with `<tuplet>` notations identifying the visual start and stop points.
-
-`mx::api::NoteData` can store multiple `TupletStart` and `TupletStop` objects, and `mx::api::DurationData` has the single cumulative time-modification slot that MusicXML requires. However, `mx::impl::NoteWriter` ignores `DurationData::timeModificationNormalType` and instead infers `<normal-type>` by searching sibling notes for exactly one tuplet start and exactly one tuplet stop.
-
-The observable effect is over-emission rather than corruption. Denigma sets the field only when the tuplet's reference duration differs from the note's own type, because MusicXML reads an absent `<normal-type>` as the note type. The writer instead emits one on every note of a tuplet: for `zwei_gesange.musx` Denigma requests 11 and the file receives 253, of which 242 merely repeat the note's own `<type>`, where Finale's own export writes 4. Nested tuplets take the opposite path: the sibling search finds two starts, matches nothing, and omits `<normal-type>` altogether. That happens to be correct for `tuplets_nested.musx`, where the tuplet's normal value is the note's own duration, but it is correct by luck rather than by design.
-
-`MusicXmlTuplets.DISABLED_NormalTypeIsWrittenOnlyWhereRequested` in [tests/musicxml/test_tuplets.cpp](../../../tests/musicxml/test_tuplets.cpp) asserts the intended behavior and is disabled until this is fixed. Run it with `--gtest_also_run_disabled_tests` to see the current counts.
-
-Needed API shape: writer support for nested tuplets, probably by matching `TupletStart` / `TupletStop` by `numberLevel` and honoring `DurationData`'s cumulative time modification and normal type independently of the visual tuplet-start search. Filed upstream as [webern/mx#428](https://github.com/webern/mx/issues/428).
-
-### Notation order on a span contained in one note
-
-A span may begin and end on the same note. Both of its ends then belong to that note, and MusicXML wants the `start` before the `stop`.
-
-`mx::impl::NotationsWriter` writes every stop before every start, per notation family: `tupletStops` before `tupletStarts`, `glissandoStops` before `glissandoStarts`, and likewise for wavy lines. That is the right convention for a note that closes one span and opens another, but it inverts a span contained in a single note, which then closes before it opens. Two fixtures show it:
-
-- `tuplet_singletons.musx`: two tuplets, each covering one note. Finale writes `start` then `stop`; Denigma writes `stop` then `start`, with the same `number` on both, so a reader sees a stop for a tuplet that was never open.
-- `gliss_to_rest.musx`: one glissando and one tab slide, each drawn to a rest. Finale offers only beat- or notehead-attachment for custom lines, so it cannot attach one to a rest; both ends anchor to the notehead and the line extends toward the rest. Each shape therefore begins and ends on one note, and each comes out inverted. `glissando.musx` shape 18 is the same case.
-
-The numbers pair correctly in both cases; only the order is wrong. Denigma cannot correct it through the API, because starts and stops are separate vectors with no way to interleave them.
-
-Needed API shape: none. This is a writer ordering fix: when a start and a stop on one note belong to the same span, write the start first. Filed upstream as [webern/mx#429](https://github.com/webern/mx/issues/429). `MusicXmlTuplets.DISABLED_SingleNoteTupletWritesStartBeforeStop` and `MusicXmlSmartShapes.DISABLED_SingleNoteGlissandoWritesStartBeforeStop` assert the intended order and are disabled until then.
-
 ### Tuplet spanner numbers are unmanaged
 
 `TupletStart` and `TupletStop` carry a raw `int numberLevel` rather than an `api::SpannerNumber`, so tuplets are the one spanner family `mx::impl::SpannerResolver` does not handle: `NotationsWriter` writes the level verbatim while curves, wedges, octave shifts, brackets, dashes, glissandi, slides, and wavy lines all route through `emittedNumber`. The author therefore owns allocating and recycling tuplet levels, including keeping them distinct across the whole part.

@@ -89,12 +89,12 @@ levels itself or MX extends the resolver to tuplets. Note that MusicXML makes `n
 defaults it to 1, and MX omits the attribute when the level is unspecified, so a measure with no
 overlapping tuplets needs no numbering at all.
 
-Two neighbouring tuplet defects are MX's and are filed there, not here: `<normal-type>` is written
-from a sibling search rather than from the API field ([webern/mx#428](https://github.com/webern/mx/issues/428)),
-and a single-note tuplet has its stop written before its start
+Two neighbouring tuplet defects were MX's and are now fixed upstream: `<normal-type>` written from
+a sibling search rather than from the API field ([webern/mx#428](https://github.com/webern/mx/issues/428)),
+and a single-note tuplet writing its stop before its start
 ([webern/mx#429](https://github.com/webern/mx/issues/429)). `MusicXmlTuplets` in
-`tests/musicxml/test_tuplets.cpp` carries a disabled test for each, asserting the intended output
-and naming the issue to re-enable it with.
+`tests/musicxml/test_tuplets.cpp` guards both, along with what Denigma asks for on a nested
+tuplet.
 
 ## Tablature staves
 
