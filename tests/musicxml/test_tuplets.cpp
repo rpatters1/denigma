@@ -20,9 +20,8 @@
 // Characterization tests for tuplet export.
 //
 // These pin down what actually reaches the MusicXML file for nested tuplets, which nothing else
-// covered. Some assertions below record behavior that is wrong; each says so, and each names
-// where the defect lives. They exist so that a fix is visible as a test change rather than as a
-// silent shift in output.
+// covered, so that a change in that output is visible as a test change rather than as a silent
+// shift.
 
 #include <string>
 #include <vector>
@@ -51,6 +50,7 @@ struct TupletNote
     std::string actualNotes;
     std::string normalNotes;
     std::string normalType;      ///< Empty when the note carries no <normal-type>.
+    size_t normalDots{};         ///< Count of <normal-dot> children.
     std::vector<TupletMark> marks;
 };
 
@@ -76,6 +76,9 @@ std::vector<TupletNote> tupletNotes(const std::filesystem::path& musicXmlPath)
         entry.actualNotes = timeModification.child_value("actual-notes");
         entry.normalNotes = timeModification.child_value("normal-notes");
         entry.normalType = timeModification.child_value("normal-type");
+        for (auto dot = timeModification.child("normal-dot"); dot; dot = dot.next_sibling("normal-dot")) {
+            ++entry.normalDots;
+        }
         for (auto tuplet = notations.child("tuplet"); tuplet; tuplet = tuplet.next_sibling("tuplet")) {
             entry.marks.push_back({ tuplet.attribute("type").value(), tuplet.attribute("number").value() });
         }
@@ -99,8 +102,8 @@ TEST(MusicXmlTuplets, NestedTupletsCarryCumulativeTimeModification)
         EXPECT_EQ(note.actualNotes, "9") << "note " << note.id;
         EXPECT_EQ(note.normalNotes, "4") << "note " << note.id;
         EXPECT_EQ(note.noteType, "eighth") << "note " << note.id;
-        // Correctly omitted: the tuplet's normal note value is the eighth these notes already are,
-        // and MusicXML reads an absent <normal-type> as the note's own type.
+        // Omitted because the tuplets nest: the cumulative ratio belongs to no single tuplet's
+        // reference duration, so MusicXML's default of the note's own type stands.
         EXPECT_EQ(note.normalType, "") << "note " << note.id;
     }
 
@@ -148,6 +151,16 @@ TEST(MusicXmlTuplets, NestedSingletonTupletCarriesCumulativeRatio)
         }
     }
 
+    // Only the outer tuplet is in force on the first note, an eighth in a tuplet whose reference
+    // duration is a quarter, so its <normal-type> names that quarter. The last note has both
+    // tuplets in force, and a cumulative 12:1 that neither reference duration describes, so it
+    // carries none; see design-decisions.md.
+    EXPECT_EQ(notes.front().normalType, "quarter") << "note " << notes.front().id;
+    EXPECT_EQ(lastNote.normalType, "") << "note " << lastNote.id;
+    for (const auto& note : notes) {
+        EXPECT_NE(note.normalType, note.noteType) << "note " << note.id;
+    }
+
     // Numbering is sound: denigma's numberLevel is the tuplet's index in its entry frame, so it is
     // stable for a tuplet's whole extent and every start matches its own stop.
     std::vector<std::pair<std::string, int>> openCounts;
@@ -186,19 +199,31 @@ TEST(MusicXmlTuplets, SingleNoteTupletsCarryCumulativeRatio)
     }
 }
 
-// DISABLED: fails against mx as pinned. Re-enable when webern/mx#429 is fixed.
-//
+// A tuplet's reference duration can be dotted, and MusicXML then spells it as a <normal-type> plus
+// one <normal-dot> per dot. No Finale-authored fixture reaches that path. tuplet_dotted_reference.musx
+// is tuplet_singletons.musx with both tupletDef elements restated as three dotted eighths in the
+// space of one dotted quarter, edited in the enigmaxml and exported back to musx: the same 3:2
+// sounding ratio and the same durations, over a dotted reference duration.
+TEST(MusicXmlTuplets, DottedReferenceDurationCarriesNormalDot)
+{
+    setupTestDataPaths();
+    const auto notes = tupletNotes(exportMusicXmlFixture("tuplet_dotted_reference.musx"));
+    ASSERT_EQ(notes.size(), 2u);
+
+    for (const auto& note : notes) {
+        EXPECT_EQ(note.noteType, "half") << "note " << note.id;
+        EXPECT_EQ(note.actualNotes, "3") << "note " << note.id;
+        EXPECT_EQ(note.normalNotes, "2") << "note " << note.id;
+        EXPECT_EQ(note.normalType, "quarter") << "note " << note.id;
+        EXPECT_EQ(note.normalDots, 1) << "note " << note.id;
+    }
+}
+
 // A tuplet may cover exactly one note, and MusicXML then puts both of its ends on that note, the
 // start before the stop. Finale's own export of this fixture
-// (inputs/musicxml/tuplet_singletons-ref.musicxml) writes exactly that, twice.
-//
-// mx::impl::NotationsWriter writes every entry of NoteData::tupletStops before every entry of
-// tupletStarts, so each note currently emits stop before start: the tuplet closes before it opens,
-// leaving a reader with a stop for a tuplet that was never open and a start that never closes.
-//
-// Denigma cannot correct this through the API, because starts and stops are separate vectors with
-// no way to interleave them. Hence disabled rather than worked around here.
-TEST(MusicXmlTuplets, DISABLED_SingleNoteTupletWritesStartBeforeStop)
+// (inputs/musicxml/tuplet_singletons-ref.musicxml) writes exactly that, twice, and mx has done the
+// same since webern/mx#429.
+TEST(MusicXmlTuplets, SingleNoteTupletWritesStartBeforeStop)
 {
     setupTestDataPaths();
     const auto notes = tupletNotes(exportMusicXmlFixture("tuplet_singletons.musx"));
@@ -211,19 +236,12 @@ TEST(MusicXmlTuplets, DISABLED_SingleNoteTupletWritesStartBeforeStop)
     }
 }
 
-// DISABLED: fails against mx as pinned. Re-enable when webern/mx#428 is fixed.
-//
-// Denigma sets DurationData::timeModificationNormalType only when the tuplet's reference duration
+// Denigma sets DurationData::timeModificationNormalType only where the tuplet's reference duration
 // differs from the note's own type, because MusicXML reads an absent <normal-type> as the note
-// type. mx::impl::NoteWriter ignores that field and infers the element by scanning sibling notes
-// for a tuplet start and stop, so it writes one on every note of a tuplet, including the many that
-// merely repeat <type>. For this fixture denigma requests 11 and the file receives 253, 242 of them
-// redundant, where Finale's own export writes 4.
-//
-// Redundant rather than incorrect, which is why it is worth asserting the intent and leaving it
-// disabled: the written set should be exactly the requested set, with no note carrying a
-// <normal-type> equal to its own <type>.
-TEST(MusicXmlTuplets, DISABLED_NormalTypeIsWrittenOnlyWhereRequested)
+// type. Since webern/mx#428, mx::impl::NoteWriter writes that field rather than inferring the
+// element from sibling notes, so the written set is exactly the requested set and no note carries
+// a <normal-type> that merely repeats its own <type>.
+TEST(MusicXmlTuplets, NormalTypeIsWrittenOnlyWhereRequested)
 {
     setupTestDataPaths();
 
