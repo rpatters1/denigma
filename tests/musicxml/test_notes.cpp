@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <set>
 #include <stdexcept>
@@ -1175,6 +1176,57 @@ TEST(MusicXmlNotes, NonArpeggioMarksUseTopAndBottomEndpoints)
     ASSERT_FALSE(placements.empty());
     EXPECT_EQ(std::count(placements.begin(), placements.end(), mx::api::NonArpeggiatePlacement::top),
         std::count(placements.begin(), placements.end(), mx::api::NonArpeggiatePlacement::bottom));
+}
+
+TEST(MusicXmlNotes, ArpeggioMarksCoverEveryNoteOfTheRolledChord)
+{
+    const auto score = createScoreDataFromMusxPath(std::filesystem::path(MUSX_TEST_DATA_PATH) / "arpeggios.musx");
+    ASSERT_TRUE(score);
+
+    size_t markCount = 0;
+    size_t crossEntryMarkCount = 0;
+    for (const auto& part : score->parts) {
+        for (const auto& measure : part.measures) {
+            for (const auto& staff : measure.staves) {
+                for (const auto& [voiceIndex, voice] : staff.voices) {
+                    static_cast<void>(voiceIndex);
+                    std::map<int, std::pair<size_t, size_t>> chordNoteAndMarkCounts;
+                    for (const auto& note : voice.notes) {
+                        auto& counts = chordNoteAndMarkCounts[note.tickTimePosition];
+                        ++counts.first;
+                        for (const auto& mark : note.noteAttachmentData.marks) {
+                            if (!isMarkArpeggiate(mark.markType)) {
+                                continue;
+                            }
+                            // The fixture rolls every chord with Finale's vertical arpeggio segment,
+                            // which carries no arrowhead and so takes no direction.
+                            EXPECT_EQ(mark.markType, mx::api::MarkType::arpeggiate);
+                            ASSERT_TRUE(mark.choice.isArpeggiate());
+                            const auto arpeggiateData = mark.choice.arpeggiate();
+                            if (arpeggiateData.unbroken == mx::api::Bool::yes) {
+                                EXPECT_TRUE(arpeggiateData.number.has_value())
+                                    << "an unbroken arpeggio needs a number to identify its other end";
+                                ++crossEntryMarkCount;
+                            } else {
+                                EXPECT_FALSE(arpeggiateData.number.has_value());
+                            }
+                            ++counts.second;
+                            ++markCount;
+                        }
+                    }
+                    for (const auto& [tickTimePosition, counts] : chordNoteAndMarkCounts) {
+                        if (counts.second != 0) {
+                            EXPECT_EQ(counts.second, counts.first)
+                                << "every note of the chord at tick " << tickTimePosition << " should be rolled";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    EXPECT_GT(markCount, 0u);
+    EXPECT_GT(crossEntryMarkCount, 0u) << "the fixture contains an arpeggio spanning two entries of one part";
 }
 
 TEST(MusicXmlNotes, CaesuraVariantsMapToMusicXml)

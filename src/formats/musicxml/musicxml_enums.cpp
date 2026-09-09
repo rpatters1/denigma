@@ -38,6 +38,13 @@ BEGIN_ENUM_CONVERSION(AlignJustify, mx::api::HorizontalAlignment)
     case AlignJustify::Center: return mx::api::HorizontalAlignment::center;
 END_ENUM_CONVERSION
 
+BEGIN_ENUM_CONVERSION(musx::util::ArpeggioArrow, mx::api::MarkType)
+    case musx::util::ArpeggioArrow::Auto: return mx::api::MarkType::arpeggiate;
+    case musx::util::ArpeggioArrow::None: return mx::api::MarkType::arpeggiate;
+    case musx::util::ArpeggioArrow::Up: return mx::api::MarkType::arpeggiateUp;
+    case musx::util::ArpeggioArrow::Down: return mx::api::MarkType::arpeggiateDown;
+END_ENUM_CONVERSION
+
 BEGIN_ENUM_CONVERSION(classify::articulation::ArticulationMark::Type, mx::api::MarkType)
     case classify::articulation::ArticulationMark::Type::Accent: return mx::api::MarkType::accent;
     case classify::articulation::ArticulationMark::Type::BrassDoit: return mx::api::MarkType::doit;

@@ -243,3 +243,24 @@ make.
 
 The label itself is the fret number followed by `fretNumText`, giving `4fr.` for a diagram starting
 on the fourth fret. Both attributes are omitted when the chord assignment has no fretboard style.
+
+### An arpeggio marks every note it rolls through, and stops at the part boundary
+
+`<arpeggiate>` is a per-note element, not a span: MusicXML draws the roll from the notes that carry
+one, so Denigma marks every exported note of the entries the arpeggio covers. `<non-arpeggiate>` is
+the opposite and marks only the two ends, which is why the two share a candidate list but not an
+attachment rule.
+
+An arpeggio reaching a second entry of the same part, whether a second voice or a second staff of a
+piano, is one roll drawn across both. Those notes take a shared `number` and `unbroken="yes"`. The
+number only has to tell apart rolls that sound at the same time, so it cycles through the range
+`number-level` allows rather than counting up without bound.
+
+An arpeggio between two Finale staves that became two MusicXML parts is not representable: the
+element has no cross-part form, and the notes at the far end are in a document region this part
+cannot address. Denigma marks the notes it can reach and writes neither attribute, so the surviving
+end reads as an ordinary arpeggio on one chord rather than as half of a broken pair.
+
+The `direction` attribute is the arrowhead, not the roll direction, so only an arpeggio Finale drew
+with an arrow becomes `arpeggiateUp` or `arpeggiateDown`. A plain rolled chord is written bare, which
+is already an upward roll to a reader.

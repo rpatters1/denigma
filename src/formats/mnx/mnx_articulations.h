@@ -36,7 +36,6 @@ namespace denigma {
 namespace classify {
 struct GlyphStyle;
 namespace articulation {
-struct Arpeggio;
 struct BreathMark;
 struct Fermata;
 } // namespace articulation
@@ -53,10 +52,6 @@ std::optional<mnxdom::Fermata> makeFermata(
 
 mnxdom::sequence::BreathMark makeBreathMark(const classify::articulation::BreathMark& breathMark, VerticalPlacement placement);
 
-std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
-    const EntryInfoPtr& sourceEntry,
-    const MusxInstance<details::ArticulationAssign>& assign,
-    const classify::articulation::Arpeggio& arpeggio);
 void appendArpeggioCandidate(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxPartMeasure, const musx::util::ArpeggioSpanCandidate& candidate);
 void finalizeArpeggios(const MnxMusxMappingPtr& context);
 void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Event& mnxEvent, const EntryInfoPtr& musxEntryInfo);
