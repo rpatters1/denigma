@@ -82,42 +82,6 @@ mnxdom::sequence::BreathMark makeBreathMark(const classify::articulation::Breath
     return result;
 }
 
-std::optional<musx::util::ArpeggioSpanCandidate> makeArpeggio(
-    const EntryInfoPtr& sourceEntry,
-    const MusxInstance<details::ArticulationAssign>& assign,
-    const classify::articulation::Arpeggio& arpeggio)
-{
-    std::optional<musx::util::ArpeggioSpanCandidate> result;
-    auto makeArpeggioCandidate = [&](musx::util::ArpeggioDirection direction, musx::util::ArpeggioArrow arrow) {
-        auto& candidate = result.emplace();
-        candidate.sourceEntry = sourceEntry;
-        candidate.topEntry = sourceEntry;
-        candidate.bottomEntry = sourceEntry;
-        candidate.arrow = arrow;
-        candidate.direction = direction;
-    };
-
-    switch (arpeggio.type) {
-    case classify::articulation::Arpeggio::Type::VerticalSegment:
-        return musx::util::calcArpeggioSpanForAssignment(
-            sourceEntry, assign, {}, [](const details::ArticulationAssign::SelectedSymbolContext&) {
-                // The selected symbol was already classified as a vertical arpeggio segment;
-                // this callback bypasses musx's raw-SMuFL-codepoint fallback for legacy fonts.
-                return true;
-            });
-    case classify::articulation::Arpeggio::Type::Normal:
-        makeArpeggioCandidate(musx::util::ArpeggioDirection::Auto, musx::util::ArpeggioArrow::None);
-        break;
-    case classify::articulation::Arpeggio::Type::Up:
-        makeArpeggioCandidate(musx::util::ArpeggioDirection::Up, musx::util::ArpeggioArrow::Up);
-        break;
-    case classify::articulation::Arpeggio::Type::Down:
-        makeArpeggioCandidate(musx::util::ArpeggioDirection::Down, musx::util::ArpeggioArrow::Down);
-        break;
-    }
-    return result;
-}
-
 static std::optional<NoteInfoPtr> findArepggioBoundaryNote(const EntryInfoPtr& entryInfo, bool topNote)
 {
     if (!entryInfo) {
@@ -461,17 +425,17 @@ void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Ev
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) { /// @todo eliminate this filter if MNX provides visibility options
             if (const auto classification = classify::classifyArticulation(asgn, musxEntryInfo)) {
-                std::visit([&](const auto& value) {
-                    using Value = std::decay_t<decltype(value)>;
+                std::visit([&](const auto& classified) {
+                    using Value = std::decay_t<decltype(classified)>;
                     if constexpr (std::is_same_v<Value, classify::articulation::Fermata>) {
-                        if (auto mnxFermata = makeFermata(value, value.glyphStyle, classification.placement)) {
+                        if (auto mnxFermata = makeFermata(classified, classified.glyphStyle, classification.placement)) {
                             mnxEvent.set_fermata(mnxFermata.value());
                         }
                     } else if constexpr (std::is_same_v<Value, classify::articulation::BreathMark>) {
-                        mnxEvent.ensure_markings().set_breath(makeBreathMark(value, classification.placement));
+                        mnxEvent.ensure_markings().set_breath(makeBreathMark(classified, classification.placement));
                     } else if constexpr (std::is_same_v<Value, classify::articulation::Arpeggio>) {
-                        if (auto candidate = makeArpeggio(musxEntryInfo, asgn, value)) {
-                            appendArpeggioCandidate(context, mnxPartMeasure.value(), candidate.value());
+                        if (classified.candidate) {
+                            appendArpeggioCandidate(context, mnxPartMeasure.value(), classified.candidate.value());
                         }
                     } else if constexpr (std::is_same_v<Value, classify::articulation::VerticalEntryBracket>) {
                         if (auto candidate = musx::util::calcNonArpeggioSpanForAssignment(musxEntryInfo, asgn)) {
@@ -481,10 +445,10 @@ void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Ev
                         // Pseudo ties are processed by createTies at the note level.
                     } else if constexpr (std::is_same_v<Value, classify::articulation::Tremolo>) {
                         auto mnxMarkings = mnxEvent.ensure_markings();
-                        auto mnxMarking = mnxMarkings.ensure_tremolo(value.marks);
+                        auto mnxMarking = mnxMarkings.ensure_tremolo(classified.marks);
                         mnxMarking.set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
                     } else if constexpr (std::is_same_v<Value, classify::articulation::ArticulationMarks>) {
-                        for (const auto& mark : value.marks) {
+                        for (const auto& mark : classified.marks) {
                             auto mnxMarkings = mnxEvent.ensure_markings();
                             if (auto mnxMarking = createEventMarking(mnxMarkings, mark)) {
                                 mnxMarking->set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
@@ -492,7 +456,7 @@ void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Ev
                         }
                     } else if constexpr (std::is_same_v<Value, classify::articulation::TechniqueMark>) {
                         auto mnxMarkings = mnxEvent.ensure_markings();
-                        if (auto mnxMarking = createEventMarking(mnxMarkings, value)) {
+                        if (auto mnxMarking = createEventMarking(mnxMarkings, classified)) {
                             mnxMarking->set_or_clear_orient(enumConvert<mnxdom::Orientation>(classification.placement));
                         }
                     }
@@ -508,10 +472,10 @@ void processArticulations(const MnxMusxMappingPtr& context, mnxdom::sequence::Fu
     for (const auto& asgn : articAssigns) {
         if (!asgn->hide) {
             if (const auto classification = classify::classifyArticulation(asgn, musxEntryInfo)) {
-                std::visit([&](const auto& value) {
-                    using Value = std::decay_t<decltype(value)>;
+                std::visit([&](const auto& classified) {
+                    using Value = std::decay_t<decltype(classified)>;
                     if constexpr (std::is_same_v<Value, classify::articulation::Fermata>) {
-                        if (const auto mnxFermata = makeFermata(value, value.glyphStyle, classification.placement)) {
+                        if (const auto mnxFermata = makeFermata(classified, classified.glyphStyle, classification.placement)) {
                             mnxFullMeasureRest.set_fermata(mnxFermata.value());
                         }
                     }

@@ -277,7 +277,8 @@ static ArticulationClassification makeCaesura(Caesura::Type type, std::optional<
 static ArticulationClassification makeArpeggio(Arpeggio::Type type, std::optional<std::string> glyphName)
 {
     ArticulationClassification result;
-    result.value = Arpeggio{ type, glyphStyleFromGlyphName(glyphName) };
+    // The span is entry-dependent, so classifyArticulation fills it in once an entry is known.
+    result.value = Arpeggio{ type, glyphStyleFromGlyphName(glyphName), std::nullopt };
     setGlyphMetadata(result, std::move(glyphName));
     return result;
 }
@@ -1078,6 +1079,44 @@ ArticulationClassification classifyArticulationSymbol(
     return std::get<ArticulationClassification>(std::move(classification));
 }
 
+static std::optional<musx::util::ArpeggioSpanCandidate> calcArpeggioCandidate(
+    const musx::dom::EntryInfoPtr& entryInfo,
+    const musx::dom::MusxInstance<musx::dom::details::ArticulationAssign>& assignment,
+    Arpeggio::Type type)
+{
+    std::optional<musx::util::ArpeggioSpanCandidate> result;
+    const auto singleEntryCandidate = [&](musx::util::ArpeggioDirection direction, musx::util::ArpeggioArrow arrow) {
+        auto& candidate = result.emplace();
+        candidate.sourceEntry = entryInfo;
+        candidate.topEntry = entryInfo;
+        candidate.bottomEntry = entryInfo;
+        candidate.direction = direction;
+        candidate.arrow = arrow;
+    };
+
+    switch (type) {
+    case Arpeggio::Type::VerticalSegment:
+        // Only the segment glyph builds its span by searching for the entries the stack of segments
+        // reaches. The whole-sign glyphs roll the chord they sit on and nothing else.
+        return musx::util::calcArpeggioSpanForAssignment(entryInfo, assignment, {},
+            [](const musx::dom::details::ArticulationAssign::SelectedSymbolContext&) {
+                // The selected symbol was already classified as a vertical arpeggio segment;
+                // this callback bypasses musx's raw-SMuFL-codepoint fallback for legacy fonts.
+                return true;
+            });
+    case Arpeggio::Type::Normal:
+        singleEntryCandidate(musx::util::ArpeggioDirection::Auto, musx::util::ArpeggioArrow::None);
+        break;
+    case Arpeggio::Type::Up:
+        singleEntryCandidate(musx::util::ArpeggioDirection::Up, musx::util::ArpeggioArrow::Up);
+        break;
+    case Arpeggio::Type::Down:
+        singleEntryCandidate(musx::util::ArpeggioDirection::Down, musx::util::ArpeggioArrow::Down);
+        break;
+    }
+    return result;
+}
+
 static PrivateClassification classifySelectedSymbolContext(
     const musx::dom::details::ArticulationAssign::SelectedSymbolContext& context)
 {
@@ -1108,6 +1147,9 @@ ArticulationClassification classifyArticulation(
         result.placement = symbolContext->placement;
         if (auto* parenthesis = std::get_if<Parenthesis>(&result.value)) {
             parenthesis->note = assignment->calcAssociatedNote(entryInfo);
+        }
+        if (auto* arpeggio = std::get_if<Arpeggio>(&result.value)) {
+            arpeggio->candidate = calcArpeggioCandidate(entryInfo, assignment, arpeggio->type);
         }
         return result;
     }

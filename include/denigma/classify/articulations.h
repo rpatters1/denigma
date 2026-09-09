@@ -28,6 +28,7 @@
 
 #include "denigma/classify/classifier_common.h"
 #include "musx/musx.h"
+#include "musx/util/Arpeggio.h"
 
 namespace denigma {
 
@@ -357,6 +358,9 @@ struct Arpeggio
     Type type{};
     /// Visual style encoded by the source glyph variant.
     GlyphStyle glyphStyle{};
+    /// The vertical span the arpeggio covers, or nullopt when no span resolved or the
+    /// classification came from a glyph alone, as through classifyArticulationSymbol.
+    std::optional<musx::util::ArpeggioSpanCandidate> candidate;
 };
 
 /// @struct Ornament
