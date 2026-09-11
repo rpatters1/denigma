@@ -23,15 +23,17 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <ostream>
+#include <sstream>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "denigma/io/random_access_reader.h"
 
@@ -142,6 +144,56 @@ public:
 private:
     std::vector<Diagnostic> m_diagnostics;
     bool m_hasError{};
+};
+
+/// @struct ConversionOutput
+/// @brief One document produced by a conversion.
+struct ConversionOutput
+{
+    /// Suggested output filename. Empty when the converter does not supply one.
+    std::string suggestedName;
+    /// Owned output bytes.
+    std::vector<std::byte> data;
+};
+
+/// @class ConversionArtifact
+/// @brief Owned documents and result metadata from one conversion.
+class ConversionArtifact
+{
+public:
+    /// Creates an artifact from converter result metadata and generated documents.
+    ConversionArtifact(ConversionResult result, std::vector<ConversionOutput> outputs)
+        : m_result(std::move(result)), m_outputs(std::move(outputs))
+    {
+    }
+
+    /// Returns converter result metadata.
+    [[nodiscard]] const ConversionResult& result() const noexcept
+    {
+        return m_result;
+    }
+
+    /// Returns the generated documents in converter emission order.
+    [[nodiscard]] std::span<const ConversionOutput> outputs() const noexcept
+    {
+        return m_outputs;
+    }
+
+    /// Returns true when the conversion result contains an error diagnostic.
+    [[nodiscard]] bool hasError() const noexcept
+    {
+        return m_result.hasError();
+    }
+
+    /// Returns true when the conversion completed without an error diagnostic.
+    explicit operator bool() const noexcept
+    {
+        return static_cast<bool>(m_result);
+    }
+
+private:
+    ConversionResult m_result;
+    std::vector<ConversionOutput> m_outputs;
 };
 
 /// @brief Returns typed options from an erased request, or default options when none were supplied.
@@ -320,7 +372,77 @@ public:
         return nullptr;
     }
 
+    /// Converts an in-memory input with the registered adapter for the requested formats.
+    /// Returns an error diagnostic when no matching adapter is registered.
+    [[nodiscard]] ConversionArtifact convert(FormatId sourceFormat,
+                                             FormatId targetFormat,
+                                             std::span<const std::byte> input,
+                                             const ConversionRequest& request = {}) const
+    {
+        if (const auto* converter = find(sourceFormat, targetFormat)) {
+            return collectSingleOutput(*converter, input, request);
+        }
+        if (const auto* converter = findMultiOutput(sourceFormat, targetFormat)) {
+            return collectMultipleOutputs(*converter, input, request);
+        }
+        return unsupportedConversion();
+    }
+
+    /// Converts a random-access input with the registered adapter for the requested formats.
+    /// Returns an error diagnostic when no matching adapter is registered.
+    [[nodiscard]] ConversionArtifact convert(FormatId sourceFormat,
+                                             FormatId targetFormat,
+                                             const IRandomAccessReader& input,
+                                             const ConversionRequest& request = {}) const
+    {
+        if (const auto* converter = findReader(sourceFormat, targetFormat)) {
+            return collectSingleOutput(*converter, input, request);
+        }
+        if (const auto* converter = findReaderMultiOutput(sourceFormat, targetFormat)) {
+            return collectMultipleOutputs(*converter, input, request);
+        }
+        return unsupportedConversion();
+    }
+
 private:
+    template <typename Converter, typename Input>
+    static ConversionArtifact collectSingleOutput(const Converter& converter,
+                                                   const Input& input,
+                                                   const ConversionRequest& request)
+    {
+        std::ostringstream output;
+        auto result = converter.convert(input, output, request);
+        auto text = output.str();
+        std::vector<std::byte> data(text.size());
+        if (!text.empty()) {
+            std::memcpy(data.data(), text.data(), text.size());
+        }
+        std::vector<ConversionOutput> outputs;
+        if (!data.empty()) {
+            outputs.push_back({ {}, std::move(data) });
+        }
+        return { std::move(result), std::move(outputs) };
+    }
+
+    template <typename Converter, typename Input>
+    static ConversionArtifact collectMultipleOutputs(const Converter& converter,
+                                                      const Input& input,
+                                                      const ConversionRequest& request)
+    {
+        std::vector<ConversionOutput> outputs;
+        auto result = converter.convert(input, [&outputs](std::string_view suggestedName, std::span<const std::byte> data) {
+            outputs.push_back({ std::string(suggestedName), { data.begin(), data.end() } });
+        }, request);
+        return { std::move(result), std::move(outputs) };
+    }
+
+    static ConversionArtifact unsupportedConversion()
+    {
+        ConversionResult result;
+        result.addDiagnostic(MessageSeverity::Error, "No converter is registered for the requested formats.");
+        return { std::move(result), {} };
+    }
+
     std::vector<std::unique_ptr<IConverter>> m_converters;
     std::vector<std::unique_ptr<IMultiOutputConverter>> m_multiOutputConverters;
     std::vector<std::unique_ptr<IReaderConverter>> m_readerConverters;

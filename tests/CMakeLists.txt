@@ -4,6 +4,13 @@ if(denigma_BUILD_TESTING)
     # Enable testing in this directory
     enable_testing()
 
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/release-1.12.1.tar.gz
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(googletest)
+
     function(target_add_denigma_test_warnings target_name)
         if (CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
             # Extra warnings for Clang/AppleClang
@@ -149,14 +156,6 @@ endfunction()
     # Add test dependencies
     add_dependencies(denigma_tests GenerateLicenseXxd)
 
-    # Add Google Test as a dependency
-    FetchContent_Declare(
-        googletest
-        URL https://github.com/google/googletest/archive/release-1.12.1.tar.gz
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-    FetchContent_MakeAvailable(googletest)
-
     # Link Google Test libraries
     target_link_libraries(denigma_tests PRIVATE gmock gtest_main)
 
@@ -169,5 +168,12 @@ endfunction()
             ENVIRONMENT "GTEST_COLOR=1"
         EXTRA_ARGS --gtest_color=yes
     )
+
+    add_executable(denigma_conversion_contract_tests
+        test_conversion_result.cpp
+        ${CMAKE_SOURCE_DIR}/src/io/random_access_reader.cpp
+    )
+    target_add_denigma_test_warnings(denigma_conversion_contract_tests)
+    target_link_libraries(denigma_conversion_contract_tests PRIVATE denigma::conversion gtest_main)
 
 endif()
