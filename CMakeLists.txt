@@ -4,6 +4,9 @@ cmake_minimum_required(VERSION 3.22)
 # Project name and version
 project(denigma VERSION 4.0.0)
 
+option(denigma_BUILD_CLI "Build the Denigma command-line application" ${PROJECT_IS_TOP_LEVEL})
+option(denigma_BUILD_TESTING "Build the Denigma test suite" ${PROJECT_IS_TOP_LEVEL})
+
 # Specify C++ standard and minimum macOS version
 set(DENIGMA_CXX_STANDARD "23" CACHE STRING "C++ standard used to build Denigma; must be at least 20")
 set_property(CACHE DENIGMA_CXX_STANDARD PROPERTY STRINGS 20 23 26)
@@ -319,57 +322,59 @@ function(add_denigma_internal_test_library target_name)
     target_compile_definitions(${target_name} PRIVATE DENIGMA_TEST)
 endfunction()
 
-option(denigma_BUILD_TESTING "Build the Denigma test suite" ON)
-
 add_subdirectory(src)
 
-include("${PROJECT_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
-
-# Add executable target
-add_executable(denigma
-    src/main.cpp
-    src/about.cpp
-)
-target_compile_options(denigma PRIVATE ${DENIGMA_WARNING_OPTIONS})
-
-# For the denigma target specifically
-if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
-    set_target_properties(denigma PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/build/${CMAKE_BUILD_TYPE}
-    )
+if(denigma_BUILD_CLI OR denigma_BUILD_TESTING)
+    include("${PROJECT_SOURCE_DIR}/cmake/GenerateLicenseXxd.cmake")
 endif()
 
-# Ensure the include directories are added
-add_dependencies(denigma GenerateLicenseXxd)
-target_link_libraries(denigma PRIVATE
-    denigma_export
-    denigma_massage
-    denigma_internal_deps
-)
-if(DENIGMA_HAS_FREETYPE_LICENSE)
-    target_compile_definitions(denigma PRIVATE DENIGMA_HAS_FREETYPE_LICENSE=1)
-endif()
-
-set(DEPLOY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/denigma)
-
-if(CMAKE_GENERATOR MATCHES "^Visual Studio")
-    add_custom_command(
-        TARGET denigma
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${DEPLOY_DIR}
-        COMMAND cmd.exe /c if "$(Configuration)" == "Release" echo Copying Release build of denigma to deploy directory
-        COMMAND cmd.exe /c if "$(Configuration)" == "Release" "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:denigma>" "${DEPLOY_DIR}"
+if(denigma_BUILD_CLI)
+    # Add executable target
+    add_executable(denigma
+        src/main.cpp
+        src/about.cpp
     )
-elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    message(STATUS "Configuring POST_BUILD command for Release.")
-    add_custom_command(
-        TARGET denigma
-        POST_BUILD
-        COMMAND echo Copying Release build of denigma to deploy directory
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${DEPLOY_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:denigma> ${DEPLOY_DIR}
-        VERBATIM
+    target_compile_options(denigma PRIVATE ${DENIGMA_WARNING_OPTIONS})
+
+    # For the denigma target specifically
+    if (NOT CMAKE_CONFIGURATION_TYPES) # Only applies to single-config generators
+        set_target_properties(denigma PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/build/${CMAKE_BUILD_TYPE}
+        )
+    endif()
+
+    # Ensure the include directories are added
+    add_dependencies(denigma GenerateLicenseXxd)
+    target_link_libraries(denigma PRIVATE
+        denigma_export
+        denigma_massage
+        denigma_internal_deps
     )
+    if(DENIGMA_HAS_FREETYPE_LICENSE)
+        target_compile_definitions(denigma PRIVATE DENIGMA_HAS_FREETYPE_LICENSE=1)
+    endif()
+
+    set(DEPLOY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/denigma)
+
+    if(CMAKE_GENERATOR MATCHES "^Visual Studio")
+        add_custom_command(
+            TARGET denigma
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${DEPLOY_DIR}
+            COMMAND cmd.exe /c if "$(Configuration)" == "Release" echo Copying Release build of denigma to deploy directory
+            COMMAND cmd.exe /c if "$(Configuration)" == "Release" "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:denigma>" "${DEPLOY_DIR}"
+        )
+    elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
+        message(STATUS "Configuring POST_BUILD command for Release.")
+        add_custom_command(
+            TARGET denigma
+            POST_BUILD
+            COMMAND echo Copying Release build of denigma to deploy directory
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${DEPLOY_DIR}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:denigma> ${DEPLOY_DIR}
+            VERBATIM
+        )
+    endif()
 endif()
 
 if(denigma_BUILD_TESTING)

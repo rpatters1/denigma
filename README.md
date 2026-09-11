@@ -39,6 +39,23 @@ Use `denigma::classify` when you only need classification helpers. Use one of th
 
 The companion [denigma-examples](https://github.com/rpatters1/denigma-examples) repository demonstrates this from separate native and WebAssembly projects using CMake `FetchContent` or a local Denigma checkout.
 
+When Denigma is added as a CMake subproject, its CLI and tests are disabled by default. Consumers can override either option before making Denigma available:
+
+```cmake
+set(denigma_BUILD_CLI OFF CACHE BOOL "" FORCE)
+set(denigma_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
+include(FetchContent)
+FetchContent_Declare(
+	denigma
+	GIT_REPOSITORY https://github.com/rpatters1/denigma.git
+	GIT_TAG        <release-tag-or-commit>
+)
+FetchContent_MakeAvailable(denigma)
+```
+
+Standalone Denigma builds continue to build the CLI and tests by default.
+
 ## Command line usage
 
 Use the `--help` option to get a full list of commands:
