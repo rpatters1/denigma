@@ -94,8 +94,7 @@ jobs:
         with:
           node-version: 24
 
-      # The cache folder is relative to the workspace, which is the checkout,
-      # and actions/cache refuses paths outside it; .gitignore covers it.
+      # emsdk is installed under the checkout at emsdk-cache, which .gitignore excludes.
       - name: Set up Emscripten
         uses: emscripten-core/setup-emsdk@v16
         with:
