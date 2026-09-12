@@ -20,7 +20,7 @@ Denigma is split into small reusable libraries as well as the CLI utility:
 - `denigma_format_musicxml` converts MUSX content to MusicXML.
 - `denigma_format_svg` converts MUSX content to SVG.
 
-The documentation site for the library API is [https://rpatters1.github.io/denigma/](https://rpatters1.github.io/denigma/).
+The documentation site for the library API is [https://openmusx.github.io/denigma/](https://openmusx.github.io/denigma/).
 
 ## Linking
 
@@ -58,7 +58,7 @@ auto artifact = registry.convert(
 
 `ConversionArtifact` owns the generated documents in emission order and preserves the converter's `ConversionResult`. Multi-output converters retain each suggested filename. The format-specific typed converters and their `convert` overloads remain a first-class alternative.
 
-The companion [denigma-examples](https://github.com/rpatters1/denigma-examples) repository demonstrates this from separate native and WebAssembly projects using CMake `FetchContent` or a local Denigma checkout.
+The companion [denigma-examples](https://github.com/openmusx/denigma-examples) repository demonstrates this from separate native and WebAssembly projects using CMake `FetchContent` or a local Denigma checkout.
 
 When Denigma is added as a CMake subproject, its CLI and tests are disabled by default. Consumers can override either option before making Denigma available:
 
@@ -69,7 +69,7 @@ set(denigma_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 include(FetchContent)
 FetchContent_Declare(
 	denigma
-	GIT_REPOSITORY https://github.com/rpatters1/denigma.git
+	GIT_REPOSITORY https://github.com/openmusx/denigma.git
 	GIT_TAG        <release-tag-or-commit>
 )
 FetchContent_MakeAvailable(denigma)

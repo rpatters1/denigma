@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for helping improve denigma. Please reduce the problem to the smallest reproducible example you can share. If this is a request for MusicXML support that denigma does not yet implement, use the [MusicXML feature gap form](https://github.com/rpatters1/denigma/issues/new?template=musicxml-gap.yml) instead.
+        Thank you for helping improve denigma. Please reduce the problem to the smallest reproducible example you can share. If this is a request for MusicXML support that denigma does not yet implement, use the [MusicXML feature gap form](https://github.com/openmusx/denigma/issues/new?template=musicxml-gap.yml) instead.
 
   - type: textarea
     id: summary
@@ -97,7 +97,7 @@ body:
     id: prior-search
     attributes:
       label: Prior search
-      description: Confirm that this bug is not already tracked in [open or closed GitHub issues](https://github.com/rpatters1/denigma/issues?q=is%3Aissue).
+      description: Confirm that this bug is not already tracked in [open or closed GitHub issues](https://github.com/openmusx/denigma/issues?q=is%3Aissue).
       options:
         - label: I searched both open and closed issues for this bug.
           required: true
@@ -106,7 +106,7 @@ body:
     id: sharing
     attributes:
       label: Permission to use attachments for testing
-      description: Public issue attachments can be viewed and downloaded by anyone. Test fixtures committed to denigma are distributed under the repository's [MIT License](https://github.com/rpatters1/denigma/blob/main/LICENSE).
+      description: Public issue attachments can be viewed and downloaded by anyone. Test fixtures committed to denigma are distributed under the repository's [MIT License](https://github.com/openmusx/denigma/blob/main/LICENSE).
       options:
         - label: If I attached example files, I own them or have authority to grant permission, and they contain no private or sensitive information.
           required: true
