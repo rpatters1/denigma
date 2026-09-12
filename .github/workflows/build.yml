@@ -11,9 +11,15 @@ on:
   pull_request:
     branches:
       - main
+  release:
+    types:
+      - published
 
 jobs:
   build:
+    # Native release binaries are packaged by hand; a published release only
+    # needs the WebAssembly job.
+    if: github.event_name != 'release'
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -30,7 +36,7 @@ jobs:
     steps:
       # Checkout the repository with submodules
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: true  # Clone submodules recursively
           fetch-depth: 0    # Ensure full history for submodules
@@ -70,3 +76,63 @@ jobs:
       # Run Tests
       - name: Run Tests
         run: ctest --test-dir build/tests --output-on-failure
+
+  wasm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # attaches the module to published releases
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Set up Emscripten
+        uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: 5.0.7
+          actions-cache-folder: emsdk-cache
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Configure with CMake
+        run: emcmake cmake -G Ninja -S . -B build-wasm -DCMAKE_BUILD_TYPE=MinSizeRel -DDENIGMA_CXX_STANDARD=20
+
+      # Build only the module so the text-measuring converters, which the module
+      # does not export, stay out of the WebAssembly build.
+      - name: Build WebAssembly module
+        run: cmake --build build-wasm --target denigma_wasm --parallel 2
+
+      - name: Run WebAssembly smoke test
+        run: node tests/wasm/smoke.mjs build-wasm/wasm/denigma.js build-wasm/wasm/denigma.wasm
+
+      # A pull request only needs to prove the module builds; the artifact is
+      # for main, where consumers pin.
+      - name: Upload WebAssembly module
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v6
+        with:
+          name: denigma-wasm
+          path: |
+            build-wasm/wasm/denigma.js
+            build-wasm/wasm/denigma.wasm
+          if-no-files-found: error
+
+      # A published release carries the module as a build product alongside the
+      # native binaries, named like them: denigma.<tag>.wasm.zip.
+      - name: Attach module to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          (cd build-wasm/wasm && zip "../../denigma.${TAG}.wasm.zip" denigma.js denigma.wasm)
+          gh release upload "${TAG}" "denigma.${TAG}.wasm.zip" --clobber

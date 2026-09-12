@@ -141,6 +141,18 @@ or (for Linux or macOS)
 ./build.cmake -- clean
 ```
 
+## WebAssembly build
+
+Denigma also builds a WebAssembly module exposing MUSX inspection and conversion to EnigmaXML, MusicXML, and MNX through a small C ABI (`src/wasm/denigma_wasm.cpp`). It is the module that [denigma-online](https://github.com/openmusx/denigma-online) runs in the browser. Building it requires [Emscripten](https://emscripten.org/) (CI uses 5.0.7):
+
+```bash
+emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=MinSizeRel -DDENIGMA_CXX_STANDARD=20
+cmake --build build-wasm --target denigma_wasm
+node tests/wasm/smoke.mjs build-wasm/wasm/denigma.js build-wasm/wasm/denigma.wasm
+```
+
+Build the `denigma_wasm` target rather than `all`: the module links only the EnigmaXML, MusicXML, and MNX converters, and naming the target keeps the text-measuring converters (SVG and MSS) and their font dependencies out of the build. Under Emscripten the CLI and tests are off by default and `denigma_BUILD_WASM` is on. The module lands in `build-wasm/wasm/` as `denigma.js` and `denigma.wasm`; CI builds and smoke-tests the module on every pull request, uploads the pair as the `denigma-wasm` artifact of every push to `main`, and attaches it to every published release as `denigma.<tag>.wasm.zip` alongside the native binaries.
+
 ## Visual Studio Code setup
 
 See [`.vscode_template/README.md`](.vscode_template/README.md) for OS-specific templates (`macos`, `linux`, `windows`) with `launch.json` and `tasks.json`.

@@ -4,8 +4,20 @@ cmake_minimum_required(VERSION 3.22)
 # Project name and version
 project(denigma VERSION 4.0.0)
 
-option(denigma_BUILD_CLI "Build the Denigma command-line application" ${PROJECT_IS_TOP_LEVEL})
-option(denigma_BUILD_TESTING "Build the Denigma test suite" ${PROJECT_IS_TOP_LEVEL})
+# Under Emscripten the natural products are the WebAssembly module and nothing
+# that has to run on the host, so the defaults flip accordingly.
+if(EMSCRIPTEN)
+    set(_denigma_default_native OFF)
+    set(_denigma_default_wasm ${PROJECT_IS_TOP_LEVEL})
+else()
+    set(_denigma_default_native ${PROJECT_IS_TOP_LEVEL})
+    set(_denigma_default_wasm OFF)
+endif()
+option(denigma_BUILD_CLI "Build the Denigma command-line application" ${_denigma_default_native})
+option(denigma_BUILD_TESTING "Build the Denigma test suite" ${_denigma_default_native})
+option(denigma_BUILD_WASM "Build the Denigma WebAssembly module (requires Emscripten)" ${_denigma_default_wasm})
+unset(_denigma_default_native)
+unset(_denigma_default_wasm)
 
 # Specify C++ standard and minimum macOS version
 set(DENIGMA_CXX_STANDARD "23" CACHE STRING "C++ standard used to build Denigma; must be at least 20")
@@ -19,6 +31,13 @@ endif()
 set(CMAKE_CXX_STANDARD ${DENIGMA_CXX_STANDARD})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+if(EMSCRIPTEN)
+    # Emscripten disables exceptions unless asked at both compile and link time.
+    # The language flags reach every compile and compiler-driver link, including
+    # the FetchContent dependencies, which is what makes throwing safe throughout.
+    string(APPEND CMAKE_CXX_FLAGS " -fexceptions")
+endif()
 
 # Prevent in-source builds
 if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
@@ -375,6 +394,10 @@ if(denigma_BUILD_CLI)
             VERBATIM
         )
     endif()
+endif()
+
+if(denigma_BUILD_WASM)
+    add_subdirectory(src/wasm)
 endif()
 
 if(denigma_BUILD_TESTING)
