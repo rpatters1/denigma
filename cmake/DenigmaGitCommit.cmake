@@ -16,8 +16,9 @@ if(GIT_EXECUTABLE)
     )
     if(_denigma_git_commit_result EQUAL 0 AND _denigma_git_commit)
         set(DENIGMA_GIT_COMMIT "${_denigma_git_commit}")
+        # Only changes to tracked files mark the commit dirty.
         execute_process(
-            COMMAND "${GIT_EXECUTABLE}" -C "${DENIGMA_GIT_COMMIT_SRC_DIR}" status --porcelain
+            COMMAND "${GIT_EXECUTABLE}" -C "${DENIGMA_GIT_COMMIT_SRC_DIR}" status --porcelain --untracked-files=no
             OUTPUT_VARIABLE _denigma_git_dirty
             OUTPUT_STRIP_TRAILING_WHITESPACE
             ERROR_QUIET
