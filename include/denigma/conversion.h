@@ -418,9 +418,7 @@ private:
             std::memcpy(data.data(), text.data(), text.size());
         }
         std::vector<ConversionOutput> outputs;
-        if (!data.empty()) {
-            outputs.push_back({ {}, std::move(data) });
-        }
+        outputs.push_back({ {}, std::move(data) });
         return { std::move(result), std::move(outputs) };
     }
 

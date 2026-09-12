@@ -37,7 +37,7 @@ target_link_libraries(my_tool PRIVATE denigma::enigmaxml)
 
 Use `denigma::classify` when you only need classification helpers. Use one of the format targets when you need a specific converter.
 
-Register the linked formats and call `ConverterRegistry::convert` when the application needs runtime format selection or owned output buffers:
+Applications may register linked formats and call `ConverterRegistry::convert` when runtime format selection or owned output buffers are useful:
 
 ```cpp
 #include "denigma/formats/mnx.h"
@@ -56,7 +56,7 @@ auto artifact = registry.convert(
 	denigma::ConversionRequest{ &options });
 ```
 
-`ConversionArtifact` owns the generated documents in emission order and preserves the converter's `ConversionResult`. Multi-output converters retain each suggested filename. Applications that know their converter at compile time may continue using its typed `convert` overload directly.
+`ConversionArtifact` owns the generated documents in emission order and preserves the converter's `ConversionResult`. Multi-output converters retain each suggested filename. The format-specific typed converters and their `convert` overloads remain a first-class alternative.
 
 The companion [denigma-examples](https://github.com/rpatters1/denigma-examples) repository demonstrates this from separate native and WebAssembly projects using CMake `FetchContent` or a local Denigma checkout.
 

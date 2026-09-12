@@ -67,6 +67,20 @@ public:
     }
 };
 
+class EmptyMemoryConverter final : public denigma::IConverter
+{
+public:
+    [[nodiscard]] denigma::FormatId sourceFormat() const override { return denigma::FormatId::EnigmaXml; }
+    [[nodiscard]] denigma::FormatId targetFormat() const override { return denigma::FormatId::Svg; }
+
+    denigma::ConversionResult convert(std::span<const std::byte>,
+                                      std::ostream&,
+                                      const denigma::ConversionRequest&) const override
+    {
+        return {};
+    }
+};
+
 std::string outputText(const denigma::ConversionOutput& output)
 {
     return { reinterpret_cast<const char*>(output.data.data()), output.data.size() };
@@ -130,6 +144,21 @@ TEST(ConverterRegistry, CollectsNamedReaderMultiOutputs)
     EXPECT_EQ(outputText(artifact.outputs()[0]), "score");
     EXPECT_EQ(artifact.outputs()[1].suggestedName, "part.musicxml");
     EXPECT_EQ(outputText(artifact.outputs()[1]), "part");
+}
+
+TEST(ConverterRegistry, PreservesEmptySingleOutput)
+{
+    denigma::ConverterRegistry registry;
+    registry.add(std::make_unique<EmptyMemoryConverter>());
+    const std::byte input{};
+
+    const auto artifact = registry.convert(denigma::FormatId::EnigmaXml,
+                                           denigma::FormatId::Svg,
+                                           std::span(&input, 1));
+
+    EXPECT_TRUE(artifact);
+    ASSERT_EQ(artifact.outputs().size(), 1u);
+    EXPECT_TRUE(artifact.outputs().front().data.empty());
 }
 
 TEST(ConverterRegistry, ReportsUnsupportedConversion)
