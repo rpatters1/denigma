@@ -182,6 +182,12 @@ if(TARGET zlib)
         EXCLUDE_FROM_ALL TRUE
         EXCLUDE_FROM_DEFAULT_BUILD TRUE
     )
+    if(EMSCRIPTEN)
+        # Without shared library support the SHARED target becomes a static
+        # library named libz.a, the same file zlibstatic produces. Ninja refuses
+        # two rules for one output even though the target is never built.
+        set_target_properties(zlib PROPERTIES OUTPUT_NAME z_shared)
+    endif()
 endif()
 
 if(TARGET zlibstatic)
