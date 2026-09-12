@@ -69,3 +69,4 @@ tests/data/*
 # Explicitly exclude unwanted files in tests/data/inputs
 tests/data/inputs/**/.DS_Store
 
+/build-wasm/

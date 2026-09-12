@@ -34,6 +34,7 @@ The repository builds a CLI plus reusable libraries for classification, massage,
 - `src/massage` contains MusicXML transformation helpers.
 - `src/export` contains export-related code shared by tests and production targets.
 - `src/io` and `src/utils` contain lower-level helpers.
+- `src/wasm` contains the WebAssembly C ABI wrapper built by the `denigma_wasm` target.
 - `tests` contains the GoogleTest suite and fixture data.
 - `tests/data/inputs` contains checked-in input fixtures.
 - `tests/data/inputs/reference` contains checked-in expected-output fixtures.
@@ -50,6 +51,12 @@ The repository builds a CLI plus reusable libraries for classification, massage,
   - `./build.cmake -- clean`
 - The build downloads third-party dependencies through `FetchContent`, including `pugixml`, `nlohmann_json`, `zlib`, and `googletest`.
 - If you need a local MUSX DOM checkout, set `MUSX_LOCAL_PATH` in CMake rather than editing dependency logic.
+- The WebAssembly module (`src/wasm`, target `denigma_wasm`, option `denigma_BUILD_WASM`) is built with Emscripten:
+  - `emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=MinSizeRel -DDENIGMA_CXX_STANDARD=20`
+  - `cmake --build build-wasm --target denigma_wasm`
+  - `node tests/wasm/smoke.mjs build-wasm/wasm/denigma.js build-wasm/wasm/denigma.wasm`
+- Always name the `denigma_wasm` target for that build. The `all` target also compiles the text-measuring converters and `denigma_textmetrics`, which the module does not link and which do not compile under Emscripten.
+- The exported function list in `src/wasm/CMakeLists.txt` and the C ABI in `src/wasm/denigma_wasm.cpp` are the contract with `denigma-online` and `viritura`, which consume the module built from a pinned Denigma commit. Changing either changes those consumers.
 
 ## Test Rules
 
