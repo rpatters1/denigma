@@ -37,7 +37,45 @@ target_link_libraries(my_tool PRIVATE denigma::enigmaxml)
 
 Use `denigma::classify` when you only need classification helpers. Use one of the format targets when you need a specific converter.
 
+Applications may register linked formats and call `ConverterRegistry::convert` when runtime format selection or owned output buffers are useful:
+
+```cpp
+#include "denigma/formats/mnx.h"
+
+denigma::ConverterRegistry registry;
+denigma::formats::mnx::registerConverters(registry);
+
+denigma::BufferRandomAccessReader input(musxBytes);
+denigma::formats::mnx::Options options;
+options.common.sourceName = "score.musx";
+
+auto artifact = registry.convert(
+	denigma::FormatId::Musx,
+	denigma::FormatId::MnxJson,
+	input,
+	denigma::ConversionRequest{ &options });
+```
+
+`ConversionArtifact` owns the generated documents in emission order and preserves the converter's `ConversionResult`. Multi-output converters retain each suggested filename. The format-specific typed converters and their `convert` overloads remain a first-class alternative.
+
 The companion [denigma-examples](https://github.com/rpatters1/denigma-examples) repository demonstrates this from separate native and WebAssembly projects using CMake `FetchContent` or a local Denigma checkout.
+
+When Denigma is added as a CMake subproject, its CLI and tests are disabled by default. Consumers can override either option before making Denigma available:
+
+```cmake
+set(denigma_BUILD_CLI OFF CACHE BOOL "" FORCE)
+set(denigma_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
+include(FetchContent)
+FetchContent_Declare(
+	denigma
+	GIT_REPOSITORY https://github.com/rpatters1/denigma.git
+	GIT_TAG        <release-tag-or-commit>
+)
+FetchContent_MakeAvailable(denigma)
+```
+
+Standalone Denigma builds continue to build the CLI and tests by default.
 
 ## Command line usage
 
