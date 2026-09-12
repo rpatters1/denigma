@@ -82,7 +82,7 @@ body:
     id: prior-search
     attributes:
       label: Prior search
-      description: Confirm that this request is not already tracked in the [MusicXML feature roadmap](https://github.com/rpatters1/denigma/blob/main/src/formats/musicxml/roadmap.md) or [GitHub issues](https://github.com/rpatters1/denigma/issues?q=is%3Aissue).
+      description: Confirm that this request is not already tracked in the [MusicXML feature roadmap](https://github.com/openmusx/denigma/blob/main/src/formats/musicxml/roadmap.md) or [GitHub issues](https://github.com/openmusx/denigma/issues?q=is%3Aissue).
       options:
         - label: I searched the roadmap and both open and closed issues for this feature.
           required: true
@@ -91,7 +91,7 @@ body:
     id: sharing
     attributes:
       label: Permission to use attachments for testing
-      description: Public issue attachments can be viewed and downloaded by anyone. Test fixtures committed to denigma are distributed under the repository's [MIT License](https://github.com/rpatters1/denigma/blob/main/LICENSE).
+      description: Public issue attachments can be viewed and downloaded by anyone. Test fixtures committed to denigma are distributed under the repository's [MIT License](https://github.com/openmusx/denigma/blob/main/LICENSE).
       options:
         - label: I own the attached MUSX and MusicXML examples, or I have authority to grant the permissions below, and the files contain no private or sensitive information.
           required: true

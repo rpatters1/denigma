@@ -223,7 +223,7 @@ set(musx_BUILD_TESTING OFF CACHE BOOL "Do not build tests for musx")
 # Fetch musx
 FetchContent_Declare(
     musx
-    GIT_REPOSITORY https://github.com/rpatters1/musxdom.git
+    GIT_REPOSITORY https://github.com/openmusx/musxdom.git
     GIT_TAG        ${MUSXDOM_GIT_TAG_OR_BRANCH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
@@ -254,7 +254,7 @@ set(smufl_mapping_BUILD_TESTING OFF CACHE BOOL "Do not build tests for smufl_map
 # Fetch musx
 FetchContent_Declare(
     smufl_mapping
-    GIT_REPOSITORY https://github.com/rpatters1/smufl-mapping.git
+    GIT_REPOSITORY https://github.com/openmusx/smufl-mapping.git
     GIT_TAG        ${SMUFL_MAPPING_GIT_TAG_OR_BRANCH}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
