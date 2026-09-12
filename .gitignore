@@ -70,3 +70,4 @@ tests/data/*
 tests/data/inputs/**/.DS_Store
 
 /build-wasm/
+/emsdk-cache/
