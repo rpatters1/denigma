@@ -268,7 +268,7 @@ void appendDynamic(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
     }
 }
 
-void attachFermata(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxMeasure,
+void attachFermata(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxMeasure, std::optional<int> mnxStaffNumber,
     const MusxInstance<others::MeasureExprAssign>& asgn, const denigma::classify::expression::Fermata& fermataInfo,
     const ExpressionAttachmentContext& attachment, const mnxdom::Fermata& fermata)
 {
@@ -288,14 +288,18 @@ void attachFermata(const MnxMusxMappingPtr& context, mnxdom::part::Measure& mnxM
         context->logMessage(LogMsg() << "Entry " << attachment.entryInfo->getEntry()->getEntryNumber()
             << " was not mapped to an event or full measure rest", MessageSeverity::Warning);
     } else {
-        if (mnxMeasure.sequences().empty()) {
-            mnxMeasure.sequences().append();
-        }
+        const int staffNumber = mnxStaffNumber.value_or(1);
+        bool attached = false;
         for (auto seq : mnxMeasure.sequences()) {
-            if (seq.content().empty()) {
-                auto fullMeasureRest = seq.ensure_fullMeasure();
-                fullMeasureRest.set_fermata(fermata);
+            if (seq.staff() == staffNumber && seq.content().empty()) {
+                seq.ensure_fullMeasure().set_fermata(fermata);
+                attached = true;
             }
+        }
+        if (!attached) {
+            auto seq = mnxMeasure.sequences().append();
+            seq.set_or_clear_staff(staffNumber);
+            seq.ensure_fullMeasure().set_fermata(fermata);
         }
     }
 }
@@ -350,7 +354,7 @@ void processExpressions(const MnxMusxMappingPtr& context, const MusxInstance<oth
             case classify::ExpressionType::Fermata: {
                 const auto& fermata = classification.fermata();
                 if (auto mnxFermata = makeFermata(fermata.fermata, fermata.glyphStyle, placement)) {
-                    attachFermata(context, mnxMeasure, asgn, fermata, calcAttachmentContext(context, asgn), mnxFermata.value());
+                    attachFermata(context, mnxMeasure, mnxStaffNumber, asgn, fermata, calcAttachmentContext(context, asgn), mnxFermata.value());
                 }
                 break;
             }

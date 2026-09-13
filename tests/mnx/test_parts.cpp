@@ -317,12 +317,15 @@ TEST(MnxParts, MeasureRepeats)
     // Alternate notation replaces the entries of the layers it hides, so those layers are not
     // exported. The fixture applies repeat styles both with and without "hide other layers", so a
     // measure is either emptied entirely or keeps the layers the style leaves alone. Measures 1
-    // through 3 hold no entries in the source at all.
-    const std::array<size_t, 14> expectedSequenceCounts = { 0, 0, 0, 0, 1, 2, 1, 1, 0, 1, 1, 0, 0, 0 };
+    // through 3 hold no entries in the source at all; only measure 1, which has no alternate
+    // notation, gets a full-measure rest.
+    const std::array<size_t, 14> expectedSequenceCounts = { 1, 0, 0, 0, 1, 2, 1, 1, 0, 1, 1, 0, 0, 0 };
     for (size_t x = 0; x < expectedSequenceCounts.size(); x++) {
         EXPECT_EQ(measures[x].sequences().size(), expectedSequenceCounts[x])
             << "measure " << (x + 1) << " sequence count";
     }
+    ASSERT_EQ(measures[0].sequences().size(), 1);
+    EXPECT_TRUE(measures[0].sequences()[0].fullMeasure().has_value()) << "measure 1 should be a full-measure rest";
 }
 
 TEST(MnxParts, MeasureRepeatCounters)
