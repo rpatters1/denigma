@@ -103,6 +103,34 @@ TEST(ConverterApi, MusxToMnxJsonWritesToStream)
     EXPECT_EQ(source["filename"], "notAscii-其れ.musx");
 }
 
+TEST(ConverterApi, MusxToMnxJsonReportsChordSymbolGaps)
+{
+    setupTestDataPaths();
+
+    denigma::FileRandomAccessReader input(getInputPath() / "chords.musx");
+    std::ostringstream output;
+    denigma::formats::mnx::Options options;
+    options.common.sourceName = "chords.musx";
+    options.common.validate = false;
+
+    const auto result = denigma::formats::mnx::MusxToMnxJsonConverter{}.convert(input, output, options);
+
+    ASSERT_FALSE(result.gaps().empty());
+    for (const auto& gap : result.gaps()) {
+        EXPECT_EQ(gap.code, "finale.chord-symbol");
+        EXPECT_EQ(gap.payloadVersion, 1u);
+        EXPECT_EQ(gap.targetFormat, denigma::FormatId::MnxJson);
+        EXPECT_EQ(gap.representation, denigma::GapRepresentation::None);
+        EXPECT_EQ(gap.cause, denigma::GapCause::TargetUnsupported);
+        EXPECT_EQ(gap.source.pool, "details");
+        EXPECT_EQ(gap.source.recordType, "chordAssign");
+        EXPECT_TRUE(gap.source.partId.has_value());
+        EXPECT_TRUE(gap.source.cmper1.has_value());
+        EXPECT_TRUE(gap.source.cmper2.has_value());
+        EXPECT_TRUE(gap.source.inci.has_value());
+    }
+}
+
 TEST(ConverterApi, EnigmaXmlToMnxJsonCollectsErrorDiagnosticsForInvalidXml)
 {
     denigma::ConverterRegistry registry;

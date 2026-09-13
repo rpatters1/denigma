@@ -23,9 +23,11 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <sstream>
 #include <span>
@@ -61,6 +63,61 @@ enum class MessageSeverity
     Warning,
     Error,
     Verbose
+};
+
+/// @enum GapRepresentation
+/// @brief How much of a source feature was represented in the target document.
+enum class GapRepresentation
+{
+    None,
+    Partial
+};
+
+/// @enum GapCause
+/// @brief Why a source feature was not represented faithfully.
+enum class GapCause
+{
+    TargetUnsupported,
+    ExporterUnimplemented,
+    Policy
+};
+
+/// @struct FinaleSourceLocator
+/// @brief Stable identity of one source record in Finale EnigmaXML.
+struct FinaleSourceLocator
+{
+    std::string pool;
+    std::string recordType;
+    std::optional<int> partId;
+    std::optional<int> cmper;
+    std::optional<int> cmper1;
+    std::optional<int> cmper2;
+    std::optional<int> inci;
+    std::optional<int> entryNumber;
+};
+
+/// @struct ConversionGap
+/// @brief A source feature that was not represented faithfully in a conversion target.
+struct ConversionGap
+{
+    std::string code;
+    std::uint32_t payloadVersion{ 1 };
+    FormatId targetFormat{ FormatId::MnxJson };
+    GapRepresentation representation{ GapRepresentation::None };
+    GapCause cause{ GapCause::TargetUnsupported };
+    FinaleSourceLocator source;
+    std::string message;
+};
+
+/// @struct ConversionSourceEvidence
+/// @brief A source document retained once for all gaps in a conversion result.
+///
+/// The document may contain the complete source score. Callers must treat it as
+/// private input data and avoid persisting or transmitting it unintentionally.
+struct ConversionSourceEvidence
+{
+    FormatId format{ FormatId::EnigmaXml };
+    std::string document;
 };
 
 /// @struct Diagnostic
@@ -141,8 +198,34 @@ public:
         m_diagnostics.push_back(std::move(diagnostic));
     }
 
+    /// Returns source features that were not represented faithfully.
+    [[nodiscard]] std::span<const ConversionGap> gaps() const noexcept
+    {
+        return m_gaps;
+    }
+
+    /// Adds a structured conversion gap.
+    void addGap(ConversionGap gap)
+    {
+        m_gaps.push_back(std::move(gap));
+    }
+
+    /// Retains a source document shared by every gap in this result.
+    void setSourceEvidence(ConversionSourceEvidence evidence)
+    {
+        m_sourceEvidence = std::move(evidence);
+    }
+
+    /// Returns the shared source document when the converter retained one.
+    [[nodiscard]] const std::optional<ConversionSourceEvidence>& sourceEvidence() const noexcept
+    {
+        return m_sourceEvidence;
+    }
+
 private:
     std::vector<Diagnostic> m_diagnostics;
+    std::vector<ConversionGap> m_gaps;
+    std::optional<ConversionSourceEvidence> m_sourceEvidence;
     bool m_hasError{};
 };
 

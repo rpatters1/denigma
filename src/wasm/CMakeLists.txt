@@ -10,6 +10,7 @@ add_executable(denigma_wasm denigma_wasm.cpp)
 target_compile_options(denigma_wasm PRIVATE ${DENIGMA_WARNING_OPTIONS})
 target_link_libraries(denigma_wasm PRIVATE
     denigma::enigmaxml
+    denigma::gap-report
     denigma::mnx
     denigma::musicxml
     denigma_internal_deps
@@ -58,6 +59,8 @@ set(_denigma_wasm_exports
     _denigma_result_output_data
     _denigma_result_output_size
     _denigma_result_output_index
+    _denigma_result_gap_report_data
+    _denigma_result_gap_report_size
     _denigma_version
     _denigma_commit
 )

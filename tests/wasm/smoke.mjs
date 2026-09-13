@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const defaultSample = resolve(import.meta.dirname, '..', 'data', 'inputs', 'voiced_parts.musx');
+const chordSample = resolve(import.meta.dirname, '..', 'data', 'inputs', 'chords.musx');
 const [, , moduleArg, wasmArg, musxArg = defaultSample] = process.argv;
 if (!moduleArg || !wasmArg) {
   console.error('usage: node tests/wasm/smoke.mjs <denigma.js> <denigma.wasm> [sample.musx]');
@@ -89,6 +90,13 @@ function assertResult(result, label, marker, { outputCount = 1, verbose = false,
     Module._denigma_result_destroy(result);
   }
   return firstOutput;
+}
+
+function gapReport(result) {
+  const pointer = Module._denigma_result_gap_report_data(result);
+  const size = Module._denigma_result_gap_report_size(result);
+  if (!pointer || !size) throw new Error('MNX conversion returned no gap report.');
+  return JSON.parse(new TextDecoder().decode(Module.HEAPU8.slice(pointer, pointer + size)));
 }
 
 function assertPageMetrics(label, width, height, spatium, hasMargins) {
@@ -213,4 +221,30 @@ withInput(input, 'sample.musx', (dataPointer, namePointer) => {
       Module._denigma_result_destroy(invalid);
     }
   });
+});
+
+const chordInput = await readFile(chordSample);
+withInput(chordInput, 'chords.musx', (dataPointer, namePointer) => {
+  const result = convert(dataPointer, chordInput.byteLength, namePointer, FORMAT_MNX);
+  try {
+    if (!Module._denigma_result_success(result)) throw new Error(`Chord MNX conversion failed:\n${messages(result)}`);
+    const report = gapReport(result);
+    if (report.schemaVersion !== 1 || report.targetFormat !== 'mnx') {
+      throw new Error('Chord gap report has invalid envelope metadata.');
+    }
+    if (!report.source.document.includes('<finale') || !report.source.document.includes('<chordAssign')) {
+      throw new Error('Chord gap report does not retain the EnigmaXML source evidence.');
+    }
+    const chordGaps = report.gaps.filter((gap) => gap.code === 'finale.chord-symbol');
+    if (!chordGaps.length || chordGaps.some((gap) => gap.payloadVersion !== 1
+      || gap.target.format !== 'mnx'
+      || gap.target.representation !== 'none'
+      || gap.target.cause !== 'target-unsupported'
+      || gap.source.recordType !== 'chordAssign')) {
+      throw new Error('Chord gap report does not contain source-located chord assignments.');
+    }
+    console.log(`MNX gap report: ${chordGaps.length} chord symbol gaps.`);
+  } finally {
+    Module._denigma_result_destroy(result);
+  }
 });

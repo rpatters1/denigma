@@ -174,6 +174,6 @@ endfunction()
         ${CMAKE_SOURCE_DIR}/src/io/random_access_reader.cpp
     )
     target_add_denigma_test_warnings(denigma_conversion_contract_tests)
-    target_link_libraries(denigma_conversion_contract_tests PRIVATE denigma::conversion gtest_main)
+    target_link_libraries(denigma_conversion_contract_tests PRIVATE denigma::gap-report gtest_main)
 
 endif()

@@ -29,6 +29,7 @@
 #include "gtest/gtest.h"
 
 #include "denigma/conversion.h"
+#include "denigma/gap_report.h"
 
 namespace {
 
@@ -109,6 +110,58 @@ TEST(ConversionResult, TracksDiagnosticsAndErrorState)
     ASSERT_EQ(result.diagnostics().size(), 2u);
     EXPECT_EQ(result.diagnostics().back().severity, denigma::MessageSeverity::Error);
     EXPECT_EQ(result.diagnostics().back().message, "error");
+}
+
+TEST(ConversionResult, PreservesStructuredGaps)
+{
+    denigma::ConversionResult result;
+    denigma::FinaleSourceLocator source;
+    source.pool = "details";
+    source.recordType = "chordAssign";
+    source.partId = 0;
+    source.cmper1 = 1;
+    source.cmper2 = 3;
+    source.inci = 0;
+    result.addGap({
+        "finale.chord-symbol",
+        1,
+        denigma::FormatId::MnxJson,
+        denigma::GapRepresentation::None,
+        denigma::GapCause::TargetUnsupported,
+        std::move(source),
+        "Chord symbols are not representable in standard MNX."
+    });
+
+    ASSERT_EQ(result.gaps().size(), 1u);
+    const auto& gap = result.gaps().front();
+    EXPECT_EQ(gap.code, "finale.chord-symbol");
+    EXPECT_EQ(gap.source.recordType, "chordAssign");
+    EXPECT_EQ(gap.source.cmper2, 3);
+    EXPECT_FALSE(result.hasError());
+}
+
+TEST(ConversionResult, SerializesOneSharedSourceDocument)
+{
+    denigma::ConversionResult result;
+    result.setSourceEvidence({ denigma::FormatId::EnigmaXml, "<finale><details/></finale>" });
+    denigma::FinaleSourceLocator source;
+    source.pool = "details";
+    source.recordType = "chordAssign";
+    source.cmper1 = 1;
+    source.cmper2 = 3;
+    source.inci = 0;
+    result.addGap({ "finale.chord-symbol", 1, denigma::FormatId::MnxJson,
+        denigma::GapRepresentation::None, denigma::GapCause::TargetUnsupported,
+        std::move(source), "Chord symbols are not representable in standard MNX." });
+
+    const auto report = denigma::serializeGapReport(result, denigma::FormatId::Musx,
+        denigma::FormatId::MnxJson, { "denigma", "4.0.0", "abc123" });
+
+    EXPECT_NE(report.find("\"schemaVersion\": 1"), std::string::npos);
+    EXPECT_NE(report.find("\"code\": \"finale.chord-symbol\""), std::string::npos);
+    EXPECT_NE(report.find("\"recordType\": \"chordAssign\""), std::string::npos);
+    EXPECT_NE(report.find("\"document\": \"<finale><details/></finale>\""), std::string::npos);
+    EXPECT_EQ(report.find("notationRef"), std::string::npos);
 }
 
 TEST(ConverterRegistry, CollectsOwnedSingleOutputAndDiagnostics)
