@@ -23,7 +23,7 @@
 #include "formats/enigmaxml/enigmaxml.h"
 #include "formats/musicxml/musicxml.h"
 #include "gtest/gtest.h"
-#include "mx/api/DocumentManager.h"
+#include "mx/api/MusicXml.h"
 #include "test_utils.h"
 
 namespace denigma::test::musicxml {
@@ -72,17 +72,16 @@ std::optional<mx::api::ScoreData> createScoreDataFromMusxPath(const std::filesys
 
 std::optional<mx::api::ScoreData> loadScoreData(const std::filesystem::path& path)
 {
-    auto& documentManager = mx::api::DocumentManager::getInstance();
-    const auto documentIdResult = documentManager.createFromFile(pathString(path));
-    EXPECT_TRUE(documentIdResult.ok()) << "Unable to load " << pathString(path) << ": " << documentIdResult.error().message;
-    if (!documentIdResult.ok()) {
+    const auto documentResult = mx::api::MusicXml::fromFile(pathString(path));
+    EXPECT_TRUE(documentResult.ok()) << "Unable to load " << pathString(path)
+        << ": " << mx::api::formatError(documentResult.error());
+    if (!documentResult.ok()) {
         return std::nullopt;
     }
 
-    const auto documentId = documentIdResult.value();
-    const auto scoreDataResult = documentManager.getData(documentId);
-    documentManager.destroyDocument(documentId);
-    EXPECT_TRUE(scoreDataResult.ok()) << "Unable to read ScoreData from " << pathString(path) << ": " << scoreDataResult.error().message;
+    const auto scoreDataResult = mx::api::getScore(documentResult.value());
+    EXPECT_TRUE(scoreDataResult.ok()) << "Unable to read ScoreData from " << pathString(path)
+        << ": " << mx::api::formatError(scoreDataResult.error());
     if (!scoreDataResult.ok()) {
         return std::nullopt;
     }
