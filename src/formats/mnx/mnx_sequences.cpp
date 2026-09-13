@@ -609,7 +609,26 @@ static EntryInfoPtr::InterpretedIterator addEntryToContent(const MnxMusxMappingP
     return next;
 }
 
-void createSequences(const MnxMusxMappingPtr& context,
+/// @brief Appends the full-measure rest an empty staff measure displays, if the staff displays one.
+/// See "An empty staff measure is written as a full-measure rest" in design-decisions.md.
+static void appendEmptyMeasureRest(const MnxMusxMappingPtr& context,
+    mnxdom::part::Measure& mnxMeasure,
+    std::optional<int> mnxStaffNumber,
+    const MusxInstance<others::Measure>& musxMeasure)
+{
+    const auto musxStaff = others::StaffComposite::createCurrent(
+        musxMeasure->getDocument(), musxMeasure->getRequestedPartId(), context->current.staff, musxMeasure->getCmper(), 0);
+    // Asking about the alternate notation's own layer reduces the question to whether that notation
+    // replaces entries at all.
+    if (!musxStaff || musxStaff->blankMeasure || musxStaff->calcAlternateNotationHidesEntries(musxStaff->altLayer)) {
+        return;
+    }
+    auto sequence = mnxMeasure.sequences().append();
+    sequence.set_or_clear_staff(mnxStaffNumber.value_or(1));
+    sequence.ensure_fullMeasure();
+}
+
+static void createEntrySequences(const MnxMusxMappingPtr& context,
     mnxdom::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,
     const MusxInstance<others::Measure>& musxMeasure)
@@ -652,6 +671,18 @@ void createSequences(const MnxMusxMappingPtr& context,
                 }
             }
         }
+    }
+}
+
+void createSequences(const MnxMusxMappingPtr& context,
+    mnxdom::part::Measure& mnxMeasure,
+    std::optional<int> mnxStaffNumber,
+    const MusxInstance<others::Measure>& musxMeasure)
+{
+    const size_t sequenceCountBefore = mnxMeasure.sequences().size();
+    createEntrySequences(context, mnxMeasure, mnxStaffNumber, musxMeasure);
+    if (mnxMeasure.sequences().size() == sequenceCountBefore) {
+        appendEmptyMeasureRest(context, mnxMeasure, mnxStaffNumber, musxMeasure);
     }
 }
 

@@ -195,3 +195,61 @@ TEST(MnxSequences, GraceBeamsRetainSlashState)
     EXPECT_FALSE(lastGrace.contains("slash")) << lastGrace.dump(4); // omitted means slashed
     EXPECT_EQ(lastGrace["content"].size(), 1u);
 }
+
+namespace {
+
+// Summarizes a measure's sequences as (staff, isFullMeasureRest) pairs in document order.
+std::vector<std::pair<int, bool>> summarizeSequences(const nlohmann::json& measure)
+{
+    std::vector<std::pair<int, bool>> result;
+    for (const auto& sequence : measure.value("sequences", nlohmann::json::array())) {
+        result.emplace_back(sequence.value("staff", 1), sequence.contains("fullMeasure"));
+    }
+    return result;
+}
+
+} // namespace
+
+TEST(MnxSequences, EmptyMeasuresGetFullMeasureRestPerStaff)
+{
+    const auto mnx = exportMnxFixture("voices_keyboard.musx");
+    ASSERT_TRUE(mnx.contains("parts"));
+    ASSERT_EQ(mnx["parts"].size(), 1u);
+    const auto& measures = mnx["parts"][0]["measures"];
+    ASSERT_EQ(measures.size(), 7u);
+
+    using Summary = std::vector<std::pair<int, bool>>;
+    // Measure 3 is empty on both staves of the piano part.
+    EXPECT_EQ(summarizeSequences(measures[2]), (Summary{ { 1, true }, { 2, true } })) << measures[2].dump(4);
+    // Measure 6 holds real whole-rest entries, which are exported as full-measure rests in their own right.
+    EXPECT_EQ(summarizeSequences(measures[5]), (Summary{ { 1, true }, { 2, true } })) << measures[5].dump(4);
+    // Measure 7 is empty, but staff 1 has "Display Rests in Empty Measures" off through a staff style.
+    // Staff 2 hides entered rests through "Display Rests", which does not suppress the empty-measure rest.
+    EXPECT_EQ(summarizeSequences(measures[6]), (Summary{ { 2, true } })) << measures[6].dump(4);
+}
+
+TEST(MnxSequences, EmptyMeasureRestOmitsStaffOnSingleStaffPart)
+{
+    const auto mnx = exportMnxFixture("slurs_beatattached.musx");
+    ASSERT_TRUE(mnx.contains("parts"));
+    ASSERT_EQ(mnx["parts"].size(), 2u);
+
+    // Part 1 blanks measures 2 through 4 through a staff style, so they stay empty.
+    const auto& firstPartMeasures = mnx["parts"][0]["measures"];
+    ASSERT_EQ(firstPartMeasures.size(), 4u);
+    for (size_t x = 1; x < firstPartMeasures.size(); x++) {
+        EXPECT_TRUE(firstPartMeasures[x]["sequences"].empty()) << "part 1 measure " << (x + 1) << firstPartMeasures[x].dump(4);
+    }
+
+    // Part 2 is a single-staff part, so its empty measures 3 and 4 get a rest that names no staff.
+    const auto& secondPartMeasures = mnx["parts"][1]["measures"];
+    ASSERT_EQ(secondPartMeasures.size(), 4u);
+    for (size_t x = 2; x < secondPartMeasures.size(); x++) {
+        const auto& sequences = secondPartMeasures[x]["sequences"];
+        ASSERT_EQ(sequences.size(), 1u) << "part 2 measure " << (x + 1) << secondPartMeasures[x].dump(4);
+        EXPECT_FALSE(sequences[0].contains("staff")) << sequences[0].dump(4);
+        EXPECT_FALSE(sequences[0].contains("voice")) << sequences[0].dump(4);
+        EXPECT_TRUE(sequences[0].contains("fullMeasure")) << sequences[0].dump(4);
+        EXPECT_TRUE(sequences[0]["content"].empty()) << sequences[0].dump(4);
+    }
+}
