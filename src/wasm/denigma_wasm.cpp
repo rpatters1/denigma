@@ -386,10 +386,6 @@ void convertMnx(OnlineResult& result,
     const denigma::MusxLoggerScope musxLogger(denigma::makeMusxLogCallback(context));
     const auto& input = cachedInputData(bytes, inputFormat, context, sourceName);
     denigma::formats::mnx::detail::exportJson(output, input, context);
-    if (!conversionResult.gaps().empty()) {
-        conversionResult.setSourceEvidence({ denigma::FormatId::EnigmaXml,
-            std::string(input.primaryBuffer.begin(), input.primaryBuffer.end()) });
-    }
     const auto sourceFormat = inputFormat == InputFormat::Musx
         ? denigma::FormatId::Musx
         : denigma::FormatId::EnigmaXml;

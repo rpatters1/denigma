@@ -462,5 +462,50 @@ ChordSuffixClassification classifyChordSuffix(
     return result;
 }
 
+std::string_view chordQualityName(chord::Quality quality)
+{
+    using Quality = chord::Quality;
+    switch (quality) {
+    case Quality::Major: return "major";
+    case Quality::Minor: return "minor";
+    case Quality::Augmented: return "augmented";
+    case Quality::Diminished: return "diminished";
+    case Quality::Dominant: return "dominant";
+    case Quality::AugmentedSeventh: return "augmented-seventh";
+    case Quality::MajorSeventh: return "major-seventh";
+    case Quality::MinorSeventh: return "minor-seventh";
+    case Quality::DiminishedSeventh: return "diminished-seventh";
+    case Quality::HalfDiminished: return "half-diminished";
+    case Quality::MajorMinor: return "major-minor";
+    case Quality::MajorSixth: return "major-sixth";
+    case Quality::MinorSixth: return "minor-sixth";
+    case Quality::DominantNinth: return "dominant-ninth";
+    case Quality::MajorNinth: return "major-ninth";
+    case Quality::MinorNinth: return "minor-ninth";
+    case Quality::DominantEleventh: return "dominant-11th";
+    case Quality::MajorEleventh: return "major-11th";
+    case Quality::MinorEleventh: return "minor-11th";
+    case Quality::DominantThirteenth: return "dominant-13th";
+    case Quality::MajorThirteenth: return "major-13th";
+    case Quality::MinorThirteenth: return "minor-13th";
+    case Quality::SuspendedSecond: return "suspended-second";
+    case Quality::SuspendedFourth: return "suspended-fourth";
+    case Quality::Pedal: return "pedal";
+    case Quality::None: return "none";
+    case Quality::Power: return "power";
+    }
+    return "unknown";
+}
+
+std::string_view chordDegreeTypeName(chord::Degree::Type type)
+{
+    switch (type) {
+    case chord::Degree::Type::Add: return "add";
+    case chord::Degree::Type::Remove: return "remove";
+    case chord::Degree::Type::Alter: return "alter";
+    }
+    return "unknown";
+}
+
 } // namespace classify
 } // namespace denigma

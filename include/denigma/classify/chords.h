@@ -23,6 +23,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "musx/musx.h"
@@ -146,6 +147,12 @@ ChordSuffixClassification classifyChordSuffix(
 
 /// @brief Classifies a Finale chord with no displayed suffix as a major triad.
 ChordSuffixClassification classifyChordSuffix();
+
+/// @brief Returns the stable serialized name for a classified chord quality.
+std::string_view chordQualityName(chord::Quality quality);
+
+/// @brief Returns the stable serialized name for a chord-degree operation.
+std::string_view chordDegreeTypeName(chord::Degree::Type type);
 
 } // namespace classify
 } // namespace denigma

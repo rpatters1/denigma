@@ -232,15 +232,19 @@ withInput(chordInput, 'chords.musx', (dataPointer, namePointer) => {
     if (report.schemaVersion !== 1 || report.targetFormat !== 'mnx') {
       throw new Error('Chord gap report has invalid envelope metadata.');
     }
-    if (!report.source.document.includes('<finale') || !report.source.document.includes('<chordAssign')) {
-      throw new Error('Chord gap report does not retain the EnigmaXML source evidence.');
+    if ('document' in report.source) {
+      throw new Error('WASM gap reports must not retain source evidence by default.');
     }
     const chordGaps = report.gaps.filter((gap) => gap.code === 'finale.chord-symbol');
     if (!chordGaps.length || chordGaps.some((gap) => gap.payloadVersion !== 1
       || gap.target.format !== 'mnx'
       || gap.target.representation !== 'none'
       || gap.target.cause !== 'target-unsupported'
-      || gap.source.recordType !== 'chordAssign')) {
+      || gap.source.recordType !== 'chordAssign'
+      || gap.payload.type !== 'chord-symbol'
+      || !gap.payload.root.step
+      || !gap.payload.anchor.partId
+      || !gap.payload.anchor.measureId)) {
       throw new Error('Chord gap report does not contain source-located chord assignments.');
     }
     console.log(`MNX gap report: ${chordGaps.length} chord symbol gaps.`);

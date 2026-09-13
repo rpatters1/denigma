@@ -203,6 +203,7 @@ inline std::string calcPercussionSoundId(const MusxInstance<others::PercussionNo
 void createLayouts(const MnxMusxMappingPtr& context);
 void createGlobal(const MnxMusxMappingPtr& context);
 void createParts(const MnxMusxMappingPtr& context);
+void reportUnsupportedChordSymbols(const MnxMusxMappingPtr& context);
 void createSequences(const MnxMusxMappingPtr& context,
     mnxdom::part::Measure& mnxMeasure,
     std::optional<int> mnxStaffNumber,

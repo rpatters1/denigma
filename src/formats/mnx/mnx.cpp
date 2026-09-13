@@ -245,32 +245,6 @@ static void createScores(const MnxMusxMappingPtr& context)
     }
 }
 
-static void reportUnsupportedChordSymbols(const MnxMusxMappingPtr& context)
-{
-    if (!context->denigmaContext->conversionResult) {
-        return;
-    }
-    const auto assignments = context->document->getDetails()->getAllSources<details::ChordAssign>();
-    for (const auto& assignment : assignments) {
-        FinaleSourceLocator source;
-        source.pool = "details";
-        source.recordType = std::string(details::ChordAssign::XmlNodeName);
-        source.partId = assignment->getSourcePartId();
-        source.cmper1 = assignment->getCmper1();
-        source.cmper2 = assignment->getCmper2();
-        source.inci = assignment->getInci().value_or(0);
-        context->denigmaContext->conversionResult->addGap({
-            "finale.chord-symbol",
-            1,
-            FormatId::MnxJson,
-            GapRepresentation::None,
-            GapCause::TargetUnsupported,
-            std::move(source),
-            "Chord symbols are not representable in standard MNX."
-        });
-    }
-}
-
 static std::unique_ptr<mnxdom::Document> createMnxDocument(const CommandInputData& inputData, const DenigmaContext& denigmaContext)
 {
     auto document = denigma::createMusxDocument<MusxReader>(inputData, denigmaContext);

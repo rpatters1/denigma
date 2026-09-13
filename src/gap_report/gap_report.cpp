@@ -64,6 +64,77 @@ nlohmann::ordered_json sourceJson(const FinaleSourceLocator& source)
     return result;
 }
 
+nlohmann::ordered_json pitchJson(const ChordPitch& pitch)
+{
+    return {
+        { "step", pitch.step },
+        { "alteration", pitch.alteration }
+    };
+}
+
+nlohmann::ordered_json chordPayloadJson(const ChordSymbolGapPayload& payload)
+{
+    nlohmann::ordered_json anchor{
+        { "position", {
+            { "numerator", payload.anchor.positionNumerator },
+            { "denominator", payload.anchor.positionDenominator }
+        } }
+    };
+    if (payload.anchor.partId) {
+        anchor["partId"] = *payload.anchor.partId;
+    }
+    if (payload.anchor.measureId) {
+        anchor["measureId"] = *payload.anchor.measureId;
+    }
+    if (payload.anchor.staff) {
+        anchor["staff"] = *payload.anchor.staff;
+    }
+
+    auto degrees = nlohmann::ordered_json::array();
+    for (const auto& degree : payload.degrees) {
+        degrees.push_back({
+            { "value", degree.value },
+            { "alteration", degree.alteration },
+            { "type", degree.type },
+            { "impliedByText", degree.impliedByText }
+        });
+    }
+
+    nlohmann::ordered_json result{
+        { "type", "chord-symbol" },
+        { "anchor", std::move(anchor) },
+        { "root", pitchJson(payload.root) },
+        { "rootLowerCase", payload.rootLowerCase },
+        { "showRoot", payload.showRoot },
+        { "suffixText", payload.suffixText },
+        { "showSuffix", payload.showSuffix },
+        { "degrees", std::move(degrees) },
+        { "parenthesizeDegrees", payload.parenthesizeDegrees },
+        { "stackDegrees", payload.stackDegrees },
+        { "hasOuterParentheses", payload.hasOuterParentheses },
+        { "hasUnrecognizedGlyphs", payload.hasUnrecognizedGlyphs }
+    };
+    if (payload.quality) {
+        result["quality"] = *payload.quality;
+    }
+    if (payload.bass) {
+        result["bass"] = pitchJson(*payload.bass);
+        result["bassLowerCase"] = payload.bassLowerCase;
+    }
+    if (payload.bassArrangement) {
+        result["bassArrangement"] = *payload.bassArrangement;
+    }
+    return result;
+}
+
+std::optional<nlohmann::ordered_json> payloadJson(const ConversionGapPayload& payload)
+{
+    if (const auto* chord = std::get_if<ChordSymbolGapPayload>(&payload)) {
+        return chordPayloadJson(*chord);
+    }
+    return std::nullopt;
+}
+
 } // namespace
 
 std::string serializeGapReport(const ConversionResult& result,
@@ -73,9 +144,8 @@ std::string serializeGapReport(const ConversionResult& result,
 {
     auto gaps = nlohmann::ordered_json::array();
     for (const auto& gap : result.gaps()) {
-        gaps.push_back({
+        nlohmann::ordered_json gapJson{
             { "code", gap.code },
-            { "payloadVersion", gap.payloadVersion },
             { "target", {
                 { "format", formatName(gap.targetFormat) },
                 { "representation", representationName(gap.representation) },
@@ -83,7 +153,12 @@ std::string serializeGapReport(const ConversionResult& result,
             } },
             { "source", sourceJson(gap.source) },
             { "message", gap.message }
-        });
+        };
+        if (const auto payload = payloadJson(gap.payload)) {
+            gapJson["payloadVersion"] = gap.payloadVersion.value_or(1);
+            gapJson["payload"] = *payload;
+        }
+        gaps.push_back(std::move(gapJson));
     }
 
     nlohmann::ordered_json source{
