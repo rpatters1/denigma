@@ -258,6 +258,7 @@ static std::unique_ptr<mnxdom::Document> createMnxDocument(const CommandInputDat
     createParts(context);
     finalizeArpeggios(context);
     finalizeJumpTies(context);
+    reportUnsupportedChordSymbols(context);
     // Split-instrument parts need time-varying layout sources; skip scores/layouts until MNX has a stable model for that.
     if (!denigmaContext.mnxSplitInstruments) {
         createLayouts(context); // must come after createParts

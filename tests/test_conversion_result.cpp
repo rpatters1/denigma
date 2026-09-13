@@ -29,6 +29,7 @@
 #include "gtest/gtest.h"
 
 #include "denigma/conversion.h"
+#include "denigma/gap_report.h"
 
 namespace {
 
@@ -109,6 +110,73 @@ TEST(ConversionResult, TracksDiagnosticsAndErrorState)
     ASSERT_EQ(result.diagnostics().size(), 2u);
     EXPECT_EQ(result.diagnostics().back().severity, denigma::MessageSeverity::Error);
     EXPECT_EQ(result.diagnostics().back().message, "error");
+}
+
+TEST(ConversionResult, PreservesStructuredGaps)
+{
+    denigma::ConversionResult result;
+    denigma::FinaleSourceLocator source;
+    source.pool = "details";
+    source.recordType = "chordAssign";
+    source.partId = 0;
+    source.cmper1 = 1;
+    source.cmper2 = 3;
+    source.inci = 0;
+    result.addGap({
+        "finale.chord-symbol",
+        std::nullopt,
+        denigma::FormatId::MnxJson,
+        denigma::GapRepresentation::None,
+        denigma::GapCause::TargetUnsupported,
+        std::move(source),
+        "Chord symbols are not representable in standard MNX.",
+        {}
+    });
+
+    ASSERT_EQ(result.gaps().size(), 1u);
+    const auto& gap = result.gaps().front();
+    EXPECT_EQ(gap.code, "finale.chord-symbol");
+    EXPECT_FALSE(gap.payloadVersion.has_value());
+    EXPECT_EQ(gap.source.recordType, "chordAssign");
+    EXPECT_EQ(gap.source.cmper2, 3);
+    EXPECT_FALSE(result.hasError());
+}
+
+TEST(ConversionResult, SerializesTypedChordPayloadWithoutSourceDocument)
+{
+    denigma::ConversionResult result;
+    denigma::FinaleSourceLocator source;
+    source.pool = "details";
+    source.recordType = "chordAssign";
+    source.cmper1 = 1;
+    source.cmper2 = 3;
+    source.inci = 0;
+    denigma::ChordSymbolGapPayload payload;
+    payload.anchor.partId = "P1";
+    payload.anchor.measureId = "P1-M3";
+    payload.anchor.positionNumerator = 1;
+    payload.anchor.positionDenominator = 2;
+    payload.root = { "C", 1 };
+    payload.quality = "minor-seventh";
+    payload.suffixText = "m7";
+    payload.showRoot = true;
+    payload.showSuffix = true;
+    payload.bass = denigma::ChordPitch{ "G", 0 };
+    result.addGap({ "finale.chord-symbol", denigma::CHORD_SYMBOL_GAP_PAYLOAD_VERSION, denigma::FormatId::MnxJson,
+        denigma::GapRepresentation::None, denigma::GapCause::TargetUnsupported,
+        std::move(source), "Chord symbols are not representable in standard MNX.", std::move(payload) });
+
+    const auto report = denigma::serializeGapReport(result, denigma::FormatId::Musx,
+        denigma::FormatId::MnxJson, { "denigma", "4.0.0", "abc123" });
+
+    EXPECT_NE(report.find("\"schemaVersion\": 1"), std::string::npos);
+    EXPECT_NE(report.find("\"code\": \"finale.chord-symbol\""), std::string::npos);
+    EXPECT_NE(report.find("\"recordType\": \"chordAssign\""), std::string::npos);
+    EXPECT_NE(report.find("\"type\": \"chord-symbol\""), std::string::npos);
+    EXPECT_NE(report.find("\"payloadVersion\": 1"), std::string::npos);
+    EXPECT_NE(report.find("\"quality\": \"minor-seventh\""), std::string::npos);
+    EXPECT_EQ(report.find("\"document\""), std::string::npos);
+    EXPECT_EQ(report.find("notationRef"), std::string::npos);
 }
 
 TEST(ConverterRegistry, CollectsOwnedSingleOutputAndDiagnostics)

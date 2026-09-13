@@ -23,9 +23,11 @@
 
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <sstream>
 #include <span>
@@ -33,6 +35,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "denigma/io/random_access_reader.h"
@@ -63,6 +66,130 @@ enum class MessageSeverity
     Verbose
 };
 
+/// @enum GapRepresentation
+/// @brief How much of a source feature was represented in the target document.
+enum class GapRepresentation
+{
+    None,
+    Partial
+};
+
+/// @enum GapCause
+/// @brief Why a source feature was not represented faithfully.
+enum class GapCause
+{
+    TargetUnsupported,
+    ExporterUnimplemented,
+    Policy
+};
+
+/// @struct FinaleSourceLocator
+/// @brief Stable identity of one source record in Finale EnigmaXML.
+struct FinaleSourceLocator
+{
+    std::string pool;
+    std::string recordType;
+    std::optional<int> partId;
+    std::optional<int> cmper;
+    std::optional<int> cmper1;
+    std::optional<int> cmper2;
+    std::optional<int> inci;
+    std::optional<int> entryNumber;
+};
+
+/// @struct GapTargetAnchor
+/// @brief Location in the converted document where a recovered feature belongs.
+struct GapTargetAnchor
+{
+    /// MNX part ID, omitted when the source staff maps to more than one generated part.
+    std::optional<std::string> partId;
+    /// MNX measure ID, omitted together with #partId when the target part is ambiguous.
+    std::optional<std::string> measureId;
+    /// One-based staff number within the MNX part; omitted for single-staff parts.
+    std::optional<int> staff;
+    /// Position within the measure as a whole-note fraction.
+    int positionNumerator{};
+    int positionDenominator{ 1 };
+};
+
+/// @struct ChordPitch
+/// @brief Written pitch spelling for a chord root or alternate bass.
+struct ChordPitch
+{
+    /// Uppercase diatonic step from A through G.
+    std::string step;
+    int alteration{};
+};
+
+/// @struct ChordDegree
+/// @brief One normalized degree modification in a chord suffix.
+struct ChordDegree
+{
+    int value{};
+    int alteration{};
+    /// One of `add`, `remove`, or `alter`.
+    std::string type;
+    bool impliedByText{};
+};
+
+/// @struct ChordSymbolGapPayload
+/// @brief Target-independent musical meaning needed to recover a chord symbol.
+struct ChordSymbolGapPayload
+{
+    GapTargetAnchor anchor;
+    ChordPitch root;
+    bool rootLowerCase{};
+    bool showRoot{};
+    std::optional<std::string> quality;
+    std::string suffixText;
+    bool showSuffix{};
+    std::optional<ChordPitch> bass;
+    bool bassLowerCase{};
+    std::optional<std::string> bassArrangement;
+    std::vector<ChordDegree> degrees;
+    bool parenthesizeDegrees{};
+    bool stackDegrees{};
+    bool hasOuterParentheses{};
+    bool hasUnrecognizedGlyphs{};
+};
+
+using ConversionGapPayload = std::variant<std::monostate, ChordSymbolGapPayload>;
+
+inline constexpr std::uint32_t CHORD_SYMBOL_GAP_PAYLOAD_VERSION = 1;
+
+/// @struct ConversionGap
+/// @brief A source feature that was not represented faithfully in a conversion target.
+struct ConversionGap
+{
+    std::string code;
+    std::optional<std::uint32_t> payloadVersion;
+    FormatId targetFormat{ FormatId::MnxJson };
+    GapRepresentation representation{ GapRepresentation::None };
+    GapCause cause{ GapCause::TargetUnsupported };
+    FinaleSourceLocator source;
+    std::string message;
+    ConversionGapPayload payload;
+};
+
+/// @enum GapEvidenceLevel
+/// @brief Source evidence retained alongside structured conversion gaps.
+enum class GapEvidenceLevel
+{
+    None,
+    SourceDocument
+};
+
+/// @struct ConversionSourceEvidence
+/// @brief A source document retained once for all gaps in a conversion result.
+///
+/// The document may contain the complete source score. Callers must treat it as
+/// private input data and avoid persisting or transmitting it unintentionally.
+struct ConversionSourceEvidence
+{
+    FormatId format{ FormatId::EnigmaXml };
+    std::string document;
+};
+
 /// @struct Diagnostic
 /// @brief A non-fatal message emitted by a converter.
 struct Diagnostic
@@ -85,6 +212,8 @@ struct CommonOptions
     bool quiet{ false };
     /// Every source font will be available in the environment that reads the converted output.
     bool allFontsAvailable{ false };
+    /// Controls whether gap reports retain a copy of the source document.
+    GapEvidenceLevel gapEvidenceLevel{ GapEvidenceLevel::None };
     /// Optional callback that receives converter log messages. Defaults to no-op.
     std::function<void(MessageSeverity severity, std::string_view message)> logCallback = [](MessageSeverity, std::string_view) {};
 };
@@ -141,8 +270,34 @@ public:
         m_diagnostics.push_back(std::move(diagnostic));
     }
 
+    /// Returns source features that were not represented faithfully.
+    [[nodiscard]] std::span<const ConversionGap> gaps() const noexcept
+    {
+        return m_gaps;
+    }
+
+    /// Adds a structured conversion gap.
+    void addGap(ConversionGap gap)
+    {
+        m_gaps.push_back(std::move(gap));
+    }
+
+    /// Retains a source document shared by every gap in this result.
+    void setSourceEvidence(ConversionSourceEvidence evidence)
+    {
+        m_sourceEvidence = std::move(evidence);
+    }
+
+    /// Returns the shared source document when the converter retained one.
+    [[nodiscard]] const std::optional<ConversionSourceEvidence>& sourceEvidence() const noexcept
+    {
+        return m_sourceEvidence;
+    }
+
 private:
     std::vector<Diagnostic> m_diagnostics;
+    std::vector<ConversionGap> m_gaps;
+    std::optional<ConversionSourceEvidence> m_sourceEvidence;
     bool m_hasError{};
 };
 

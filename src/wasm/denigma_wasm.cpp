@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "denigma/io/random_access_reader.h"
+#include "denigma/gap_report.h"
 #include "core/denigma.h"
 #include "core/musx_reader.h"
 #include "formats/enigmaxml/enigmaxml.h"
@@ -81,6 +82,7 @@ struct OnlineResult
     std::vector<denigma::Diagnostic> diagnostics;
     std::vector<PartInfo> parts;
     std::vector<OutputFile> outputs;
+    std::string gapReport;
 };
 
 enum class InputFormat
@@ -384,6 +386,11 @@ void convertMnx(OnlineResult& result,
     const denigma::MusxLoggerScope musxLogger(denigma::makeMusxLogCallback(context));
     const auto& input = cachedInputData(bytes, inputFormat, context, sourceName);
     denigma::formats::mnx::detail::exportJson(output, input, context);
+    const auto sourceFormat = inputFormat == InputFormat::Musx
+        ? denigma::FormatId::Musx
+        : denigma::FormatId::EnigmaXml;
+    result.gapReport = denigma::serializeGapReport(conversionResult, sourceFormat, denigma::FormatId::MnxJson,
+        { DENIGMA_NAME, DENIGMA_VERSION, denigma::gitCommit() });
     if (!conversionResult.hasError()) {
         appendOutput(result, {}, output.str());
     }
@@ -632,6 +639,18 @@ int denigma_result_output_index(const OnlineResult* result, std::size_t index)
 {
     const auto* item = result ? itemAt(result->outputs, index) : nullptr;
     return item ? item->sourceIndex : -1;
+}
+
+const std::uint8_t* denigma_result_gap_report_data(const OnlineResult* result)
+{
+    return result && !result->gapReport.empty()
+        ? reinterpret_cast<const std::uint8_t*>(result->gapReport.data())
+        : nullptr;
+}
+
+std::size_t denigma_result_gap_report_size(const OnlineResult* result)
+{
+    return result ? result->gapReport.size() : 0;
 }
 
 const char* denigma_version() { return DENIGMA_VERSION; }

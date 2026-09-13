@@ -28,6 +28,7 @@ Denigma can also be consumed as libraries from another CMake project. Link only 
 
 ```cmake
 target_link_libraries(my_tool PRIVATE denigma::classify)
+target_link_libraries(my_tool PRIVATE denigma::gap-report)
 target_link_libraries(my_tool PRIVATE denigma::mnx)
 target_link_libraries(my_tool PRIVATE denigma::mss)
 target_link_libraries(my_tool PRIVATE denigma::musicxml)
@@ -57,6 +58,70 @@ auto artifact = registry.convert(
 ```
 
 `ConversionArtifact` owns the generated documents in emission order and preserves the converter's `ConversionResult`. Multi-output converters retain each suggested filename. The format-specific typed converters and their `convert` overloads remain a first-class alternative.
+
+### Conversion gap reports
+
+`ConversionResult::gaps()` reports recognized source features that were not represented faithfully in a conversion target. Every gap has a stable code, a cause, a representation level, and a source locator. A payload is optional and independently versioned: Denigma adds one only when downstream applications can realistically restore the feature without understanding Finale's internal data model.
+
+MNX chord symbols are the first typed gap. A `finale.chord-symbol` payload contains written root and alternate-bass spellings, normalized quality and degree operations, Unicode suffix text, visibility details, and a target part/measure/position anchor. Consumers can use that payload to add a vendor extension without parsing EnigmaXML. The Finale record locator remains available for provenance and debugging.
+
+```json
+{
+	"code": "finale.chord-symbol",
+	"payloadVersion": 1,
+	"target": {
+		"format": "mnx",
+		"representation": "none",
+		"cause": "target-unsupported"
+	},
+	"source": {
+		"pool": "details",
+		"recordType": "chordAssign",
+		"partId": 0,
+		"cmper1": 1,
+		"cmper2": 1,
+		"inci": 0
+	},
+	"message": "Chord symbols are not representable in standard MNX.",
+	"payload": {
+		"type": "chord-symbol",
+		"anchor": {
+			"position": { "numerator": 0, "denominator": 1 },
+			"partId": "P1",
+			"measureId": "P1.m1"
+		},
+		"root": { "step": "C", "alteration": 0 },
+		"rootLowerCase": false,
+		"showRoot": true,
+		"suffixText": "m7",
+		"showSuffix": true,
+		"degrees": [],
+		"parenthesizeDegrees": false,
+		"stackDegrees": false,
+		"hasOuterParentheses": false,
+		"hasUnrecognizedGlyphs": false,
+		"quality": "minor-seventh"
+	}
+}
+```
+
+Serialized reports use these compatibility rules:
+
+- Consumers should dispatch on `code` and, when a payload is present, `payloadVersion`; unknown fields should be ignored.
+- Consumers should preserve or report unknown gap codes rather than treating them as successfully recovered.
+- A missing `payload` means the gap is diagnostic or requires source-specific handling; it does not imply an empty payload.
+- `target.representation` describes how much reached the target, while `target.cause` explains why fidelity was lost.
+- Target anchors are omitted when Denigma cannot identify one unambiguously, such as a source staff mapped to several split-instrument parts.
+
+Complete EnigmaXML evidence is disabled by default because it can be large and may contain private score data. Native library callers can opt in with:
+
+```cpp
+options.common.gapEvidenceLevel = denigma::GapEvidenceLevel::SourceDocument;
+```
+
+The `denigma::gap-report` CMake target provides JSON serialization. The WebAssembly API exposes serialized report bytes through `denigma_result_gap_report_data` and `denigma_result_gap_report_size`; it does not retain the source document by default.
+
+Gap payloads are not intended to duplicate every missing exporter feature. Features that the target standard can represent should normally be implemented directly in that exporter or its dependency. Typed payloads are reserved for durable target-format limitations with a demonstrated downstream recovery use case.
 
 The companion [denigma-examples](https://github.com/openmusx/denigma-examples) repository demonstrates this from separate native and WebAssembly projects using CMake `FetchContent` or a local Denigma checkout.
 

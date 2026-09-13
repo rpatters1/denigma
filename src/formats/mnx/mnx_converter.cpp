@@ -53,6 +53,18 @@ DenigmaContext makeMnxContext(const Options& options, const std::filesystem::pat
     return context;
 }
 
+void retainGapEvidence(
+    ConversionResult& result,
+    const CommandInputData& inputData,
+    GapEvidenceLevel evidenceLevel)
+{
+    if (result.gaps().empty() || evidenceLevel != GapEvidenceLevel::SourceDocument) {
+        return;
+    }
+    result.setSourceEvidence({ FormatId::EnigmaXml,
+        std::string(inputData.primaryBuffer.begin(), inputData.primaryBuffer.end()) });
+}
+
 } // namespace
 
 ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte> input,
@@ -72,7 +84,9 @@ ConversionResult EnigmaXmlToMnxJsonConverter::convert(std::span<const std::byte>
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
     try {
-        detail::exportJson(output, CommandInputData{ std::move(buffer), std::nullopt, {} }, context);
+        const CommandInputData inputData{ std::move(buffer), std::nullopt, {} };
+        detail::exportJson(output, inputData, context);
+        retainGapEvidence(result, inputData, options.common.gapEvidenceLevel);
     } catch (const std::exception& ex) {
         context.logMessage(LogMsg() << "unable to convert Enigma XML to MNX JSON", MessageSeverity::Error);
         context.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);
@@ -98,7 +112,9 @@ ConversionResult MusxToMnxJsonConverter::convert(const IRandomAccessReader& inpu
     MusxLoggerScope musxLogger(makeMusxLogCallback(context));
 
     try {
-        detail::exportJson(output, formats::enigmaxml::detail::extractMusxInputData(input, context), context);
+        const auto inputData = formats::enigmaxml::detail::extractMusxInputData(input, context);
+        detail::exportJson(output, inputData, context);
+        retainGapEvidence(result, inputData, options.common.gapEvidenceLevel);
     } catch (const std::exception& ex) {
         context.logMessage(LogMsg() << "unable to convert MUSX to MNX JSON", MessageSeverity::Error);
         context.logMessage(LogMsg() << " (exception: " << ex.what() << ")", MessageSeverity::Error);

@@ -103,6 +103,69 @@ TEST(ConverterApi, MusxToMnxJsonWritesToStream)
     EXPECT_EQ(source["filename"], "notAscii-其れ.musx");
 }
 
+TEST(ConverterApi, MusxToMnxJsonReportsChordSymbolGaps)
+{
+    setupTestDataPaths();
+
+    denigma::FileRandomAccessReader input(getInputPath() / "chords.musx");
+    std::ostringstream output;
+    denigma::formats::mnx::Options options;
+    options.common.sourceName = "chords.musx";
+    options.common.validate = false;
+
+    const auto result = denigma::formats::mnx::MusxToMnxJsonConverter{}.convert(input, output, options);
+
+    ASSERT_FALSE(result.gaps().empty());
+    for (const auto& gap : result.gaps()) {
+        EXPECT_EQ(gap.code, "finale.chord-symbol");
+        EXPECT_EQ(gap.payloadVersion, 1u);
+        EXPECT_EQ(gap.targetFormat, denigma::FormatId::MnxJson);
+        EXPECT_EQ(gap.representation, denigma::GapRepresentation::None);
+        EXPECT_EQ(gap.cause, denigma::GapCause::TargetUnsupported);
+        EXPECT_EQ(gap.source.pool, "details");
+        EXPECT_EQ(gap.source.recordType, "chordAssign");
+        EXPECT_TRUE(gap.source.partId.has_value());
+        EXPECT_TRUE(gap.source.cmper1.has_value());
+        EXPECT_TRUE(gap.source.cmper2.has_value());
+        EXPECT_TRUE(gap.source.inci.has_value());
+        const auto* payload = std::get_if<denigma::ChordSymbolGapPayload>(&gap.payload);
+        ASSERT_NE(payload, nullptr);
+        EXPECT_FALSE(payload->root.step.empty());
+        EXPECT_TRUE(payload->showRoot);
+        EXPECT_TRUE(payload->anchor.partId.has_value());
+        EXPECT_TRUE(payload->anchor.measureId.has_value());
+        EXPECT_GT(payload->anchor.positionDenominator, 0);
+    }
+    const auto* firstPayload = std::get_if<denigma::ChordSymbolGapPayload>(&result.gaps().front().payload);
+    ASSERT_NE(firstPayload, nullptr);
+    EXPECT_EQ(firstPayload->root.step, "C");
+    EXPECT_EQ(firstPayload->root.alteration, 0);
+    EXPECT_EQ(firstPayload->quality, "major");
+    EXPECT_EQ(firstPayload->anchor.partId, "P1");
+    EXPECT_EQ(firstPayload->anchor.measureId, "P1.m1");
+    EXPECT_EQ(firstPayload->anchor.positionNumerator, 0);
+    EXPECT_EQ(firstPayload->anchor.positionDenominator, 1);
+    EXPECT_FALSE(result.sourceEvidence().has_value());
+}
+
+TEST(ConverterApi, MusxToMnxJsonRetainsGapEvidenceWhenRequested)
+{
+    setupTestDataPaths();
+
+    denigma::FileRandomAccessReader input(getInputPath() / "chords.musx");
+    std::ostringstream output;
+    denigma::formats::mnx::Options options;
+    options.common.sourceName = "chords.musx";
+    options.common.validate = false;
+    options.common.gapEvidenceLevel = denigma::GapEvidenceLevel::SourceDocument;
+
+    const auto result = denigma::formats::mnx::MusxToMnxJsonConverter{}.convert(input, output, options);
+
+    ASSERT_TRUE(result.sourceEvidence().has_value());
+    EXPECT_EQ(result.sourceEvidence()->format, denigma::FormatId::EnigmaXml);
+    EXPECT_NE(result.sourceEvidence()->document.find("<chordAssign"), std::string::npos);
+}
+
 TEST(ConverterApi, EnigmaXmlToMnxJsonCollectsErrorDiagnosticsForInvalidXml)
 {
     denigma::ConverterRegistry registry;
