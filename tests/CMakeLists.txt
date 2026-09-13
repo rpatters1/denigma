@@ -101,6 +101,7 @@ endfunction()
     # dependency shape into production converter libs.
     target_link_libraries(denigma_tests PRIVATE
         denigma_export_test
+        denigma::gap-report
         denigma_massage_test
         denigma_core_test
         denigma_utils

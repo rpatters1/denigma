@@ -244,6 +244,7 @@ withInput(chordInput, 'chords.musx', (dataPointer, namePointer) => {
       throw new Error('Chord gap report does not contain source-located chord assignments.');
     }
     console.log(`MNX gap report: ${chordGaps.length} chord symbol gaps.`);
+    console.log(`MNX gap example:\n${JSON.stringify(chordGaps[0], null, 2)}`);
   } finally {
     Module._denigma_result_destroy(result);
   }
