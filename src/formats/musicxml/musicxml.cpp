@@ -24,13 +24,12 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 
 #include "musicxml.h"
 #include "core/musx_reader.h"
 #include "utils/mathutils.h"
 
-#include "mx/api/DocumentManager.h"
+#include "mx/api/MusicXml.h"
 #include "mx/api/ScoreData.h"
 
 using namespace musx::dom;
@@ -39,19 +38,6 @@ namespace denigma {
 namespace formats {
 namespace musicxml {
 namespace detail {
-
-std::string mxResultMessage(std::string_view operation, const mx::api::ApiError& error)
-{
-    std::string result = "mx " + std::string(operation) + " failed with result code "
-        + std::to_string(static_cast<int>(error.code));
-    if (!error.message.empty()) {
-        result += ": " + error.message;
-    }
-    if (!error.path.empty()) {
-        result += " at " + error.path;
-    }
-    return result;
-}
 
 void createTiming(const MusicXmlMusxMapping& context, MusicXmlTimingPlan& timing)
 {
@@ -102,19 +88,15 @@ void writeMusicXmlToCallback(
     const std::string& suggestedName,
     const MultiOutputCallback& outputCallback)
 {
-    auto& documentManager = mx::api::DocumentManager::getInstance();
-
-    const auto idResult = documentManager.createFromScore(score);
-    if (!idResult.ok()) {
-        throw std::runtime_error(mxResultMessage("createFromScore", idResult.error()));
+    auto documentResult = mx::api::fromScore(score);
+    if (!documentResult.ok()) {
+        throw std::runtime_error(mx::api::formatError(documentResult.error()));
     }
 
-    const int documentId = idResult.value();
     std::ostringstream output;
-    const auto writeResult = documentManager.writeToStream(documentId, output);
-    documentManager.destroyDocument(documentId);
+    const auto writeResult = documentResult.value().writeToStream(output);
     if (!writeResult.ok()) {
-        throw std::runtime_error(mxResultMessage("writeToStream", writeResult.error()));
+        throw std::runtime_error(mx::api::formatError(writeResult.error()));
     }
 
     const auto data = output.str();
